@@ -15,7 +15,7 @@ public:
 	friend class Windows_ApplicationWindow;
 
 	void ShowCursor(bool visibilityState) const override;
-	void SetMousePos(Vector2ui windowPosition) override;
+	void SetMousePos(glm::uvec2 windowPosition) override;
 	void LockMouseToWindow(bool lockMouse) override;
 	void ReadInputEvents(UINT message, WPARAM wParam, LPARAM lParam);
 private:

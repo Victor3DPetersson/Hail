@@ -16,7 +16,12 @@ enum APPLICATION_COMMAND
 	CHANGE_WINDOW_RESOLUTION = 1 << 3
 };
 
-
+struct ApplicationMessage
+{
+	uint32_t command;
+	RESOLUTIONS renderResolution = RESOLUTIONS::COUNT;
+	RESOLUTIONS windowResolution = RESOLUTIONS::COUNT;
+};
 
 struct StartupAttributes
 {

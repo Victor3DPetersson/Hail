@@ -21,9 +21,9 @@ public:
 
 	void ApplicationUpdateLoop() override;
 
-	Vector2ui GetWindowResolution() override;
-	Vector2ui GetWindowPosition() override;
-	Vector2ui GetMonitorResolution() override;
+	glm::uvec2 GetWindowResolution() override;
+	glm::uvec2 GetWindowPosition() override;
+	glm::uvec2 GetMonitorResolution() override;
 
 private:
 	
@@ -33,6 +33,6 @@ private:
 	Windows_InputHandler* m_windowsInputHandler = nullptr;
 
 	HWND m_windowHandle;
-	Vector2ui m_defaultWindowPosition;
-	Vector2ui m_borderSize;
+	glm::uvec2 m_defaultWindowPosition;
+	glm::uvec2 m_borderSize;
 };

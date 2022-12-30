@@ -11,14 +11,10 @@
 
 #include "Windows/Windows_ApplicationWindow.h"
 #include "Windows/Windows_InputHandler.h"
-
+#include "Windows/Windows_Renderer.h"
 //#elif PLATFORM_OSX//.... more to be added
 
 #endif
-
-
-
-
 
 struct Data
 {
@@ -56,6 +52,7 @@ bool Slask::InitEngine(StartupAttributes startupData)
 	 
 	g_engineData->appWindow = new Windows_ApplicationWindow();
 	g_engineData->inputHandler = new Windows_InputHandler();
+	g_engineData->renderer = new VlkRenderer();
 
 #elif PLATFORM_OSX
 
@@ -66,10 +63,10 @@ bool Slask::InitEngine(StartupAttributes startupData)
 	{
 		return false;
 	}
-	/*
-	Create Renderer
-	Init Renderer
-	*/
+	if (!g_engineData->renderer->Init(startupData.startupResolution))
+	{
+		return false;
+	}
 
 	startupData.initFunctionToCall(); // Init the calling application
 
@@ -103,6 +100,11 @@ bool Slask::IsRunning()
 	return g_engineData->runApplication;
 }
 
+void Slask::HandleApplicationMessage(ApplicationMessage message)
+{
+
+}
+
 
 void ProcessRendering()
 {
@@ -114,6 +116,7 @@ void ProcessRendering()
 
 		if (g_engineData->inputHandler->IsKeyDown('A'))
 		{
+			g_engineData->inputHandler->LockMouseToWindow(true);
 			runHello = true;
 		}
 
@@ -127,6 +130,7 @@ void ProcessRendering()
 	delete g_engineData->appWindow;
 	delete g_engineData->inputHandler;
 	delete g_engineData->timer;
+	delete g_engineData->renderer;
 	delete g_engineData;
 }
 

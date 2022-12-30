@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Vector2.hpp"
+#include "glm\vec2.hpp"
 
 class ApplicationWindow;
 
@@ -13,7 +13,7 @@ public:
 	void Update();
 
 	virtual void ShowCursor(bool visibilityState) const = 0;
-	virtual void SetMousePos(Vector2ui windowPosition) = 0;
+	virtual void SetMousePos(glm::uvec2 windowPosition) = 0;
 	virtual void LockMouseToWindow(bool lockMouse) = 0;
 
 	bool IsKeyHold(const int keyCode) const;
@@ -22,8 +22,8 @@ public:
 
 	//Mouse Events
 
-	Vector2ui GetMousePosition() const { return m_mousePosition; }
-	Vector2ui GetMouseDelta() const { return m_mouseDelta; } 
+	glm::uvec2 GetMousePosition() const { return m_mousePosition; }
+	glm::uvec2 GetMouseDelta() const { return m_mouseDelta; }
 
 	float GetScroll() const { return m_scrollFactor; }//-1.0 - 1.0
 
@@ -39,8 +39,8 @@ protected:
 		char keyHoldMap[0xff];
 	};
 
-	Vector2ui m_mousePosition;
-	Vector2ui m_mouseDelta;
+	glm::uvec2 m_mousePosition;
+	glm::uvec2 m_mouseDelta;
 	float m_scrollFactor;
 
 	InputMaps m_inputMaps;

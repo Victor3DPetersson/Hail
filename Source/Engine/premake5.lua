@@ -32,6 +32,15 @@ project "Engine"
 		"Shared"
 		 }
 
+filter { "platforms:Windows" }
+	libdirs {"%{dirs.extdir}/Vulkan_Lib/" }	
+	links { 
+		"vulkan-1.lib"
+		 }
+ 	includedirs {
+		"%{dirs.extdir}/Vulkan_Include/",
+	}
+
 	--defines {
 	--	'RESOURCE_DIR="' .. resdir.engine:gsub("%\\", "/") .. '/"',
 	--}

@@ -14,6 +14,11 @@ project "Shared"
 	pchheader "Shared_PCH.h"
 	pchsource "Shared_PCH.cpp"
 
+	includedirs {
+		".",
+		"./**",
+	}
+
 	files {
 		"%{dirs.srcdir}/Shared/**.h",
 		"%{dirs.srcdir}/Shared/**.hpp",

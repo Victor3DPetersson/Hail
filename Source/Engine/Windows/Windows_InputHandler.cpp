@@ -18,7 +18,7 @@ void Windows_InputHandler::ShowCursor(bool visibilityState) const
     }
 }
 
-void Windows_InputHandler::SetMousePos(Vector2ui windowPosition)
+void Windows_InputHandler::SetMousePos(glm::uvec2 windowPosition)
 {
     if (m_cursorLock) return;
     POINT tempPoint;

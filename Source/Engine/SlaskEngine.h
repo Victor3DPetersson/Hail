@@ -15,6 +15,6 @@ namespace Slask
 	void ShutDownEngine();
 	InputHandler& GetInputHandler();
 	bool IsRunning();
-
+	void HandleApplicationMessage(ApplicationMessage message);
 }
 

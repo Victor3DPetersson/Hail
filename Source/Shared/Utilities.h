@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Vector2.hpp"
+#include "glm\vec2.hpp"
 
 enum class RESOLUTIONS
 {
@@ -14,28 +14,28 @@ enum class RESOLUTIONS
 };
 
 
-inline Vector2ui ResolutionFromEnum(RESOLUTIONS res)
+inline glm::uvec2 ResolutionFromEnum(RESOLUTIONS res)
 {
-	Vector2ui resolution;
+	glm::uvec2 resolution;
 	switch (res)
 	{
 	case RESOLUTIONS::RES2160:
-		resolution = Vector2ui(3840, 2160);
+		resolution = glm::uvec2(3840, 2160);
 		break;
 	case RESOLUTIONS::RES1440:
-		resolution = Vector2ui(2560, 1440);
+		resolution = glm::uvec2(2560, 1440);
 		break;
 	case RESOLUTIONS::RES1080:
-		resolution = Vector2ui(1920, 1080);
+		resolution = glm::uvec2(1920, 1080);
 		break;
 	case RESOLUTIONS::RES720:
-		resolution = Vector2ui(1280, 720);
+		resolution = glm::uvec2(1280, 720);
 		break;
 	case RESOLUTIONS::RES480:
-		resolution = Vector2ui(854, 480);
+		resolution = glm::uvec2(854, 480);
 		break;
 	case RESOLUTIONS::RES360:
-		resolution = Vector2ui(640, 360);
+		resolution = glm::uvec2(640, 360);
 		break;
 	default:
 		break;

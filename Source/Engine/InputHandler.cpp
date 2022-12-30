@@ -4,7 +4,7 @@
 void InputHandler::Update()
 {
     m_scrollFactor = 0;
-    m_mouseDelta = Vector2ui();
+    m_mouseDelta = glm::uvec2();
     memset(&m_inputMaps.keyDownMap, 0, sizeof(char) * 0xff);
 }
 

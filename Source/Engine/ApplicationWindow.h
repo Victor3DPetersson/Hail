@@ -1,11 +1,6 @@
 #pragma once
 #include "StartupAttributes.h"
-struct ApplicationMessage
-{
-	uint32_t command;
-	RESOLUTIONS renderResolution = RESOLUTIONS::COUNT;
-	RESOLUTIONS windowResolution = RESOLUTIONS::COUNT;
-};
+
 
 class SlaskEngine;
 class InputHandler;
@@ -20,9 +15,9 @@ public:
 
 	virtual void ApplicationUpdateLoop() = 0;
 
-	virtual Vector2ui GetWindowResolution() = 0;
-	virtual Vector2ui GetWindowPosition() = 0;
-	virtual Vector2ui GetMonitorResolution() = 0;
+	virtual glm::uvec2 GetWindowResolution() = 0;
+	virtual glm::uvec2 GetWindowPosition() = 0;
+	virtual glm::uvec2 GetMonitorResolution() = 0;
 
 	void ShutDown() { m_runApplication = false; }
 
@@ -35,5 +30,5 @@ protected:
 	bool m_hasBorder = true;
 	bool m_runApplication = true;
 
-	Vector2ui m_previousSize;
+	glm::uvec2 m_previousSize;
 };

@@ -128,7 +128,7 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 {
 	m_defaultWindowPosition = { startupData.startPositionX, startupData.startPositionY };
 
-	Vector2ui resolution = ResolutionFromEnum(startupData.startupResolution);
+	glm::uvec2 resolution = ResolutionFromEnum(startupData.startupResolution);
 	m_previousSize = resolution;
 
 	WNDCLASS windowClass = {};
@@ -200,19 +200,19 @@ void Windows_ApplicationWindow::SetApplicationSettings(ApplicationMessage messag
 }
 
 
-Vector2ui Windows_ApplicationWindow::GetWindowResolution()
+glm::uvec2 Windows_ApplicationWindow::GetWindowResolution()
 {
-	return Vector2ui();
+	return glm::uvec2();
 }
 
-Vector2ui Windows_ApplicationWindow::GetWindowPosition()
+glm::uvec2 Windows_ApplicationWindow::GetWindowPosition()
 {
-	return Vector2ui();
+	return glm::uvec2();
 }
 
-Vector2ui Windows_ApplicationWindow::GetMonitorResolution()
+glm::uvec2 Windows_ApplicationWindow::GetMonitorResolution()
 {
-	return Vector2ui();
+	return glm::uvec2();
 }
 
 void Windows_ApplicationWindow::InternalSetWindowPos()
