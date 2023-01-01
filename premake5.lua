@@ -3,6 +3,7 @@ require('vstudio')
 workspace "SlaskLauncher"
 	location ""
 	startproject "Launcher"
+	architecture "x64"
 
 	configurations {
 		"Debug",

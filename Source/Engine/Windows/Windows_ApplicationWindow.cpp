@@ -20,6 +20,7 @@ LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM
 	if (uMsg == WM_DESTROY || uMsg == WM_CLOSE)
 	{
 		//Send shutdown function to Engine;
+		Slask::ShutDownEngine();
 		return 0;
 	}
 	else if (uMsg == WM_CREATE)
@@ -128,6 +129,7 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 {
 	m_defaultWindowPosition = { startupData.startPositionX, startupData.startPositionY };
 
+	m_windowModule = (HINSTANCE)GetModuleHandle(NULL);
 	glm::uvec2 resolution = ResolutionFromEnum(startupData.startupResolution);
 	m_previousSize = resolution;
 
@@ -155,10 +157,13 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 	POINT ptDiff;
 	GetClientRect(m_windowHandle, &rcClient);
 	GetWindowRect(m_windowHandle, &rcWind);
-	ptDiff.x = (rcWind.right - rcWind.left) - rcClient.right;
-	ptDiff.y = (rcWind.bottom - rcWind.top) - rcClient.bottom;
-	m_borderSize.x = ptDiff.x;
-	m_borderSize.y = ptDiff.y;
+	m_windowSize.x = rcWind.right - rcWind.left;
+	m_windowSize.y = rcWind.bottom - rcWind.top;
+
+	m_borderSize.x = m_windowSize.x - rcClient.right;
+	m_borderSize.y = m_windowSize.y - rcClient.bottom;
+
+	m_frameBufferSize = m_windowSize - m_borderSize;
 
 	SetWindowPos(m_windowHandle, HWND_NOTOPMOST, m_defaultWindowPosition.x, m_defaultWindowPosition.y, m_previousSize.x, m_previousSize.y + (int)m_borderSize.y - (int)m_borderSize.x, SWP_SHOWWINDOW);
 	//if (startupData.acceptDragNDrop)
@@ -202,7 +207,14 @@ void Windows_ApplicationWindow::SetApplicationSettings(ApplicationMessage messag
 
 glm::uvec2 Windows_ApplicationWindow::GetWindowResolution()
 {
-	return glm::uvec2();
+	if (m_hasBorder)
+	{
+		return m_frameBufferSize;
+	}
+	else
+	{
+		return m_windowSize;
+	}
 }
 
 glm::uvec2 Windows_ApplicationWindow::GetWindowPosition()

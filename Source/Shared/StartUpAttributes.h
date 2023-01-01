@@ -3,6 +3,8 @@
 #include <string>
 #include "Utilities.h"
 
+constexpr uint32_t INVALID_UINT = 0xffffffff;
+
 using callback_function = std::function<void()>;
 using callback_function_dt = std::function<void(float)>;
 

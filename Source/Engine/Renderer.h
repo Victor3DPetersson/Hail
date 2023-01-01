@@ -16,7 +16,7 @@ public:
 	virtual void MainLoop() = 0;
 	virtual void Cleanup() = 0;
 
-private:
+protected:
 
 	glm::uvec2 m_renderResolution;
 

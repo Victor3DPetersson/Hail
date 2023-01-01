@@ -2,6 +2,9 @@ project "Engine"
 	location "%{dirs.localdir}"
 	
 	print ("Building Engine...")
+	pathy = dirs.extdir .. "/Vulkan/Lib/"
+	print (pathy)
+	print (dirs.localdir)
 		
 	language "C++"
 	cppdialect "C++17"
@@ -21,7 +24,6 @@ project "Engine"
 
 	includedirs {
 		".",
-		"./**",
 		"%{dirs.extdir}/dearimgui/",
 		"%{dirs.srcdir}/Shared/",
 	}
@@ -33,12 +35,12 @@ project "Engine"
 		 }
 
 filter { "platforms:Windows" }
-	libdirs {"%{dirs.extdir}/Vulkan_Lib/" }	
+	libdirs {"%{dirs.extdir}/Vulkan/Lib/" }	
 	links { 
-		"vulkan-1.lib"
+		"vulkan-1"
 		 }
  	includedirs {
-		"%{dirs.extdir}/Vulkan_Include/",
+		"%{dirs.extdir}/Vulkan/Include/",
 	}
 
 	--defines {

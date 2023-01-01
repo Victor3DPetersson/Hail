@@ -31,4 +31,6 @@ protected:
 	bool m_runApplication = true;
 
 	glm::uvec2 m_previousSize;
+	glm::uvec2 m_windowSize;
+	glm::uvec2 m_frameBufferSize;
 };

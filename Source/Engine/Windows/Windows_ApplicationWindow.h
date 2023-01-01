@@ -16,6 +16,7 @@ public:
 	bool Init(StartupAttributes startupData, InputHandler* inputHandler) override;
 
 	HWND GetWindowHandle() { return m_windowHandle; }
+	HINSTANCE GetAppModuleHandle()  { return m_windowModule; }
 
 	void SetApplicationSettings(ApplicationMessage message) override;
 
@@ -33,6 +34,7 @@ private:
 	Windows_InputHandler* m_windowsInputHandler = nullptr;
 
 	HWND m_windowHandle;
+	HINSTANCE m_windowModule;
 	glm::uvec2 m_defaultWindowPosition;
 	glm::uvec2 m_borderSize;
 };

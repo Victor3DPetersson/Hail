@@ -30,6 +30,7 @@ struct Data
 
 
 	std::atomic<bool> runApplication = false;
+	std::atomic<bool> runMainThread = false;
 	std::atomic<bool> terminateApplication = false;
 
 	std::thread applicationThread;
@@ -81,6 +82,7 @@ bool Slask::InitEngine(StartupAttributes startupData)
 void Slask::StartEngine()
 {
 	g_engineData->runApplication = true;
+	g_engineData->runMainThread = true;
 	g_engineData->applicationThread = std::thread( &ProcessApplication );
 	ProcessRendering();
 }
@@ -105,11 +107,16 @@ void Slask::HandleApplicationMessage(ApplicationMessage message)
 
 }
 
+ApplicationWindow* Slask::GetApplicationWIndow()
+{
+	return g_engineData->appWindow;
+}
+
 
 void ProcessRendering()
 {
 	bool runHello = false;
-	while(g_engineData->runApplication)
+	while(g_engineData->runMainThread)
 	{
 		g_engineData->timer->FrameStart();
 		g_engineData->appWindow->ApplicationUpdateLoop();
@@ -126,7 +133,8 @@ void ProcessRendering()
 			std::cout << "Hello World: " << dt << std::endl;
 		}
 	}
-
+	g_engineData->applicationThread.join();
+	g_engineData->renderer->Cleanup();
 	delete g_engineData->appWindow;
 	delete g_engineData->inputHandler;
 	delete g_engineData->timer;
@@ -143,9 +151,9 @@ void ProcessApplication()
 
 		if(g_engineData->terminateApplication)
 		{
-			g_engineData->shutdownFunctionToCall();
 			g_engineData->runApplication = false;
+			g_engineData->shutdownFunctionToCall();
 		}
 	}
-	g_engineData->applicationThread.join();
+	g_engineData->runMainThread = false;
 }

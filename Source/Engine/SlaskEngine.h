@@ -6,7 +6,7 @@
 
 class InputHandler;
 class Renderer;
-
+class ApplicationWindow;
 
 namespace Slask
 {
@@ -16,5 +16,6 @@ namespace Slask
 	InputHandler& GetInputHandler();
 	bool IsRunning();
 	void HandleApplicationMessage(ApplicationMessage message);
+	ApplicationWindow* GetApplicationWIndow();
 }
 
