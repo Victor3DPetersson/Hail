@@ -7,20 +7,21 @@
 
 #include "Windows_InputHandler.h"
 #include "InputHandler.h"
-#include "SlaskEngine.h"
+#include "CrabEngine.h"
 
-//extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#include "imgui.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	
 	static Windows_ApplicationWindow* windowHandler = nullptr;
-	//if (ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam))
-		//return true;
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam))
+		return true;
 	if (uMsg == WM_DESTROY || uMsg == WM_CLOSE)
 	{
-		//Send shutdown function to Engine;
-		Slask::ShutDownEngine();
+		Crab::ShutDownEngine();
 		return 0;
 	}
 	else if (uMsg == WM_CREATE)

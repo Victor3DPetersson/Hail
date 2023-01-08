@@ -4,7 +4,7 @@
 
 #include <functional>
 
-template<typename T, typename CountType = unsigned short>
+template<typename T, typename CountType = unsigned int>
 class GrowingArray
 {
 public:
@@ -43,6 +43,7 @@ public:
 
 	inline void RemoveAll();
 	inline void DeleteAll();
+	inline void DeleteAllAndDeinit();
 
 	void Optimize();
 	__forceinline CountType Size() const;
@@ -364,13 +365,20 @@ template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::DeleteAll()
 {
 	assert(m_imInitialized == true, "Growing Array is not initialized");
-	for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
-	{
- 		delete m_arrayPointer[iSlot];
-		m_arrayPointer[iSlot] = nullptr;
-	}
-
+	delete[] m_arrayPointer;
+	m_arrayPointer = nullptr;
+	//for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
+	//{
+ //		delete m_arrayPointer[iSlot];
+	//	m_arrayPointer[iSlot] = nullptr;
+	//}
 	RemoveAll();
+}
+template <typename T, typename CountType>
+void GrowingArray<typename T, typename CountType>::DeleteAllAndDeinit()
+{
+	DeleteAll();
+	*this = GrowingArray();
 }
 
 template <typename T, typename CountType>

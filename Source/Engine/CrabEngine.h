@@ -8,7 +8,7 @@ class InputHandler;
 class Renderer;
 class ApplicationWindow;
 
-namespace Slask
+namespace Crab
 {
 	bool InitEngine(StartupAttributes startupData);
 	void StartEngine();

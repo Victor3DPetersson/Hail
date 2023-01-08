@@ -15,8 +15,18 @@ project "dearimgui"
 		"%{imguidir}/*.cpp",
 		"%{imguidir}/backends/imgui_impl_win32.h",
 		"%{imguidir}/backends/imgui_impl_win32.cpp",
-		"%{imguidir}/backends/imgui_impl_dx11.h",
-		"%{imguidir}/backends/imgui_impl_dx11.cpp",
+		"%{imguidir}/backends/imgui_impl_vulkan.h",
+		"%{imguidir}/backends/imgui_impl_vulkan.cpp",
+		--"%{imguidir}/backends/imgui_impl_win32.h",
+		--"%{imguidir}/backends/imgui_impl_win32.cpp",
+		--"%{imguidir}/backends/imgui_impl_dx11.h",
+		--"%{imguidir}/backends/imgui_impl_dx11.cpp",
 	}
+
+filter { "platforms:Windows" }
+	includedirs {
+		"%{dirs.extdir}/Vulkan/Include/",
+	}
+
 
 	includedirs { ".", }

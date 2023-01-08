@@ -2,6 +2,11 @@
 
 #include "glm\vec2.hpp"
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
+
 enum class RESOLUTIONS
 {
 	RES2160,
@@ -42,3 +47,7 @@ inline glm::uvec2 ResolutionFromEnum(RESOLUTIONS res)
 	}
 	return resolution;
 }
+
+#define SAFEDELETE(ptr) if(ptr) { delete ptr; ptr = nullptr; }
+#define SAFEDELETE_ARRAY(ptr) if(ptr) { delete[] ptr; ptr = nullptr; }
+

@@ -1,5 +1,5 @@
 #include "Launcher_PCH.h"
-#include "SlaskEngine.h"
+#include "CrabEngine.h"
 #include "StartUpAttributes.h"
 #include "Game.h"
 
@@ -15,9 +15,9 @@ int main()
 	startData.shutdownFunctionToCall = [game]() { game->Shutdown(); };
 	startData.updateFunctionToCall = [game](float dt) { game->Update(dt); };
 
-	if(Slask::InitEngine(startData))
+	if(Crab::InitEngine(startData))
 	{
-		Slask::StartEngine();
+		Crab::StartEngine();
 	}
 
 	return 0;

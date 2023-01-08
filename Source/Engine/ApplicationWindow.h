@@ -1,8 +1,6 @@
 #pragma once
 #include "StartupAttributes.h"
 
-
-class SlaskEngine;
 class InputHandler;
 
 class ApplicationWindow

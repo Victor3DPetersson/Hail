@@ -1,9 +1,10 @@
 #include "Engine_PCH.h"
-#include "SlaskEngine.h"
+#include "CrabEngine.h"
 
 #include "InputHandler.h"
 #include "ApplicationWindow.h"
 #include "Timer.h"
+#include "ShaderManager.h"
 
 #include <iostream>
 
@@ -22,7 +23,7 @@ struct Data
 	InputHandler* inputHandler = nullptr;
 	ApplicationWindow* appWindow = nullptr;
 	Renderer* renderer = nullptr;
-
+	ShaderManager* shaderManager = nullptr;
 
 	callback_function_dt updateFunctionToCall = nullptr;
 	//callback_function_dt m_renderFunctionToCall = nullptr;
@@ -40,11 +41,12 @@ Data* g_engineData = nullptr;
 
 void ProcessApplication();
 void ProcessRendering();
+void Cleanup();
 void FrameStart();
 void FrameEnd();
 
 
-bool Slask::InitEngine(StartupAttributes startupData)
+bool Crab::InitEngine(StartupAttributes startupData)
 {
 	g_engineData = new Data();
 	g_engineData->timer = new Timer();
@@ -59,15 +61,20 @@ bool Slask::InitEngine(StartupAttributes startupData)
 
 
 #endif
+	g_engineData->shaderManager = new ShaderManager();
+	g_engineData->shaderManager->LoadAllRequiredShaders();
 
 	if(!g_engineData->appWindow->Init(startupData, g_engineData->inputHandler))
 	{
+		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->Init(startupData.startupResolution))
+	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager))
 	{
+		Cleanup();
 		return false;
 	}
+
 
 	startupData.initFunctionToCall(); // Init the calling application
 
@@ -79,7 +86,7 @@ bool Slask::InitEngine(StartupAttributes startupData)
 
 
 
-void Slask::StartEngine()
+void Crab::StartEngine()
 {
 	g_engineData->runApplication = true;
 	g_engineData->runMainThread = true;
@@ -87,27 +94,27 @@ void Slask::StartEngine()
 	ProcessRendering();
 }
 
-void Slask::ShutDownEngine()
+void Crab::ShutDownEngine()
 {
 	g_engineData->terminateApplication = true;
 }
 
-InputHandler& Slask::GetInputHandler()
+InputHandler& Crab::GetInputHandler()
 {
 	return *g_engineData->inputHandler;
 }
 
-bool Slask::IsRunning()
+bool Crab::IsRunning()
 {
 	return g_engineData->runApplication;
 }
 
-void Slask::HandleApplicationMessage(ApplicationMessage message)
+void Crab::HandleApplicationMessage(ApplicationMessage message)
 {
 
 }
 
-ApplicationWindow* Slask::GetApplicationWIndow()
+ApplicationWindow* Crab::GetApplicationWIndow()
 {
 	return g_engineData->appWindow;
 }
@@ -132,14 +139,21 @@ void ProcessRendering()
 			float dt = static_cast<float>(g_engineData->timer->GetDeltaTime());
 			std::cout << "Hello World: " << dt << std::endl;
 		}
+		g_engineData->renderer->MainLoop();
 	}
 	g_engineData->applicationThread.join();
+	Cleanup();
+}
+
+void Cleanup()
+{
 	g_engineData->renderer->Cleanup();
-	delete g_engineData->appWindow;
-	delete g_engineData->inputHandler;
-	delete g_engineData->timer;
-	delete g_engineData->renderer;
-	delete g_engineData;
+	SAFEDELETE(g_engineData->appWindow);
+	SAFEDELETE(g_engineData->inputHandler);
+	SAFEDELETE(g_engineData->timer);
+	SAFEDELETE(g_engineData->renderer);
+	SAFEDELETE(g_engineData->shaderManager);
+	SAFEDELETE(g_engineData);
 }
 
 void ProcessApplication()

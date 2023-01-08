@@ -25,10 +25,12 @@ struct SwapChainSupportDetails {
 class VlkRenderer : public Renderer
 {
 public:
-	bool Init(RESOLUTIONS startupResolution) override;
+	bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager) override;
 	void MainLoop() override;
 	void Cleanup() override;
+	void InitImGui();
 
+	void CreateShaderObject(CompiledShader& shader) override;
 
 private:
 
@@ -52,6 +54,20 @@ private:
 	void CreateLogicalDevice();
 	void CreateWindowsSurface();
 
+	void CreateRenderPass();
+	void CreatGraphicsPipeline();
+
+	void CreateFramebuffers();
+
+	void CreateCommandPool();
+	void CreateCommandBuffer();
+
+	void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+	void CreateSyncObjects();
+
+	VkShaderModule CreateShaderModule(CompiledShader& shader);
+
+
 	VkInstance m_vkInstance = VK_NULL_HANDLE;
 	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 	VkDevice m_device = VK_NULL_HANDLE;
@@ -65,6 +81,19 @@ private:
 	VkExtent2D m_swapChainExtent;
 	GrowingArray<VkImageView> m_swapChainImageViews;
 
+	VkRenderPass m_renderPass = VK_NULL_HANDLE;
+	VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+
+	VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
+
+	GrowingArray<VkFramebuffer> m_swapChainFramebuffers;
+
+	VkCommandPool m_commandPool;
+	VkCommandBuffer m_commandBuffer;
+
+	VkSemaphore m_imageAvailableSemaphore;
+	VkSemaphore m_renderFinishedSemaphore;
+	VkFence m_inFrameFence;
 
 #ifdef DEBUG
 	VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
