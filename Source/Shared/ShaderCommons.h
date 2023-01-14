@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
+
 enum class SHADERTYPE
 {
 	COMPUTE,

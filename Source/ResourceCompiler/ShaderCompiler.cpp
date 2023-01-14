@@ -1,4 +1,4 @@
-#include "ShaderCompiler_PCH.h"
+#include "ResourceCompiler_PCH.h"
 #include "ShaderCompiler.h"
 
 #include "shaderc/shaderc.hpp"

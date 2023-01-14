@@ -9,19 +9,26 @@
 
 struct CompiledShader;
 class ShaderManager;
-class Renderer
+class Timer;
+namespace Hail
 {
-public:
+	class Renderer
+	{
+	public:
 
-	virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager) = 0;
-	virtual void MainLoop() = 0;
-	virtual void Cleanup() = 0;
-	virtual void InitImGui() = 0;
+		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, Timer* timer) = 0;
+		virtual void MainLoop() = 0;
+		virtual void Cleanup() = 0;
+		virtual void InitImGui() = 0;
+		virtual void RecreateSwapchain() = 0;
+		virtual void CreateShaderObject(CompiledShader& shader) = 0;
 
-	virtual void CreateShaderObject(CompiledShader& shader) = 0;
+		void WindowSizeUpdated();
+	protected:
 
-protected:
-
-	glm::uvec2 m_renderResolution;
-	ShaderManager* m_shaderManager;
-};
+		bool m_framebufferResized = false;
+		glm::uvec2 m_renderResolution;
+		ShaderManager* m_shaderManager = nullptr;
+		Timer* m_timer = nullptr;
+	};
+}

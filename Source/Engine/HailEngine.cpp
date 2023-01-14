@@ -1,10 +1,11 @@
 #include "Engine_PCH.h"
-#include "CrabEngine.h"
+#include "HailEngine.h"
 
 #include "InputHandler.h"
 #include "ApplicationWindow.h"
 #include "Timer.h"
 #include "ShaderManager.h"
+#include "TextureManager.h"
 
 #include <iostream>
 
@@ -16,37 +17,41 @@
 //#elif PLATFORM_OSX//.... more to be added
 
 #endif
-
-struct Data
+namespace Hail
 {
-	Timer* timer = nullptr;
-	InputHandler* inputHandler = nullptr;
-	ApplicationWindow* appWindow = nullptr;
-	Renderer* renderer = nullptr;
-	ShaderManager* shaderManager = nullptr;
+	struct Data
+	{
+		Timer* timer = nullptr;
+		InputHandler* inputHandler = nullptr;
+		ApplicationWindow* appWindow = nullptr;
+		Renderer* renderer = nullptr;
+		ShaderManager* shaderManager = nullptr;
+		TextureManager* textureManager = nullptr;
 
-	callback_function_dt updateFunctionToCall = nullptr;
-	//callback_function_dt m_renderFunctionToCall = nullptr;
-	callback_function shutdownFunctionToCall = nullptr;
-
-
-	std::atomic<bool> runApplication = false;
-	std::atomic<bool> runMainThread = false;
-	std::atomic<bool> terminateApplication = false;
-
-	std::thread applicationThread;
-};
-
-Data* g_engineData = nullptr;
-
-void ProcessApplication();
-void ProcessRendering();
-void Cleanup();
-void FrameStart();
-void FrameEnd();
+		callback_function_dt updateFunctionToCall = nullptr;
+		//callback_function_dt m_renderFunctionToCall = nullptr;
+		callback_function shutdownFunctionToCall = nullptr;
 
 
-bool Crab::InitEngine(StartupAttributes startupData)
+		std::atomic<bool> runApplication = false;
+		std::atomic<bool> runMainThread = false;
+		std::atomic<bool> terminateApplication = false;
+
+		std::thread applicationThread;
+	};
+
+	Data* g_engineData = nullptr;
+
+	void ProcessApplication();
+	void ProcessRendering();
+	void Cleanup();
+	void FrameStart();
+	void FrameEnd();
+}
+
+
+
+bool Hail::InitEngine(StartupAttributes startupData)
 {
 	g_engineData = new Data();
 	g_engineData->timer = new Timer();
@@ -62,31 +67,37 @@ bool Crab::InitEngine(StartupAttributes startupData)
 
 #endif
 	g_engineData->shaderManager = new ShaderManager();
-	g_engineData->shaderManager->LoadAllRequiredShaders();
-
+	if (!g_engineData->shaderManager->LoadAllRequiredShaders())
+	{
+		Cleanup();
+		return false;
+	}
+	g_engineData->textureManager = new TextureManager();
+	if (!g_engineData->textureManager->LoadAllRequiredTextures())
+	{
+		Cleanup();
+		return false;
+	}
 	if(!g_engineData->appWindow->Init(startupData, g_engineData->inputHandler))
 	{
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager))
+	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager, g_engineData->timer))
 	{
 		Cleanup();
 		return false;
 	}
 
-
 	startupData.initFunctionToCall(); // Init the calling application
-
 	g_engineData->updateFunctionToCall = startupData.updateFunctionToCall;
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
-
 	return true;
 }
 
 
 
-void Crab::StartEngine()
+void Hail::StartEngine()
 {
 	g_engineData->runApplication = true;
 	g_engineData->runMainThread = true;
@@ -94,33 +105,33 @@ void Crab::StartEngine()
 	ProcessRendering();
 }
 
-void Crab::ShutDownEngine()
+void Hail::ShutDownEngine()
 {
 	g_engineData->terminateApplication = true;
 }
 
-InputHandler& Crab::GetInputHandler()
+InputHandler& Hail::GetInputHandler()
 {
 	return *g_engineData->inputHandler;
 }
 
-bool Crab::IsRunning()
+bool Hail::IsRunning()
 {
 	return g_engineData->runApplication;
 }
 
-void Crab::HandleApplicationMessage(ApplicationMessage message)
+void Hail::HandleApplicationMessage(ApplicationMessage message)
 {
-
+	g_engineData->appWindow->SetApplicationSettings(message);
 }
 
-ApplicationWindow* Crab::GetApplicationWIndow()
+ApplicationWindow* Hail::GetApplicationWIndow()
 {
 	return g_engineData->appWindow;
 }
 
 
-void ProcessRendering()
+void Hail::ProcessRendering()
 {
 	bool runHello = false;
 	while(g_engineData->runMainThread)
@@ -130,8 +141,10 @@ void ProcessRendering()
 
 		if (g_engineData->inputHandler->IsKeyDown('A'))
 		{
-			g_engineData->inputHandler->LockMouseToWindow(true);
-			runHello = true;
+			Hail::ApplicationMessage message;
+			message.command = Hail::TOGGLE_FULLSCREEN;
+			g_engineData->appWindow->SetApplicationSettings(message);
+			//runHello = true;
 		}
 
 		if (runHello)
@@ -145,7 +158,7 @@ void ProcessRendering()
 	Cleanup();
 }
 
-void Cleanup()
+void Hail::Cleanup()
 {
 	g_engineData->renderer->Cleanup();
 	SAFEDELETE(g_engineData->appWindow);
@@ -153,10 +166,11 @@ void Cleanup()
 	SAFEDELETE(g_engineData->timer);
 	SAFEDELETE(g_engineData->renderer);
 	SAFEDELETE(g_engineData->shaderManager);
+	SAFEDELETE(g_engineData->textureManager);
 	SAFEDELETE(g_engineData);
 }
 
-void ProcessApplication()
+void Hail::ProcessApplication()
 {
 	while(g_engineData->runApplication)
 	{

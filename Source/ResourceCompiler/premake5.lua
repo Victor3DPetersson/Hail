@@ -1,7 +1,7 @@
-project "ShaderCompiler"
+project "ResourceCompiler"
 	location "%{dirs.localdir}"
 
-	print ("Building ShaderCompiler...")
+	print ("Building ResourceCompiler...")
 	print (dirs.srcdir)
 	print (dirs.extdir)
 
@@ -14,12 +14,12 @@ project "ShaderCompiler"
 	objdir ("%{dirs.intdir}")
 	debugdir "%{dirs.shaderindir}"
 
-	pchheader "ShaderCompiler_PCH.h"
-	pchsource "ShaderCompiler_PCH.cpp"
+	pchheader "ResourceCompiler_PCH.h"
+	pchsource "ResourceCompiler_PCH.cpp"
 
 	files {
-		"%{dirs.srcdir}/ShaderCompiler/**.h",
-		"%{dirs.srcdir}/ShaderCompiler/**.cpp",
+		"%{dirs.srcdir}/ResourceCompiler/**.h",
+		"%{dirs.srcdir}/ResourceCompiler/**.cpp",
 	}
 
 	includedirs {
@@ -28,8 +28,10 @@ project "ShaderCompiler"
 		"%{dirs.extdir}/Vulkan/Include/",
 	}
 	defines {
-	 	'SHADER_DIR_IN="' .. dirs.shaderindir:gsub("%\\", "/") .. '/"',
-	 	'SHADER_DIR_OUT="' .. dirs.shaderoutdir:gsub("%\\", "/") .. '/"'
+	 	 	'SHADER_DIR_IN="' .. (dirs.shadersindir):gsub("%\\", "/") .. '/"',
+	 	'SHADER_DIR_OUT="' .. (dirs.shadersoutdir):gsub("%\\", "/") .. '/"',
+	 	'TEXTURES_DIR_IN="' .. (dirs.texturesindir):gsub("%\\", "/") .. '/"',
+	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"'
 	}
 	libdirs { "%{dirs.libdir}", "%{dirs.extdir}/Vulkan/Lib/" }	
 	links { 

@@ -11,6 +11,7 @@ public:
 	GrowingArray();
 
 	GrowingArray(CountType nrOfRecommendedItems, bool useSafeModeFlag = true);
+	GrowingArray(CountType nrOfRecommendedItems,const T& objectToFillWith, bool useSafeModeFlag = true);
 	GrowingArray(const GrowingArray& growingArray);
 	GrowingArray(GrowingArray&& growingArray);
 
@@ -101,6 +102,24 @@ GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecomme
 	m_imInitialized = false;
 	Init(nrOfRecommendedItems, useSafeModeFlag);
 }
+
+template <typename T, typename CountType>
+GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecommendedItems, const T& objectToFillWith, bool useSafeModeFlag)
+{
+	m_arrayPointer = nullptr;
+	m_sizeActual = 0;
+	m_elementCount = 0;
+	m_useSafeMode = true;
+	m_imInitialized = false;
+	Init(nrOfRecommendedItems, useSafeModeFlag);
+	m_elementCount = m_sizeActual;
+	for (CountType i = 0; i < m_elementCount; i++)
+	{
+		m_arrayPointer[i] = objectToFillWith;
+	}
+
+}
+
 
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::GrowingArray(const GrowingArray& growingArray)
@@ -379,6 +398,7 @@ void GrowingArray<typename T, typename CountType>::DeleteAllAndDeinit()
 {
 	DeleteAll();
 	*this = GrowingArray();
+	m_imInitialized = false;
 }
 
 template <typename T, typename CountType>

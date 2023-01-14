@@ -24,13 +24,13 @@ project "Engine"
 		".",
 		"%{dirs.extdir}/dearimgui/",
 		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/ShaderCompiler/",
+		"%{dirs.srcdir}/ResourceCompiler/",
 	}
 
 	libdirs { "%{dirs.libdir}" }	
 	links { 
 		"dearimgui",
-		"ShaderCompiler",
+		"ResourceCompiler",
 		"Shared"
 		 }
 filter { "platforms:Windows" }
@@ -43,8 +43,10 @@ filter { "platforms:Windows" }
 	}
 	
 	defines {
-	 	'SHADER_DIR_IN="' .. dirs.shaderindir:gsub("%\\", "/") .. '/"',
-	 	'SHADER_DIR_OUT="' .. dirs.shaderoutdir:gsub("%\\", "/") .. '/"'
+	 	'SHADER_DIR_IN="' .. (dirs.shadersindir):gsub("%\\", "/") .. '/"',
+	 	'SHADER_DIR_OUT="' .. (dirs.shadersoutdir):gsub("%\\", "/") .. '/"',
+	 	'TEXTURES_DIR_IN="' .. (dirs.texturesindir):gsub("%\\", "/") .. '/"',
+	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"'
 	}
 	--defines {
 	--	'RESOURCE_DIR="' .. resdir.engine:gsub("%\\", "/") .. '/"',

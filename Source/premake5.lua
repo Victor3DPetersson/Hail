@@ -12,6 +12,6 @@ group ("")
 
 group ("Utilities")
 	include ("Shared")
-	group ("Utilities/ShaderCompilation")
-		include ("ShaderCompiler")
+	group ("Utilities/ResourceCompilation")
+		include ("ResourceCompiler")
 group ("")

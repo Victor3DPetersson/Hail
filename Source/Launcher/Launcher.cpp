@@ -1,5 +1,5 @@
 #include "Launcher_PCH.h"
-#include "CrabEngine.h"
+#include "HailEngine.h"
 #include "StartUpAttributes.h"
 #include "Game.h"
 
@@ -15,9 +15,9 @@ int main()
 	startData.shutdownFunctionToCall = [game]() { game->Shutdown(); };
 	startData.updateFunctionToCall = [game](float dt) { game->Update(dt); };
 
-	if(Crab::InitEngine(startData))
+	if(Hail::InitEngine(startData))
 	{
-		Crab::StartEngine();
+		Hail::StartEngine();
 	}
 
 	return 0;

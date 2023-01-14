@@ -9,21 +9,30 @@ using callback_function = std::function<void()>;
 using callback_function_dt = std::function<void(float)>;
 
 
-
-enum APPLICATION_COMMAND
+namespace Hail
 {
-	NONE = 1 << 0,
-	FULLSCREEN = 1 << 1, //Will toggle fullscreen
-	CHANGE_RESOLUTION = 1 << 2,
-	CHANGE_WINDOW_RESOLUTION = 1 << 3
-};
+	enum APPLICATION_COMMAND : uint32_t
+	{
+		NONE = 1 << 0,
+		TOGGLE_FULLSCREEN = 1 << 1, //Will toggle fullscreen
+		SET_RESOLUTION = 1 << 2,
+		TOGGLE_BORDER = 1 << 3,
+		MINIMIZE = 1 << 4,
+		MAXIMIZE = 1 << 5,
+		RESTORE = 1 << 6,
+		MOVE_WINDOW = 1 << 7,
+		DROP_FOCUS = 1 << 8,
+		RESTORE_FOCUS = 1 << 9
+	};
 
-struct ApplicationMessage
-{
-	uint32_t command;
-	RESOLUTIONS renderResolution = RESOLUTIONS::COUNT;
-	RESOLUTIONS windowResolution = RESOLUTIONS::COUNT;
-};
+	struct ApplicationMessage
+	{
+		uint32_t command = 0;
+		RESOLUTIONS renderResolution = RESOLUTIONS::COUNT;
+		RESOLUTIONS windowResolution = RESOLUTIONS::COUNT;
+	};
+}
+
 
 struct StartupAttributes
 {

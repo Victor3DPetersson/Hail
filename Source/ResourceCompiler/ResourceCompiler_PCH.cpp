@@ -1,0 +1,1 @@
+#include "ResourceCompiler_PCH.h"

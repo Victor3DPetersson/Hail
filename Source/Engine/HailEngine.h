@@ -7,8 +7,9 @@
 class InputHandler;
 class Renderer;
 class ApplicationWindow;
+class Timer;
 
-namespace Crab
+namespace Hail
 {
 	bool InitEngine(StartupAttributes startupData);
 	void StartEngine();

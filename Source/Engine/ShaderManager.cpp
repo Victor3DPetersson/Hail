@@ -27,7 +27,6 @@ void ShaderManager::LoadShader(const char* shaderName)
 {
 	CompiledShader shader{};
 	String256 inPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
-	String256 inHeaderPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".header");
 
 	std::ifstream inStream(inPath.Data(), std::ios::in | std::ios::binary);
 	if (!inStream)

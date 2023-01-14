@@ -18,7 +18,7 @@ public:
 	HWND GetWindowHandle() { return m_windowHandle; }
 	HINSTANCE GetAppModuleHandle()  { return m_windowModule; }
 
-	void SetApplicationSettings(ApplicationMessage message) override;
+	void SetApplicationSettings(Hail::ApplicationMessage message) override;
 
 	void ApplicationUpdateLoop() override;
 

@@ -7,7 +7,7 @@
 
 #include "Windows_InputHandler.h"
 #include "InputHandler.h"
-#include "CrabEngine.h"
+#include "HailEngine.h"
 
 #include "imgui.h"
 
@@ -21,7 +21,7 @@ LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM
 		return true;
 	if (uMsg == WM_DESTROY || uMsg == WM_CLOSE)
 	{
-		Crab::ShutDownEngine();
+		Hail::ShutDownEngine();
 		return 0;
 	}
 	else if (uMsg == WM_CREATE)
@@ -53,75 +53,62 @@ LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM
 	// 	DragFinish(drop);
 	// }
 
-	//ApplicationMessage message;
+	Hail::ApplicationMessage message;
 
 	switch (uMsg)
 	{
 
-	// case WM_ENTERSIZEMOVE:
-	// 	message.command = EIsResizing;
-	// 	SetApplicationSettings(message);
-	// 	break;
+	 case WM_ENTERSIZEMOVE:
+	 	break;
 
-	// case WM_EXITSIZEMOVE:
-	// 	message.myMessage = EIsDoneResizing | EMove;
-	// 	SetApplicationSettings(message);
-	// 	break;
+	 case WM_EXITSIZEMOVE:
+	 	message.command |= Hail::MOVE_WINDOW;
+	 	break;
 	
-	// case WM_GETMINMAXINFO:
-	// 	((MINMAXINFO*)lParam)->ptMinTrackSize.x = 720;
-	// 	((MINMAXINFO*)lParam)->ptMinTrackSize.y = 425;
-	// 	break;
+	 case WM_GETMINMAXINFO:
+	 	((MINMAXINFO*)lParam)->ptMinTrackSize.x = 720;
+	 	((MINMAXINFO*)lParam)->ptMinTrackSize.y = 425;
+	 	break;
 
-	// case WM_ACTIVATE:
-	// 	if (LOWORD(wParam) == WA_INACTIVE)
-	// 	{
-	// 		message.myMessage = EIsTabbedOut;
-	// 		SetApplicationSettings(message);
+	 case WM_ACTIVATE:
+	 	if (LOWORD(wParam) == WA_INACTIVE)
+	 	{
+	 		message.command |= Hail::DROP_FOCUS;
+	 	}
+	 	else
+	 	{
+			message.command |= Hail::RESTORE_FOCUS;
+	 	}
+	 	break;
 
-	// 		globalEngineData.windowHandler.TabToggle(EIsTabbedOut);
-	// 	}
-	// 	else
-	// 	{
-	// 		message.myMessage = EIsTabbedIn;
-	// 		EngineInterface::SetWindowSettings(message);
-
-	// 		globalEngineData.windowHandler.TabToggle(EIsTabbedIn);
-	// 	}
-	// 	break;
-
-	// case WM_SYSCOMMAND:
-	// 	if (wParam == SC_MINIMIZE)
-	// 	{
-	// 		message.myMessage = EIsTabbedOut;
-	// 		EngineInterface::SetWindowSettings(message);
-	// 	}
-	// 	if (wParam == SC_MAXIMIZE)
-	// 	{
-	// 		message.myMessage = EUpdateResolution_FromEvent;
-	// 		EngineInterface::SetWindowSettings(message);
-	// 	}
-	// 	if (wParam == SC_RESTORE)
-	// 	{
-	// 		message.myMessage = EUpdateResolution_FromEvent;
-	// 		EngineInterface::SetWindowSettings(message);
-	// 	}
-	// 	break;
+	 case WM_SYSCOMMAND:
+	 	if (wParam == SC_MINIMIZE)
+	 	{
+			message.command |= Hail::MINIMIZE;
+	 	}
+	 	if (wParam == SC_MAXIMIZE)
+	 	{
+	 		message.command |= Hail::MAXIMIZE;
+	 	}
+	 	if (wParam == SC_RESTORE)
+	 	{
+			message.command |= Hail::RESTORE;
+	 	}
+	 	break;
 
 	case WM_SYSKEYDOWN:
 	case WM_SYSKEYUP:
 
 	case WM_SYSCHAR:
-		// if (wParam == VK_RETURN)
-		// {
-		// 	message.myMessage = EAltTab;
-		// 	EngineInterface::SetWindowSettings(message);
-		// }
+		 //if (wParam == VK_RETURN)
+		 //{
+			// message.command |= Hail::DROP_FOCUS;
+		 //}
 		break;
 	default:
 		break;
 	}	  
-
+	Hail::HandleApplicationMessage(message);
 	return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
@@ -181,28 +168,80 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 
 void Windows_ApplicationWindow::ApplicationUpdateLoop()
 {
-	if(m_runApplication)
+	//Reset input handler
+	m_inputHandler->Update();
+
+	//Recieve window messages
+	MSG windowMsg;
+	while (PeekMessage(&windowMsg, 0, 0, 0, PM_REMOVE))
 	{
-		//Recieve window messages
-		m_inputHandler->Update();
-		MSG windowMsg;
+		TranslateMessage(&windowMsg);
+		DispatchMessage(&windowMsg);
 
-		while (PeekMessage(&windowMsg, 0, 0, 0, PM_REMOVE))
+		if (m_hasFocus)
 		{
-			TranslateMessage(&windowMsg);
-			DispatchMessage(&windowMsg);
-
-			//if (!globalEngineData.applicationPaused)
-			{
-				m_windowsInputHandler->ReadInputEvents(windowMsg.message, windowMsg.wParam, windowMsg.lParam);
-			}
+			m_windowsInputHandler->ReadInputEvents(windowMsg.message, windowMsg.wParam, windowMsg.lParam);
 		}
 	}
 }
 
-void Windows_ApplicationWindow::SetApplicationSettings(ApplicationMessage message)
+void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage message)
 {
+	uint32_t messageCommand = static_cast<uint32_t>(message.command);
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::TOGGLE_FULLSCREEN))
+	{
+		if (m_isFullScreen)
+		{
+			m_windowSize = m_previousSize;
+			m_hasBorder = m_previousHasBorder;
+		}
+		else
+		{
+			m_hasBorder = m_previousHasBorder;
+			m_previousSize = m_windowSize;
+			RECT desktop;
+			// Get a handle to the desktop window
+			const HWND hDesktop = GetDesktopWindow();
+			// Get the size of screen to the variable desktop
+			GetWindowRect(hDesktop, &desktop);
+			m_windowSize.x = desktop.right;
+			m_windowSize.y = desktop.bottom;
+		}
+		m_isFullScreen = !m_isFullScreen;
+		InternalSetWindowPos();
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::SET_RESOLUTION))
+	{
 
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::TOGGLE_BORDER))
+	{
+
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MINIMIZE))
+	{
+
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MAXIMIZE))
+	{
+
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::RESTORE))
+	{
+
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MOVE_WINDOW))
+	{
+
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::DROP_FOCUS))
+	{
+
+	}
+	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::RESTORE_FOCUS))
+	{
+
+	}
 }
 
 
@@ -230,5 +269,26 @@ glm::uvec2 Windows_ApplicationWindow::GetMonitorResolution()
 
 void Windows_ApplicationWindow::InternalSetWindowPos()
 {
-	
+
+	if (m_isFullScreen)
+	{
+		DWORD windowStyle = WS_POPUP | WS_VISIBLE;
+		SetWindowLongPtr(m_windowHandle, GWL_STYLE, windowStyle);
+		SetWindowPos(m_windowHandle, HWND_TOPMOST, 0, 0, m_windowSize.x, m_windowSize.y, SWP_SHOWWINDOW);
+	}
+	else
+	{
+		if (m_hasBorder)
+		{
+			DWORD windowStyle = WS_OVERLAPPEDWINDOW | WS_POPUP | WS_VISIBLE;
+			SetWindowLongPtr(m_windowHandle, GWL_STYLE, windowStyle);
+		}
+		else
+		{
+			DWORD windowStyle = WS_POPUP | WS_VISIBLE;
+			SetWindowLongPtr(m_windowHandle, GWL_STYLE, windowStyle);
+		}
+		SetWindowPos(m_windowHandle, HWND_NOTOPMOST, m_defaultWindowPosition.x, m_defaultWindowPosition.y, m_previousSize.x, m_previousSize.y + (int)m_borderSize.y - (int)m_borderSize.x, SWP_SHOWWINDOW);
+	}
+
 }

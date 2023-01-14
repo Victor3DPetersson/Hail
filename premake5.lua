@@ -1,6 +1,6 @@
 require('vstudio')
 
-workspace "CrabLauncher"
+workspace "HailLancher"
 	location ""
 	startproject "Launcher"
 	architecture "x64"
@@ -35,8 +35,12 @@ filter { "platforms:OSX" }
 
 dirs = {}
 dirs.outdir = os.realpath("Generated/bin")
-dirs.shaderoutdir = os.realpath("Generated/bin/shaders")
-dirs.shaderindir = os.realpath("Source/Shaders")
+dirs.resourcesoutdir = os.realpath("Generated/bin/resources")
+dirs.resourcesindir = os.realpath("Source/Resources")
+dirs.texturesoutdir = os.realpath("Generated/bin/resources/textures")
+dirs.texturesindir = os.realpath("Source/Resources/Textures")
+dirs.shadersoutdir = os.realpath("Generated/bin/resources/shaders")
+dirs.shadersindir = os.realpath("Source/Resources/Shaders")
 dirs.intdir = os.realpath("Generated/int-bin")
 dirs.libdir = os.realpath("Generated/lib")
 dirs.localdir = os.realpath("Generated/local")
