@@ -8,6 +8,7 @@
 #include "TextureManager.h"
 
 #include <iostream>
+#include "imgui.h"
 
 #ifdef PLATFORM_WINDOWS
 
@@ -83,7 +84,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager, g_engineData->timer))
+	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager, g_engineData->textureManager, g_engineData->timer))
 	{
 		Cleanup();
 		return false;
@@ -138,6 +139,7 @@ void Hail::ProcessRendering()
 	{
 		g_engineData->timer->FrameStart();
 		g_engineData->appWindow->ApplicationUpdateLoop();
+		g_engineData->renderer->StartFrame();
 
 		if (g_engineData->inputHandler->IsKeyDown('A'))
 		{
@@ -152,7 +154,15 @@ void Hail::ProcessRendering()
 			float dt = static_cast<float>(g_engineData->timer->GetDeltaTime());
 			std::cout << "Hello World: " << dt << std::endl;
 		}
-		g_engineData->renderer->MainLoop();
+		ImGui::Begin("Window");
+		//ImGuiCommands here
+		float val = 0;
+		ImGui::DragFloat("Hi", &val);
+
+		ImGui::End();
+		g_engineData->renderer->Render();
+
+		g_engineData->renderer->EndFrame();
 	}
 	g_engineData->applicationThread.join();
 	Cleanup();

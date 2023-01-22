@@ -28,13 +28,18 @@ namespace Hail
 	class VlkRenderer : public Renderer
 	{
 	public:
-		bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, Timer* timer) override;
-		void MainLoop() override;
-		void Cleanup() override;
+		bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, Timer* timer) override;
+		void StartFrame() final;
+		void Render() final;
+		void EndFrame() final;
+		void Cleanup() final;
 		void InitImGui();
 
 		void RecreateSwapchain();
-		void CreateShaderObject(CompiledShader& shader) override;
+		void CreateShaderObject(CompiledShader& shader) final;
+
+	protected:
+
 
 	private:
 
@@ -75,14 +80,28 @@ namespace Hail
 
 		VkShaderModule CreateShaderModule(CompiledShader& shader);
 
+		void CreateTextureImage();
+		void CreateTextureImageView();
+		void CreateTextureSampler();
+
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
+		
+		//General functions
 		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+		VkImageView  CreateImageView(VkImage image, VkFormat format);
+
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 		void CreateUniformBuffers();
 		void CreateDescriptorPool();
 		void CreateDescriptorSets();
 		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+		VkCommandBuffer BeginSingleTimeCommands();
+		void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
+		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
 		void CreateDescriptorSetLayout();
 
@@ -114,7 +133,7 @@ namespace Hail
 		VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
 		GrowingArray<VkDescriptorSet> m_descriptorSets;
 
-		VkCommandPool m_commandPool;
+		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
 
 		VkSemaphore m_imageAvailableSemaphores[MAX_FRAMESINFLIGHT];
@@ -122,11 +141,19 @@ namespace Hail
 		VkFence m_inFrameFences[MAX_FRAMESINFLIGHT];
 
 		uint32_t m_currentFrame = 0;
+		uint32_t m_currentImageIndex = 0;
 
 		VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_vertexBufferMemory = VK_NULL_HANDLE;
 		VkBuffer m_indexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_indexBufferMemory = VK_NULL_HANDLE;
+
+		VkImage m_textureImage = VK_NULL_HANDLE;
+		VkDeviceMemory m_textureImageMemory = VK_NULL_HANDLE;
+		VkImageView m_textureImageView = VK_NULL_HANDLE;
+		VkSampler m_textureSampler = VK_NULL_HANDLE;
+
+		VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
 
 #ifdef DEBUG
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;

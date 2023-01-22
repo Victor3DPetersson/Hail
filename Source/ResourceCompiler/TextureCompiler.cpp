@@ -384,9 +384,31 @@ bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTexture
 	}
 	outStream.write((char*)&textureHeader, sizeof(textureHeader));
 
-	for (uint32_t i = 0; i < textureHeader.width * textureHeader.height * numberOfColors; i++)
+	for (uint32_t i = 0; i < textureHeader.width * textureHeader.height * numberOfColors; i+= numberOfColors)
 	{
-		outStream.write((char*)&compiledTextureData[i], sizeof(char));
+		switch (numberOfColors)
+		{
+		case 1:
+			outStream.write((char*)&compiledTextureData[i], sizeof(char));
+			break;
+		case 2:
+			outStream.write((char*)&compiledTextureData[i], sizeof(char));
+			outStream.write((char*)&compiledTextureData[i + 1], sizeof(char));
+			break;
+		case 3:
+			outStream.write((char*)&compiledTextureData[i + 2], sizeof(char)); //flipping to rgb from bgr
+			outStream.write((char*)&compiledTextureData[i + 1], sizeof(char));
+			outStream.write((char*)&compiledTextureData[i], sizeof(char));
+			break;
+		case 4:
+			outStream.write((char*)&compiledTextureData[i + 2], sizeof(char)); //flipping to rgb from bgr
+			outStream.write((char*)&compiledTextureData[i + 1], sizeof(char));
+			outStream.write((char*)&compiledTextureData[i], sizeof(char));
+			outStream.write((char*)&compiledTextureData[i + 3], sizeof(char));
+			break;
+		default:
+			break;
+		}
 	}
 	//outStream.write((char*)&compiledTextureData, textureHeader.width * textureHeader.height * sizeOfColor * numberOfColors);
 	outStream.close();

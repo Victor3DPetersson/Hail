@@ -9,6 +9,7 @@
 
 struct CompiledShader;
 class ShaderManager;
+class TextureManager;
 class Timer;
 namespace Hail
 {
@@ -16,8 +17,10 @@ namespace Hail
 	{
 	public:
 
-		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, Timer* timer) = 0;
-		virtual void MainLoop() = 0;
+		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, Timer* timer) = 0;
+		virtual void StartFrame() = 0;
+		virtual void EndFrame() = 0;
+		virtual void Render() = 0;
 		virtual void Cleanup() = 0;
 		virtual void InitImGui() = 0;
 		virtual void RecreateSwapchain() = 0;
@@ -26,9 +29,12 @@ namespace Hail
 		void WindowSizeUpdated();
 	protected:
 
+
+
 		bool m_framebufferResized = false;
 		glm::uvec2 m_renderResolution;
 		ShaderManager* m_shaderManager = nullptr;
+		TextureManager* m_textureManager = nullptr;
 		Timer* m_timer = nullptr;
 	};
 }

@@ -10,6 +10,8 @@ class GrowingArray
 public:
 	GrowingArray();
 
+	GrowingArray(const std::initializer_list<T>& aInitList);
+
 	GrowingArray(CountType nrOfRecommendedItems, bool useSafeModeFlag = true);
 	GrowingArray(CountType nrOfRecommendedItems,const T& objectToFillWith, bool useSafeModeFlag = true);
 	GrowingArray(const GrowingArray& growingArray);
@@ -90,6 +92,19 @@ GrowingArray<typename T, typename CountType>::~GrowingArray()
 	//assert(m_imInitialized == true && "Growing Array is not initialized");
 
 	DumpAll();
+}
+
+template <typename T, typename CountType>
+GrowingArray<typename T, typename CountType>::GrowingArray(const std::initializer_list<T>& aInitList) :m_imInitialized(false), m_sizeActual(static_cast<CountType>(aInitList.size())), m_elementCount(0)
+{
+	Init(m_sizeActual);
+	int counter{};
+	for (T object : aInitList)
+	{
+		m_elementCount++;
+		m_arrayPointer[counter] = object;
+		counter++;
+	}
 }
 
 template <typename T, typename CountType>

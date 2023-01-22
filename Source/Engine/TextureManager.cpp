@@ -27,6 +27,39 @@ void TextureManager::Update()
 	//TODO: Add file watcher here
 }
 
+void Read8BitStream(std::ifstream& stream, void** outData, const uint32_t numberOfBytesToRead)
+{
+	*outData = new uint8_t[numberOfBytesToRead];
+	unsigned char* pixels = (unsigned char*)malloc(numberOfBytesToRead);
+	stream.read((char*)&pixels[0], numberOfBytesToRead);
+	memcpy(*outData, pixels, numberOfBytesToRead);
+	free(pixels);
+}
+void Read16BitStream(std::ifstream& stream, void** outData, const uint32_t numberOfBytesToRead)
+{
+	*outData = new uint16_t[numberOfBytesToRead];
+	uint16_t* pixels = (uint16_t*)malloc(numberOfBytesToRead);
+	stream.read((char*)&pixels[0], numberOfBytesToRead);
+	memcpy(*outData, pixels, numberOfBytesToRead);
+	free(pixels);
+}
+void Read32UintBitStream(std::ifstream& stream, void** outData, const uint32_t numberOfBytesToRead)
+{
+	*outData = new uint32_t[numberOfBytesToRead];
+	uint32_t* pixels = (uint32_t*)malloc(numberOfBytesToRead);
+	stream.read((char*)&pixels[0], numberOfBytesToRead);
+	memcpy(*outData, pixels, numberOfBytesToRead);
+	free(pixels);
+}
+void Read32FltBitStream(std::ifstream& stream, void** outData, const uint32_t numberOfBytesToRead)
+{
+	*outData = new float[numberOfBytesToRead];
+	float* pixels = (float*)malloc(numberOfBytesToRead);
+	stream.read((char*)&pixels[0], numberOfBytesToRead);
+	memcpy(*outData, pixels, numberOfBytesToRead);
+	free(pixels);
+}
+
 //TODO: Add relative path support in the shader output
 bool TextureManager::LoadTexture(const char* textureName, CompiledTexture& outTexture)
 {
@@ -42,136 +75,34 @@ bool TextureManager::LoadTexture(const char* textureName, CompiledTexture& outTe
 
 	inStream.read((char*)&outTexture.header, sizeof(TextureHeader));
 	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", outTexture.header.width, outTexture.header.height, "\n"));
-	TextureHeader& header = outTexture.header;
-
-	uint32_t width, heigth, numberOfColors, byteSizePixel;
-	width = header.width;
-	heigth = header.height;
-	numberOfColors = 0;
-	byteSizePixel = 0;
-
 	switch (ToEnum<TEXTURE_TYPE>(outTexture.header.textureType))
 	{
 	case TEXTURE_TYPE::R8G8B8A8:
-	{
-		byteSizePixel = 1;
-		numberOfColors = 4;
-		outTexture.compiledColorValues = new unsigned char[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		unsigned char* pixels = (unsigned char*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
+		Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R8G8B8:
-	{
-		byteSizePixel = 1;
-		numberOfColors = 3;
-		outTexture.compiledColorValues = new unsigned char[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		unsigned char* pixels = (unsigned char*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
-
+		Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R8:
-	{
-		byteSizePixel = 1;
-		numberOfColors = 1;
-		outTexture.compiledColorValues = new unsigned char[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		unsigned char* pixels = (unsigned char*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
-
+		Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R16G16B16A16:
-	{
-		byteSizePixel = 2;
-		numberOfColors = 4;
-		outTexture.compiledColorValues = new uint16_t[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		uint16_t* pixels = (uint16_t*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
-
+		Read16BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R16G16B16:
-	{
-		byteSizePixel = 2;
-		numberOfColors = 3;
-		outTexture.compiledColorValues = new uint16_t[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		uint16_t* pixels = (uint16_t*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
+		Read16BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R16:
-	{
-		byteSizePixel = 2;
-		numberOfColors = 1;
-		outTexture.compiledColorValues = new uint16_t[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		uint16_t* pixels = (uint16_t*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
-
+		Read16BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R32G32B32A32:
-	{
-		byteSizePixel = 4;
-		numberOfColors = 4;
-		outTexture.compiledColorValues = new uint32_t[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		uint32_t* pixels = (uint32_t*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
+		Read32UintBitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R32G32B32:
-	{
-		byteSizePixel = 4;
-		numberOfColors = 3;
-		outTexture.compiledColorValues = new uint32_t[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		uint32_t* pixels = (uint32_t*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
+		Read32UintBitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	case TEXTURE_TYPE::R32:
-	{
-		byteSizePixel = 4;
-		numberOfColors = 1;
-		outTexture.compiledColorValues = new uint32_t[width * heigth * numberOfColors];
-
-		const uint32_t imageByteSize = byteSizePixel * numberOfColors * width * heigth;
-		uint32_t* pixels = (uint32_t*)malloc(imageByteSize);
-		inStream.read((char*)&pixels[0], imageByteSize);
-		memcpy(outTexture.compiledColorValues, pixels, imageByteSize);
-		free(pixels);
-	}
+		Read32UintBitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 		break;
 	default:
 		return false;

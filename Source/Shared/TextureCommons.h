@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
+#include "DebugMacros.h"
 
 enum class TEXTURE_TYPE : uint32_t
 {
@@ -38,3 +39,7 @@ struct CompiledTexture
 	String64 textureName;
 };
 
+void DeleteCompiledTexture(CompiledTexture& texture);
+
+
+uint32_t GetTextureByteSize(TextureHeader header);
