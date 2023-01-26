@@ -62,7 +62,6 @@ public:
 
 
 private:
-	inline void MirrorWithMoveSemantics(GrowingArray & growingArray);
 	void DumpAll();
 	void GrowArray();
 	void GrowArray(const CountType growSize);
@@ -150,7 +149,14 @@ GrowingArray<typename T, typename CountType>::GrowingArray(const GrowingArray& g
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::GrowingArray(GrowingArray&& growingArray)
 {
-	MirrorWithMoveSemantics(growingArray);
+	m_sizeActual = growingArray.m_sizeActual;
+	m_useSafeMode = growingArray.m_useSafeMode;
+	m_arrayPointer = growingArray.m_arrayPointer;
+	m_elementCount = growingArray.m_elementCount;
+	m_imInitialized = growingArray.m_imInitialized;
+	m_arrayPointer = growingArray.m_arrayPointer;
+
+	growingArray.m_arrayPointer = nullptr;
 }
 
 template <typename T, typename CountType>
@@ -214,8 +220,14 @@ GrowingArray<typename T, typename CountType> & GrowingArray<typename T, typename
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType> & GrowingArray<typename T, typename CountType>::operator=(GrowingArray&& growingArray)
 {
-	MirrorWithMoveSemantics(growingArray);
+	m_sizeActual = growingArray.m_sizeActual;
+	m_useSafeMode = growingArray.m_useSafeMode;
+	m_arrayPointer = growingArray.m_arrayPointer;
+	m_elementCount = growingArray.m_elementCount;
+	m_imInitialized = growingArray.m_imInitialized;
+	m_arrayPointer = growingArray.m_arrayPointer;
 
+	growingArray.m_arrayPointer = nullptr;
 	return (*this);
 }
 
@@ -445,33 +457,6 @@ void GrowingArray<typename T, typename CountType>::Resize(CountType aNewSize)
 	m_elementCount = aNewSize;
 }
 
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::MirrorWithMoveSemantics(GrowingArray & growingArray)
-{
-	if (m_imInitialized != false)
-	{
-		DumpAll();
-	}
-
-	if (growingArray.m_useSafeMode == true)
-	{
-		//Init(growingArray.m_sizeActual, growingArray.m_useSafeMode);
-
-		m_sizeActual = growingArray.m_sizeActual;
-		m_useSafeMode = growingArray.m_useSafeMode;
-
-		m_arrayPointer = growingArray.m_arrayPointer;
-
-		m_elementCount = growingArray.m_elementCount;
-		m_imInitialized = growingArray.m_imInitialized;
-	}
-	else
-	{
-		memcpy(this, &growingArray, sizeof(GrowingArray));
-	}
-
-	growingArray.m_arrayPointer = nullptr;
-}
 
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::GrowArray()

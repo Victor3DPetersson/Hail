@@ -6,6 +6,7 @@
 #include "Timer.h"
 #include "ShaderManager.h"
 #include "TextureManager.h"
+#include "Resources\ResourceManager.h"
 
 #include <iostream>
 #include "imgui.h"
@@ -28,7 +29,7 @@ namespace Hail
 		Renderer* renderer = nullptr;
 		ShaderManager* shaderManager = nullptr;
 		TextureManager* textureManager = nullptr;
-
+		ResourceManager* resourceManager = nullptr;
 		callback_function_dt updateFunctionToCall = nullptr;
 		//callback_function_dt m_renderFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
@@ -79,12 +80,14 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
+	g_engineData->resourceManager = new ResourceManager();
+
 	if(!g_engineData->appWindow->Init(startupData, g_engineData->inputHandler))
 	{
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager, g_engineData->textureManager, g_engineData->timer))
+	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager, g_engineData->textureManager, g_engineData->resourceManager, g_engineData->timer))
 	{
 		Cleanup();
 		return false;
@@ -177,6 +180,7 @@ void Hail::Cleanup()
 	SAFEDELETE(g_engineData->renderer);
 	SAFEDELETE(g_engineData->shaderManager);
 	SAFEDELETE(g_engineData->textureManager);
+	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
 }
 

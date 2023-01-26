@@ -28,7 +28,7 @@ namespace Hail
 	class VlkRenderer : public Renderer
 	{
 	public:
-		bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, Timer* timer) override;
+		bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer) override;
 		void StartFrame() final;
 		void Render() final;
 		void EndFrame() final;
@@ -62,6 +62,10 @@ namespace Hail
 		VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const GrowingArray<VkSurfaceFormatKHR>& availableFormats);
 		VkPresentModeKHR ChooseSwapPresentMode(const GrowingArray<VkPresentModeKHR>& availablePresentModes);
 		VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+		VkFormat FindSupportedFormat(const GrowingArray<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+		VkFormat FindDepthFormat();
+		bool HasStencilComponent(VkFormat format);
+
 		void CreateImageViews();
 
 		void CreateLogicalDevice();
@@ -90,7 +94,7 @@ namespace Hail
 		//General functions
 		void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		void CreateImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-		VkImageView  CreateImageView(VkImage image, VkFormat format);
+		VkImageView  CreateImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 		void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 		void CreateUniformBuffers();
@@ -102,6 +106,8 @@ namespace Hail
 		void EndSingleTimeCommands(VkCommandBuffer commandBuffer);
 		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+		void CreateDepthResources();
 
 		void CreateDescriptorSetLayout();
 
@@ -117,6 +123,10 @@ namespace Hail
 		VkFormat m_swapChainImageFormat;
 		VkExtent2D m_swapChainExtent;
 		GrowingArray<VkImageView> m_swapChainImageViews;
+
+		VkImage m_depthImage;
+		VkDeviceMemory m_depthImageMemory;
+		VkImageView m_depthImageView;
 
 		VkRenderPass m_renderPass = VK_NULL_HANDLE;
 		VkDescriptorSetLayout  m_descriptorSetLayout = VK_NULL_HANDLE;

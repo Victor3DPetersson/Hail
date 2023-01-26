@@ -1,13 +1,18 @@
 # TODO:
-1. Complete Tutorial
-2. Implement ImGui
-3. Setup basic threaded workflow between renderer and Game
-4. Imgui interface over threads
-5. Sprite component
-6. Texture importation pipeline
-7. Profiling and Unit tests
-8. Cleanup Renderer from tutorial now when more comfortable with the API
-9. Resource Manager
+1. [x] Complete Tutorial
+2. [x] Implement ImGui
+3. [x] Implement a mesh in a basic way
+4. [] Setup basic threaded workflow between renderer and Game to move said mesh
+5. [] Imgui interface over threads
+6. [] Sprite component
+7. [] Texture importation pipeline
+8. [] Profiling and Unit tests
+9. [] Cleanup Renderer from tutorial now when more comfortable with the API
+10. [] Resource Manager
+
+# TODO: unspecified order
+
+- [] Implement Mip-Mapping from Vulkan tutorial
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.

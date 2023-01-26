@@ -1,5 +1,8 @@
 #pragma once
 
+static constexpr float PIf = 3.1415926f;
+
+
 namespace Math
 {
 	template <typename T>

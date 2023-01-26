@@ -13,11 +13,12 @@ class TextureManager;
 class Timer;
 namespace Hail
 {
+	class ResourceManager;
 	class Renderer
 	{
 	public:
 
-		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, Timer* timer) = 0;
+		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer) = 0;
 		virtual void StartFrame() = 0;
 		virtual void EndFrame() = 0;
 		virtual void Render() = 0;
@@ -25,16 +26,18 @@ namespace Hail
 		virtual void InitImGui() = 0;
 		virtual void RecreateSwapchain() = 0;
 		virtual void CreateShaderObject(CompiledShader& shader) = 0;
+		virtual void ReloadShaders();
 
 		void WindowSizeUpdated();
 	protected:
 
 
-
+		bool m_shadersRecompiled = false;
 		bool m_framebufferResized = false;
 		glm::uvec2 m_renderResolution;
 		ShaderManager* m_shaderManager = nullptr;
 		TextureManager* m_textureManager = nullptr;
+		ResourceManager* m_resourceManqager = nullptr;
 		Timer* m_timer = nullptr;
 	};
 }
