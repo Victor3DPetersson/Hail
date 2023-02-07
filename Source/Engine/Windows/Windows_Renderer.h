@@ -14,7 +14,8 @@ namespace Hail
 		uint32_t graphicsFamily = INVALID_UINT;
 		uint32_t presentFamily = INVALID_UINT;
 
-		bool IsComplete() {
+		bool IsComplete() 
+		{
 			return graphicsFamily != INVALID_UINT && presentFamily != INVALID_UINT;
 		}
 	};
@@ -29,7 +30,7 @@ namespace Hail
 	{
 	public:
 		bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer) override;
-		void StartFrame() final;
+		void StartFrame(RenderCommandPool& renderPool) final;
 		void Render() final;
 		void EndFrame() final;
 		void Cleanup() final;

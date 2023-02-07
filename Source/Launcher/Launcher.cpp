@@ -11,9 +11,9 @@ int main()
 	StartupAttributes startData;
 
 
-	startData.initFunctionToCall = [game]() { game->Init(); };
+	startData.initFunctionToCall = [game](void* initData) { game->Init(initData); };
 	startData.shutdownFunctionToCall = [game]() { game->Shutdown(); };
-	startData.updateFunctionToCall = [game](float dt) { game->Update(dt); };
+	startData.updateFunctionToCall = [game](float dt, void* frameData) { game->Update(dt, frameData); };
 
 	if(Hail::InitEngine(startData))
 	{

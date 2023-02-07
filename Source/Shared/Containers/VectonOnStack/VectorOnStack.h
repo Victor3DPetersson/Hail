@@ -2,234 +2,144 @@
 #include <cassert>
 #include <cstring>
 
-namespace CommonUtilities
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag = true, typename CountType = unsigned int>
+class VectorOnStack
 {
-	template <typename Type, int Capacity, typename CountType = unsigned short, bool UseSafeModeFlag = true>
-	class VectorOnStack
+public:
+	VectorOnStack() = default;
+	VectorOnStack(const VectorOnStack& vectorOnStack);
+
+	~VectorOnStack();
+
+	VectorOnStack & operator=(const VectorOnStack & vectorOnStack);
+
+	inline const Type& operator[](const CountType & index) const;
+	inline Type& operator[](const CountType & index);
+
+	inline void Add(const Type& object);
+	inline void Insert(CountType index, Type& object);
+	inline void RemoveCyclicAtIndex(CountType aItemNumber);
+	inline Type* Data() { return m_data; }
+	inline void Clear();
+	inline void DeleteAll();
+
+	__forceinline CountType Size() const;
+
+private:
+	Type m_data[Capacity];
+	unsigned int m_size = Capacity - 1;
+	CountType m_end = 0;
+};
+
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::VectorOnStack(const VectorOnStack& vectorOnStack)
+{
+	(*this) = vectorOnStack;
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::~VectorOnStack()
+{
+	m_size = 0;
+	m_end = 0;
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType> &  VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::operator=(const VectorOnStack & vectorOnStack)
+{
+	if (UseSafeModeFlag == true)
 	{
-	public:
-		VectorOnStack();
-		VectorOnStack(const VectorOnStack& aVectorOnStack);
-
-		~VectorOnStack();
-
-		VectorOnStack & operator=(const VectorOnStack & aVectorOnStack);
-
-		inline const Type& operator[](const CountType & aIndex) const;
-		inline Type& operator[](const CountType & aIndex);
-
-		inline void Add(const Type& aObject);
-		inline void Insert(CountType aIndex, Type& aObject);
-		inline void DeleteCyclic(Type& aObject);
-		inline void DeleteCyclicAtIndex(CountType aItemNumber);
-		inline void RemoveCyclic(const Type& aObject);
-		inline void RemoveCyclicAtIndex(CountType aItemNumber);
-
-		inline void Clear();
-		inline void DeleteAll();
-
-		__forceinline CountType Size() const;
-
-	private:
-		Type myData[Capacity];
-		int mySize = Capacity - 1;
-		CountType myEnd = 0;
-	};
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::VectorOnStack()
-	{
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::VectorOnStack(const VectorOnStack& aVectorOnStack)
-	{
-		(*this) = aVectorOnStack;
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::~VectorOnStack()
-	{
-		mySize = 0;
-		myEnd = 0;
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag> &  VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::operator=(const VectorOnStack & aVectorOnStack)
-	{
-		if (UseSafeModeFlag == true)
+		for (size_t iSlot = 0; iSlot <= m_size; ++iSlot)
 		{
-			for (size_t iSlot = 0; iSlot <= mySize; ++iSlot)
-			{
-				myData[iSlot] = aVectorOnStack.myData[iSlot];
-			}
-			myEnd = aVectorOnStack.myEnd;
+			m_data[iSlot] = vectorOnStack.m_data[iSlot];
 		}
-		else
-		{
-			memcpy(this, &aVectorOnStack, sizeof(VectorOnStack));
-		}
-		return (*this);
+		m_end = vectorOnStack.m_end;
 	}
+	else
+	{
+		memcpy(this, &vectorOnStack, sizeof(VectorOnStack));
+	}
+	return (*this);
+}
 
 	
 
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	const Type& VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::operator[](const CountType& aIndex) const
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+const Type& VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::operator[](const CountType& index) const
+{
+	assert(index < m_end && "Index is out of range");
+	return m_data[index];
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+Type& VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::operator[](const CountType& index)
+{
+	assert(index < m_end && "Index is out of range");
+	return m_data[index];
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Add(const Type& object)
+{
+	assert(m_end <= (m_size) && "Vector is full");
+
+	m_data[m_end] = object;
+	m_end++;
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Insert(CountType index, Type& object)
+{
+	assert(m_end <= (m_size) && "Vector is full");
+	assert(index <= m_end && "Index is out of range");
+
+	if (index != m_end)
 	{
-		assert(aIndex < myEnd && "Index is out of range");
-		assert(aIndex >= 0 && "Index can not be a negative number");
-
-		return myData[aIndex];
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	Type& VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::operator[](const CountType& aIndex)
-	{
-		assert(aIndex < myEnd && "Index is out of range");
-		assert(aIndex >= 0 && "Index can not be a negative number");
-
-		return myData[aIndex];
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::Add(const Type& aObject)
-	{
-		assert(myEnd <= (mySize) && "Vector is full");
-
-		myData[myEnd] = aObject;
-		myEnd++;
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::Insert(CountType aIndex, Type& aObject)
-	{
-		assert(myEnd <= (mySize) && "Vector is full");
-		assert(aIndex <= myEnd && "Index is out of range");
-		assert(aIndex >= 0 && "Index can not be a negative number");
-
-
-
-
-		if (aIndex != myEnd)
+		for (CountType iData = m_end; iData > index; --iData)
 		{
-			for (CountType iData = myEnd; iData > aIndex; --iData)
-			{
-				myData[iData] = myData[iData - 1];
-			}
-		}
-
-		myData[aIndex] = aObject;
-		++myEnd;
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::DeleteCyclic(Type& aObject)
-	{
-		assert(myEnd > 0 && "Vector is empty");
-
-		if (myEnd != 1)
-		{
-			for (CountType iSlot = myEnd - 1; iSlot >= 0; --iSlot)
-			{
-				if (myData[iSlot] == aObject)
-				{
-					DeleteCyclicAtIndex(iSlot);
-					return;
-				}
-			}
-		}
-		else
-		{
-			if (myData[0] == aObject)
-			{
-				DeleteCyclicAtIndex(0);
-				return;
-			}
+			m_data[iData] = m_data[iData - 1];
 		}
 	}
 
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::DeleteCyclicAtIndex(CountType aItemNumber)
+	m_data[index] = object;
+	++m_end;
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::RemoveCyclicAtIndex(CountType itemNumber)
+{
+	assert(aItemNumber < m_end && "Index is out of range");
+
+	if (m_end != 1)
 	{
-		assert(aItemNumber < myEnd && "Index is out of range");
-		assert(aItemNumber >= 0 && "Index can not be a negative number");
-
-		if (myEnd != 1)
-		{
-			delete myData[aItemNumber];
-			myData[aItemNumber] = myData[myEnd - 1];
-			--myEnd;
-		}
-		else
-		{
-			delete myData[0];
-			Clear();
-		}
+		m_data[itemNumber] = m_data[m_end - 1];
+		--m_end;
 	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::RemoveCyclic(const Type& aObject)
+	else
 	{
-		assert(myEnd > 0 && "Vector is empty");
-
-		if (myEnd != 1)
-		{
-			for (CountType iSlot = 0; iSlot < myEnd; ++iSlot)
-			{
-				if (myData[iSlot] == aObject)
-				{
-					RemoveCyclicAtIndex(iSlot);
-					return;
-				}
-			}
-		}
-		else
-		{
-			if (myData[0] == aObject)
-			{
-				RemoveCyclicAtIndex(0);
-				return;
-			}
-		}
+		Clear();
 	}
-	
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::RemoveCyclicAtIndex(CountType aItemNumber)
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::DeleteAll()
+{
+	for (size_t iSlot = 0; iSlot < m_end; ++iSlot)
 	{
-		assert(aItemNumber < myEnd && "Index is out of range");
-		assert(aItemNumber >= 0 && "Index can not be a negative number");
-
-		if (myEnd != 1)
-		{
-			myData[aItemNumber] = myData[myEnd - 1];
-			--myEnd;
-		}
-		else
-		{
-			Clear();
-		}
+		delete m_data[iSlot];
+		m_data[iSlot] = nullptr;
 	}
+}
 
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::DeleteAll()
-	{
-		for (size_t iSlot = 0; iSlot < myEnd; ++iSlot)
-		{
-			delete myData[iSlot];
-			myData[iSlot] = nullptr;
-		}
-	}
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Clear()
+{
+	m_end = 0;
+}
 
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	void VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::Clear()
-	{
-		myEnd = 0;
-	}
-
-	template <typename Type, int Capacity, typename CountType, bool UseSafeModeFlag>
-	CountType VectorOnStack<Type, Capacity, CountType, UseSafeModeFlag>::Size() const
-	{
-		return myEnd;
-	}
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+CountType VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Size() const
+{
+	return m_end;
 }

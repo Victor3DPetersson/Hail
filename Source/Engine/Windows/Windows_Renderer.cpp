@@ -30,6 +30,8 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "Camera.h"
+#include "RenderCommands.h"
 
 using namespace Hail;
 
@@ -245,8 +247,12 @@ void VlkRenderer::InitImGui()
 
 }
 
+namespace
+{
+	Hail::Camera g_camera;
+}
 
-void Hail::VlkRenderer::StartFrame()
+void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 {
 	vkWaitForFences(m_device, 1, &m_inFrameFences[m_currentFrame], VK_TRUE, UINT64_MAX);
 	VkResult result = vkAcquireNextImageKHR(m_device, m_swapChain, 10000, m_imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_currentImageIndex);
@@ -266,6 +272,8 @@ void Hail::VlkRenderer::StartFrame()
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplVulkan_NewFrame();
 	ImGui::NewFrame();
+
+	g_camera = renderPool.renderCamera;
 }
 
 void VlkRenderer::Render()
@@ -427,7 +435,8 @@ void Hail::VlkRenderer::UpdateUniformBuffer(uint32_t frameInFlight)
 
 	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), m_swapChainExtent.width / (float)m_swapChainExtent.height, 0.1f, 10000.0f);
+	ubo.view = Transform3D::GetMatrix(g_camera.GetTransform());
+	ubo.proj = glm::perspective(glm::radians(g_camera.GetFov()), m_swapChainExtent.width / (float)m_swapChainExtent.height, g_camera.GetNear(), g_camera.GetFar());
 	ubo.proj[1][1] *= -1;
 	memcpy(m_uniformBuffersMapped[m_currentFrame], &ubo, sizeof(ubo));
 }
@@ -1224,7 +1233,7 @@ void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[m_currentFrame], 0, nullptr);
 
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManqager->m_unitCylinder.indices.Size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManqager->m_unitCube.indices.Size()), 1, 0, 0, 0);
 
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
 
@@ -1404,7 +1413,7 @@ void Hail::VlkRenderer::CreateTextureSampler()
 
 void VlkRenderer::CreateVertexBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(VertexModel) * m_resourceManqager->m_unitCylinder.vertices.Size();
+	VkDeviceSize bufferSize = sizeof(VertexModel) * m_resourceManqager->m_unitCube.vertices.Size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -1412,7 +1421,7 @@ void VlkRenderer::CreateVertexBuffer()
 
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_resourceManqager->m_unitCylinder.vertices.Data(), (size_t)bufferSize);
+	memcpy(data, m_resourceManqager->m_unitCube.vertices.Data(), (size_t)bufferSize);
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
 	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_vertexBuffer, m_vertexBufferMemory);
@@ -1424,7 +1433,7 @@ void VlkRenderer::CreateVertexBuffer()
 
 void VlkRenderer::CreateIndexBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(uint32_t) * m_resourceManqager->m_unitCylinder.indices.Size();
+	VkDeviceSize bufferSize = sizeof(uint32_t) * m_resourceManqager->m_unitCube.indices.Size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -1432,7 +1441,7 @@ void VlkRenderer::CreateIndexBuffer()
 
 	void* data;
 	vkMapMemory(m_device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_resourceManqager->m_unitCylinder.indices.Data(), (size_t)bufferSize);
+	memcpy(data, m_resourceManqager->m_unitCube.indices.Data(), (size_t)bufferSize);
 	vkUnmapMemory(m_device, stagingBufferMemory);
 
 	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_indexBuffer, m_indexBufferMemory);

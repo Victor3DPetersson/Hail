@@ -4,11 +4,12 @@
 3. [x] Implement a mesh in a basic way
 4. [] Setup basic threaded workflow between renderer and Game to move said mesh
 5. [] Imgui interface over threads
-6. [] Sprite component
-7. [] Texture importation pipeline
-8. [] Profiling and Unit tests
-9. [] Cleanup Renderer from tutorial now when more comfortable with the API
-10. [] Resource Manager
+6. [] Create several cylinders and instance render them.
+7. [] Sprite component
+8. [] Texture importation pipeline
+9. [] Profiling and Unit tests
+10. [] Cleanup Renderer from tutorial now when more comfortable with the API
+11. [] Resource Manager
 
 # TODO: unspecified order
 

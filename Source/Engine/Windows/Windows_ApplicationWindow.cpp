@@ -168,8 +168,6 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 
 void Windows_ApplicationWindow::ApplicationUpdateLoop()
 {
-	//Reset input handler
-	m_inputHandler->Update();
 
 	//Recieve window messages
 	MSG windowMsg;

@@ -11,7 +11,7 @@ protected:
 	void SetWindowHandle(HWND handle);
 public:
 	Windows_InputHandler() = default;
-
+	void InitInputMapping() final;
 	friend class Windows_ApplicationWindow;
 
 	void ShowCursor(bool visibilityState) const override;
@@ -19,6 +19,6 @@ public:
 	void LockMouseToWindow(bool lockMouse) override;
 	void ReadInputEvents(UINT message, WPARAM wParam, LPARAM lParam);
 private:
-	HCURSOR m_applicationCursor;
-	HWND m_windowHandle;
+	HCURSOR m_applicationCursor{};
+	HWND m_windowHandle{};
 };

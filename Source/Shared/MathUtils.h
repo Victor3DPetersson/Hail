@@ -67,14 +67,9 @@ namespace Math
 		b = a;
 	}
 
-	inline float AngleToRadian(float angle)
-	{
-		return angle * 0.017453f;
-	}
-
-	inline float RadianToAngle(float radian)
-	{
-		return radian / 0.017453f;
-	}
+	constexpr double DegToRad = PIf / 180.0;
+	constexpr double RadToDeg = 180.0 / PIf;
+	constexpr float DegToRadf = float(DegToRad);
+	constexpr float RadToDegf = float(RadToDeg);
 }
 

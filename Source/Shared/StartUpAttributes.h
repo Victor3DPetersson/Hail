@@ -5,8 +5,14 @@
 
 constexpr uint32_t INVALID_UINT = 0xffffffff;
 
+namespace Hail
+{
+	struct RenderCommandPool;
+}
+
 using callback_function = std::function<void()>;
-using callback_function_dt = std::function<void(float)>;
+using callback_function_init = std::function<void(void*)>;
+using callback_function_dt_frmData = std::function<void(float, void*)>;
 
 
 namespace Hail
@@ -36,15 +42,16 @@ namespace Hail
 
 struct StartupAttributes
 {
-	callback_function initFunctionToCall = nullptr;
-	callback_function_dt updateFunctionToCall = nullptr;
-	callback_function_dt renderFunctionToCall = nullptr;
+	callback_function_init initFunctionToCall = nullptr;
+	callback_function_dt_frmData updateFunctionToCall = nullptr;
 	callback_function shutdownFunctionToCall = nullptr;
 
 	RESOLUTIONS startupResolution = RESOLUTIONS::RES720;
 
 	uint16_t startPositionX = 400;
 	uint16_t startPositionY = 400;
+
+	uint8_t applicationTickRate = 60;
 
 	//std::wstring applicationName;
 

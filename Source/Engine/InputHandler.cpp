@@ -1,24 +1,22 @@
 #include "Engine_PCH.h"
 #include "InputHandler.h"
 
-void InputHandler::Update()
+void InputHandler::ResetKeyStates()
 {
-    m_scrollFactor = 0;
-    m_mouseDelta = glm::uvec2();
-    memset(&m_inputMaps.keyDownMap, 0, sizeof(char) * 0xff);
-}
-
-bool InputHandler::IsKeyHold(const int keyCode) const
-{
-    return m_inputMaps.keyHoldMap[keyCode];
-}
-
-bool InputHandler::IsKeyDown(const int keyCode) const
-{
-    return m_inputMaps.keyDownMap[keyCode];
-}
-
-bool InputHandler::IsKeyUp(const int keyCode) const
-{
-    return m_inputMaps.keyUpMap[keyCode];
+	for (size_t i = 0; i < 0xff; i++)
+	{
+		if (m_inputMap.keyMap[i] == Hail::KEY_RELEASED)
+		{
+			m_inputMap.keyMap[i] = Hail::KEY_NONE;
+		}
+	}
+	for (size_t i = 0; i < Hail::MOUSE_KEY_COUNT; i++)
+	{
+		if (m_inputMap.mouse.keys[i] == Hail::KEY_RELEASED)
+		{
+			m_inputMap.mouse.keys[i] = Hail::KEY_NONE;
+		}
+	}
+	//memset(m_inputMap.keyMap, Hail::KEY_NONE, sizeof(char) * 0xff);
+	//memset(m_inputMap.mouse.keys, Hail::KEY_NONE, sizeof(char) * Hail::MOUSE_KEY_COUNT);
 }

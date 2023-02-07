@@ -14,12 +14,13 @@ class Timer;
 namespace Hail
 {
 	class ResourceManager;
+	struct RenderCommandPool;
 	class Renderer
 	{
 	public:
 
 		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer) = 0;
-		virtual void StartFrame() = 0;
+		virtual void StartFrame(RenderCommandPool& renderPool) = 0;
 		virtual void EndFrame() = 0;
 		virtual void Render() = 0;
 		virtual void Cleanup() = 0;

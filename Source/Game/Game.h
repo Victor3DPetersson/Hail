@@ -1,17 +1,27 @@
 //Interface for the entire engine
 #pragma once
 #include "StartupAttributes.h"
+#include "InputMappings.h"
+
+namespace Hail
+{
+	struct ApplicationFrameData;
+	struct RecordedImGuiCommands;
+	struct RenderCommandPool;
+	struct InputMapping;
+}
 
 class GameApplication
 {
 public:
-	void Init();
-	void Update(float deltaTime);
+	void Init(void* initData);
+	void Update(float deltaTime, void* renderCommandPoolToFill);
 	void Shutdown();
 
 private:
-
-	void SendFrameData();
+	Hail::InputMapping m_inputMapping;
+	Hail::RecordedImGuiCommands* m_recordedImguiCommands;
+	void FillFrameData(Hail::RenderCommandPool& renderCommandPoolToFill);
 
 };
 
