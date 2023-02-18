@@ -25,7 +25,6 @@ namespace Hail
 		virtual void Render() = 0;
 		virtual void Cleanup() = 0;
 		virtual void InitImGui() = 0;
-		virtual void RecreateSwapchain() = 0;
 		virtual void CreateShaderObject(CompiledShader& shader) = 0;
 		virtual void ReloadShaders();
 
