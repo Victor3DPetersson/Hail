@@ -26,6 +26,8 @@
 
 #include "VulkanInternal/VkVertex_Descriptor.h"
 #include "VulkanInternal/VlkTextureCreationFunctions.h"
+#include "VulkanInternal/VlkBufferCreationFunctions.h"
+#include "VulkanInternal/VlkSingleTimeCommand.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -131,7 +133,7 @@ void VlkRenderer::InitImGui()
 
 	ImGui_ImplVulkan_Init(&init_info, m_swapChain.GetRenderPass());
 
-	VkCommandBuffer cmd = BeginSingleTimeCommands();
+	VkCommandBuffer cmd = BeginSingleTimeCommands(m_device, m_commandPool);
 
 
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
@@ -139,7 +141,7 @@ void VlkRenderer::InitImGui()
 	//immediate_submit([&](VkCommandBuffer cmd) {
 	//	ImGui_ImplVulkan_CreateFontsTexture(cmd);
 	//	});
-	EndSingleTimeCommands(cmd);
+	EndSingleTimeCommands(m_device, cmd, m_graphicsQueue, m_commandPool);
 	////clear font textures from cpu data
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 
@@ -204,7 +206,7 @@ void Hail::VlkRenderer::EndFrame()
 #endif
 	}
 
-	m_swapChain.FrameEnd(m_renderFinishedSemaphores, m_presentQueue);
+	m_swapChain.FrameEnd(signalSemaphores, m_presentQueue);
 }
 
 void VlkRenderer::Cleanup()
@@ -608,8 +610,9 @@ void Hail::VlkRenderer::CreateTextureImage()
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
 	const uint32_t imageSize = GetTextureByteSize(texture.header);
-	CreateBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | 
-		VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+	CreateBuffer(m_device, imageSize, 
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
 		stagingBuffer, stagingBufferMemory);
 	void* data;
 	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, imageSize, 0, &data);
@@ -671,16 +674,20 @@ void VlkRenderer::CreateVertexBuffer()
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+		stagingBuffer, stagingBufferMemory);
 
 	void* data;
 	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, m_resourceManqager->m_unitCube.vertices.Data(), (size_t)bufferSize);
 	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_vertexBuffer, m_vertexBufferMemory);
+	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+		m_vertexBuffer, m_vertexBufferMemory);
 
-	CopyBuffer(stagingBuffer, m_vertexBuffer, bufferSize);
+	CopyBuffer(m_device, stagingBuffer, m_vertexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
 	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
 }
@@ -691,65 +698,25 @@ void VlkRenderer::CreateIndexBuffer()
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+		stagingBuffer, stagingBufferMemory);
 
 	void* data;
 	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, m_resourceManqager->m_unitCube.indices.Data(), (size_t)bufferSize);
 	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_indexBuffer, m_indexBufferMemory);
+	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_indexBuffer, m_indexBufferMemory);
 
-	CopyBuffer(stagingBuffer, m_indexBuffer, bufferSize);
+	CopyBuffer(m_device, stagingBuffer, m_indexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
 
 	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
 }
 
-void VlkRenderer::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
-{
-	VkBufferCreateInfo bufferInfo{};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = size;
-	bufferInfo.usage = usage;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateBuffer(m_device.GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) 
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create buffer!");
-#endif
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(m_device.GetDevice(), buffer, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = FindMemoryType(m_device, memRequirements.memoryTypeBits, properties);
-
-	if (vkAllocateMemory(m_device.GetDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to allocate buffer memory!");
-#endif
-	}
-
-	vkBindBufferMemory(m_device.GetDevice(), buffer, bufferMemory, 0);
-}
-
-
-void VlkRenderer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-{
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
-
-	VkBufferCopy copyRegion{};
-	copyRegion.size = size;
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-	EndSingleTimeCommands(commandBuffer);
-}
 
 void Hail::VlkRenderer::CreateUniformBuffers()
 {
@@ -761,7 +728,7 @@ void Hail::VlkRenderer::CreateUniformBuffers()
 
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++) 
 	{
-		CreateBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
+		CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
 		vkMapMemory(m_device.GetDevice(), m_uniformBuffersMemory[i], 0, bufferSize, 0, &m_uniformBuffersMapped[i]);
 	}
 }
@@ -840,46 +807,10 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 	}
 }
 
-
-VkCommandBuffer Hail::VlkRenderer::BeginSingleTimeCommands()
-{
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = m_commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(m_device.GetDevice(), &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void Hail::VlkRenderer::EndSingleTimeCommands(VkCommandBuffer commandBuffer)
-{
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(m_graphicsQueue);
-
-	vkFreeCommandBuffers(m_device.GetDevice(), m_commandPool, 1, &commandBuffer);
-}
-
 //TODO: Make image transition function to consider mip levels and the like
 void Hail::VlkRenderer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_device, m_commandPool);
 
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -951,12 +882,12 @@ void Hail::VlkRenderer::TransitionImageLayout(VkImage image, VkFormat format, Vk
 		1, &barrier
 	);
 
-	EndSingleTimeCommands(commandBuffer);
+	EndSingleTimeCommands(m_device, commandBuffer, m_graphicsQueue, m_commandPool);
 }
 
 void Hail::VlkRenderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
+	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_device, m_commandPool);
 	VkBufferImageCopy region{};
 	region.bufferOffset = 0;
 	region.bufferRowLength = 0;
@@ -983,7 +914,7 @@ void Hail::VlkRenderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32
 		&region
 	);
 
-	EndSingleTimeCommands(commandBuffer);
+	EndSingleTimeCommands(m_device, commandBuffer, m_graphicsQueue, m_commandPool);
 }
 
 void Hail::VlkRenderer::CreateDescriptorSetLayout()
