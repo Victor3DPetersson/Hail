@@ -218,6 +218,11 @@ void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MINIMIZE))
 	{
+		m_previousSize = m_windowSize;
+		m_windowSize = { 0, 0 };
+		m_previousHasBorder = m_hasBorder;
+		m_previousFrameBufferSize = m_frameBufferSize;
+		m_frameBufferSize = { 0, 0 };
 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MAXIMIZE))
@@ -226,6 +231,10 @@ void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::RESTORE))
 	{
+		m_windowSize = m_previousSize;
+		m_hasBorder = m_previousHasBorder;
+		m_frameBufferSize = m_previousFrameBufferSize;
+		InternalSetWindowPos();
 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MOVE_WINDOW))

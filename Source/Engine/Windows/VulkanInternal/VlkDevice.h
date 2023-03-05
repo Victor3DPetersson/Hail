@@ -10,12 +10,12 @@ namespace Hail
 {
 	struct QueueFamilyIndices 
 	{
-		uint32_t graphicsFamily = INVALID_UINT;
+		uint32_t graphicsAndComputeFamily = INVALID_UINT;
 		uint32_t presentFamily = INVALID_UINT;
 
 		bool IsComplete() 
 		{
-			return graphicsFamily != INVALID_UINT && presentFamily != INVALID_UINT;
+			return graphicsAndComputeFamily != INVALID_UINT && presentFamily != INVALID_UINT;
 		}
 	};
 

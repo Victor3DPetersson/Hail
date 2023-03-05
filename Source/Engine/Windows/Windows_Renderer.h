@@ -18,12 +18,16 @@ namespace Hail
 		void Render() final;
 		void EndFrame() final;
 		void Cleanup() final;
-		void InitImGui();
+		void InitImGui() final;
 
 		void CreateShaderObject(CompiledShader& shader) final;
 
 	protected:
-
+		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) final;
+		void FrameBufferTexture_ClearFrameBuffer(FrameBufferTexture& frameBuffer) final;
+		void FrameBufferTexture_BindAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) final;
+		void FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) final;
+		void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) final;
 
 	private:
 
@@ -31,6 +35,8 @@ namespace Hail
 
 
 		void CreatGraphicsPipeline();
+		void CreateMainGraphicsPipeline();
+		void CreateMainRenderPass();
 
 		void CreateCommandPool();
 		void CreateCommandBuffers();
@@ -42,7 +48,6 @@ namespace Hail
 
 		void CreateTextureImage();
 		void CreateTextureImageView();
-		void CreateTextureSampler();
 
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
@@ -64,29 +69,47 @@ namespace Hail
 
 		VkQueue m_graphicsQueue = VK_NULL_HANDLE;
 		VkQueue m_presentQueue = VK_NULL_HANDLE;
+		VkQueue m_computeQueue = VK_NULL_HANDLE;
 
-		VkDescriptorSetLayout  m_descriptorSetLayout = VK_NULL_HANDLE;
 		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
 		VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
-
 
 		GrowingArray<VkBuffer> m_uniformBuffers;
 		GrowingArray<VkDeviceMemory> m_uniformBuffersMemory;
 		GrowingArray<void*> m_uniformBuffersMapped;
 
+		VkDescriptorSetLayout  m_descriptorSetLayout = VK_NULL_HANDLE;
 		VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
 		GrowingArray<VkDescriptorSet> m_descriptorSets;
+
+		//Descriptor data for finalRenderpass
+		VkDescriptorPool m_mainPassDescriptorPool = VK_NULL_HANDLE;
+		VkDescriptorSetLayout  m_mainPassDescriptorSetLayout = VK_NULL_HANDLE;
+		//Has To be recreated when resized frame
+		VkDescriptorSet m_mainPassDescriptorSet = VK_NULL_HANDLE;
+
+		//ModelPipeline
+		VkRenderPass m_mainRenderPass = VK_NULL_HANDLE;
+		VkPipeline m_mainPipeline = VK_NULL_HANDLE;
+		VkPipelineLayout m_mainPipelineLayout = VK_NULL_HANDLE;
+
 
 		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
 
 
+		VkBuffer m_perFrameDataBuffers;
+		VkDeviceMemory m_perFrameDataBuffersMemory;
+		void* m_perFrameDataBuffersMapped;
+
+		//Vertex and index buffer for cube
 		VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_vertexBufferMemory = VK_NULL_HANDLE;
 		VkBuffer m_indexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_indexBufferMemory = VK_NULL_HANDLE;
 
+		//Texture data for the cube
 		VkImage m_textureImage = VK_NULL_HANDLE;
 		VkDeviceMemory m_textureImageMemory = VK_NULL_HANDLE;
 		VkImageView m_textureImageView = VK_NULL_HANDLE;

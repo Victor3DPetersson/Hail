@@ -12,6 +12,18 @@ namespace Hail
 		COUNT
 	};
 
+	struct TutorialUniformBufferObject {
+		glm::mat4 model;
+		glm::mat4 view;
+		glm::mat4 proj;
+	};
+
+	struct PerFrameUniformBuffer
+	{
+		glm::uvec2 mainRenderResolution;
+		glm::uvec2 mainWindowResolution;
+		float totalTime;
+	};
 
 	enum class SHADER_STORAGE_BUFFER_USAGE : uint32_t
 	{
@@ -31,11 +43,7 @@ namespace Hail
 	const uint32_t GetUniformBufferIndex(const UNIFORM_BUFFERS buffer);
 	const uint32_t GetUniformBufferSize(const UNIFORM_BUFFERS buffer);
 
-	struct TutorialUniformBufferObject {
-		glm::mat4 model;
-		glm::mat4 view;
-		glm::mat4 proj;
-	};
+
 
 	struct Buffer
 	{

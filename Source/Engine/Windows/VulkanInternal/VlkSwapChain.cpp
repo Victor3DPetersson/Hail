@@ -19,15 +19,16 @@ void Hail::VlkSwapChain::Init(VlkDevice& device)
 	CreateFramebuffers(device);
 }
 
-void VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores)
+bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores, bool resizeSwapChain)
 {
+	bool resizedSwapChain = resizeSwapChain;
 	vkWaitForFences(device.GetDevice(), 1, &inFrameFences[m_currentFrame], VK_TRUE, UINT64_MAX);
 	VkResult result = vkAcquireNextImageKHR(device.GetDevice(), m_swapChain, 10000, imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_currentImageIndex);
 
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_frameBufferResized)
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resizeSwapChain)
 	{
-		m_frameBufferResized = false;
 		RecreateSwapchain(device, inFrameFences, imageAvailableSemaphores);
+		resizedSwapChain = true;
 	}
 	else if (result != VK_SUCCESS)
 	{
@@ -36,6 +37,7 @@ void VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemap
 #endif
 	}
 	vkResetFences(device.GetDevice(), 1, &inFrameFences[m_currentFrame]);
+	return resizedSwapChain;
 }
 
 void VlkSwapChain::FrameEnd(VkSemaphore* endSemaphore, VkQueue presentQueue)
@@ -63,13 +65,6 @@ void VlkSwapChain::RecreateSwapchain(VlkDevice& device, VkFence* inFrameFences, 
 {
 
 	glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
-	VkExtent2D actualExtent = {
-		static_cast<uint32_t>(resolution.x),
-		static_cast<uint32_t>(resolution.y)
-	};
-	while (resolution.x == 0 || resolution.y == 0) {
-		resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
-	}
 
 	vkDeviceWaitIdle(device.GetDevice());
 	CleanupSwapchain(device);
@@ -134,9 +129,9 @@ void VlkSwapChain::CreateSwapChain(VlkDevice& device)
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
 	QueueFamilyIndices indices = device.FindQueueFamilies(device.GetPhysicalDevice());
-	uint32_t queueFamilyIndices[] = { indices.graphicsFamily, indices.presentFamily };
+	uint32_t queueFamilyIndices[] = { indices.graphicsAndComputeFamily, indices.presentFamily };
 
-	if (indices.graphicsFamily != indices.presentFamily) 
+	if (indices.graphicsAndComputeFamily != indices.presentFamily) 
 	{
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		createInfo.queueFamilyIndexCount = 2;
@@ -346,7 +341,11 @@ void Hail::VlkSwapChain::CreateRenderPass(VlkDevice& device)
 void VlkSwapChain::CreateDepthResources(VlkDevice& device)
 {
 	VkFormat depthFormat = FindDepthFormat(device);
-	CreateImage(device, m_swapChainExtent.width, m_swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_depthImage, m_depthImageMemory);
+	CreateImage(device, m_swapChainExtent.width, m_swapChainExtent.height, depthFormat, 
+		VK_IMAGE_TILING_OPTIMAL, 
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+		m_depthImage, m_depthImageMemory);
 	m_depthImageView = CreateImageView(device, m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 }
 

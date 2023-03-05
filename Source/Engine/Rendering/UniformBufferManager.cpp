@@ -3,12 +3,7 @@
 
 namespace Hail
 {
-    struct PerFrameUniformBuffer
-    {
-        glm::uvec2 mainRenderResolution;
-        glm::uvec2 mainWindowResolution;
-        float totalTime;
-    };
+
     const uint32_t GetUniformBufferIndex(const UNIFORM_BUFFERS buffer)
     {
         //assert if buffer is count;

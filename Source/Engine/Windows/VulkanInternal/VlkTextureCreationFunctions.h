@@ -1,9 +1,9 @@
 //Interface for the entire engine
 #pragma once
 
-#include "Renderer.h"
 #define VK_USE_PLATFORM_WIN32_KHR
 #include "vulkan\vulkan.h"
+#include "Resources\Resource.h"
 
 namespace Hail
 {
@@ -12,6 +12,9 @@ namespace Hail
 	void CreateImage(VlkDevice& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 	uint32_t FindMemoryType(VlkDevice& device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	bool HasStencilComponent(VkFormat format);
+	VkSampler CreateTextureSampler(VlkDevice& device, TextureSamplerData samplerData);
 
+	VkFormat ToVkFormat(TEXTURE_FORMAT format);
+	VkFormat ToVkFormat(TEXTURE_DEPTH_FORMAT format);
 }
 

@@ -120,19 +120,23 @@ bool TextureManager::LoadAllRequiredTextures()
 	GrowingArray<String256> foundCompiledTextures(REQUIRED_TEXTURE_COUNT);
 	std::filesystem::path pathToShow{ TEXTURES_DIR_OUT };
 	Debug_PrintConsoleString64(String64("Required Textures:    "));
-	for (const auto& entry : std::filesystem::directory_iterator(pathToShow)) 
+	if(std::filesystem::exists(pathToShow))
 	{
-		const auto filenameStr = entry.path().filename().replace_extension().string();
-		if (entry.is_directory()) 
+		for (const auto& entry : std::filesystem::directory_iterator(pathToShow))
 		{
-			Debug_PrintConsoleString256(String256::Format("%s%s", "\tdir:  ", filenameStr.c_str()));
-		}
-		else if (entry.is_regular_file()) 
-		{
-			Debug_PrintConsoleString256(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
-			foundCompiledTextures.Add(filenameStr);
+			const auto filenameStr = entry.path().filename().replace_extension().string();
+			if (entry.is_directory())
+			{
+				Debug_PrintConsoleString256(String256::Format("%s%s", "\tdir:  ", filenameStr.c_str()));
+			}
+			else if (entry.is_regular_file())
+			{
+				Debug_PrintConsoleString256(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
+				foundCompiledTextures.Add(filenameStr);
+			}
 		}
 	}
+
 	uint32_t foundCounter = 0;
 	for (uint32_t shader = 0; shader < foundCompiledTextures.Size(); shader++)
 	{

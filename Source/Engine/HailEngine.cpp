@@ -73,7 +73,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 #elif PLATFORM_OSX
 
 #endif
-
+	g_engineData->renderer->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
 	g_engineData->inputHandler->InitInputMapping();
 	g_engineData->shaderManager = new ShaderManager();
 	if (!g_engineData->shaderManager->LoadAllRequiredShaders())
@@ -152,7 +152,11 @@ void Hail::MainLoop()
 	{
 		engineData.timer->FrameStart();
 		engineData.appWindow->ApplicationUpdateLoop();
-		ProcessRendering();
+		glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
+		if (resolution.x != 0.0f && resolution.y != 0.0f)
+		{
+			ProcessRendering();
+		}
 		engineData.threadSynchronizer->SynchronizeRenderData(engineData.timer->GetDeltaTime());
 		if (engineData.applicationLoopDone)
 		{

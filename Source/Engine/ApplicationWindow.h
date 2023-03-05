@@ -30,4 +30,5 @@ protected:
 	glm::uvec2 m_previousSize;
 	glm::uvec2 m_windowSize;
 	glm::uvec2 m_frameBufferSize;
+	glm::uvec2 m_previousFrameBufferSize;
 };

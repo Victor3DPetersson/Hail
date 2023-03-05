@@ -32,9 +32,7 @@ bool ShaderCompiler::CompileAndExportAllRequiredShaders(const char** requiredSha
 	shaderc_compiler_t compiler = shaderc_compiler_initialize();
 	std::filesystem::path pathToShow{ SHADER_DIR_IN };
 	Debug_PrintConsoleString256(String256(pathToShow.string().c_str()));
-
 	GrowingArray<std::filesystem::directory_entry> shadersToCompile = GrowingArray<std::filesystem::directory_entry>(numberOfRequiredShaders);
-
 	for (auto& entry : std::filesystem::directory_iterator(pathToShow)) {
 		const auto filenameStr = entry.path().filename().replace_extension().string();
 		if (entry.is_directory())
@@ -181,6 +179,11 @@ void ExportCompiledShader(const char* shaderName, const char* compiledShaderData
 {
 	Debug_PrintConsoleString256(String256::Format("\nExporting Shader:\n%s:", shaderName));
 	Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shaderHeader.sizeOfShaderData, "\n"));
+
+	if (std::filesystem::exists(SHADER_DIR_OUT) == false)
+	{
+		std::filesystem::create_directory(SHADER_DIR_OUT);
+	}
 
 	String256 outPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
 

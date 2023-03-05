@@ -14,7 +14,9 @@
 const char* requiredShaders[REQUIREDSHADERCOUNT] =
 {
 	"VS_triangle",
-	"FS_triangle"
+	"FS_triangle",
+	"VS_fullscreenPass",
+	"FS_fullscreenPass"
 };
 
 
@@ -55,18 +57,21 @@ bool ShaderManager::LoadAllRequiredShaders()
 {
 	GrowingArray<String256> foundCompiledShaders(REQUIREDSHADERCOUNT);
 	std::filesystem::path pathToShow{ SHADER_DIR_OUT };
-	Debug_PrintConsoleString64(String64("shaders:    "));
-	for (const auto& entry : std::filesystem::directory_iterator(pathToShow)) 
+	if (std::filesystem::exists(pathToShow))
 	{
-		const auto filenameStr = entry.path().filename().replace_extension().string();
-		if (entry.is_directory()) 
+		Debug_PrintConsoleString64(String64("shaders:    "));
+		for (const auto& entry : std::filesystem::directory_iterator(pathToShow))
 		{
-			Debug_PrintConsoleString256(String256::Format("%s%s", "\tdir:  ", filenameStr.c_str()));
-		}
-		else if (entry.is_regular_file()) 
-		{
-			Debug_PrintConsoleString256(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
-			foundCompiledShaders.Add(filenameStr);
+			const auto filenameStr = entry.path().filename().replace_extension().string();
+			if (entry.is_directory())
+			{
+				Debug_PrintConsoleString256(String256::Format("%s%s", "\tdir:  ", filenameStr.c_str()));
+			}
+			else if (entry.is_regular_file())
+			{
+				Debug_PrintConsoleString256(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
+				foundCompiledShaders.Add(filenameStr);
+			}
 		}
 	}
 	uint32_t foundCounter = 0;

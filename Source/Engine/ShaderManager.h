@@ -3,7 +3,7 @@
 #include "String.hpp"
 #include "ShaderCommons.h"
 
-constexpr uint32_t REQUIREDSHADERCOUNT = 2;
+constexpr uint32_t REQUIREDSHADERCOUNT = 4;
 class ShaderCompiler;
 
 

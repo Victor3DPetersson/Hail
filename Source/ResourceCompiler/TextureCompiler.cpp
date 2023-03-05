@@ -71,7 +71,6 @@ bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredT
 	Debug_PrintConsoleString256(String256(pathToShow.string().c_str()));
 
 	GrowingArray<std::filesystem::directory_entry> texturesToCompile(numberOfRequiredTextures);
-
 	for (auto& entry : std::filesystem::directory_iterator(pathToShow)) {
 		const auto filenameStr = entry.path().filename().replace_extension().string();
 		if (entry.is_directory())
@@ -374,6 +373,11 @@ bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTexture
 {
 	Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", textureName));
 	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));
+
+	if (std::filesystem::exists(TEXTURES_DIR_OUT) == false)
+	{
+		std::filesystem::create_directory(TEXTURES_DIR_OUT);
+	}
 
 	String256 outPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
 	std::ofstream outStream(outPath.Data(), std::ios::out | std::ios::binary);

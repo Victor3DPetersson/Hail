@@ -15,10 +15,9 @@ namespace Hail
 	{
 	public:
 		void Init(VlkDevice& device);
-		void FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores);
+		bool FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores, bool resizeSwapChain);
 		void FrameEnd(VkSemaphore* endSemaphore, VkQueue presentQueue);
 		void DestroySwapChain(VlkDevice& device);
-		void ResizeFrameBuffer() { m_frameBufferResized = true; }
 
 		VkExtent2D GetSwapChainExtent() { return m_swapChainExtent; }
 		VkFormat GetSwapChainFormat() { return m_swapChainImageFormat; }
@@ -62,7 +61,6 @@ namespace Hail
 		VkImage m_depthImage;
 		VkDeviceMemory m_depthImageMemory;
 		VkImageView m_depthImageView;
-		bool m_frameBufferResized = false;
 	};
 }
 

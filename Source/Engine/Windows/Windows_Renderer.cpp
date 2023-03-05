@@ -28,6 +28,7 @@
 #include "VulkanInternal/VlkTextureCreationFunctions.h"
 #include "VulkanInternal/VlkBufferCreationFunctions.h"
 #include "VulkanInternal/VlkSingleTimeCommand.h"
+#include "VulkanInternal/VlkFrameBufferTexture.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -45,20 +46,26 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 	m_shaderManager = shaderManager;
 	m_textureManager = textureManager;
 	m_resourceManqager = resourceManager;
-	m_renderResolution =  ResolutionFromEnum(startupResolution);
 	m_device.CreateInstance();
 	Hail::QueueFamilyIndices indices = m_device.FindQueueFamilies(m_device.GetPhysicalDevice());
-	vkGetDeviceQueue(m_device.GetDevice(), indices.graphicsFamily, 0, &m_graphicsQueue);
+	vkGetDeviceQueue(m_device.GetDevice(), indices.graphicsAndComputeFamily, 0, &m_graphicsQueue);
+	vkGetDeviceQueue(m_device.GetDevice(), indices.graphicsAndComputeFamily, 0, &m_computeQueue);
 	vkGetDeviceQueue(m_device.GetDevice(), indices.presentFamily, 0, &m_presentQueue);
 
+
 	m_swapChain.Init(m_device);
+	const VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
+	CalculateRenderResolution({ swapChainExtent.width, swapChainExtent.height });
+
+	m_mainPassFrameBufferTexture = FrameBufferTexture_Create("MainRenderPass", m_renderTargetResolution, TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
+
 	CreateDescriptorSetLayout();
 	CreatGraphicsPipeline();
 	CreateCommandPool();
 
 	CreateTextureImage();
 	CreateTextureImageView();
-	CreateTextureSampler();
+	m_textureSampler = CreateTextureSampler(m_device, TextureSamplerData{});
 
 	CreateVertexBuffer();
 	CreateIndexBuffer();
@@ -68,6 +75,12 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 	CreateCommandBuffers();
 	CreateSyncObjects();
 	InitImGui();
+
+	CreateMainRenderPass();
+	CreateMainGraphicsPipeline();
+
+	//Create render target for intermediate rendering
+
 	return true;
 }
 
@@ -162,11 +175,15 @@ namespace
 
 void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 {
-	m_swapChain.FrameStart(m_device, m_inFrameFences, m_imageAvailableSemaphores);
+	if (m_swapChain.FrameStart(m_device, m_inFrameFences, m_imageAvailableSemaphores, m_framebufferResized))
+	{
+		const VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
+		CalculateRenderResolution({ swapChainExtent.width, swapChainExtent.height });
+	}
+	m_framebufferResized = false;
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplVulkan_NewFrame();
 	ImGui::NewFrame();
-
 	g_camera = renderPool.renderCamera;
 }
 
@@ -227,6 +244,9 @@ void VlkRenderer::Cleanup()
 		vkDestroyBuffer(m_device.GetDevice(), m_uniformBuffers[i], nullptr);
 		vkFreeMemory(m_device.GetDevice(), m_uniformBuffersMemory[i], nullptr);
 	}
+	vkDestroyBuffer(m_device.GetDevice(), m_perFrameDataBuffers, nullptr);
+	vkFreeMemory(m_device.GetDevice(), m_perFrameDataBuffersMemory, nullptr);
+
 	vkDestroyDescriptorPool(m_device.GetDevice(), m_descriptorPool, nullptr);
 	vkDestroyDescriptorSetLayout(m_device.GetDevice(), m_descriptorSetLayout, nullptr);
 
@@ -253,11 +273,47 @@ void VlkRenderer::CreateShaderObject(CompiledShader& shader)
 	CreateShaderModule(shader);
 }
 
+FrameBufferTexture* Hail::VlkRenderer::FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat)
+{
+	VlkFrameBufferTexture* frameBuffer = new VlkFrameBufferTexture(resolution, format, depthFormat);
+	frameBuffer->SetName(name);
+	frameBuffer->CreateFrameBufferTextureObjects(m_device);
+	return frameBuffer;
+}
+
+void Hail::VlkRenderer::FrameBufferTexture_ClearFrameBuffer(FrameBufferTexture& frameBuffer)
+{
+
+}
+
+void Hail::VlkRenderer::FrameBufferTexture_BindAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint)
+{
+
+}
+
+void Hail::VlkRenderer::FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint)
+{
+
+}
+
+void Hail::VlkRenderer::FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer)
+{
+
+}
+
 void Hail::VlkRenderer::UpdateUniformBuffer(uint32_t frameInFlight)
 {
 	float deltaTime = m_timer->GetDeltaTime();
 	float totalTime = m_timer->GetTotalTime();
-	TutorialUniformBufferObject ubo;
+
+	PerFrameUniformBuffer perFrameData{};
+
+	perFrameData.totalTime = totalTime;
+	perFrameData.mainRenderResolution = m_renderTargetResolution;
+	perFrameData.mainWindowResolution = m_windowResolution;
+	memcpy(m_perFrameDataBuffersMapped, &perFrameData, sizeof(perFrameData));
+
+	TutorialUniformBufferObject ubo{};
 
 	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
@@ -455,6 +511,254 @@ void VlkRenderer::CreatGraphicsPipeline()
 	vkDestroyShaderModule(m_device.GetDevice(), vertShaderModule, nullptr);
 }
 
+void Hail::VlkRenderer::CreateMainGraphicsPipeline()
+{
+	VkShaderModule vertShaderModule = nullptr;
+	VkShaderModule fragShaderModule = nullptr;
+
+	GrowingArray<CompiledShader>& requiredShaders = *m_shaderManager->GetRequiredShaders();
+	//TODO: Make a nice system for loading the main shaders once the pipeline has been set up properly
+	for (uint32_t i = 0; i < REQUIREDSHADERCOUNT; i++)
+	{
+		if (requiredShaders[i].shaderName == String64("VS_fullscreenPass"))
+		{
+			vertShaderModule = CreateShaderModule(requiredShaders[i]);
+		}
+		else if (requiredShaders[i].shaderName == String64("FS_fullscreenPass"))
+		{
+			fragShaderModule = CreateShaderModule(requiredShaders[i]);
+		}
+	}
+	if (!fragShaderModule || !vertShaderModule)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create shader module!");
+#endif
+		return;
+	}
+
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageInfo.module = vertShaderModule;
+	vertShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragShaderStageInfo.module = fragShaderModule;
+	fragShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+	VkDynamicState dynamicStates[2] = {
+	VK_DYNAMIC_STATE_VIEWPORT,
+	VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicState{};
+	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicState.dynamicStateCount = 2;
+	dynamicState.pDynamicStates = dynamicStates;
+
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputInfo.vertexBindingDescriptionCount = 0;
+	vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	VkViewport viewport{};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	const VkExtent2D passExtent = { m_renderTargetResolution.x, m_renderTargetResolution.y };
+	viewport.width = (float)passExtent.width;
+	viewport.height = (float)passExtent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = passExtent;
+
+	VkPipelineViewportStateCreateInfo viewportState{};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.depthClampEnable = VK_FALSE;
+	rasterizer.rasterizerDiscardEnable = VK_FALSE;
+	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer.lineWidth = 1.0f;
+	rasterizer.depthBiasEnable = VK_FALSE;
+	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+	rasterizer.depthBiasClamp = 0.0f; // Optional
+	rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
+	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	//rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.minSampleShading = 1.0f; // Optional
+	multisampling.pSampleMask = nullptr; // Optional
+	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+	multisampling.alphaToOneEnable = VK_FALSE; // Optional
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	colorBlendAttachment.blendEnable = VK_FALSE;
+	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
+	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
+
+	VkPipelineColorBlendStateCreateInfo colorBlending{};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &colorBlendAttachment;
+	colorBlending.blendConstants[0] = 0.0f; // Optional
+	colorBlending.blendConstants[1] = 0.0f; // Optional
+	colorBlending.blendConstants[2] = 0.0f; // Optional
+	colorBlending.blendConstants[3] = 0.0f; // Optional
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 1; // Optional
+	pipelineLayoutInfo.pSetLayouts = &m_mainPassDescriptorSetLayout; // Optional
+	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+	if (vkCreatePipelineLayout(m_device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_mainPipelineLayout) != VK_SUCCESS) {
+#ifdef DEBUG
+		throw std::runtime_error("failed to create pipeline layout!");
+#endif
+	}
+
+	VkPipelineDepthStencilStateCreateInfo depthStencil{};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = VK_TRUE;
+	depthStencil.depthWriteEnable = VK_TRUE;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.minDepthBounds = 0.0f; // Optional
+	depthStencil.maxDepthBounds = 1.0f; // Optional
+	depthStencil.stencilTestEnable = VK_FALSE;
+	depthStencil.front = {}; // Optional
+	depthStencil.back = {}; // Optional
+
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = &depthStencil;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDynamicState = &dynamicState;
+
+	pipelineInfo.layout = m_mainPipelineLayout;
+	pipelineInfo.renderPass = m_mainRenderPass;
+	pipelineInfo.subpass = 0;
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+	pipelineInfo.basePipelineIndex = -1; // Optional
+
+	auto bindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
+	auto attributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
+
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.Size());
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.Data();
+
+	if (vkCreateGraphicsPipelines(m_device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_mainPipeline) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create graphics pipeline!");
+#endif
+	}
+
+	vkDestroyShaderModule(m_device.GetDevice(), fragShaderModule, nullptr);
+	vkDestroyShaderModule(m_device.GetDevice(), vertShaderModule, nullptr);
+}
+
+void Hail::VlkRenderer::CreateMainRenderPass()
+{
+	VkSubpassDependency dependency{};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcAccessMask = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+	VkAttachmentDescription colorAttachment{};
+	colorAttachment.format = ToVkFormat(m_mainPassFrameBufferTexture->GetTextureFormat());
+	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+	VkAttachmentReference colorAttachmentRef{};
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentDescription depthAttachment{};
+	depthAttachment.format = ToVkFormat(m_mainPassFrameBufferTexture->GetDepthFormat());
+	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthAttachmentRef{};
+	depthAttachmentRef.attachment = 1;
+	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass{};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentRef;
+	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+	VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+	VkRenderPassCreateInfo renderPassInfo{};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassInfo.attachmentCount = 2;
+	renderPassInfo.pAttachments = attachments;
+	renderPassInfo.subpassCount = 1;
+	renderPassInfo.pSubpasses = &subpass;
+	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.pDependencies = &dependency;
+
+	if (vkCreateRenderPass(m_device.GetDevice(), &renderPassInfo, nullptr, &m_mainRenderPass) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create render pass!");
+#endif
+	}
+}
+
 void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
 	VkCommandBufferBeginInfo beginInfo{};
@@ -532,7 +836,7 @@ void VlkRenderer::CreateCommandPool()
 	VkCommandPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily;
 	if (vkCreateCommandPool(m_device.GetDevice(), &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
 	{
 #ifdef DEBUG
@@ -638,35 +942,6 @@ void Hail::VlkRenderer::CreateTextureImageView()
 	m_textureImageView = CreateImageView(m_device, m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-void Hail::VlkRenderer::CreateTextureSampler()
-{
-	VkSamplerCreateInfo samplerInfo{};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.anisotropyEnable = VK_TRUE;
-	VkPhysicalDeviceProperties properties{};
-	vkGetPhysicalDeviceProperties(m_device.GetPhysicalDevice(), &properties);
-	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;//TODO: Remove this and count this variable once
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.mipLodBias = 0.0f;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 0.0f;
-
-	if (vkCreateSampler(m_device.GetDevice(), &samplerInfo, nullptr, &m_textureSampler) != VK_SUCCESS) 
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create texture sampler!");
-#endif
-	}
-}
 
 void VlkRenderer::CreateVertexBuffer()
 {
@@ -720,7 +995,7 @@ void VlkRenderer::CreateIndexBuffer()
 
 void Hail::VlkRenderer::CreateUniformBuffers()
 {
-	VkDeviceSize bufferSize = sizeof(GetUniformBufferSize(UNIFORM_BUFFERS::TUTORIAL));
+	VkDeviceSize bufferSize = GetUniformBufferSize(UNIFORM_BUFFERS::TUTORIAL);
 
 	m_uniformBuffers.InitAndFill(MAX_FRAMESINFLIGHT);
 	m_uniformBuffersMemory.InitAndFill(MAX_FRAMESINFLIGHT);
@@ -731,6 +1006,9 @@ void Hail::VlkRenderer::CreateUniformBuffers()
 		CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
 		vkMapMemory(m_device.GetDevice(), m_uniformBuffersMemory[i], 0, bufferSize, 0, &m_uniformBuffersMapped[i]);
 	}
+	VkDeviceSize perFrameBufferSize = GetUniformBufferSize(UNIFORM_BUFFERS::PER_FRAME_DATA);
+	CreateBuffer(m_device, perFrameBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_perFrameDataBuffers, m_perFrameDataBuffersMemory);
+	vkMapMemory(m_device.GetDevice(), m_perFrameDataBuffersMemory, 0, perFrameBufferSize, 0, &m_perFrameDataBuffersMapped);
 }
 
 void Hail::VlkRenderer::CreateDescriptorPool()
@@ -754,6 +1032,24 @@ void Hail::VlkRenderer::CreateDescriptorPool()
 #endif
 	}
 
+	std::array <VkDescriptorPoolSize, 2> finalPoolSizes{};
+	finalPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	finalPoolSizes[0].descriptorCount = 1;
+	finalPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	finalPoolSizes[1].descriptorCount = 1;
+
+	VkDescriptorPoolCreateInfo finalPoolInfo{};
+	finalPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	finalPoolInfo.poolSizeCount = static_cast<uint32_t>(finalPoolSizes.size());
+	finalPoolInfo.pPoolSizes = finalPoolSizes.data();
+	finalPoolInfo.maxSets = 1;
+	finalPoolInfo.flags = 0;
+	if (vkCreateDescriptorPool(m_device.GetDevice(), &finalPoolInfo, nullptr, &m_mainPassDescriptorPool) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create final descriptor pool!");
+#endif
+	}
 }
 
 void Hail::VlkRenderer::CreateDescriptorSets()
@@ -805,6 +1101,51 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 
 		vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
+
+	VkDescriptorSetAllocateInfo finalPassAllocInfo{};
+	finalPassAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	finalPassAllocInfo.descriptorPool = m_mainPassDescriptorPool;
+	finalPassAllocInfo.descriptorSetCount = 1;
+	finalPassAllocInfo.pSetLayouts = &m_mainPassDescriptorSetLayout;
+
+	if (vkAllocateDescriptorSets(m_device.GetDevice(), &finalPassAllocInfo, &m_mainPassDescriptorSet) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to allocate descriptor sets!");
+#endif
+	}
+
+	VkDescriptorBufferInfo bufferInfo{};
+	bufferInfo.buffer = m_perFrameDataBuffers;
+	bufferInfo.offset = 0;
+	bufferInfo.range = GetUniformBufferSize(UNIFORM_BUFFERS::PER_FRAME_DATA);
+
+	std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].dstSet = m_mainPassDescriptorSet;
+	descriptorWrites[0].dstBinding = 0;
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+	VkDescriptorImageInfo imageInfo{};
+	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageInfo.imageView = reinterpret_cast<VlkFrameBufferTexture*>(m_mainPassFrameBufferTexture)->GetTextureImage().imageView;
+	imageInfo.sampler = m_textureSampler;
+
+	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[1].dstSet = m_mainPassDescriptorSet;
+	descriptorWrites[1].dstBinding = 1;
+	descriptorWrites[1].dstArrayElement = 0;
+	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites[1].descriptorCount = 1;
+	descriptorWrites[1].pImageInfo = &imageInfo;
+
+	vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+
+
 }
 
 //TODO: Make image transition function to consider mip levels and the like
@@ -923,7 +1264,7 @@ void Hail::VlkRenderer::CreateDescriptorSetLayout()
 	uboLayoutBinding.binding = 0;
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
 
 	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
@@ -946,5 +1287,13 @@ void Hail::VlkRenderer::CreateDescriptorSetLayout()
 		throw std::runtime_error("failed to create descriptor set layout!");
 #endif
 	}
+
+	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_mainPassDescriptorSetLayout) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create final pass descriptor set layout!");
+#endif
+	}
+
 }
 

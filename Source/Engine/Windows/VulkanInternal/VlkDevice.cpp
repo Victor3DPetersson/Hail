@@ -343,8 +343,9 @@ QueueFamilyIndices VlkDevice::FindQueueFamilies(VkPhysicalDevice device)
 
 	for (uint32_t queues = 0; queues < queueFamilyCount; queues++)
 	{
-		if (queueFamilies[queues].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			indices.graphicsFamily = queues;
+		if ((queueFamilies[queues].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueFamilies[queues].queueFlags & VK_QUEUE_COMPUTE_BIT))
+		{
+			indices.graphicsAndComputeFamily = queues;
 		}
 		VkBool32 presentSupport = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device, queues, m_surface, &presentSupport);
@@ -367,7 +368,7 @@ void VlkDevice::CreateLogicalDevice()
 	QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
 
 	GrowingArray<VkDeviceQueueCreateInfo, uint32_t> queueCreateInfos = GrowingArray<VkDeviceQueueCreateInfo, uint32_t>(2);
-	std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily, indices.presentFamily };
+	std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsAndComputeFamily, indices.presentFamily };
 
 	float queuePriority = 1.0f;
 	for (uint32_t queueFamily : uniqueQueueFamilies)
