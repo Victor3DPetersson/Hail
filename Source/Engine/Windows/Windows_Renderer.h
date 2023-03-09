@@ -7,6 +7,7 @@
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "VulkanInternal\VlkDevice.h"
 #include "VulkanInternal\VlkSwapChain.h"
+#include "VulkanInternal\VlkTextureCreationFunctions.h"
 
 namespace Hail
 {
@@ -34,9 +35,14 @@ namespace Hail
 		void UpdateUniformBuffer(uint32_t frameInFlight);
 
 
-		void CreatGraphicsPipeline();
+		void CreateGraphicsPipeline();
 		void CreateMainGraphicsPipeline();
 		void CreateMainRenderPass();
+		void CreateMainFrameBuffer();
+		void CreateMainDescriptorPool();
+		void CreateMainDescriptorSets();
+		void CreateMainDescriptorSetLayout();
+
 
 		void CreateCommandPool();
 		void CreateCommandBuffers();
@@ -50,6 +56,7 @@ namespace Hail
 		void CreateTextureImageView();
 
 		void CreateVertexBuffer();
+		void CreateFullscreenVertexBuffer();
 		void CreateIndexBuffer();
 		
 		//General functions
@@ -57,12 +64,10 @@ namespace Hail
 		void CreateUniformBuffers();
 		void CreateDescriptorPool();
 		void CreateDescriptorSets();
-
-
-		void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-		void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
 		void CreateDescriptorSetLayout();
+
+
+
 
 		VlkDevice m_device;
 		VlkSwapChain m_swapChain;
@@ -71,9 +76,9 @@ namespace Hail
 		VkQueue m_presentQueue = VK_NULL_HANDLE;
 		VkQueue m_computeQueue = VK_NULL_HANDLE;
 
-		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
 		VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
+		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
 		GrowingArray<VkBuffer> m_uniformBuffers;
 		GrowingArray<VkDeviceMemory> m_uniformBuffersMemory;
@@ -87,13 +92,13 @@ namespace Hail
 		VkDescriptorPool m_mainPassDescriptorPool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout  m_mainPassDescriptorSetLayout = VK_NULL_HANDLE;
 		//Has To be recreated when resized frame
-		VkDescriptorSet m_mainPassDescriptorSet = VK_NULL_HANDLE;
+		GrowingArray <VkDescriptorSet> m_mainPassDescriptorSet;
 
 		//ModelPipeline
 		VkRenderPass m_mainRenderPass = VK_NULL_HANDLE;
 		VkPipeline m_mainPipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_mainPipelineLayout = VK_NULL_HANDLE;
-
+		VkFramebuffer m_mainFrameBuffer[MAX_FRAMESINFLIGHT];
 
 		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
@@ -102,6 +107,10 @@ namespace Hail
 		VkBuffer m_perFrameDataBuffers;
 		VkDeviceMemory m_perFrameDataBuffersMemory;
 		void* m_perFrameDataBuffersMapped;
+
+
+		VkBuffer m_fullscreenVertexBuffer = VK_NULL_HANDLE;
+		VkDeviceMemory m_fullscreenVertexBufferMemory = VK_NULL_HANDLE;
 
 		//Vertex and index buffer for cube
 		VkBuffer m_vertexBuffer = VK_NULL_HANDLE;

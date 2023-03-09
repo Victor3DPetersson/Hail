@@ -60,13 +60,14 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 	m_mainPassFrameBufferTexture = FrameBufferTexture_Create("MainRenderPass", m_renderTargetResolution, TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 
 	CreateDescriptorSetLayout();
-	CreatGraphicsPipeline();
+	CreateGraphicsPipeline();
 	CreateCommandPool();
 
 	CreateTextureImage();
 	CreateTextureImageView();
 	m_textureSampler = CreateTextureSampler(m_device, TextureSamplerData{});
 
+	CreateFullscreenVertexBuffer();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateUniformBuffers();
@@ -76,7 +77,13 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 	CreateSyncObjects();
 	InitImGui();
 
+
+	CreateMainDescriptorSetLayout();
+	CreateMainDescriptorPool();
+	CreateMainDescriptorSets();
+
 	CreateMainRenderPass();
+	CreateMainFrameBuffer();
 	CreateMainGraphicsPipeline();
 
 	//Create render target for intermediate rendering
@@ -86,9 +93,6 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 
 void VlkRenderer::InitImGui()
 {
-#ifdef NDEBUG //early out if not in 
-	return;
-#endif
 	//1: create descriptor pool for IMGUI
 	// the size of the pool is very oversize, but it's copied from imgui demo itself.
 	VkDescriptorPoolSize pool_sizes[] =
@@ -319,12 +323,132 @@ void Hail::VlkRenderer::UpdateUniformBuffer(uint32_t frameInFlight)
 	ubo.view = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = Transform3D::GetMatrix(g_camera.GetTransform());
 	VkExtent2D swapExtent = m_swapChain.GetSwapChainExtent();
-	ubo.proj = glm::perspective(glm::radians(g_camera.GetFov()), (float)swapExtent.width / (float)swapExtent.height, g_camera.GetNear(), g_camera.GetFar());
+	ubo.proj = glm::perspective(glm::radians(g_camera.GetFov()), static_cast<float>(m_renderTargetResolution.x) / static_cast<float>(m_renderTargetResolution.y), g_camera.GetNear(), g_camera.GetFar());
 	ubo.proj[1][1] *= -1;
 	memcpy(m_uniformBuffersMapped[m_swapChain.GetCurrentFrame()], &ubo, sizeof(ubo));
 }
 
-void VlkRenderer::CreatGraphicsPipeline()
+void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+	const uint32_t frameInFlightIndex = m_swapChain.GetCurrentFrame();
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = 0; // Optional
+	beginInfo.pInheritanceInfo = nullptr; // Optional
+
+	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to begin recording command buffer!");
+#endif
+	}
+	const glm::uvec2 mainPassResolution = m_mainPassFrameBufferTexture->GetResolution();
+	VkExtent2D mainExtent = { mainPassResolution.x, mainPassResolution.y };
+	VkRenderPassBeginInfo mainRenderPassInfo{};
+	mainRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	mainRenderPassInfo.renderPass = m_mainRenderPass;
+	mainRenderPassInfo.framebuffer = m_mainFrameBuffer[frameInFlightIndex];
+	mainRenderPassInfo.renderArea.offset = { 0, 0 };
+	mainRenderPassInfo.renderArea.extent = mainExtent;
+
+	const glm::vec3 mainClearColor = m_mainPassFrameBufferTexture->GetClearColor();
+	VkClearValue mainClearColors[2];
+	mainClearColors[0].color = { mainClearColor.x, mainClearColor.y, mainClearColor.z, 1.0f };
+	mainClearColors[1].depthStencil = { 1.0f, 0 };
+
+	mainRenderPassInfo.clearValueCount = 2;
+	mainRenderPassInfo.pClearValues = mainClearColors;
+
+	vkCmdBeginRenderPass(commandBuffer, &mainRenderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_mainPipeline);
+
+	VkViewport mainViewport{};
+	mainViewport.x = 0.0f;
+	mainViewport.y = 0.0f;
+	mainViewport.width = static_cast<float>(mainPassResolution.x);
+	mainViewport.height = static_cast<float>(mainPassResolution.y);
+	mainViewport.minDepth = 0.0f;
+	mainViewport.maxDepth = 1.0f;
+	vkCmdSetViewport(commandBuffer, 0, 1, &mainViewport);
+
+	VkRect2D mainScissor{};
+	mainScissor.offset = { 0, 0 };
+	mainScissor.extent = mainExtent;
+	vkCmdSetScissor(commandBuffer, 0, 1, &mainScissor);
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_mainPipeline);
+
+	VkBuffer mainVertexBuffers[] = { m_vertexBuffer };
+	VkDeviceSize mainOffsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, mainVertexBuffers, mainOffsets);
+	vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_mainPipelineLayout, 0, 1, &m_mainPassDescriptorSet[frameInFlightIndex], 0, nullptr);
+
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManqager->m_unitCube.indices.Size()), 1, 0, 0, 0);
+
+	vkCmdEndRenderPass(commandBuffer);
+
+
+	VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
+	VkRenderPassBeginInfo renderPassInfo{};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	renderPassInfo.renderPass = m_swapChain.GetRenderPass();
+	renderPassInfo.framebuffer = m_swapChain.GetFrameBuffer()[imageIndex];
+	renderPassInfo.renderArea.offset = { 0, 0 };
+	renderPassInfo.renderArea.extent = swapChainExtent;
+
+	VkClearValue clearColors[2];
+	clearColors[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+	clearColors[1].depthStencil = { 1.0f, 0 };
+
+	renderPassInfo.clearValueCount = 2;
+	renderPassInfo.pClearValues = clearColors;
+
+	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+	VkViewport viewport{};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<float>(swapChainExtent.width);
+	viewport.height = static_cast<float>(swapChainExtent.height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = swapChainExtent;
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
+
+	VkBuffer vertexBuffers[] = { m_fullscreenVertexBuffer };
+	VkDeviceSize offsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[m_swapChain.GetCurrentFrame()], 0, nullptr);
+
+	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
+	vkCmdEndRenderPass(commandBuffer);
+
+
+	if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to record command buffer!");
+#endif
+	}
+}
+
+
+void VlkRenderer::CreateGraphicsPipeline()
 {
 	VkShaderModule vertShaderModule = nullptr;
 	VkShaderModule fragShaderModule = nullptr;
@@ -333,11 +457,11 @@ void VlkRenderer::CreatGraphicsPipeline()
 	//TODO: Make a nice system for loading the main shaders once the pipeline has been set up properly
 	for (uint32_t i = 0; i < REQUIREDSHADERCOUNT; i++)
 	{
-		if (requiredShaders[i].shaderName == String64("VS_triangle"))
+		if (requiredShaders[i].shaderName == String64("VS_fullscreenPass"))
 		{
 			vertShaderModule = CreateShaderModule(requiredShaders[i]);
 		} 
-		else if (requiredShaders[i].shaderName == String64("FS_triangle"))
+		else if (requiredShaders[i].shaderName == String64("FS_fullscreenPass"))
 		{
 			fragShaderModule = CreateShaderModule(requiredShaders[i]);
 		}
@@ -349,7 +473,7 @@ void VlkRenderer::CreatGraphicsPipeline()
 #endif
 		return;
 	}
-	//TEMPORARY CODE BELOW from tutorial TODO: Remove and rework
+
 	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
 	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -491,14 +615,21 @@ void VlkRenderer::CreatGraphicsPipeline()
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	auto bindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
-	auto attributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
+	VkVertexInputAttributeDescription attributeDescription{};
+	attributeDescription.binding = 0;
+	attributeDescription.location = 0;
+	attributeDescription.format = VK_FORMAT_R32_UINT;
+	attributeDescription.offset = 0;
+
+	VkVertexInputBindingDescription bindingDescription{};
+	bindingDescription.binding = 0;
+	bindingDescription.stride = sizeof(uint32_t);
+	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.Size());
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(1);
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.Data();
-
+	vertexInputInfo.pVertexAttributeDescriptions = &attributeDescription;
 
 	if (vkCreateGraphicsPipelines(m_device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) 
 	{
@@ -520,11 +651,11 @@ void Hail::VlkRenderer::CreateMainGraphicsPipeline()
 	//TODO: Make a nice system for loading the main shaders once the pipeline has been set up properly
 	for (uint32_t i = 0; i < REQUIREDSHADERCOUNT; i++)
 	{
-		if (requiredShaders[i].shaderName == String64("VS_fullscreenPass"))
+		if (requiredShaders[i].shaderName == String64("VS_triangle"))
 		{
 			vertShaderModule = CreateShaderModule(requiredShaders[i]);
 		}
-		else if (requiredShaders[i].shaderName == String64("FS_fullscreenPass"))
+		else if (requiredShaders[i].shaderName == String64("FS_triangle"))
 		{
 			fragShaderModule = CreateShaderModule(requiredShaders[i]);
 		}
@@ -715,11 +846,11 @@ void Hail::VlkRenderer::CreateMainRenderPass()
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkAttachmentReference colorAttachmentRef{};
 	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkAttachmentDescription depthAttachment{};
 	depthAttachment.format = ToVkFormat(m_mainPassFrameBufferTexture->GetDepthFormat());
@@ -759,74 +890,35 @@ void Hail::VlkRenderer::CreateMainRenderPass()
 	}
 }
 
-void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+void Hail::VlkRenderer::CreateMainFrameBuffer()
 {
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = 0; // Optional
-	beginInfo.pInheritanceInfo = nullptr; // Optional
-
-	if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+	m_mainFrameBuffer[0] = VK_NULL_HANDLE;
+	m_mainFrameBuffer[1] = VK_NULL_HANDLE;
+	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
+
+		VlkFrameBufferTexture* mainFrameBufferTexture = reinterpret_cast<VlkFrameBufferTexture*>(m_mainPassFrameBufferTexture);
+		FrameBufferTextureData colorTexture = mainFrameBufferTexture->GetTextureImage(i);
+		FrameBufferTextureData depthTexture = mainFrameBufferTexture->GetDepthTextureImage(i);
+		VkImageView attachments[2] = { colorTexture.imageView, depthTexture.imageView };
+
+		VkFramebufferCreateInfo framebufferInfo{};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferInfo.renderPass = m_mainRenderPass;
+		framebufferInfo.attachmentCount = 2;
+		framebufferInfo.pAttachments = attachments;
+		framebufferInfo.width = mainFrameBufferTexture->GetResolution().x;
+		framebufferInfo.height = mainFrameBufferTexture->GetResolution().y;
+		framebufferInfo.layers = 1;
+
+		if (vkCreateFramebuffer(m_device.GetDevice(), &framebufferInfo, nullptr, &m_mainFrameBuffer[i]) != VK_SUCCESS)
+		{
 #ifdef DEBUG
-		throw std::runtime_error("failed to begin recording command buffer!");
+			throw std::runtime_error("failed to create framebuffer!");
 #endif
+		}
 	}
-	VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
-	VkRenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = m_swapChain.GetRenderPass();
-	renderPassInfo.framebuffer = m_swapChain.GetFrameBuffer()[imageIndex];
-	renderPassInfo.renderArea.offset = { 0, 0 };
-	renderPassInfo.renderArea.extent = swapChainExtent;
 
-	VkClearValue clearColors[2];
-	clearColors[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-	clearColors[1].depthStencil = { 1.0f, 0 };
-
-	renderPassInfo.clearValueCount = 2;
-	renderPassInfo.pClearValues = clearColors;
-
-	vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(swapChainExtent.width);
-	viewport.height = static_cast<float>(swapChainExtent.height);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = swapChainExtent;
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_graphicsPipeline);
-
-	VkBuffer vertexBuffers[] = { m_vertexBuffer };
-	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-	vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[m_swapChain.GetCurrentFrame()], 0, nullptr);
-
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManqager->m_unitCube.indices.Size()), 1, 0, 0, 0);
-
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-
-	vkCmdEndRenderPass(commandBuffer);
-
-
-	if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to record command buffer!");
-#endif
-	}
 }
 
 void VlkRenderer::CreateCommandPool()
@@ -929,9 +1021,9 @@ void Hail::VlkRenderer::CreateTextureImage()
 		VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
 		m_textureImage, m_textureImageMemory);
 
-	TransitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	CopyBufferToImage(stagingBuffer, m_textureImage, texture.header.width, texture.header.height);
-	TransitionImageLayout(m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	TransitionImageLayout(m_device, m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_commandPool, m_graphicsQueue);
+	CopyBufferToImage(m_device, stagingBuffer, m_textureImage, texture.header.width, texture.header.height, m_commandPool, m_graphicsQueue);
+	TransitionImageLayout(m_device, m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_commandPool, m_graphicsQueue);
 
 	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
@@ -965,6 +1057,32 @@ void VlkRenderer::CreateVertexBuffer()
 	CopyBuffer(m_device, stagingBuffer, m_vertexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
 	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
+
+}
+
+void Hail::VlkRenderer::CreateFullscreenVertexBuffer()
+{
+	VkDeviceSize bufferSize = sizeof(uint32_t) * 3;
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer, stagingBufferMemory);
+	uint32_t vertices[3] = { 0, 1, 2 };
+	void* data;
+	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, vertices, (size_t)bufferSize);
+	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
+
+	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_fullscreenVertexBuffer, m_fullscreenVertexBufferMemory);
+
+	CopyBuffer(m_device, stagingBuffer, m_fullscreenVertexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
+	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
+
 }
 
 void VlkRenderer::CreateIndexBuffer()
@@ -1031,25 +1149,6 @@ void Hail::VlkRenderer::CreateDescriptorPool()
 		throw std::runtime_error("failed to create descriptor pool!");
 #endif
 	}
-
-	std::array <VkDescriptorPoolSize, 2> finalPoolSizes{};
-	finalPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	finalPoolSizes[0].descriptorCount = 1;
-	finalPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	finalPoolSizes[1].descriptorCount = 1;
-
-	VkDescriptorPoolCreateInfo finalPoolInfo{};
-	finalPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	finalPoolInfo.poolSizeCount = static_cast<uint32_t>(finalPoolSizes.size());
-	finalPoolInfo.pPoolSizes = finalPoolSizes.data();
-	finalPoolInfo.maxSets = 1;
-	finalPoolInfo.flags = 0;
-	if (vkCreateDescriptorPool(m_device.GetDevice(), &finalPoolInfo, nullptr, &m_mainPassDescriptorPool) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create final descriptor pool!");
-#endif
-	}
 }
 
 void Hail::VlkRenderer::CreateDescriptorSets()
@@ -1072,13 +1171,13 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++) 
 	{
 		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = m_uniformBuffers[i];
+		bufferInfo.buffer = m_perFrameDataBuffers;
 		bufferInfo.offset = 0;
-		bufferInfo.range = GetUniformBufferSize(UNIFORM_BUFFERS::TUTORIAL);
+		bufferInfo.range = GetUniformBufferSize(UNIFORM_BUFFERS::PER_FRAME_DATA);
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = m_textureImageView;
+		imageInfo.imageView = reinterpret_cast<VlkFrameBufferTexture*>(m_mainPassFrameBufferTexture)->GetTextureImage(i).imageView;
 		imageInfo.sampler = m_textureSampler;
 
 		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -1101,161 +1200,6 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 
 		vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
-
-	VkDescriptorSetAllocateInfo finalPassAllocInfo{};
-	finalPassAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	finalPassAllocInfo.descriptorPool = m_mainPassDescriptorPool;
-	finalPassAllocInfo.descriptorSetCount = 1;
-	finalPassAllocInfo.pSetLayouts = &m_mainPassDescriptorSetLayout;
-
-	if (vkAllocateDescriptorSets(m_device.GetDevice(), &finalPassAllocInfo, &m_mainPassDescriptorSet) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to allocate descriptor sets!");
-#endif
-	}
-
-	VkDescriptorBufferInfo bufferInfo{};
-	bufferInfo.buffer = m_perFrameDataBuffers;
-	bufferInfo.offset = 0;
-	bufferInfo.range = GetUniformBufferSize(UNIFORM_BUFFERS::PER_FRAME_DATA);
-
-	std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[0].dstSet = m_mainPassDescriptorSet;
-	descriptorWrites[0].dstBinding = 0;
-	descriptorWrites[0].dstArrayElement = 0;
-	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descriptorWrites[0].descriptorCount = 1;
-	descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-	VkDescriptorImageInfo imageInfo{};
-	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = reinterpret_cast<VlkFrameBufferTexture*>(m_mainPassFrameBufferTexture)->GetTextureImage().imageView;
-	imageInfo.sampler = m_textureSampler;
-
-	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[1].dstSet = m_mainPassDescriptorSet;
-	descriptorWrites[1].dstBinding = 1;
-	descriptorWrites[1].dstArrayElement = 0;
-	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites[1].descriptorCount = 1;
-	descriptorWrites[1].pImageInfo = &imageInfo;
-
-	vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-
-
-}
-
-//TODO: Make image transition function to consider mip levels and the like
-void Hail::VlkRenderer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
-{
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_device, m_commandPool);
-
-	VkImageMemoryBarrier barrier{};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = image;
-	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	barrier.srcAccessMask = 0; // TODO
-	barrier.dstAccessMask = 0; // TODO
-
-	VkPipelineStageFlags sourceStage;
-	VkPipelineStageFlags destinationStage;
-
-	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-		if (HasStencilComponent(format)) {
-			barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
-	}
-	else {
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	}
-
-	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) 
-	{
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) 
-	{
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) 
-	{
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	}
-	else 
-	{
-#ifdef DEBUG
-		throw std::invalid_argument("unsupported layout transition!");
-#endif
-	}
-
-	vkCmdPipelineBarrier(
-		commandBuffer,
-		sourceStage, destinationStage,
-		0,
-		0, nullptr,
-		0, nullptr,
-		1, &barrier
-	);
-
-	EndSingleTimeCommands(m_device, commandBuffer, m_graphicsQueue, m_commandPool);
-}
-
-void Hail::VlkRenderer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-{
-	VkCommandBuffer commandBuffer = BeginSingleTimeCommands(m_device, m_commandPool);
-	VkBufferImageCopy region{};
-	region.bufferOffset = 0;
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
-
-	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	region.imageSubresource.mipLevel = 0;
-	region.imageSubresource.baseArrayLayer = 0;
-	region.imageSubresource.layerCount = 1;
-
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = {
-		width,
-		height,
-		1
-	};
-
-	vkCmdCopyBufferToImage(
-		commandBuffer,
-		buffer,
-		image,
-		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		1,
-		&region
-	);
-
-	EndSingleTimeCommands(m_device, commandBuffer, m_graphicsQueue, m_commandPool);
 }
 
 void Hail::VlkRenderer::CreateDescriptorSetLayout()
@@ -1281,14 +1225,7 @@ void Hail::VlkRenderer::CreateDescriptorSetLayout()
 	layoutInfo.bindingCount = bindings.Size();
 	layoutInfo.pBindings = bindings.Data();
 
-	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS) 
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create descriptor set layout!");
-#endif
-	}
-
-	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_mainPassDescriptorSetLayout) != VK_SUCCESS)
+	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create final pass descriptor set layout!");
@@ -1296,4 +1233,110 @@ void Hail::VlkRenderer::CreateDescriptorSetLayout()
 	}
 
 }
+
+void Hail::VlkRenderer::CreateMainDescriptorPool()
+{
+	std::array <VkDescriptorPoolSize, 2> finalPoolSizes{};
+	finalPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	finalPoolSizes[0].descriptorCount = MAX_FRAMESINFLIGHT;
+	finalPoolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	finalPoolSizes[1].descriptorCount = MAX_FRAMESINFLIGHT;
+
+	VkDescriptorPoolCreateInfo finalPoolInfo{};
+	finalPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	finalPoolInfo.poolSizeCount = static_cast<uint32_t>(finalPoolSizes.size());
+	finalPoolInfo.pPoolSizes = finalPoolSizes.data();
+	finalPoolInfo.maxSets = MAX_FRAMESINFLIGHT;
+	finalPoolInfo.flags = 0;
+	if (vkCreateDescriptorPool(m_device.GetDevice(), &finalPoolInfo, nullptr, &m_mainPassDescriptorPool) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create final descriptor pool!");
+#endif
+	}
+}
+
+void Hail::VlkRenderer::CreateMainDescriptorSets()
+{
+	GrowingArray<VkDescriptorSetLayout> layouts(MAX_FRAMESINFLIGHT, m_mainPassDescriptorSetLayout, false);
+	VkDescriptorSetAllocateInfo finalPassAllocInfo{};
+	finalPassAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	finalPassAllocInfo.descriptorPool = m_mainPassDescriptorPool;
+	finalPassAllocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMESINFLIGHT);
+	finalPassAllocInfo.pSetLayouts = layouts.Data();
+
+	m_mainPassDescriptorSet.InitAndFill(MAX_FRAMESINFLIGHT);
+
+	if (vkAllocateDescriptorSets(m_device.GetDevice(), &finalPassAllocInfo, m_mainPassDescriptorSet.Data()) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to allocate descriptor sets!");
+#endif
+	}
+	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+	{
+		VkDescriptorBufferInfo bufferInfo{};
+		bufferInfo.buffer = m_uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = GetUniformBufferSize(UNIFORM_BUFFERS::TUTORIAL);
+
+		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+
+		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[0].dstSet = m_mainPassDescriptorSet[i];
+		descriptorWrites[0].dstBinding = 0;
+		descriptorWrites[0].dstArrayElement = 0;
+		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrites[0].descriptorCount = 1;
+		descriptorWrites[0].pBufferInfo = &bufferInfo;
+
+		VkDescriptorImageInfo imageInfo{};
+		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo.imageView = m_textureImageView;
+		imageInfo.sampler = m_textureSampler;
+
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = m_mainPassDescriptorSet[i];
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = 1;
+		descriptorWrites[1].pImageInfo = &imageInfo;
+
+		vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+	}
+}
+
+void Hail::VlkRenderer::CreateMainDescriptorSetLayout()
+{
+	VkDescriptorSetLayoutBinding uboLayoutBinding{};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr; // Optional
+
+	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+	samplerLayoutBinding.binding = 1;
+	samplerLayoutBinding.descriptorCount = 1;
+	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	samplerLayoutBinding.pImmutableSamplers = nullptr;
+	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	GrowingArray<VkDescriptorSetLayoutBinding>bindings = { uboLayoutBinding, samplerLayoutBinding };
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = bindings.Size();
+	layoutInfo.pBindings = bindings.Data();
+
+	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_mainPassDescriptorSetLayout) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create final pass descriptor set layout!");
+#endif
+	}
+}
+
+
 

@@ -15,7 +15,7 @@ namespace Hail
 		TEXTURE_FORMAT GetTextureFormat() { return m_textureFormat; }
 		TEXTURE_DEPTH_FORMAT GetDepthFormat() { return m_depthFormat; }
 		glm::uvec2 GetResolution() { return m_resolution; }
-
+		glm::vec3 GetClearColor() { return m_clearColor; }
 		void SetName(String64 bufferName) { m_bufferName = bufferName; }
 		void SetTextureFormat(TEXTURE_FORMAT format) { m_textureFormat = format; }
 		void SetDepthFormat(TEXTURE_DEPTH_FORMAT format) { m_depthFormat = format; }
@@ -32,7 +32,7 @@ namespace Hail
 		TEXTURE_FORMAT m_textureFormat = TEXTURE_FORMAT::UNDEFINED;
 		TEXTURE_DEPTH_FORMAT m_depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED;
 		glm::uvec2 m_resolution;
-		glm::vec3 m_clearColor = Color_BLACK;
+		glm::vec3 m_clearColor = Color_GREEN;
 	};
 }
 

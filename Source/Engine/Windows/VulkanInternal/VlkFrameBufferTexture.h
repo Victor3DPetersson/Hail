@@ -3,6 +3,7 @@
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #include "vulkan\vulkan.h"
+#include "VlkTextureCreationFunctions.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 
 #include "Rendering\FrameBufferTexture.h"
@@ -28,20 +29,19 @@ namespace Hail
 		//TODO: Make device be inherited from main framework and pass in a pointer to that framework here
 		void CleanupResources();
 
-		FrameBufferTextureData GetTextureImage();
-		FrameBufferTextureData GetDepthTextureImage();
+		FrameBufferTextureData GetTextureImage(uint32_t index);
+		FrameBufferTextureData GetDepthTextureImage(uint32_t index);
 
 	private:
 
 		void CreateTexture(VlkDevice& device);
 		void CreateDepthTexture(VlkDevice& device);
 
-		VkImage m_textureImage = VK_NULL_HANDLE;
-		VkDeviceMemory m_textureMemory = VK_NULL_HANDLE;
-		VkImageView m_textureView = VK_NULL_HANDLE;
-
-		VkImage m_depthTextureImage = VK_NULL_HANDLE;
-		VkDeviceMemory m_depthTextureMemory = VK_NULL_HANDLE;
-		VkImageView m_depthTextureView = VK_NULL_HANDLE;
+		VkImage m_textureImage[MAX_FRAMESINFLIGHT];
+		VkDeviceMemory m_textureMemory[MAX_FRAMESINFLIGHT];
+		VkImageView m_textureView[MAX_FRAMESINFLIGHT];
+		VkImage m_depthTextureImage [MAX_FRAMESINFLIGHT];
+		VkDeviceMemory m_depthTextureMemory [MAX_FRAMESINFLIGHT];
+		VkImageView m_depthTextureView [MAX_FRAMESINFLIGHT];
 	};
 }

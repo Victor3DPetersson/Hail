@@ -150,10 +150,10 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 
 	m_borderSize.x = m_windowSize.x - rcClient.right;
 	m_borderSize.y = m_windowSize.y - rcClient.bottom;
+	SetWindowPos(m_windowHandle, HWND_NOTOPMOST, m_defaultWindowPosition.x, m_defaultWindowPosition.y, m_previousSize.x, m_previousSize.y + (int)m_borderSize.y - (int)m_borderSize.x, SWP_SHOWWINDOW);
 
 	m_frameBufferSize = m_windowSize - m_borderSize;
-
-	SetWindowPos(m_windowHandle, HWND_NOTOPMOST, m_defaultWindowPosition.x, m_defaultWindowPosition.y, m_previousSize.x, m_previousSize.y + (int)m_borderSize.y - (int)m_borderSize.x, SWP_SHOWWINDOW);
+	m_previousFrameBufferSize = m_frameBufferSize;
 	//if (startupData.acceptDragNDrop)
 	{
 		//DragAcceptFiles(m_windowHandle, TRUE);
@@ -227,7 +227,14 @@ void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MAXIMIZE))
 	{
-
+		m_previousSize = m_windowSize;
+		m_previousFrameBufferSize = m_frameBufferSize;
+		const HWND hDesktop = GetDesktopWindow();
+		RECT desktop;
+		// Get the size of screen to the variable desktop
+		GetWindowRect(hDesktop, &desktop);
+		m_windowSize = { desktop.right, desktop.bottom };
+		m_frameBufferSize = m_windowSize - m_borderSize;
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::RESTORE))
 	{
@@ -235,10 +242,27 @@ void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage 
 		m_hasBorder = m_previousHasBorder;
 		m_frameBufferSize = m_previousFrameBufferSize;
 		InternalSetWindowPos();
-
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::MOVE_WINDOW))
 	{
+		RECT window;
+		GetWindowRect(m_windowHandle, &window);
+		if (m_windowSize.x != window.right - window.left || m_windowSize.y != window.bottom - window.top)
+		{
+			m_previousSize = m_windowSize;
+			m_windowSize.x = window.right - window.left;
+			m_windowSize.y = window.bottom - window.top;
+			m_previousFrameBufferSize = m_frameBufferSize;
+			m_frameBufferSize = m_windowSize - m_borderSize;
+		}
+
+		if (m_defaultWindowPosition.x != window.left || m_defaultWindowPosition.y != window.top)
+		{
+			m_defaultWindowPosition.x = window.left;
+			m_defaultWindowPosition.y = window.top;
+		}
+
+		InternalSetWindowPos();
 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::DROP_FOCUS))
@@ -276,7 +300,6 @@ glm::uvec2 Windows_ApplicationWindow::GetMonitorResolution()
 
 void Windows_ApplicationWindow::InternalSetWindowPos()
 {
-
 	if (m_isFullScreen)
 	{
 		DWORD windowStyle = WS_POPUP | WS_VISIBLE;
@@ -289,13 +312,14 @@ void Windows_ApplicationWindow::InternalSetWindowPos()
 		{
 			DWORD windowStyle = WS_OVERLAPPEDWINDOW | WS_POPUP | WS_VISIBLE;
 			SetWindowLongPtr(m_windowHandle, GWL_STYLE, windowStyle);
+			m_frameBufferSize = m_windowSize - m_borderSize;
 		}
 		else
 		{
 			DWORD windowStyle = WS_POPUP | WS_VISIBLE;
 			SetWindowLongPtr(m_windowHandle, GWL_STYLE, windowStyle);
 		}
-		SetWindowPos(m_windowHandle, HWND_NOTOPMOST, m_defaultWindowPosition.x, m_defaultWindowPosition.y, m_previousSize.x, m_previousSize.y + (int)m_borderSize.y - (int)m_borderSize.x, SWP_SHOWWINDOW);
+		SetWindowPos(m_windowHandle, HWND_NOTOPMOST, m_defaultWindowPosition.x, m_defaultWindowPosition.y, m_windowSize.x, m_windowSize.y, SWP_SHOWWINDOW);
 	}
 
 }

@@ -1,7 +1,6 @@
 #include "Engine_PCH.h"
 
 #include "VlkFrameBufferTexture.h"
-#include "VlkTextureCreationFunctions.h"
 #include "VlkDevice.h"
 
 namespace Hail
@@ -15,6 +14,19 @@ namespace Hail
 	VlkFrameBufferTexture::VlkFrameBufferTexture(glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) :
 		FrameBufferTexture(resolution, format, depthFormat)
 	{
+		m_textureImage[0] = VK_NULL_HANDLE;
+		m_textureMemory[0] = VK_NULL_HANDLE;
+		m_textureView[0] = VK_NULL_HANDLE;
+		m_depthTextureImage[0] = VK_NULL_HANDLE;
+		m_depthTextureMemory[0] = VK_NULL_HANDLE;
+		m_depthTextureView[0] = VK_NULL_HANDLE;
+
+		m_textureImage[1] = VK_NULL_HANDLE;
+		m_textureMemory[1] = VK_NULL_HANDLE;
+		m_textureView[1] = VK_NULL_HANDLE;
+		m_depthTextureImage[1] = VK_NULL_HANDLE;
+		m_depthTextureMemory[1] = VK_NULL_HANDLE;
+		m_depthTextureView[1] = VK_NULL_HANDLE;
 	}
 
 	void VlkFrameBufferTexture::CreateFrameBufferTextureObjects(VlkDevice& device)
@@ -23,66 +35,68 @@ namespace Hail
 		attachmentCount += m_textureFormat != TEXTURE_FORMAT::UNDEFINED ? 1 : 0;
 		attachmentCount += m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED ? 1 : 0;
 
-		VkImageView attachments[2];
-
 		if (m_textureFormat != TEXTURE_FORMAT::UNDEFINED && m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED )
 		{
 			CreateTexture(device);
 			CreateDepthTexture(device);
-			attachments[0] = m_textureView;
-			attachments[1] = m_depthTextureView;
 		}
 		else if(m_textureFormat != TEXTURE_FORMAT::UNDEFINED)
 		{
 			CreateTexture(device);
-			attachments[0] = m_textureView;
 		}
 		else if(m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED)
 		{
 			CreateDepthTexture(device);
-			attachments[0] = m_depthTextureView;
 		}
 	}
 
 
 
-	FrameBufferTextureData Hail::VlkFrameBufferTexture::GetTextureImage()
+	FrameBufferTextureData Hail::VlkFrameBufferTexture::GetTextureImage(uint32_t index)
 	{
-		return FrameBufferTextureData(m_textureImage, m_textureMemory, m_textureView);
+		return FrameBufferTextureData(m_textureImage[index], m_textureMemory[index], m_textureView[index]);
 	}
 
-	FrameBufferTextureData Hail::VlkFrameBufferTexture::GetDepthTextureImage()
+	FrameBufferTextureData Hail::VlkFrameBufferTexture::GetDepthTextureImage(uint32_t index)
 	{
-		return FrameBufferTextureData(m_depthTextureImage, m_depthTextureMemory, m_depthTextureView);
+		return FrameBufferTextureData(m_depthTextureImage[index], m_depthTextureMemory[index], m_depthTextureView[index]);
 	}
 
 	void VlkFrameBufferTexture::CreateTexture(VlkDevice& device)
 	{
 		VkFormat textureFormat = ToVkFormat(m_textureFormat);
-		CreateImage(device, m_resolution.x, m_resolution.y,
-			textureFormat, VK_IMAGE_TILING_OPTIMAL, 
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, 
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			m_textureImage, m_textureMemory);
-		m_textureView = CreateImageView(device, m_textureImage, textureFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+		{
+			CreateImage(device, m_resolution.x, m_resolution.y,
+				textureFormat, VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				m_textureImage[i], m_textureMemory[i]);
+			m_textureView[i] = CreateImageView(device, m_textureImage[i], textureFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		}
+
 	}
 
 	void VlkFrameBufferTexture::CreateDepthTexture(VlkDevice& device)
 	{
 		VkFormat depthFormat = ToVkFormat(m_depthFormat);
-		CreateImage(device, m_resolution.x, m_resolution.y,
-			depthFormat, VK_IMAGE_TILING_OPTIMAL, 
-			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			m_depthTextureImage, m_depthTextureMemory);
-		if (HasStencilComponent(depthFormat))
+		for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 		{
-			m_depthTextureView = CreateImageView(device, m_depthTextureImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+			CreateImage(device, m_resolution.x, m_resolution.y,
+				depthFormat, VK_IMAGE_TILING_OPTIMAL,
+				VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				m_depthTextureImage[i], m_depthTextureMemory[i]);
+			if (HasStencilComponent(depthFormat))
+			{
+				m_depthTextureView[i] = CreateImageView(device, m_depthTextureImage[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+			}
+			else
+			{
+				m_depthTextureView[i] = CreateImageView(device, m_depthTextureImage[i], depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+			}
 		}
-		else
-		{
-			m_depthTextureView = CreateImageView(device, m_depthTextureImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-		}
+
 	}
 
 }

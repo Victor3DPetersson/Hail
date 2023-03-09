@@ -43,10 +43,10 @@ project "ResourceCompiler"
 			 }
 	filter { "configurations:Release" }
 		links { 
-			"shaderc_combinedd"
+			"shaderc_combined"
 			 }
 	filter { "configurations:Production" }
 		links { 
-			"shaderc_combined"
+			"shaderc_combinedd"
 			 }
 

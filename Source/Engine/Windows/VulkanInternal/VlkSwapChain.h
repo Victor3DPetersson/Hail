@@ -8,7 +8,6 @@
 
 namespace Hail
 {
-	const uint32_t MAX_FRAMESINFLIGHT = 2;
 
 	class VlkDevice;
 	class VlkSwapChain
