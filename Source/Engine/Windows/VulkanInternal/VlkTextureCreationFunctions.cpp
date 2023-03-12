@@ -58,6 +58,19 @@ namespace Hail
 		}
 	}
 
+	VkSamplerMipmapMode ToVkSamplerFilter(TEXTURE_SAMPLER_FILTER_MODE samplerMode)
+	{
+		switch (samplerMode)
+		{
+		case Hail::TEXTURE_SAMPLER_FILTER_MODE::POINT:
+			return  VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		case Hail::TEXTURE_SAMPLER_FILTER_MODE::LINEAR:
+			return  VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		}
+	}
+	
+
+
 }
 
 void Hail::CreateImage(VlkDevice& device, uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
@@ -165,7 +178,7 @@ VkSampler Hail::CreateTextureSampler(VlkDevice& device, TextureSamplerData sampl
 	samplerInfo.unnormalizedCoordinates = VK_FALSE;
 	samplerInfo.compareEnable = VK_FALSE;
 	samplerInfo.compareOp = ToVkCompareOperation(samplerData.compareOp);
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	samplerInfo.mipmapMode = ToVkSamplerFilter(samplerData.sampler_mode);
 	samplerInfo.mipLodBias = 0.0f;
 	samplerInfo.minLod = 0.0f;
 	samplerInfo.maxLod = 0.0f;

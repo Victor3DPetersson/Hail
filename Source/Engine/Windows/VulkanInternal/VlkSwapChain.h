@@ -22,6 +22,7 @@ namespace Hail
 		VkFormat GetSwapChainFormat() { return m_swapChainImageFormat; }
 		uint32_t GetCurrentFrame() { return m_currentFrame; }
 		uint32_t GetCurrentSwapImageIndex() { return m_currentImageIndex; }
+		uint32_t GetSwapchainImageCount() { return m_swapChainImages.Size(); }
 		VkRenderPass GetRenderPass() { return m_finalRenderPass; }
 		VkFramebuffer* GetFrameBuffer() { return m_swapChainFramebuffers.Data(); }
 		VkFormat FindSupportedFormat(VlkDevice& device, const GrowingArray<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);

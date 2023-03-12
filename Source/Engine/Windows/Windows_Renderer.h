@@ -122,7 +122,9 @@ namespace Hail
 		VkImage m_textureImage = VK_NULL_HANDLE;
 		VkDeviceMemory m_textureImageMemory = VK_NULL_HANDLE;
 		VkImageView m_textureImageView = VK_NULL_HANDLE;
+
 		VkSampler m_textureSampler = VK_NULL_HANDLE;
+		VkSampler m_pointTextureSampler = VK_NULL_HANDLE;
 
 		VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
 

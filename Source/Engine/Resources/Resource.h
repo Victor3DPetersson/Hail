@@ -160,6 +160,12 @@ namespace Hail
         CUBIC_EXT = 2
     };
 
+    enum class TEXTURE_SAMPLER_FILTER_MODE : uint32_t
+    {
+        POINT = 0,
+        LINEAR = 1
+    };
+
     enum class COMPARE_MODE : uint32_t
     {
        NEVER = 0,
@@ -188,6 +194,7 @@ namespace Hail
         TEXTURE_WRAP_MODE wrapMode_w = TEXTURE_WRAP_MODE::REPEAT;
         TEXTURE_FILTER_MODE filter_mag = TEXTURE_FILTER_MODE::NEAREST;
         TEXTURE_FILTER_MODE filter_min = TEXTURE_FILTER_MODE::NEAREST;
+        TEXTURE_SAMPLER_FILTER_MODE sampler_mode = TEXTURE_SAMPLER_FILTER_MODE::LINEAR;
         COMPARE_MODE compareOp = COMPARE_MODE::ALWAYS;
         glm::vec3 borderColor = Color_BLACK;
         bool anisotropy = true;

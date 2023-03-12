@@ -66,6 +66,9 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 	CreateTextureImage();
 	CreateTextureImageView();
 	m_textureSampler = CreateTextureSampler(m_device, TextureSamplerData{});
+	TextureSamplerData pointSamplerData;
+	pointSamplerData.sampler_mode = TEXTURE_SAMPLER_FILTER_MODE::POINT;
+	m_pointTextureSampler = CreateTextureSampler(m_device, pointSamplerData);
 
 	CreateFullscreenVertexBuffer();
 	CreateVertexBuffer();
@@ -145,7 +148,7 @@ void VlkRenderer::InitImGui()
 	init_info.Queue = m_graphicsQueue;
 	init_info.DescriptorPool = m_imguiPool;
 	init_info.MinImageCount = MAX_FRAMESINFLIGHT;
-	init_info.ImageCount = MAX_FRAMESINFLIGHT;
+	init_info.ImageCount = m_swapChain.GetSwapchainImageCount();
 	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
 	ImGui_ImplVulkan_Init(&init_info, m_swapChain.GetRenderPass());
@@ -239,6 +242,8 @@ void VlkRenderer::Cleanup()
 	ImGui_ImplVulkan_Shutdown();
 
 	vkDestroySampler(m_device.GetDevice(), m_textureSampler, nullptr);
+	vkDestroySampler(m_device.GetDevice(), m_pointTextureSampler, nullptr);
+
 	vkDestroyImageView(m_device.GetDevice(), m_textureImageView, nullptr);
 	vkDestroyImage(m_device.GetDevice(), m_textureImage, nullptr);
 	vkFreeMemory(m_device.GetDevice(), m_textureImageMemory, nullptr);
@@ -1178,7 +1183,7 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		imageInfo.imageView = reinterpret_cast<VlkFrameBufferTexture*>(m_mainPassFrameBufferTexture)->GetTextureImage(i).imageView;
-		imageInfo.sampler = m_textureSampler;
+		imageInfo.sampler = m_pointTextureSampler;
 
 		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 

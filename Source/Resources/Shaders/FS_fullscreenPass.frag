@@ -26,7 +26,7 @@ void main()
 	if(xIndex < xHalfOffset || xIndex > constantVariables.renderResolution.x + xHalfOffset ||
 	yIndex < yHalfOffset || yIndex > constantVariables.renderResolution.y + yHalfOffset)
 	{	
-		outColor = vec4(1.0, 0.0, 0.0, 1.0);
+		outColor = vec4(0.41, 0.42, 0.51, 1.0);
 	}
 	else
 	{
