@@ -302,8 +302,8 @@ Hail::Mesh Hail::CreateUnitSphere()
 	uint32_t sliceCount = 12;
 	uint32_t stackCount = 12;
 
-	float phiStep = PIf / stackCount;
-	float thetaStep = 2.0f * PIf / sliceCount;
+	float phiStep = Math::PIf / stackCount;
+	float thetaStep = 2.0f * Math::PIf / sliceCount;
 
 	mesh.vertices;
 	mesh.vertices.Init(40);
@@ -336,7 +336,7 @@ Hail::Mesh Hail::CreateUnitSphere()
 			glm::vec3 binormal;
 			binormal = glm::cross(tangent, n);
 			glm::normalize(binormal);
-			glm::vec2 uv = { theta / (PIf * 2), phi / PIf };
+			glm::vec2 uv = { theta / (Math::PIf * 2), phi / Math::PIf };
 
 			VertexModel vertex;
 			vertex.pos = p;
@@ -415,7 +415,7 @@ Hail::Mesh Hail::CreateUnitCylinder()
 		float y = -0.5f * height + i * stackHeight;
 		float r = bottomRadius + i * radiusStep;
 
-		float dTheta = 2.0f * PIf / sliceCount;
+		float dTheta = 2.0f * Math::PIf / sliceCount;
 		for (uint32_t j = 0; j <= sliceCount; j++)
 		{
 			VertexModel vertex;
@@ -470,7 +470,7 @@ void Hail::BuildCylinderTopCap(float topRadius, float height, uint32_t sliceCoun
 	uint32_t baseIndex = (uint32_t)meshVertices.Size();
 
 	float y = 0.5f * height;
-	float dTheta = 2.0f * PIf / sliceCount;
+	float dTheta = 2.0f * Math::PIf / sliceCount;
 	for (uint32_t i = 0; i <= sliceCount; i++)
 	{
 		float x = topRadius * cosf(i * dTheta);
@@ -512,7 +512,7 @@ void Hail::BuildCylinderBottomCap(float bottomRadius, float height, uint32_t sli
 	uint32_t baseIndex = (uint32_t)meshVertices.Size();
 
 	float y = -0.5f * height;
-	float dTheta = 2.0f * PIf / sliceCount;
+	float dTheta = 2.0f * Math::PIf / sliceCount;
 	for (uint32_t i = 0; i <= sliceCount; i++)
 	{
 		float x = bottomRadius * cosf(i * dTheta);

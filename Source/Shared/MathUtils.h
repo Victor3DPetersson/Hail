@@ -1,10 +1,11 @@
 #pragma once
 
-static constexpr float PIf = 3.1415926f;
 
 
 namespace Math
 {
+	static constexpr float PIf = 3.1415926f;
+
 	template <typename T>
 	inline T Max(const T firstValue, const T secondValue)
 	{

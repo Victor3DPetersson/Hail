@@ -1,14 +1,17 @@
 #pragma once
 
+#include "EngineConstants.h"
+
 #include "glm\mat4x4.hpp"
 #include "glm\vec2.hpp"
 
 namespace Hail
 {
-	enum class UNIFORM_BUFFERS : uint32_t
+	enum class BUFFERS : uint32_t
 	{
-		TUTORIAL,
 		PER_FRAME_DATA,
+		SPRITE_INSTANCE_BUFFER,
+		TUTORIAL,
 		COUNT
 	};
 
@@ -22,7 +25,21 @@ namespace Hail
 	{
 		glm::uvec2 mainRenderResolution;
 		glm::uvec2 mainWindowResolution;
-		float totalTime;
+		glm::vec2 totalTime_horizonLevel;
+	};
+
+	struct SpriteInstanceData
+	{
+		glm::vec4 position_scale;
+		glm::vec4 uvBL_TR;
+		glm::vec4 color;
+		glm::vec4 pivot_rotation_padding; //vec2, float, float
+		glm::uvec4 textureSize_effectData_padding;
+	};
+
+	struct SpriteInstanceDataBuffer
+	{
+		SpriteInstanceData sprites[MAX_NUMBER_OF_SPRITES];
 	};
 
 	enum class SHADER_STORAGE_BUFFER_USAGE : uint32_t
@@ -40,12 +57,12 @@ namespace Hail
 		SHADER_STORAGE, // Structured buffer in DX, read write on GPU
 	};
 
-	const uint32_t GetUniformBufferIndex(const UNIFORM_BUFFERS buffer);
-	const uint32_t GetUniformBufferSize(const UNIFORM_BUFFERS buffer);
+	const uint32_t GetUniformBufferIndex(const BUFFERS buffer);
+	const uint32_t GetUniformBufferSize(const BUFFERS buffer);
 
 
 
-	struct Buffer
+	struct BufferObject
 	{
 		const uint32_t GetBufferSize();
 

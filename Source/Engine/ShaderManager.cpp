@@ -16,7 +16,9 @@ const char* requiredShaders[REQUIREDSHADERCOUNT] =
 	"VS_triangle",
 	"FS_triangle",
 	"VS_fullscreenPass",
-	"FS_fullscreenPass"
+	"FS_fullscreenPass",
+	"VS_Sprite",
+	"FS_Sprite"
 };
 
 

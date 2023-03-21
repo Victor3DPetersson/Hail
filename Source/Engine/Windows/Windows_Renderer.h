@@ -8,6 +8,7 @@
 #include "VulkanInternal\VlkDevice.h"
 #include "VulkanInternal\VlkSwapChain.h"
 #include "VulkanInternal\VlkTextureCreationFunctions.h"
+#include "Rendering\UniformBufferManager.h"
 
 namespace Hail
 {
@@ -43,6 +44,9 @@ namespace Hail
 		void CreateMainDescriptorSets();
 		void CreateMainDescriptorSetLayout();
 
+		void CreateSpriteGraphicsPipeline();
+		void CreateSpriteRenderPass();
+		void CreateSpriteDescriptorSets();
 
 		void CreateCommandPool();
 		void CreateCommandBuffers();
@@ -57,8 +61,11 @@ namespace Hail
 
 		void CreateVertexBuffer();
 		void CreateFullscreenVertexBuffer();
+		void CreateSpriteVertexBuffer();
 		void CreateIndexBuffer();
-		
+
+		void InitGlobalDescriptors();
+
 		//General functions
 
 		void CreateUniformBuffers();
@@ -67,7 +74,15 @@ namespace Hail
 		void CreateDescriptorSetLayout();
 
 
-
+		struct VlkLayoutDescriptor
+		{
+			VkShaderStageFlags flags;
+			uint32_t bindingPoint;
+			VkDescriptorType type;
+		};
+		VkDescriptorSetLayout CreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors);
+		VkWriteDescriptorSet WriteDescriptorBuffer(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorBufferInfo* bufferInfo, uint32_t binding);
+		VkWriteDescriptorSet WriteDescriptorSampler(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorImageInfo* bufferInfo, uint32_t binding);
 
 		VlkDevice m_device;
 		VlkSwapChain m_swapChain;
@@ -76,9 +91,19 @@ namespace Hail
 		VkQueue m_presentQueue = VK_NULL_HANDLE;
 		VkQueue m_computeQueue = VK_NULL_HANDLE;
 
+		VkDescriptorPool m_globalDescriptorPool = VK_NULL_HANDLE;
+		VkPipelineLayout m_globalPipelineLayout = VK_NULL_HANDLE;
+		VkDescriptorSetLayout  m_globalDescriptorSetLayoutPerFrame = VK_NULL_HANDLE;
+		VkDescriptorSetLayout  m_globalDescriptorSetLayoutMaterial = VK_NULL_HANDLE;
+		VkDescriptorSet m_globalDescriptorSetsPerFrame[MAX_FRAMESINFLIGHT];
+		VkDescriptorSet m_globalDescriptorSetsMaterial[MAX_FRAMESINFLIGHT];
+
 
 		VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+
+		VkCommandPool m_commandPool = VK_NULL_HANDLE;
+		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
 
 		GrowingArray<VkBuffer> m_uniformBuffers;
 		GrowingArray<VkDeviceMemory> m_uniformBuffersMemory;
@@ -88,6 +113,8 @@ namespace Hail
 		VkDescriptorPool m_descriptorPool = VK_NULL_HANDLE;
 		GrowingArray<VkDescriptorSet> m_descriptorSets;
 
+
+		////MODEL PASS
 		//Descriptor data for finalRenderpass
 		VkDescriptorPool m_mainPassDescriptorPool = VK_NULL_HANDLE;
 		VkDescriptorSetLayout  m_mainPassDescriptorSetLayout = VK_NULL_HANDLE;
@@ -99,18 +126,31 @@ namespace Hail
 		VkPipeline m_mainPipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_mainPipelineLayout = VK_NULL_HANDLE;
 		VkFramebuffer m_mainFrameBuffer[MAX_FRAMESINFLIGHT];
+		////////////////
 
-		VkCommandPool m_commandPool = VK_NULL_HANDLE;
-		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
+		///////////SPRITES
+
+		VkRenderPass m_spriteRenderPass = VK_NULL_HANDLE;
+		VkPipeline m_spritePipeline = VK_NULL_HANDLE;
+		VkFramebuffer m_spriteFrameBuffer[MAX_FRAMESINFLIGHT];
+
+		GrowingArray<VkBuffer> m_spriteBuffer;
+		GrowingArray<VkDeviceMemory> m_spriteBufferMemory;
+		GrowingArray<void*> m_spriteBufferMapped;
+
+		///////////
 
 
-		VkBuffer m_perFrameDataBuffers;
-		VkDeviceMemory m_perFrameDataBuffersMemory;
-		void* m_perFrameDataBuffersMapped;
+		GrowingArray<VkBuffer> m_perFrameDataBuffers;
+		GrowingArray<VkDeviceMemory> m_perFrameDataBuffersMemory;
+		GrowingArray<void*> m_perFrameDataBuffersMapped;
 
 
 		VkBuffer m_fullscreenVertexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_fullscreenVertexBufferMemory = VK_NULL_HANDLE;
+
+		VkBuffer m_spriteVertexBuffer = VK_NULL_HANDLE;
+		VkDeviceMemory m_spriteVertexBufferMemory = VK_NULL_HANDLE;
 
 		//Vertex and index buffer for cube
 		VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
@@ -125,6 +165,9 @@ namespace Hail
 
 		VkSampler m_textureSampler = VK_NULL_HANDLE;
 		VkSampler m_pointTextureSampler = VK_NULL_HANDLE;
+
+
+
 
 		VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
 

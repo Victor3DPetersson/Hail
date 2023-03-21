@@ -20,9 +20,7 @@ namespace Hail
 
 	struct VertexSprite
 	{
-		glm::vec2 pos;
-		glm::vec2 texCoord1;
-		glm::vec4 color = { 1.0, 1.0, 1.0, 1.0 };
+		uint32_t index;
 	};
 
 	struct VertexModel
