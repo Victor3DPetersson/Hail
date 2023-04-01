@@ -188,6 +188,7 @@ namespace
 
 void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 {
+	Renderer::StartFrame(renderPool);
 	if (m_swapChain.FrameStart(m_device, m_inFrameFences, m_imageAvailableSemaphores, m_framebufferResized))
 	{
 		const VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
@@ -198,6 +199,9 @@ void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 	ImGui_ImplVulkan_NewFrame();
 	ImGui::NewFrame();
 	g_camera = renderPool.renderCamera;
+
+
+
 }
 
 void VlkRenderer::Render()
@@ -212,6 +216,7 @@ void VlkRenderer::Render()
 
 void Hail::VlkRenderer::EndFrame()
 {
+	Renderer::EndFrame();
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -235,7 +240,6 @@ void Hail::VlkRenderer::EndFrame()
 		throw std::runtime_error("failed to submit draw command buffer!");
 #endif
 	}
-
 	m_swapChain.FrameEnd(signalSemaphores, m_presentQueue);
 }
 
@@ -341,30 +345,9 @@ void Hail::VlkRenderer::UpdateUniformBuffer(uint32_t frameInFlight)
 	ubo.proj[1][1] *= -1;
 	memcpy(m_uniformBuffersMapped[m_swapChain.GetCurrentFrame()], &ubo, sizeof(ubo));
 
-	SpriteInstanceData s1, s2, s3;
+	if(m_spriteInstanceData.Empty())
 
-	s1.position_scale = { 0.24f, 0.5f, 0.2f, 0.2f };
-	s2.position_scale = { 0.9f, 0.9f, 0.5f, 0.5f };
-	s3.position_scale = { 0.4f, 0.15f, 0.1f, 0.1f };
-
-	s1.uvBL_TR = { 0.0f, 0.0f, 1.0f, 1.0f };
-	s2.uvBL_TR = { 0.0f, 0.0f, 1.0f, 1.0f };
-	s3.uvBL_TR = { 0.0f, 0.0f, 2.0f, 2.0f };
-
-	s1.color = { 0.2f, 0.2f, 1.0f, 1.0f };
-	s2.color = { 0.0f, 1.0f, 0.0f, 1.0f };
-	s3.color = { 1.0f, 0.1f, 0.1f, 1.0f };
-
-	s1.pivot_rotation_padding = { 0.5f, 0.5f, Math::PIf * 0.65f * totalTime, 0.0f };
-	s2.pivot_rotation_padding = { 0.0f, 0.0f, Math::PIf * 0.15f * -totalTime, 0.0f };
-	s3.pivot_rotation_padding = { 1.0f, 1.0f, Math::PIf, 0.0f };
-
-	s1.textureSize_effectData_padding = { 256, 256, 0, 0 };
-	s2.textureSize_effectData_padding = { 256, 256, 1, 0 };
-	s3.textureSize_effectData_padding = { 256, 256, 0, 0 };
-
-	SpriteInstanceData spriteData[3] = { s1, s2, s3 };
-	memcpy(m_spriteBufferMapped[m_swapChain.GetCurrentFrame()], &spriteData, sizeof(SpriteInstanceData) * 3);
+	memcpy(m_spriteBufferMapped[m_swapChain.GetCurrentFrame()], m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
 
 }
 
@@ -446,15 +429,14 @@ void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 	VkDescriptorSet descriptorSets[2] = { m_globalDescriptorSetsPerFrame[frameInFlightIndex], m_globalDescriptorSetsMaterial[frameInFlightIndex]};
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_globalPipelineLayout, 0, 2, descriptorSets, 0, nullptr);
 	glm::uvec4 pushConstants_instanceID_padding = { 0, 0, 0, 0 };
-	vkCmdPushConstants(commandBuffer, m_globalPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
-	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
-	pushConstants_instanceID_padding.x++;
-	vkCmdPushConstants(commandBuffer, m_globalPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
-	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
-	pushConstants_instanceID_padding.x++;
-	vkCmdPushConstants(commandBuffer, m_globalPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
-	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 
+	const uint32_t numberOfSprites = m_spriteInstanceData.Size();
+	for (size_t spriteInstance = 0; spriteInstance < numberOfSprites; spriteInstance++)
+	{
+		vkCmdPushConstants(commandBuffer, m_globalPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
+		vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+		pushConstants_instanceID_padding.x++;
+	}
 	vkCmdEndRenderPass(commandBuffer);
 
 

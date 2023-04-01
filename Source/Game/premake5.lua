@@ -26,7 +26,6 @@ project "Game"
 		".",
 		"./**",
 		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/Engine/",
 	}
 
 

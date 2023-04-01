@@ -32,8 +32,8 @@ void main()
 	{
 		float ratioX = constantVariables.screenResolution.x / constantVariables.screenResolution.y;
 		float remappedXCoord = float(xIndex - xHalfOffset) / float(constantVariables.renderResolution.x);
-		float remappedYCoord = float(yIndex - yHalfOffset) / float(constantVariables.renderResolution.y);
-		uvec3 sampledColor = texture(texSampler, vec2(1.0-remappedXCoord, remappedYCoord)).rgb;
+		float remappedYCoord = 1.0 - float(yIndex - yHalfOffset) / float(constantVariables.renderResolution.y);
+		uvec3 sampledColor = texture(texSampler, vec2(remappedXCoord, remappedYCoord)).rgb;
 		vec3 color = vec3(sampledColor) / 255.0;
 		//vec3 color = vec3(remappedXCoord, remappedYCoord, 1.0);
 		outColor = vec4(color, 1.0);

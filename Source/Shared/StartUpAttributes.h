@@ -12,7 +12,7 @@ namespace Hail
 
 using callback_function = std::function<void()>;
 using callback_function_init = std::function<void(void*)>;
-using callback_function_dt_frmData = std::function<void(float, void*)>;
+using callback_function_totalTime_dt_frmData = std::function<void(double, float, void*)>;
 
 
 namespace Hail
@@ -43,7 +43,7 @@ namespace Hail
 struct StartupAttributes
 {
 	callback_function_init initFunctionToCall = nullptr;
-	callback_function_dt_frmData updateFunctionToCall = nullptr;
+	callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 	callback_function shutdownFunctionToCall = nullptr;
 
 	RESOLUTIONS startupResolution = RESOLUTIONS::RES720;

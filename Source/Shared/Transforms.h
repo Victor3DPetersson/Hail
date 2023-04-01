@@ -44,7 +44,8 @@ namespace Hail
 		void AddToPosition(const glm::vec3& pos);
 		void SetRotation(const glm::vec3& rot);
 		void SetRotation(const glm::qua<float, glm::packed_highp>& rot);
-		void AddToRotation(const glm::vec3& rot);
+		//Set rotation in Eueler angles
+		void AddToRotation(const glm::vec3& rotEuler);
 		void SetScale(const glm::vec3& scl);
 		void AddToScale(const glm::vec3& scl);
 
@@ -60,11 +61,12 @@ namespace Hail
 		Transform2D() {
 			m_pos = glm::vec2();
 			m_scl = glm::vec2(1, 1);
-			m_rot = 0;
+			m_rot = 90.0f;
 		}
 		const Transform2D& operator=(const Transform2D& transform);
 
 		__forceinline const glm::vec2 GetPosition() const { return m_pos; };
+		//Returns rotation in EulerAngles
 		__forceinline const float GetRotation() const { return m_rot; };
 		__forceinline const glm::vec2 GetScale()	const { return m_scl; };
 		__forceinline glm::vec2 GetPosition() { return m_pos; };
@@ -75,10 +77,11 @@ namespace Hail
 
 		void SetPosition(const glm::vec2 pos);
 		void AddToPosition(const glm::vec2 pos);
-		void SetRotation(const float rot);
-		void AddToRotation(const float rot);
+		void SetRotation(const float rotInEulerAngles);
+		void AddToRotation(const float rotInEulerAngles);
 		void SetScale(const glm::vec2 scl);
 		void AddToScale(const glm::vec2 scl);
+		void LookAt(const glm::vec2 normalizedDirection);
 
 	private:
 		glm::vec2 m_pos, m_scl;

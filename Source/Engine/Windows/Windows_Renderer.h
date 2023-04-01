@@ -8,7 +8,6 @@
 #include "VulkanInternal\VlkDevice.h"
 #include "VulkanInternal\VlkSwapChain.h"
 #include "VulkanInternal\VlkTextureCreationFunctions.h"
-#include "Rendering\UniformBufferManager.h"
 
 namespace Hail
 {
@@ -174,8 +173,6 @@ namespace Hail
 		VkSemaphore m_imageAvailableSemaphores[MAX_FRAMESINFLIGHT];
 		VkSemaphore m_renderFinishedSemaphores[MAX_FRAMESINFLIGHT];
 		VkFence m_inFrameFences[MAX_FRAMESINFLIGHT];
-
-
 	};
 }
 

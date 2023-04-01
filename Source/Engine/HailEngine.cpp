@@ -33,7 +33,7 @@ namespace Hail
 		ResourceManager* resourceManager = nullptr;
 		ThreadSyncronizer* threadSynchronizer = nullptr;
 
-		callback_function_dt_frmData updateFunctionToCall = nullptr;
+		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 		//callback_function_dt m_renderFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
 
@@ -199,7 +199,7 @@ void Hail::ProcessApplication()
 
 		if (applicationTime >= tickTime && !engineData.applicationLoopDone)
 		{
-			engineData.updateFunctionToCall(tickTime, &engineData.threadSynchronizer->GetAppFrameData());
+			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, &engineData.threadSynchronizer->GetAppFrameData());
 			engineData.applicationLoopDone = true;
 			applicationTime = 0.0;
 		}

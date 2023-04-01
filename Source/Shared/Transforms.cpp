@@ -7,10 +7,11 @@
 #include "glm\ext\quaternion_trigonometric.hpp"
 #include "glm\ext\quaternion_transform.hpp"
 #include "glm\ext.hpp"
-#include "glm\mat4x4.hpp"
 #include "glm\gtx\euler_angles.hpp"
 #include "glm\gtx\matrix_decompose.hpp"
 #include "MathUtils.h"
+
+#include "DebugMacros.h"
 
 namespace Hail
 {
@@ -115,22 +116,21 @@ namespace Hail
 	{
 		m_pos += pos;
 	}
-	//Set rotation in Eueler angles
-	void Transform3D::SetRotation(const glm::vec3& rot)
+	void Transform3D::SetRotation(const glm::vec3& rotEuler)
 	{
-		m_rot.x = fmod(rot.x, 360.0f);
+		m_rot.x = fmod(rotEuler.x, 360.0f);
 		if (m_rot.x > 180)
 			m_rot.x -= 360;
 		else if (m_rot.x < -180)
 			m_rot.x += 360;
 
-		m_rot.y = fmod(rot.y, 360.0f);
+		m_rot.y = fmod(rotEuler.y, 360.0f);
 		if (m_rot.y > 180)
 			m_rot.y -= 360;
 		else if (m_rot.y < -180)
 			m_rot.y += 360;
 
-		m_rot.z = fmod(rot.z, 360.0f);
+		m_rot.z = fmod(rotEuler.z, 360.0f);
 		if (m_rot.z > 180)
 			m_rot.z -= 360;
 		else if (m_rot.z < -180)
@@ -160,10 +160,21 @@ namespace Hail
 		m_scl += scl;
 	}
 
+	const Transform2D& Transform2D::operator=(const Transform2D& transform)
+	{
+		m_pos = transform.m_pos;
+		m_scl = transform.m_scl;
+		m_rot = transform.m_rot;
+		return *this;
+	}
+
 	const Transform2D Hail::Transform2D::LerpTransforms(const Transform2D& tr1, const Transform2D& tr2, const float t)
 	{
-
-		return Transform2D();
+		Transform2D outTransform;
+		outTransform.m_pos = glm::mix(tr1.m_pos, tr2.m_pos, t);
+		outTransform.m_scl = glm::mix(tr1.m_scl, tr2.m_scl, t);
+		outTransform.m_rot = glm::mix(tr1.m_rot, tr2.m_rot, t);
+		return outTransform;
 	}
 
 	void Hail::Transform2D::SetPosition(const glm::vec2 pos)
@@ -176,14 +187,14 @@ namespace Hail
 		m_pos += pos;
 	}
 
-	void Hail::Transform2D::SetRotation(const float rot)
+	void Hail::Transform2D::SetRotation(const float rotInEulerAngles)
 	{
-		m_rot = rot;
+		m_rot = fmod(rotInEulerAngles, 360.0f);
 	}
 
-	void Hail::Transform2D::AddToRotation(const float rot)
+	void Hail::Transform2D::AddToRotation(const float rotInEulerAngles)
 	{
-		m_rot = fmod(rot, 360.0f);
+		m_rot = fmod(rotInEulerAngles, 360.0f);
 		if (m_rot > 180)
 			m_rot -= 360;
 		else if (m_rot < -180)
@@ -198,5 +209,10 @@ namespace Hail
 	void Hail::Transform2D::AddToScale(const glm::vec2 scl)
 	{
 		m_scl += scl;
+	}
+	void Hail::Transform2D::LookAt(const glm::vec2 normalizedDirection)
+	{
+		float theta = atan2f(normalizedDirection.y, normalizedDirection.x);
+		m_rot = fmod(Math::RadToDegf * theta, 360.0f);
 	}
 }

@@ -13,7 +13,7 @@ int main()
 
 	startData.initFunctionToCall = [game](void* initData) { game->Init(initData); };
 	startData.shutdownFunctionToCall = [game]() { game->Shutdown(); };
-	startData.updateFunctionToCall = [game](float dt, void* frameData) { game->Update(dt, frameData); };
+	startData.updateFunctionToCall = [game](double totalTime, float dt, void* frameData) { game->Update(totalTime, dt, frameData); };
 
 	if(Hail::InitEngine(startData))
 	{

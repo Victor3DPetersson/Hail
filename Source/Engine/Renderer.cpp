@@ -1,6 +1,7 @@
 #include "Engine_PCH.h"
 #include "Renderer.h"
 #include "DebugMacros.h"
+#include "RenderCommands.h"
 
 void Hail::Renderer::ReloadShaders()
 {
@@ -30,4 +31,29 @@ void Hail::Renderer::CalculateRenderResolution(glm::uvec2 windowResolution)
 void Hail::Renderer::WindowSizeUpdated()
 {
 	m_framebufferResized = true;
+}
+
+void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
+{
+	//Move to general functions later
+	const uint32_t numberOfSprites = renderPool.spriteCommands.Size();
+	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
+	{
+		const RenderCommand_Sprite& spriteCommand = renderPool.spriteCommands[sprite];
+		const glm::vec2 spriteScale = spriteCommand.transform.GetScale();
+		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
+		SpriteInstanceData spriteInstance{};
+		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
+		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
+		spriteInstance.color = spriteCommand.color;
+		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotation() * Math::DegToRadf + Math::PIf * -0.5f, 0.0f };
+		//Get sprite texture size and sort with material and everything here to the correct place. 
+		spriteInstance.textureSize_effectData_padding = { 256, 256, static_cast<uint32_t>(spriteCommand.sizeRelativeToRenderTarget), 0 };
+		m_spriteInstanceData.Add(spriteInstance);
+	}
+}
+
+void Hail::Renderer::EndFrame()
+{
+	m_spriteInstanceData.Clear();
 }

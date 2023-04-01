@@ -36,7 +36,11 @@ namespace Hail
 		RenderCommandPool& GetRenderPool() { return m_rendererCommandPool; }
 	private:
 		void SwapBuffersInternal();
+		void ClearApplicationBuffers();
+		void TransferBufferSizes();
 		void LerpRenderBuffers();
+
+		void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite,	RenderCommand_Sprite& writeSprite, float t);
 
 		RenderCommandPool m_renderCommandPools[3]{};
 		RenderCommandPool m_rendererCommandPool{};

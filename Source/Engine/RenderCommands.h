@@ -11,6 +11,7 @@
 #include "Containers\VectonOnStack\VectorOnStack.h"
 #include "Transforms.h"
 #include "Camera.h"
+#include "EngineConstants.h"
 
 namespace Hail
 {
@@ -25,14 +26,20 @@ namespace Hail
 		glm::vec3 pos1;
 		glm::vec3 pos2;
 		glm::vec3 color;
+		uint16_t index;
+		bool lerpCommand;
 	};
 
 	struct RenderCommand_Sprite
 	{
 		Transform2D transform;
-		glm::vec4 uv;
-		glm::vec3 color;
+		glm::vec4 uvTR_BL = { 0.0, 0.0, 1.0, 1.0 };
+		glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glm::vec2 pivot = { 0.5f, 0.5f };
 		uint32_t materialInstanceID;
+		uint16_t index;
+		bool lerpCommand = true;
+		bool sizeRelativeToRenderTarget = false;
 	};
 
 	struct RenderCommand_Text
@@ -41,6 +48,8 @@ namespace Hail
 		glm::vec3 color;
 		String256 text;
 		uint32_t materialInstanceID;
+		uint16_t index;
+		bool lerpCommand;
 	};
 
 	struct RenderCommand_Mesh
@@ -49,6 +58,8 @@ namespace Hail
 		glm::vec3 color;
 		uint32_t meshID;
 		uint32_t materialInstanceID;
+		uint16_t index;
+		bool lerpCommand;
 	};
 
 
@@ -56,7 +67,7 @@ namespace Hail
 	{
 		Camera renderCamera;
 		VectorOnStack<RenderCommand_DebugLine, 1024, false> debugLineCommands;
-		VectorOnStack<RenderCommand_Sprite, 1024, false> spriteCommands;
+		VectorOnStack<RenderCommand_Sprite, MAX_NUMBER_OF_SPRITES, false> spriteCommands;
 		VectorOnStack<RenderCommand_Text, 1024, false> textCommands;
 		VectorOnStack<RenderCommand_Mesh, 1024, false> meshCommands;
 	};

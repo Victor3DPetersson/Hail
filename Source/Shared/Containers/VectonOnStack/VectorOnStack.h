@@ -22,6 +22,8 @@ public:
 	inline Type* Data() { return m_data; }
 	inline void Clear();
 	inline void DeleteAll();
+	inline bool Empty() { return static_cast<bool>(m_size); }
+	void TransferSize(const VectorOnStack& otherArray);
 
 	__forceinline CountType Size() const;
 
@@ -142,4 +144,11 @@ template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename C
 CountType VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Size() const
 {
 	return m_end;
+}
+
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::TransferSize(const VectorOnStack& otherArray)
+{
+	m_end = otherArray.m_end;
 }

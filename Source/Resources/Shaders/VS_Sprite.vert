@@ -17,7 +17,7 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 struct UIData
 {
 	vec4 position_scale;
-	vec4 uvBL_TR;
+	vec4 uvTL_BR;
 	vec4 color;
 	vec4 pivot_rotation_padding; //vec2 float padd
 	uvec4 textureSize_effectData_padding;
@@ -28,14 +28,17 @@ layout(std140, set = 0, binding = 1) buffer UIDataBuffer
    	UIData uiInstanceData[];
 };
 
-
+uint BL = 0;
+uint BR = 3;
+uint TL = 1;
+uint TR = 2;
 
 const vec2 offsets[4] =
 {
-	{-1.0, -1.0}, //BL
-	{-1.0, 1.0}, //TL
-	{1.0, 1.0}, //TR
-	{1.0, -1.0} //BR
+	{-1.0, 1.0}, //BL
+	{-1.0, -1.0}, //TL
+	{1.0, -1.0}, //TR
+	{1.0, 1.0} //BR
 };
 
 layout(location = 0) out vec2 outTexCoord;
@@ -59,12 +62,10 @@ void main()
 	{
 		vec2 relativeSizeToRes = (textureSize) / renderRes;
 		finalScale = relativeSizeToRes * vec2(instanceData.position_scale.zw);
-		float aspectRatio = renderRes.x / renderRes.y;
-		finalScale.x *= aspectRatio;
 	}
 
-	vec2 uvBL = instanceData.uvBL_TR.xy;
-	vec2 uvTR = instanceData.uvBL_TR.zw;
+	vec2 uvTL = instanceData.uvTL_BR.xy;
+	vec2 uvBR = instanceData.uvTL_BR.zw;
 	vec2 pivotPoint = instanceData.pivot_rotation_padding.xy * 2.0 - 1.0;
 	vec2 finalUV = vec2(0);
 	vec2 finalPosition = instanceData.position_scale.xy * 2.0 - 1.0;
@@ -77,45 +78,45 @@ void main()
 
 	if(inIndex == 0)
 	{
-	 	offsetPos = offsets[0]; //BL
-		finalUV.x = uvBL.x;
-		finalUV.y = uvBL.y;
+	 	offsetPos = offsets[BL];
+		finalUV.x = uvTL.x;
+		finalUV.y = uvBR.y;
 	}
 	else if(inIndex == 1)
 	{
-		offsetPos = offsets[3]; //BR
-		finalUV.x = uvTR.x;
-		finalUV.y = uvBL.y;
+		offsetPos = offsets[BR];
+		finalUV.x = uvBR.x;
+		finalUV.y = uvBR.y;
 	}
 	else if(inIndex == 2)
 	{
-		offsetPos = offsets[1]; //TL
-		finalUV.x = uvBL.x;
-		finalUV.y = uvTR.y;
+		offsetPos = offsets[TL];
+		finalUV.x = uvTL.x;
+		finalUV.y = uvTL.y;
 	}
 	else if(inIndex == 3)
 	{
-		offsetPos = offsets[1]; //TL
-		finalUV.x = uvBL.x;
-		finalUV.y = uvTR.y;
+		offsetPos = offsets[TL];
+		finalUV.x = uvTL.x;
+		finalUV.y = uvTL.y;
 	}
 	else if(inIndex == 4)
 	{
-		offsetPos = offsets[3]; //BR
-		finalUV.x = uvTR.x;
-		finalUV.y = uvBL.y;
+		offsetPos = offsets[BR];
+		finalUV.x = uvBR.x;
+		finalUV.y = uvBR.y;
 	}
 	else
 	{
-		offsetPos = offsets[2]; //TR
-		finalUV.x = uvTR.x;
-		finalUV.y = uvTR.y;
+		offsetPos = offsets[TR];
+		finalUV.x = uvBR.x;
+		finalUV.y = uvTL.y;
 	}
 	rotatedPosition.x = ((offsetPos.x + pivotPoint.x) * cs - (offsetPos.y + pivotPoint.y) * sn);
 	rotatedPosition.y = ((offsetPos.x + pivotPoint.x) * sn + (offsetPos.y + pivotPoint.y) * cs);
 	finalPosition.xy += rotatedPosition * finalScale;
 
 	gl_Position = vec4(finalPosition, 0.01, 1.0);
-	outTexCoord = finalUV;
+	outTexCoord = vec2(finalUV.x, 1.0 - finalUV.y);
 	outColor = instanceData.color;
 }

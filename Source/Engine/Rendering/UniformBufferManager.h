@@ -31,15 +31,10 @@ namespace Hail
 	struct SpriteInstanceData
 	{
 		glm::vec4 position_scale;
-		glm::vec4 uvBL_TR;
+		glm::vec4 uvTR_BL;
 		glm::vec4 color;
 		glm::vec4 pivot_rotation_padding; //vec2, float, float
 		glm::uvec4 textureSize_effectData_padding;
-	};
-
-	struct SpriteInstanceDataBuffer
-	{
-		SpriteInstanceData sprites[MAX_NUMBER_OF_SPRITES];
 	};
 
 	enum class SHADER_STORAGE_BUFFER_USAGE : uint32_t

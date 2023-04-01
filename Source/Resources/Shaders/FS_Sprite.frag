@@ -18,4 +18,5 @@ void main()
 {
 	vec4 color = texture(texSampler, vec2(inTexCoord.x, inTexCoord.y)).rgba;
 	outColor = uvec4(color * inColor * 255.0);
+	//outColor = uvec4(inTexCoord * 255.0, 0.0, 255.0);
 }

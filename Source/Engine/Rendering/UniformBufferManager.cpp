@@ -37,7 +37,7 @@ namespace Hail
             return sizeof(PerFrameUniformBuffer);
             break;
         case Hail::BUFFERS::SPRITE_INSTANCE_BUFFER:
-            return sizeof(SpriteInstanceDataBuffer);
+            return sizeof(SpriteInstanceData) * MAX_NUMBER_OF_SPRITES;
             break;
         case Hail::BUFFERS::COUNT:
             return 0;
