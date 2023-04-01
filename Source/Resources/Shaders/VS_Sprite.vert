@@ -117,6 +117,6 @@ void main()
 	finalPosition.xy += rotatedPosition * finalScale;
 
 	gl_Position = vec4(finalPosition, 0.01, 1.0);
-	outTexCoord = vec2(finalUV.x, 1.0 - finalUV.y);
+	outTexCoord = vec2(finalUV.x, finalUV.y);
 	outColor = instanceData.color;
 }

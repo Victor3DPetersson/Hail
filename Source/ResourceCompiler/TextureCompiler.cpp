@@ -333,18 +333,18 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 		delete[] tempPixelData;
 	}
 
-	//Flipping texture in Y Coord
-	unsigned char* tempPixelData = new unsigned char[imageDataSize];
-	memcpy(tempPixelData, pixelData, imageDataSize);
-	const uint8_t bytesPerPixel = (tgaHeader.bitsPerPixel / 8);
-	const uint32_t bytesPerRow = tgaHeader.width * bytesPerPixel;
-	for (uint32_t row = 0; row < tgaHeader.height; row++)
-	{
-		const uint32_t readFromLocation = ((tgaHeader.height - 1) - row) * bytesPerRow;
-		const uint32_t writeToLocation = row * bytesPerRow;
-		memcpy(pixelData + writeToLocation, tempPixelData + readFromLocation, bytesPerRow);
-	}
-	delete[] tempPixelData;
+	//Flipping texture in Y Coord for Vulkan Renderdoc became annoying, but better to work from correct space
+	//unsigned char* tempPixelData = new unsigned char[imageDataSize];
+	//memcpy(tempPixelData, pixelData, imageDataSize);
+	//const uint8_t bytesPerPixel = (tgaHeader.bitsPerPixel / 8);
+	//const uint32_t bytesPerRow = tgaHeader.width * bytesPerPixel;
+	//for (uint32_t row = 0; row < tgaHeader.height; row++)
+	//{
+	//	const uint32_t readFromLocation = ((tgaHeader.height - 1) - row) * bytesPerRow;
+	//	const uint32_t writeToLocation = row * bytesPerRow;
+	//	memcpy(pixelData + writeToLocation, tempPixelData + readFromLocation, bytesPerRow);
+	//}
+	//delete[] tempPixelData;
 
 	TextureHeader compileHeader;
 	uint32_t numberOfColors = 0;
