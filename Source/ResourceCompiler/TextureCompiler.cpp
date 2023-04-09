@@ -61,9 +61,9 @@ void TextureCompiler::CompileAllTextures()
 
 }
 
-bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors);
-bool ExportCompiled16BitTexture(const char* textureName, uint16_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors) { return false; };
-bool ExportCompiled32BitTexture(const char* textureName, uint32_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors){ return false; };
+bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTextureData, Hail::TextureHeader shaderHeader, uint32_t numberOfColors);
+bool ExportCompiled16BitTexture(const char* textureName, uint16_t* compiledTextureData, Hail::TextureHeader shaderHeader, uint32_t numberOfColors) { return false; };
+bool ExportCompiled32BitTexture(const char* textureName, uint32_t* compiledTextureData, Hail::TextureHeader shaderHeader, uint32_t numberOfColors){ return false; };
 
 bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32_t numberOfRequiredTextures)
 {
@@ -110,44 +110,47 @@ bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredT
 	return true;
 }
 
-bool TextureCompiler::CompileInternalTexture(TextureHeader header, const char* textureName)
+bool TextureCompiler::CompileInternalTexture(Hail::TextureHeader header, const char* textureName)
 {
 	uint32_t sizeOfColor, numberOfColors;
-	switch (ToEnum<TEXTURE_TYPE>(header.textureType))
+	switch (ToEnum<Hail::TEXTURE_TYPE>(header.textureType))
 	{
-	case TEXTURE_TYPE::R8G8B8A8:
+	case Hail::TEXTURE_TYPE::R8G8B8A8:
 		sizeOfColor = 1;
 		numberOfColors = 4;
 		break;
-	case TEXTURE_TYPE::R8G8B8:
+	case Hail::TEXTURE_TYPE::R8G8B8:
 		sizeOfColor = 1;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R8:
+	case Hail::TEXTURE_TYPE::R8:
 		sizeOfColor = 1;
 		numberOfColors = 1;
 		break;
-	case TEXTURE_TYPE::R16G16B16A16:
+	case Hail::TEXTURE_TYPE::R16G16B16A16:
 		sizeOfColor = 2;
 		numberOfColors = 4;
 		break;
-	case TEXTURE_TYPE::R16G16B16:
+	case Hail::TEXTURE_TYPE::R16G16B16:
 		sizeOfColor = 2;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R16:
+	case Hail::TEXTURE_TYPE::R16:
 		sizeOfColor = 2;
 		numberOfColors = 1;
 		break;
-	case TEXTURE_TYPE::R32G32B32A32:
+	case Hail::TEXTURE_TYPE::R32G32B32A32F:
+	case Hail::TEXTURE_TYPE::R32G32B32A32:
 		sizeOfColor = 4;
 		numberOfColors = 4;
 		break;
-	case TEXTURE_TYPE::R32G32B32:
+	case Hail::TEXTURE_TYPE::R32G32B32F:
+	case Hail::TEXTURE_TYPE::R32G32B32:
 		sizeOfColor = 4;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R32:
+	case Hail::TEXTURE_TYPE::R32F:
+	case Hail::TEXTURE_TYPE::R32:
 		sizeOfColor = 4;
 		numberOfColors = 1;
 		break;
@@ -346,16 +349,16 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 	//}
 	//delete[] tempPixelData;
 
-	TextureHeader compileHeader;
+	Hail::TextureHeader compileHeader;
 	uint32_t numberOfColors = 0;
 	if (tgaHeader.bitsPerPixel / 8 == 3)
 	{
-		compileHeader.textureType = ToUnderlyingType<TEXTURE_TYPE>(TEXTURE_TYPE::R8G8B8);
+		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8);
 		numberOfColors = 3;
 	}
 	else if (tgaHeader.bitsPerPixel / 8 == 4)
 	{
-		compileHeader.textureType = ToUnderlyingType<TEXTURE_TYPE>(TEXTURE_TYPE::R8G8B8A8);
+		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8A8);
 		numberOfColors = 4;
 	}
 	compileHeader.height = tgaHeader.height;
@@ -382,7 +385,7 @@ void TextureCompiler::Init()
 }
 
 
-bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTextureData, TextureHeader textureHeader, uint32_t numberOfColors)
+bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTextureData, Hail::TextureHeader textureHeader, uint32_t numberOfColors)
 {
 	Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", textureName));
 	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));

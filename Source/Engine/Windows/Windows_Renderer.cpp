@@ -16,15 +16,13 @@
 
 #include "Windows_ApplicationWindow.h"
 #include "HailEngine.h"
-#include "ShaderManager.h"
 #include "Rendering\UniformBufferManager.h"
-#include "TextureManager.h"
 
 #include "Resources\Vertices.h"
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
 
-#include "VulkanInternal/VkVertex_Descriptor.h"
+#include "VulkanInternal/VlkVertex_Descriptor.h"
 #include "VulkanInternal/VlkTextureCreationFunctions.h"
 #include "VulkanInternal/VlkBufferCreationFunctions.h"
 #include "VulkanInternal/VlkSingleTimeCommand.h"
@@ -40,35 +38,34 @@
 using namespace Hail;
 
 
-bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer)
+bool VlkRenderer::InitDevice(RESOLUTIONS startupResolution, Timer* timer)
 {
 	m_timer = timer;
-	m_shaderManager = shaderManager;
-	m_textureManager = textureManager;
-	m_resourceManqager = resourceManager;
-	m_device.CreateInstance();
-	Hail::QueueFamilyIndices indices = m_device.FindQueueFamilies(m_device.GetPhysicalDevice());
-	vkGetDeviceQueue(m_device.GetDevice(), indices.graphicsAndComputeFamily, 0, &m_graphicsQueue);
-	vkGetDeviceQueue(m_device.GetDevice(), indices.graphicsAndComputeFamily, 0, &m_computeQueue);
-	vkGetDeviceQueue(m_device.GetDevice(), indices.presentFamily, 0, &m_presentQueue);
+	m_renderDevice = new VlkDevice();
+	m_renderDevice->CreateInstance();
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 
-
-	m_swapChain.Init(m_device);
+	m_swapChain.Init(device);
 	const VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
 	CalculateRenderResolution({ swapChainExtent.width, swapChainExtent.height });
 
+
+
+	return true;
+}
+bool Hail::VlkRenderer::InitGraphicsEngine(ResourceManager* resourceManager)
+{
+	m_resourceManager = resourceManager;
 	m_mainPassFrameBufferTexture = FrameBufferTexture_Create("MainRenderPass", m_renderTargetResolution, TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 
 	CreateDescriptorSetLayout();
 	CreateGraphicsPipeline();
-	CreateCommandPool();
 
-	CreateTextureImage();
-	CreateTextureImageView();
-	m_textureSampler = CreateTextureSampler(m_device, TextureSamplerData{});
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	m_textureSampler = CreateTextureSampler(device, TextureSamplerData{});
 	TextureSamplerData pointSamplerData;
 	pointSamplerData.sampler_mode = TEXTURE_SAMPLER_FILTER_MODE::POINT;
-	m_pointTextureSampler = CreateTextureSampler(m_device, pointSamplerData);
+	m_pointTextureSampler = CreateTextureSampler(device, pointSamplerData);
 
 	CreateFullscreenVertexBuffer();
 	CreateVertexBuffer();
@@ -96,12 +93,12 @@ bool VlkRenderer::Init(RESOLUTIONS startupResolution, ShaderManager* shaderManag
 	CreateSpriteDescriptorSets();
 	CreateSpriteRenderPass();
 	CreateSpriteGraphicsPipeline();
-
 	return true;
 }
 
 void VlkRenderer::InitImGui()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	//1: create descriptor pool for IMGUI
 	// the size of the pool is very oversize, but it's copied from imgui demo itself.
 	VkDescriptorPoolSize pool_sizes[] =
@@ -126,7 +123,7 @@ void VlkRenderer::InitImGui()
 	pool_info.poolSizeCount = std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
-	if (vkCreateDescriptorPool(m_device.GetDevice(), &pool_info, nullptr, &m_imguiPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(device.GetDevice(), &pool_info, nullptr, &m_imguiPool) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create ImGuiDescriptor");
@@ -148,10 +145,10 @@ void VlkRenderer::InitImGui()
 
 	//this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo init_info = {};
-	init_info.Instance = m_device.GetInstance();
-	init_info.PhysicalDevice = m_device.GetPhysicalDevice();
-	init_info.Device = m_device.GetDevice();
-	init_info.Queue = m_graphicsQueue;
+	init_info.Instance = device.GetInstance();
+	init_info.PhysicalDevice = device.GetPhysicalDevice();
+	init_info.Device = device.GetDevice();
+	init_info.Queue = device.GetGraphicsQueue();
 	init_info.DescriptorPool = m_imguiPool;
 	init_info.MinImageCount = MAX_FRAMESINFLIGHT;
 	init_info.ImageCount = m_swapChain.GetSwapchainImageCount();
@@ -159,7 +156,7 @@ void VlkRenderer::InitImGui()
 
 	ImGui_ImplVulkan_Init(&init_info, m_swapChain.GetRenderPass());
 
-	VkCommandBuffer cmd = BeginSingleTimeCommands(m_device, m_commandPool);
+	VkCommandBuffer cmd = BeginSingleTimeCommands(device, device.GetCommandPool());
 
 
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
@@ -167,7 +164,7 @@ void VlkRenderer::InitImGui()
 	//immediate_submit([&](VkCommandBuffer cmd) {
 	//	ImGui_ImplVulkan_CreateFontsTexture(cmd);
 	//	});
-	EndSingleTimeCommands(m_device, cmd, m_graphicsQueue, m_commandPool);
+	EndSingleTimeCommands(device, cmd, device.GetGraphicsQueue(), device.GetCommandPool());
 	////clear font textures from cpu data
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 
@@ -186,10 +183,13 @@ namespace
 	Hail::Camera g_camera;
 }
 
+
+
 void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	Renderer::StartFrame(renderPool);
-	if (m_swapChain.FrameStart(m_device, m_inFrameFences, m_imageAvailableSemaphores, m_framebufferResized))
+	if (m_swapChain.FrameStart(device, m_inFrameFences, m_imageAvailableSemaphores, m_framebufferResized))
 	{
 		const VkExtent2D swapChainExtent = m_swapChain.GetSwapChainExtent();
 		CalculateRenderResolution({ swapChainExtent.width, swapChainExtent.height });
@@ -234,59 +234,57 @@ void Hail::VlkRenderer::EndFrame()
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	if (vkQueueSubmit(m_graphicsQueue, 1, &submitInfo, m_inFrameFences[currentFrame]) != VK_SUCCESS)
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	if (vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, m_inFrameFences[currentFrame]) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to submit draw command buffer!");
 #endif
 	}
-	m_swapChain.FrameEnd(signalSemaphores, m_presentQueue);
+	m_swapChain.FrameEnd(signalSemaphores, device.GetPresentQueue());
 }
 
 void VlkRenderer::Cleanup()
 {
-	vkDeviceWaitIdle(m_device.GetDevice());
-	m_swapChain.DestroySwapChain(m_device);
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	vkDeviceWaitIdle(device.GetDevice());
+	m_swapChain.DestroySwapChain(device);
 
-	vkDestroyDescriptorPool(m_device.GetDevice(), m_imguiPool, nullptr);
+	vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
 	ImGui_ImplVulkan_Shutdown();
 
-	vkDestroySampler(m_device.GetDevice(), m_textureSampler, nullptr);
-	vkDestroySampler(m_device.GetDevice(), m_pointTextureSampler, nullptr);
-
-	vkDestroyImageView(m_device.GetDevice(), m_textureImageView, nullptr);
-	vkDestroyImage(m_device.GetDevice(), m_textureImage, nullptr);
-	vkFreeMemory(m_device.GetDevice(), m_textureImageMemory, nullptr);
+	vkDestroySampler(device.GetDevice(), m_textureSampler, nullptr);
+	vkDestroySampler(device.GetDevice(), m_pointTextureSampler, nullptr);
 
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++) 
 	{
-		vkDestroyBuffer(m_device.GetDevice(), m_uniformBuffers[i], nullptr);
-		vkFreeMemory(m_device.GetDevice(), m_uniformBuffersMemory[i], nullptr);
+		vkDestroyBuffer(device.GetDevice(), m_uniformBuffers[i], nullptr);
+		vkFreeMemory(device.GetDevice(), m_uniformBuffersMemory[i], nullptr);
 
-		vkDestroyBuffer(m_device.GetDevice(), m_perFrameDataBuffers[i], nullptr);
-		vkFreeMemory(m_device.GetDevice(), m_perFrameDataBuffersMemory[i], nullptr);
+		vkDestroyBuffer(device.GetDevice(), m_perFrameDataBuffers[i], nullptr);
+		vkFreeMemory(device.GetDevice(), m_perFrameDataBuffersMemory[i], nullptr);
 	}
 
 
-	vkDestroyDescriptorPool(m_device.GetDevice(), m_descriptorPool, nullptr);
-	vkDestroyDescriptorSetLayout(m_device.GetDevice(), m_descriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(device.GetDevice(), m_descriptorPool, nullptr);
+	vkDestroyDescriptorSetLayout(device.GetDevice(), m_descriptorSetLayout, nullptr);
 
-	vkDestroyBuffer(m_device.GetDevice(), m_indexBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), m_indexBufferMemory, nullptr);
-	vkDestroyBuffer(m_device.GetDevice(), m_vertexBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), m_vertexBufferMemory, nullptr);
+	vkDestroyBuffer(device.GetDevice(), m_indexBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), m_indexBufferMemory, nullptr);
+	vkDestroyBuffer(device.GetDevice(), m_vertexBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), m_vertexBufferMemory, nullptr);
 
-	vkDestroyPipeline(m_device.GetDevice(), m_graphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(m_device.GetDevice(), m_pipelineLayout, nullptr);
+	vkDestroyPipeline(device.GetDevice(), m_graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device.GetDevice(), m_pipelineLayout, nullptr);
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		vkDestroySemaphore(m_device.GetDevice(), m_imageAvailableSemaphores[i], nullptr);
-		vkDestroySemaphore(m_device.GetDevice(), m_renderFinishedSemaphores[i], nullptr);
-		vkDestroyFence(m_device.GetDevice(), m_inFrameFences[i], nullptr);
+		vkDestroySemaphore(device.GetDevice(), m_imageAvailableSemaphores[i], nullptr);
+		vkDestroySemaphore(device.GetDevice(), m_renderFinishedSemaphores[i], nullptr);
+		vkDestroyFence(device.GetDevice(), m_inFrameFences[i], nullptr);
 	}
-	vkDestroyCommandPool(m_device.GetDevice(), m_commandPool, nullptr);
+	vkDestroyCommandPool(device.GetDevice(), device.GetCommandPool(), nullptr);
 
-	m_device.DestroyDevice();
+	device.DestroyDevice();
 }
 
 void VlkRenderer::CreateShaderObject(CompiledShader& shader)
@@ -296,9 +294,10 @@ void VlkRenderer::CreateShaderObject(CompiledShader& shader)
 
 FrameBufferTexture* Hail::VlkRenderer::FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat)
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VlkFrameBufferTexture* frameBuffer = new VlkFrameBufferTexture(resolution, format, depthFormat);
 	frameBuffer->SetName(name);
-	frameBuffer->CreateFrameBufferTextureObjects(m_device);
+	frameBuffer->CreateFrameBufferTextureObjects(device);
 	return frameBuffer;
 }
 
@@ -407,7 +406,7 @@ void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_mainPipelineLayout, 0, 1, &m_mainPassDescriptorSet[frameInFlightIndex], 0, nullptr);
 
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManqager->m_unitCube.indices.Size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManager->m_unitCube.indices.Size()), 1, 0, 0, 0);
 
 	vkCmdEndRenderPass(commandBuffer);
 
@@ -426,13 +425,24 @@ void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 	VkBuffer spriteVertexBuffer[] = { m_spriteVertexBuffer };
 	VkDeviceSize spriteOffsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, spriteVertexBuffer, spriteOffsets);
-	VkDescriptorSet descriptorSets[2] = { m_globalDescriptorSetsPerFrame[frameInFlightIndex], m_globalDescriptorSetsMaterial[frameInFlightIndex]};
+	VkDescriptorSet descriptorSets[2] = { m_globalDescriptorSetsPerFrame[frameInFlightIndex], m_globalDescriptorSetsMaterial0[frameInFlightIndex]};
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_globalPipelineLayout, 0, 2, descriptorSets, 0, nullptr);
 	glm::uvec4 pushConstants_instanceID_padding = { 0, 0, 0, 0 };
 
 	const uint32_t numberOfSprites = m_spriteInstanceData.Size();
 	for (size_t spriteInstance = 0; spriteInstance < numberOfSprites; spriteInstance++)
 	{
+
+		if (spriteInstance == 5)
+		{
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_globalPipelineLayout, 1, 1, &m_globalDescriptorSetsMaterial0[frameInFlightIndex], 0, nullptr);
+		}
+		else
+		{
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_globalPipelineLayout, 1, 1, &m_globalDescriptorSetsMaterial1[frameInFlightIndex], 0, nullptr);
+		}
+
+
 		vkCmdPushConstants(commandBuffer, m_globalPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
 		vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 		pushConstants_instanceID_padding.x++;
@@ -497,10 +507,11 @@ void VlkRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t im
 
 void VlkRenderer::CreateGraphicsPipeline()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkShaderModule vertShaderModule = nullptr;
 	VkShaderModule fragShaderModule = nullptr;
 
-	GrowingArray<CompiledShader>& requiredShaders = *m_shaderManager->GetRequiredShaders();
+	GrowingArray<CompiledShader>& requiredShaders = *m_resourceManager->GetShaderManager().GetRequiredShaders();
 	//TODO: Make a nice system for loading the main shaders once the pipeline has been set up properly
 	for (uint32_t i = 0; i < REQUIREDSHADERCOUNT; i++)
 	{
@@ -625,7 +636,7 @@ void VlkRenderer::CreateGraphicsPipeline()
 	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-	if (vkCreatePipelineLayout(m_device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
 #ifdef DEBUG
 		throw std::runtime_error("failed to create pipeline layout!");
 #endif
@@ -678,23 +689,24 @@ void VlkRenderer::CreateGraphicsPipeline()
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 	vertexInputInfo.pVertexAttributeDescriptions = &attributeDescription;
 
-	if (vkCreateGraphicsPipelines(m_device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) 
+	if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) 
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create graphics pipeline!");
 #endif
 	}
 
-	vkDestroyShaderModule(m_device.GetDevice(), fragShaderModule, nullptr);
-	vkDestroyShaderModule(m_device.GetDevice(), vertShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
 }
 
 void Hail::VlkRenderer::CreateMainGraphicsPipeline()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkShaderModule vertShaderModule = nullptr;
 	VkShaderModule fragShaderModule = nullptr;
 
-	GrowingArray<CompiledShader>& requiredShaders = *m_shaderManager->GetRequiredShaders();
+	GrowingArray<CompiledShader>& requiredShaders = *m_resourceManager->GetShaderManager().GetRequiredShaders();
 	//TODO: Make a nice system for loading the main shaders once the pipeline has been set up properly
 	for (uint32_t i = 0; i < REQUIREDSHADERCOUNT; i++)
 	{
@@ -819,7 +831,7 @@ void Hail::VlkRenderer::CreateMainGraphicsPipeline()
 	pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
 	pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-	if (vkCreatePipelineLayout(m_device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_mainPipelineLayout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(device.GetDevice(), &pipelineLayoutInfo, nullptr, &m_mainPipelineLayout) != VK_SUCCESS) {
 #ifdef DEBUG
 		throw std::runtime_error("failed to create pipeline layout!");
 #endif
@@ -864,19 +876,20 @@ void Hail::VlkRenderer::CreateMainGraphicsPipeline()
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.Data();
 
-	if (vkCreateGraphicsPipelines(m_device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_mainPipeline) != VK_SUCCESS)
+	if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_mainPipeline) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create graphics pipeline!");
 #endif
 	}
 
-	vkDestroyShaderModule(m_device.GetDevice(), fragShaderModule, nullptr);
-	vkDestroyShaderModule(m_device.GetDevice(), vertShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
 }
 
 void Hail::VlkRenderer::CreateMainRenderPass()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkSubpassDependency dependency{};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
@@ -929,7 +942,7 @@ void Hail::VlkRenderer::CreateMainRenderPass()
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-	if (vkCreateRenderPass(m_device.GetDevice(), &renderPassInfo, nullptr, &m_mainRenderPass) != VK_SUCCESS)
+	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &m_mainRenderPass) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create render pass!");
@@ -939,6 +952,7 @@ void Hail::VlkRenderer::CreateMainRenderPass()
 
 void Hail::VlkRenderer::CreateMainFrameBuffer()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	m_mainFrameBuffer[0] = VK_NULL_HANDLE;
 	m_mainFrameBuffer[1] = VK_NULL_HANDLE;
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
@@ -958,7 +972,7 @@ void Hail::VlkRenderer::CreateMainFrameBuffer()
 		framebufferInfo.height = mainFrameBufferTexture->GetResolution().y;
 		framebufferInfo.layers = 1;
 
-		if (vkCreateFramebuffer(m_device.GetDevice(), &framebufferInfo, nullptr, &m_mainFrameBuffer[i]) != VK_SUCCESS)
+		if (vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &m_mainFrameBuffer[i]) != VK_SUCCESS)
 		{
 #ifdef DEBUG
 			throw std::runtime_error("failed to create framebuffer!");
@@ -970,10 +984,11 @@ void Hail::VlkRenderer::CreateMainFrameBuffer()
 
 void Hail::VlkRenderer::CreateSpriteGraphicsPipeline()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkShaderModule vertShaderModule = nullptr;
 	VkShaderModule fragShaderModule = nullptr;
 
-	GrowingArray<CompiledShader>& requiredShaders = *m_shaderManager->GetRequiredShaders();
+	GrowingArray<CompiledShader>& requiredShaders = *m_resourceManager->GetShaderManager().GetRequiredShaders();
 	//TODO: Make a nice system for loading the main shaders once the pipeline has been set up properly
 	for (uint32_t i = 0; i < REQUIREDSHADERCOUNT; i++)
 	{
@@ -1109,7 +1124,7 @@ void Hail::VlkRenderer::CreateSpriteGraphicsPipeline()
 	globalPipelineLayoutInfo.pushConstantRangeCount = 1; // Optional
 	globalPipelineLayoutInfo.pPushConstantRanges = &push_constant; // Optional
 
-	if (vkCreatePipelineLayout(m_device.GetDevice(), &globalPipelineLayoutInfo, nullptr, &m_globalPipelineLayout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(device.GetDevice(), &globalPipelineLayoutInfo, nullptr, &m_globalPipelineLayout) != VK_SUCCESS) {
 #ifdef DEBUG
 		throw std::runtime_error("failed to create pipeline layout!");
 #endif
@@ -1154,19 +1169,20 @@ void Hail::VlkRenderer::CreateSpriteGraphicsPipeline()
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.Data();
 
-	if (vkCreateGraphicsPipelines(m_device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_spritePipeline) != VK_SUCCESS)
+	if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_spritePipeline) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create graphics pipeline!");
 #endif
 	}
 
-	vkDestroyShaderModule(m_device.GetDevice(), fragShaderModule, nullptr);
-	vkDestroyShaderModule(m_device.GetDevice(), vertShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
 }
 
 void Hail::VlkRenderer::CreateSpriteRenderPass()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkSubpassDependency dependency{};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
@@ -1219,7 +1235,7 @@ void Hail::VlkRenderer::CreateSpriteRenderPass()
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-	if (vkCreateRenderPass(m_device.GetDevice(), &renderPassInfo, nullptr, &m_spriteRenderPass) != VK_SUCCESS)
+	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &m_spriteRenderPass) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create render pass!");
@@ -1227,32 +1243,17 @@ void Hail::VlkRenderer::CreateSpriteRenderPass()
 	}
 }
 
-void VlkRenderer::CreateCommandPool()
-{
-	QueueFamilyIndices queueFamilyIndices = m_device.FindQueueFamilies(m_device.GetPhysicalDevice());
-
-	VkCommandPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily;
-	if (vkCreateCommandPool(m_device.GetDevice(), &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create command pool!");
-#endif
-	}
-
-}
 
 void VlkRenderer::CreateCommandBuffers()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = m_commandPool;
+	allocInfo.commandPool = device.GetCommandPool();
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = MAX_FRAMESINFLIGHT;
 
-	if (vkAllocateCommandBuffers(m_device.GetDevice(), &allocInfo, m_commandBuffers) != VK_SUCCESS)
+	if (vkAllocateCommandBuffers(device.GetDevice(), &allocInfo, m_commandBuffers) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to allocate command buffers!");
@@ -1262,6 +1263,7 @@ void VlkRenderer::CreateCommandBuffers()
 
 void VlkRenderer::CreateSyncObjects()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -1271,9 +1273,9 @@ void VlkRenderer::CreateSyncObjects()
 
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++) 
 	{
-		if (vkCreateSemaphore(m_device.GetDevice(), &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
-			vkCreateSemaphore(m_device.GetDevice(), &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-			vkCreateFence(m_device.GetDevice(), &fenceInfo, nullptr, &m_inFrameFences[i]) != VK_SUCCESS) {
+		if (vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
+			vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
+			vkCreateFence(device.GetDevice(), &fenceInfo, nullptr, &m_inFrameFences[i]) != VK_SUCCESS) {
 #ifdef DEBUG
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 #endif
@@ -1284,12 +1286,13 @@ void VlkRenderer::CreateSyncObjects()
 
 VkShaderModule VlkRenderer::CreateShaderModule(CompiledShader& shader)
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	createInfo.codeSize = shader.header.sizeOfShaderData;
 	createInfo.pCode = reinterpret_cast<const uint32_t*>(shader.compiledCode);
 	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(m_device.GetDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+	if (vkCreateShaderModule(device.GetDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 #ifdef DEBUG
 		throw std::runtime_error("failed to create shader module!");
 #endif
@@ -1300,145 +1303,111 @@ VkShaderModule VlkRenderer::CreateShaderModule(CompiledShader& shader)
 	return shaderModule;
 }
 
-void Hail::VlkRenderer::CreateTextureImage()
-{
-	CompiledTexture& texture = (*m_textureManager->GetRequiredTextures())[0];
-	if (texture.loadState != TEXTURE_LOADSTATE::LOADED_TO_RAM)
-	{
-		Debug_PrintConsoleString256(String256::Format("ERROR... Texture: %s\nWas not loaded", texture.textureName));
-		return;
-	}
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	const uint32_t imageSize = GetTextureByteSize(texture.header);
-	CreateBuffer(m_device, imageSize, 
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer, stagingBufferMemory);
-	void* data;
-	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, texture.compiledColorValues, static_cast<size_t>(imageSize));
-	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
-	DeleteCompiledTexture(texture);
-
-	CreateImage(m_device, texture.header.width, texture.header.height, 
-		VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | 
-		VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		m_textureImage, m_textureImageMemory);
-
-	TransitionImageLayout(m_device, m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, m_commandPool, m_graphicsQueue);
-	CopyBufferToImage(m_device, stagingBuffer, m_textureImage, texture.header.width, texture.header.height, m_commandPool, m_graphicsQueue);
-	TransitionImageLayout(m_device, m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_commandPool, m_graphicsQueue);
-
-	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
-}
-
-void Hail::VlkRenderer::CreateTextureImageView()
-{
-	m_textureImageView = CreateImageView(m_device, m_textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
-}
-
 void VlkRenderer::CreateVertexBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(VertexModel) * m_resourceManqager->m_unitCube.vertices.Size();
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	VkDeviceSize bufferSize = sizeof(VertexModel) * m_resourceManager->m_unitCube.vertices.Size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
 		stagingBuffer, stagingBufferMemory);
 
 	void* data;
-	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_resourceManqager->m_unitCube.vertices.Data(), (size_t)bufferSize);
-	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
+	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, m_resourceManager->m_unitCube.vertices.Data(), (size_t)bufferSize);
+	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
 		m_vertexBuffer, m_vertexBufferMemory);
 
-	CopyBuffer(m_device, stagingBuffer, m_vertexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
-	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
+	CopyBuffer(device, stagingBuffer, m_vertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
+	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 
 }
 
 void Hail::VlkRenderer::CreateFullscreenVertexBuffer()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkDeviceSize bufferSize = sizeof(uint32_t) * 3;
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		stagingBuffer, stagingBufferMemory);
 	uint32_t vertices[3] = { 0, 1, 2 };
 	void* data;
-	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
 	memcpy(data, vertices, (size_t)bufferSize);
-	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
+	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_fullscreenVertexBuffer, m_fullscreenVertexBufferMemory);
 
-	CopyBuffer(m_device, stagingBuffer, m_fullscreenVertexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
-	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
+	CopyBuffer(device, stagingBuffer, m_fullscreenVertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
+	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 
 }
 
 void Hail::VlkRenderer::CreateSpriteVertexBuffer()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkDeviceSize spriteBufferSize = sizeof(uint32_t) * 6;
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(m_device, spriteBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+	CreateBuffer(device, spriteBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		stagingBuffer, stagingBufferMemory);
 	uint32_t vertices[6] = { 0, 1, 2, 3, 4, 5 };
 	void* data;
-	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, spriteBufferSize, 0, &data);
+	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, spriteBufferSize, 0, &data);
 	memcpy(data, vertices, (size_t)spriteBufferSize);
-	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
+	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(m_device, spriteBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+	CreateBuffer(device, spriteBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_spriteVertexBuffer, m_spriteVertexBufferMemory);
 
-	CopyBuffer(m_device, stagingBuffer, m_spriteVertexBuffer, spriteBufferSize, m_graphicsQueue, m_commandPool);
-	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
+	CopyBuffer(device, stagingBuffer, m_spriteVertexBuffer, spriteBufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
+	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 }
 
 void VlkRenderer::CreateIndexBuffer()
 {
-	VkDeviceSize bufferSize = sizeof(uint32_t) * m_resourceManqager->m_unitCube.indices.Size();
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	VkDeviceSize bufferSize = sizeof(uint32_t) * m_resourceManager->m_unitCube.indices.Size();
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
 		stagingBuffer, stagingBufferMemory);
 
 	void* data;
-	vkMapMemory(m_device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_resourceManqager->m_unitCube.indices.Data(), (size_t)bufferSize);
-	vkUnmapMemory(m_device.GetDevice(), stagingBufferMemory);
+	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, m_resourceManager->m_unitCube.indices.Data(), (size_t)bufferSize);
+	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		m_indexBuffer, m_indexBufferMemory);
 
-	CopyBuffer(m_device, stagingBuffer, m_indexBuffer, bufferSize, m_graphicsQueue, m_commandPool);
+	CopyBuffer(device, stagingBuffer, m_indexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
 
-	vkDestroyBuffer(m_device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(m_device.GetDevice(), stagingBufferMemory, nullptr);
+	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 }
 
 void Hail::VlkRenderer::InitGlobalDescriptors()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	// SWIMMING POOOL 
 	std::array<VkDescriptorPoolSize, 4> poolSizes =
 	{
@@ -1457,7 +1426,7 @@ void Hail::VlkRenderer::InitGlobalDescriptors()
 	finalPoolInfo.pPoolSizes = poolSizes.data();
 	finalPoolInfo.maxSets = 10;
 	finalPoolInfo.flags = 0;
-	if (vkCreateDescriptorPool(m_device.GetDevice(), &finalPoolInfo, nullptr, &m_globalDescriptorPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(device.GetDevice(), &finalPoolInfo, nullptr, &m_globalDescriptorPool) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create final descriptor pool!");
@@ -1481,7 +1450,13 @@ void Hail::VlkRenderer::InitGlobalDescriptors()
 		perMaterialAllocateInfo.descriptorSetCount = 1;
 		perMaterialAllocateInfo.pSetLayouts = &m_globalDescriptorSetLayoutMaterial;
 
-		if (vkAllocateDescriptorSets(m_device.GetDevice(), &perMaterialAllocateInfo, &m_globalDescriptorSetsMaterial[i]) != VK_SUCCESS)
+		if (vkAllocateDescriptorSets(device.GetDevice(), &perMaterialAllocateInfo, &m_globalDescriptorSetsMaterial0[i]) != VK_SUCCESS)
+		{
+#ifdef DEBUG
+			throw std::runtime_error("failed to allocate descriptor sets!");
+#endif
+		}
+		if (vkAllocateDescriptorSets(device.GetDevice(), &perMaterialAllocateInfo, &m_globalDescriptorSetsMaterial1[i]) != VK_SUCCESS)
 		{
 #ifdef DEBUG
 			throw std::runtime_error("failed to allocate descriptor sets!");
@@ -1494,7 +1469,7 @@ void Hail::VlkRenderer::InitGlobalDescriptors()
 		perFrameAllocateInfo.descriptorSetCount = 1;
 		perFrameAllocateInfo.pSetLayouts = &m_globalDescriptorSetLayoutPerFrame;
 
-		if (vkAllocateDescriptorSets(m_device.GetDevice(), &perFrameAllocateInfo, &m_globalDescriptorSetsPerFrame[i]) != VK_SUCCESS)
+		if (vkAllocateDescriptorSets(device.GetDevice(), &perFrameAllocateInfo, &m_globalDescriptorSetsPerFrame[i]) != VK_SUCCESS)
 		{
 #ifdef DEBUG
 			throw std::runtime_error("failed to allocate descriptor sets!");
@@ -1513,18 +1488,23 @@ void Hail::VlkRenderer::InitGlobalDescriptors()
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = m_textureImageView;
+		imageInfo.imageView = m_resourceManager->GetVulkanResources().GetTextureData(0).textureImageView;
 		imageInfo.sampler = m_textureSampler;
 
+		VkDescriptorImageInfo imageInfo1{};
+		imageInfo1.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		imageInfo1.imageView = m_resourceManager->GetVulkanResources().GetTextureData(1).textureImageView;
+		imageInfo1.sampler = m_textureSampler;
 
 		VkWriteDescriptorSet perFrameBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_globalDescriptorSetsPerFrame[i], &bufferInfo, 0);
 		VkWriteDescriptorSet spriteInstanceBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_globalDescriptorSetsPerFrame[i], &spriteBufferInfo, 1);
-		VkWriteDescriptorSet materialWrite = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_globalDescriptorSetsMaterial[i], &imageInfo, 1);
+		VkWriteDescriptorSet material0Write = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_globalDescriptorSetsMaterial0[i], &imageInfo1, 1);
+		VkWriteDescriptorSet material1Write = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_globalDescriptorSetsMaterial1[i], &imageInfo, 1);
 
 
-		VkWriteDescriptorSet setWrites[] = { perFrameBuffer,spriteInstanceBuffer,materialWrite };
+		VkWriteDescriptorSet setWrites[] = { perFrameBuffer,spriteInstanceBuffer, material0Write, material1Write };
 
-		vkUpdateDescriptorSets(m_device.GetDevice(), 3, setWrites, 0, nullptr);
+		vkUpdateDescriptorSets(device.GetDevice(), 4, setWrites, 0, nullptr);
 
 	}
 
@@ -1577,13 +1557,14 @@ void Hail::VlkRenderer::CreateSpriteDescriptorSets()
 	//	descriptorWrites[2].descriptorCount = 1;
 	//	descriptorWrites[2].pImageInfo = &imageInfo;
 
-	//	vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+	//	vkUpdateDescriptorSets(device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	//}
 }
 
 
 void Hail::VlkRenderer::CreateUniformBuffers()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkDeviceSize bufferSize = GetUniformBufferSize(BUFFERS::TUTORIAL);
 
 	m_uniformBuffers.InitAndFill(MAX_FRAMESINFLIGHT);
@@ -1592,8 +1573,8 @@ void Hail::VlkRenderer::CreateUniformBuffers()
 
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++) 
 	{
-		CreateBuffer(m_device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
-		vkMapMemory(m_device.GetDevice(), m_uniformBuffersMemory[i], 0, bufferSize, 0, &m_uniformBuffersMapped[i]);
+		CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_uniformBuffers[i], m_uniformBuffersMemory[i]);
+		vkMapMemory(device.GetDevice(), m_uniformBuffersMemory[i], 0, bufferSize, 0, &m_uniformBuffersMapped[i]);
 	}
 
 	m_spriteBuffer.InitAndFill(MAX_FRAMESINFLIGHT);
@@ -1608,11 +1589,11 @@ void Hail::VlkRenderer::CreateUniformBuffers()
 	const VkDeviceSize perFrameBufferSize = GetUniformBufferSize(BUFFERS::PER_FRAME_DATA);
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		CreateBuffer(m_device, spriteBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_spriteBuffer[i], m_spriteBufferMemory[i]);
-		vkMapMemory(m_device.GetDevice(), m_spriteBufferMemory[i], 0, spriteBufferSize, 0, &m_spriteBufferMapped[i]);
+		CreateBuffer(device, spriteBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_spriteBuffer[i], m_spriteBufferMemory[i]);
+		vkMapMemory(device.GetDevice(), m_spriteBufferMemory[i], 0, spriteBufferSize, 0, &m_spriteBufferMapped[i]);
 
-		CreateBuffer(m_device, perFrameBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_perFrameDataBuffers[i], m_perFrameDataBuffersMemory[i]);
-		vkMapMemory(m_device.GetDevice(), m_perFrameDataBuffersMemory[i], 0, perFrameBufferSize, 0, &m_perFrameDataBuffersMapped[i]);
+		CreateBuffer(device, perFrameBufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_perFrameDataBuffers[i], m_perFrameDataBuffersMemory[i]);
+		vkMapMemory(device.GetDevice(), m_perFrameDataBuffersMemory[i], 0, perFrameBufferSize, 0, &m_perFrameDataBuffersMapped[i]);
 	}
 
 
@@ -1621,6 +1602,7 @@ void Hail::VlkRenderer::CreateUniformBuffers()
 
 void Hail::VlkRenderer::CreateDescriptorPool()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	std::array <VkDescriptorPoolSize, 2> poolSizes{};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = MAX_FRAMESINFLIGHT;
@@ -1633,7 +1615,7 @@ void Hail::VlkRenderer::CreateDescriptorPool()
 	poolInfo.pPoolSizes = poolSizes.data();
 	poolInfo.maxSets = MAX_FRAMESINFLIGHT;
 	poolInfo.flags = 0;
-	if (vkCreateDescriptorPool(m_device.GetDevice(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(device.GetDevice(), &poolInfo, nullptr, &m_descriptorPool) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create descriptor pool!");
@@ -1643,6 +1625,7 @@ void Hail::VlkRenderer::CreateDescriptorPool()
 
 void Hail::VlkRenderer::CreateDescriptorSets()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	GrowingArray<VkDescriptorSetLayout> layouts(MAX_FRAMESINFLIGHT, m_descriptorSetLayout, false);
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1651,7 +1634,7 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 	allocInfo.pSetLayouts = layouts.Data(); 
 	
 	m_descriptorSets.InitAndFill(MAX_FRAMESINFLIGHT);
-	if (vkAllocateDescriptorSets(m_device.GetDevice(), &allocInfo, m_descriptorSets.Data()) != VK_SUCCESS)
+	if (vkAllocateDescriptorSets(device.GetDevice(), &allocInfo, m_descriptorSets.Data()) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to allocate descriptor sets!");
@@ -1688,12 +1671,13 @@ void Hail::VlkRenderer::CreateDescriptorSets()
 		descriptorWrites[1].descriptorCount = 1;
 		descriptorWrites[1].pImageInfo = &imageInfo;
 
-		vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+		vkUpdateDescriptorSets(device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
 
 void Hail::VlkRenderer::CreateDescriptorSetLayout()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
 	uboLayoutBinding.binding = 0;
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1715,7 +1699,7 @@ void Hail::VlkRenderer::CreateDescriptorSetLayout()
 	layoutInfo.bindingCount = bindings.Size();
 	layoutInfo.pBindings = bindings.Data();
 
-	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
+	if (vkCreateDescriptorSetLayout(device.GetDevice(), &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create final pass descriptor set layout!");
@@ -1726,7 +1710,8 @@ void Hail::VlkRenderer::CreateDescriptorSetLayout()
 
 VkDescriptorSetLayout Hail::VlkRenderer::CreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors)
 {
-	VkDescriptorSetLayout returnDescriptor = VK_NULL_HANDLE; 
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	VkDescriptorSetLayout returnDescriptor = VK_NULL_HANDLE;
 	GrowingArray<VkDescriptorSetLayoutBinding>bindings;
 	bindings.InitAndFill(descriptors.Size());
 
@@ -1747,7 +1732,7 @@ VkDescriptorSetLayout Hail::VlkRenderer::CreateSetLayoutDescriptor(GrowingArray<
 	layoutSetInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutSetInfo.pNext = nullptr;
 	layoutSetInfo.pBindings = bindings.Data();
-	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutSetInfo, nullptr, &returnDescriptor) != VK_SUCCESS)
+	if (vkCreateDescriptorSetLayout(device.GetDevice(), &layoutSetInfo, nullptr, &returnDescriptor) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create final pass descriptor set layout!");
@@ -1786,6 +1771,7 @@ VkWriteDescriptorSet Hail::VlkRenderer::WriteDescriptorSampler(VkDescriptorType 
 
 void Hail::VlkRenderer::CreateMainDescriptorPool()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	std::array <VkDescriptorPoolSize, 2> finalPoolSizes{};
 	finalPoolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	finalPoolSizes[0].descriptorCount = MAX_FRAMESINFLIGHT;
@@ -1798,7 +1784,7 @@ void Hail::VlkRenderer::CreateMainDescriptorPool()
 	finalPoolInfo.pPoolSizes = finalPoolSizes.data();
 	finalPoolInfo.maxSets = MAX_FRAMESINFLIGHT;
 	finalPoolInfo.flags = 0;
-	if (vkCreateDescriptorPool(m_device.GetDevice(), &finalPoolInfo, nullptr, &m_mainPassDescriptorPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(device.GetDevice(), &finalPoolInfo, nullptr, &m_mainPassDescriptorPool) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create final descriptor pool!");
@@ -1808,6 +1794,7 @@ void Hail::VlkRenderer::CreateMainDescriptorPool()
 
 void Hail::VlkRenderer::CreateMainDescriptorSets()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	GrowingArray<VkDescriptorSetLayout> layouts(MAX_FRAMESINFLIGHT, m_mainPassDescriptorSetLayout, false);
 	VkDescriptorSetAllocateInfo finalPassAllocInfo{};
 	finalPassAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1817,7 +1804,7 @@ void Hail::VlkRenderer::CreateMainDescriptorSets()
 
 	m_mainPassDescriptorSet.InitAndFill(MAX_FRAMESINFLIGHT);
 
-	if (vkAllocateDescriptorSets(m_device.GetDevice(), &finalPassAllocInfo, m_mainPassDescriptorSet.Data()) != VK_SUCCESS)
+	if (vkAllocateDescriptorSets(device.GetDevice(), &finalPassAllocInfo, m_mainPassDescriptorSet.Data()) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to allocate descriptor sets!");
@@ -1842,7 +1829,7 @@ void Hail::VlkRenderer::CreateMainDescriptorSets()
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = m_textureImageView;
+		imageInfo.imageView = m_resourceManager->GetVulkanResources().GetTextureData(0).textureImageView;
 		imageInfo.sampler = m_textureSampler;
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1853,12 +1840,13 @@ void Hail::VlkRenderer::CreateMainDescriptorSets()
 		descriptorWrites[1].descriptorCount = 1;
 		descriptorWrites[1].pImageInfo = &imageInfo;
 
-		vkUpdateDescriptorSets(m_device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+		vkUpdateDescriptorSets(device.GetDevice(), static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
 }
 
 void Hail::VlkRenderer::CreateMainDescriptorSetLayout()
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	VkDescriptorSetLayoutBinding uboLayoutBinding{};
 	uboLayoutBinding.binding = 0;
 	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1880,7 +1868,7 @@ void Hail::VlkRenderer::CreateMainDescriptorSetLayout()
 	layoutInfo.bindingCount = bindings.Size();
 	layoutInfo.pBindings = bindings.Data();
 
-	if (vkCreateDescriptorSetLayout(m_device.GetDevice(), &layoutInfo, nullptr, &m_mainPassDescriptorSetLayout) != VK_SUCCESS)
+	if (vkCreateDescriptorSetLayout(device.GetDevice(), &layoutInfo, nullptr, &m_mainPassDescriptorSetLayout) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create final pass descriptor set layout!");

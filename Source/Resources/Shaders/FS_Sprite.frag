@@ -17,6 +17,10 @@ layout(location = 1) in vec4 inColor;
 void main() 
 {
 	vec4 color = texture(texSampler, vec2(inTexCoord.x, inTexCoord.y)).rgba;
+	if(color.a < 0.01)
+	{
+		discard;
+	}
 	outColor = uvec4(color * inColor * 255.0);
 	//outColor = uvec4(inTexCoord * 255.0, 0.0, 255.0);
 }

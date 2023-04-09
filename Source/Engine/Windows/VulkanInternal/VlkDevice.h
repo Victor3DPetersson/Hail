@@ -5,10 +5,10 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #include "vulkan\vulkan.h"
 #include "Containers\GrowingArray\GrowingArray.h"
-
+#include "Rendering\RenderDevice.h"
 namespace Hail
 {
-	struct QueueFamilyIndices 
+	struct QueueFamilyIndices
 	{
 		uint32_t graphicsAndComputeFamily = INVALID_UINT;
 		uint32_t presentFamily = INVALID_UINT;
@@ -21,12 +21,12 @@ namespace Hail
 
 	struct SwapChainSupportDetails 
 	{
-		VkSurfaceCapabilitiesKHR capabilities;
+		VkSurfaceCapabilitiesKHR capabilities; 
 		GrowingArray<VkSurfaceFormatKHR> formats;
 		GrowingArray<VkPresentModeKHR> presentModes;
 	};
 
-	class VlkDevice
+	class VlkDevice : public RenderingDevice
 	{
 	public:
 		bool CreateInstance();
@@ -37,6 +37,11 @@ namespace Hail
 		VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; }
 		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
+		VkCommandPool GetCommandPool() { return m_commandPool; }
+		VkQueue GetGraphicsQueue() { return m_graphicsQueue; }
+		VkQueue GetPresentQueue() { return m_presentQueue; }
+		VkQueue GetComputeQueue() { return m_computeQueue; }
+
 	private:
 		bool CheckValidationLayerSupport();
 		bool CheckRequiredExtensions();
@@ -47,12 +52,17 @@ namespace Hail
 		
 		void CreateLogicalDevice();
 		void CreateWindowsSurface();
+		void CreateCommandPool();
 
 		VkInstance m_vkInstance = VK_NULL_HANDLE;
 		VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
 		VkDevice m_device = VK_NULL_HANDLE;
 		VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 
+		VkQueue m_graphicsQueue = VK_NULL_HANDLE;
+		VkQueue m_presentQueue = VK_NULL_HANDLE;
+		VkQueue m_computeQueue = VK_NULL_HANDLE;
+		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 
 #ifdef DEBUG
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;

@@ -13,6 +13,7 @@ namespace
 	float g_movementSpeed = 10.0f;
 	float g_spriteMovementSpeed = 0.005f;
 	Hail::RenderCommand_Sprite player;
+	Hail::RenderCommand_Sprite sprites[5];
 	bool renderPlayer = false;
 }
 
@@ -21,6 +22,13 @@ void GameApplication::Init(void* initData)
 	g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 	player.transform.SetPosition({ 0.5f, 0.5f });
+
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		sprites[i].transform.SetPosition({ 0.1f + 0.15f * i, 0.5f });
+		sprites[i].transform.SetRotation({ i * Math::PIf * 0.25f });
+		sprites[i].index = i + 1;
+	}
 }
 
 void GameApplication::Update(double totalTime, float deltaTime, void* recievedFrameData)
@@ -64,11 +72,17 @@ void GameApplication::Update(double totalTime, float deltaTime, void* recievedFr
 		player.transform.LookAt(glm::normalize(direction));
 	}
 	if (frameData.inputData.keyMap[m_inputMapping.SPACE] == Hail::KEY_RELEASED)
+
 	{
 		renderPlayer = !renderPlayer;
 	}
 
 	player.color.r = sinf(totalTime) * 0.5 + 0.5f;
+
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		sprites[i].transform.AddToRotation({  0.025f * (i + 1) });
+	}
 
 	FillFrameData(*frameData.renderPool);
 }
@@ -82,6 +96,10 @@ void GameApplication::Shutdown()
 void GameApplication::FillFrameData(Hail::RenderCommandPool& renderCommandPoolToFill)
 {
 	renderCommandPoolToFill.renderCamera = g_camera;
+	for (uint32_t i = 0; i < 5; i++)
+	{
+		renderCommandPoolToFill.spriteCommands.Add(sprites[i]);
+	}
 	if (renderPlayer)
 	{
 		renderCommandPoolToFill.spriteCommands.Add(player);

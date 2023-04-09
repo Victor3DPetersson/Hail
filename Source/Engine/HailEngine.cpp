@@ -4,8 +4,6 @@
 #include "InputHandler.h"
 #include "ApplicationWindow.h"
 #include "Timer.h"
-#include "ShaderManager.h"
-#include "TextureManager.h"
 #include "Resources\ResourceManager.h"
 #include "ThreadSynchronizer.h"
 
@@ -28,8 +26,6 @@ namespace Hail
 		InputHandler* inputHandler = nullptr;
 		ApplicationWindow* appWindow = nullptr;
 		Renderer* renderer = nullptr;
-		ShaderManager* shaderManager = nullptr;
-		TextureManager* textureManager = nullptr;
 		ResourceManager* resourceManager = nullptr;
 		ThreadSyncronizer* threadSynchronizer = nullptr;
 
@@ -73,28 +69,24 @@ bool Hail::InitEngine(StartupAttributes startupData)
 #elif PLATFORM_OSX
 
 #endif
-	g_engineData->renderer->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
 	g_engineData->inputHandler->InitInputMapping();
-	g_engineData->shaderManager = new ShaderManager();
-	if (!g_engineData->shaderManager->LoadAllRequiredShaders())
-	{
-		Cleanup();
-		return false;
-	}
-	g_engineData->textureManager = new TextureManager();
-	if (!g_engineData->textureManager->LoadAllRequiredTextures())
-	{
-		Cleanup();
-		return false;
-	}
-	g_engineData->resourceManager = new ResourceManager();
-
 	if(!g_engineData->appWindow->Init(startupData, g_engineData->inputHandler))
 	{
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->Init(startupData.startupResolution, g_engineData->shaderManager, g_engineData->textureManager, g_engineData->resourceManager, g_engineData->timer))
+	g_engineData->renderer->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
+	if (!g_engineData->renderer->InitDevice(startupData.startupResolution,g_engineData->timer))
+	{
+		return false;
+	}
+	g_engineData->resourceManager = new ResourceManager();
+	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice()))
+	{
+		Cleanup();
+		return false;
+	}
+	if (!g_engineData->renderer->InitGraphicsEngine(g_engineData->resourceManager))
 	{
 		Cleanup();
 		return false;
@@ -219,8 +211,6 @@ void Hail::Cleanup()
 	SAFEDELETE(g_engineData->inputHandler);
 	SAFEDELETE(g_engineData->timer);
 	SAFEDELETE(g_engineData->renderer);
-	SAFEDELETE(g_engineData->shaderManager);
-	SAFEDELETE(g_engineData->textureManager);
 	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
 }

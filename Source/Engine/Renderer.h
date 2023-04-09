@@ -13,11 +13,10 @@
 
 
 struct CompiledShader;
-class ShaderManager;
-class TextureManager;
 class Timer;
 namespace Hail
 {
+	class RenderingDevice;
 	class ResourceManager;
 	struct RenderCommandPool;
 	class FrameBufferTexture;
@@ -25,7 +24,8 @@ namespace Hail
 	{
 	public:
 
-		virtual bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer) = 0;
+		virtual bool InitDevice(RESOLUTIONS startupResolution, Timer* timer) = 0;
+		virtual bool InitGraphicsEngine(ResourceManager* resourceManager) = 0;
 		virtual void StartFrame(RenderCommandPool& renderPool);
 		virtual void EndFrame();
 		virtual void Render() = 0;
@@ -40,6 +40,7 @@ namespace Hail
 		virtual void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) = 0;
 
 		virtual void ReloadShaders();
+		RenderingDevice* GetRenderingDevice() { return m_renderDevice; }
 
 		void WindowSizeUpdated();
 		void SetTargetResolution(glm::uvec2 targetResolution) { m_targetResolution = targetResolution; }
@@ -49,9 +50,7 @@ namespace Hail
 
 		bool m_shadersRecompiled = false;
 		bool m_framebufferResized = false;
-		ShaderManager* m_shaderManager = nullptr;
-		TextureManager* m_textureManager = nullptr;
-		ResourceManager* m_resourceManqager = nullptr;
+		ResourceManager* m_resourceManager = nullptr;
 		Timer* m_timer = nullptr;
 		glm::uvec2 m_windowResolution;
 		glm::uvec2 m_renderTargetResolution;
@@ -60,6 +59,6 @@ namespace Hail
 		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
 		VectorOnStack<SpriteInstanceData, MAX_NUMBER_OF_SPRITES, false> m_spriteInstanceData;
 
-
+		RenderingDevice* m_renderDevice = nullptr;
 	};
 }

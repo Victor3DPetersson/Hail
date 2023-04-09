@@ -20,6 +20,36 @@ Hail::ResourceManager::ResourceManager()
 	m_unitCylinder = CreateUnitCylinder();
 }
 
+bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
+{
+	m_renderDevice = renderingDevice;
+	m_platformResourceManager.Init(renderingDevice);
+
+	if (!m_shaderManager.LoadAllRequiredShaders())
+	{
+		return false;
+	}
+
+	if (m_textureManager.LoadAllRequiredTextures())
+	{
+		for (uint32_t i = 0; i < m_textureManager.m_loadedTextures.Size(); i++)
+		{
+			m_platformResourceManager.CreateTextureData(m_textureManager.m_loadedTextures[i].m_compiledTextureData);
+		}
+	}
+
+	return true;
+}
+
+void Hail::ResourceManager::LoadTextureResource(String256 name)
+{
+	if (m_textureManager.LoadTexture(name))
+	{
+		m_platformResourceManager.CreateTextureData(m_textureManager.m_loadedTextures.GetLast().m_compiledTextureData);
+		//connect UUID through some system
+	}
+}
+
 Hail::Mesh Hail::CreateUnitCube()
 {
 	Mesh mesh;

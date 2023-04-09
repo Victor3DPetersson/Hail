@@ -14,7 +14,8 @@ namespace Hail
 	class VlkRenderer : public Renderer
 	{
 	public:
-		bool Init(RESOLUTIONS startupResolution, ShaderManager* shaderManager, TextureManager* textureManager, ResourceManager* resourceManager, Timer* timer) override;
+		bool InitDevice(RESOLUTIONS startupResolution, Timer* timer) override;
+		bool InitGraphicsEngine(ResourceManager* resourceManager) override;
 		void StartFrame(RenderCommandPool& renderPool) final;
 		void Render() final;
 		void EndFrame() final;
@@ -47,16 +48,12 @@ namespace Hail
 		void CreateSpriteRenderPass();
 		void CreateSpriteDescriptorSets();
 
-		void CreateCommandPool();
 		void CreateCommandBuffers();
 
 		void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 		void CreateSyncObjects();
 
 		VkShaderModule CreateShaderModule(CompiledShader& shader);
-
-		void CreateTextureImage();
-		void CreateTextureImageView();
 
 		void CreateVertexBuffer();
 		void CreateFullscreenVertexBuffer();
@@ -83,25 +80,22 @@ namespace Hail
 		VkWriteDescriptorSet WriteDescriptorBuffer(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorBufferInfo* bufferInfo, uint32_t binding);
 		VkWriteDescriptorSet WriteDescriptorSampler(VkDescriptorType type, VkDescriptorSet dstSet, VkDescriptorImageInfo* bufferInfo, uint32_t binding);
 
-		VlkDevice m_device;
 		VlkSwapChain m_swapChain;
 
-		VkQueue m_graphicsQueue = VK_NULL_HANDLE;
-		VkQueue m_presentQueue = VK_NULL_HANDLE;
-		VkQueue m_computeQueue = VK_NULL_HANDLE;
+
 
 		VkDescriptorPool m_globalDescriptorPool = VK_NULL_HANDLE;
 		VkPipelineLayout m_globalPipelineLayout = VK_NULL_HANDLE;
 		VkDescriptorSetLayout  m_globalDescriptorSetLayoutPerFrame = VK_NULL_HANDLE;
 		VkDescriptorSetLayout  m_globalDescriptorSetLayoutMaterial = VK_NULL_HANDLE;
 		VkDescriptorSet m_globalDescriptorSetsPerFrame[MAX_FRAMESINFLIGHT];
-		VkDescriptorSet m_globalDescriptorSetsMaterial[MAX_FRAMESINFLIGHT];
+		VkDescriptorSet m_globalDescriptorSetsMaterial0[MAX_FRAMESINFLIGHT];
+		VkDescriptorSet m_globalDescriptorSetsMaterial1[MAX_FRAMESINFLIGHT];
 
 
 		VkPipeline m_graphicsPipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
-		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
 
 		GrowingArray<VkBuffer> m_uniformBuffers;
@@ -157,10 +151,6 @@ namespace Hail
 		VkBuffer m_indexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_indexBufferMemory = VK_NULL_HANDLE;
 
-		//Texture data for the cube
-		VkImage m_textureImage = VK_NULL_HANDLE;
-		VkDeviceMemory m_textureImageMemory = VK_NULL_HANDLE;
-		VkImageView m_textureImageView = VK_NULL_HANDLE;
 
 		VkSampler m_textureSampler = VK_NULL_HANDLE;
 		VkSampler m_pointTextureSampler = VK_NULL_HANDLE;

@@ -13,15 +13,15 @@
 
 #include "../Windows_ApplicationWindow.h"
 #include "HailEngine.h"
-#include "ShaderManager.h"
+#include "Resources\ShaderManager.h"
 #include "Rendering\UniformBufferManager.h"
-#include "TextureManager.h"
+#include "Resources\TextureManager.h"
 
 #include "Resources\Vertices.h"
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
 
-#include "VkVertex_Descriptor.h"
+#include "VlkVertex_Descriptor.h"
 
 using namespace Hail;
 
@@ -164,6 +164,12 @@ bool VlkDevice::CreateInstance()
 	CreateWindowsSurface();
 	PickPhysicalDevice();
 	CreateLogicalDevice();
+
+	Hail::QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
+	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_graphicsQueue);
+	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_computeQueue);
+	vkGetDeviceQueue(m_device, indices.presentFamily, 0, &m_presentQueue);
+	CreateCommandPool();
 
 	return true;
 }
@@ -428,6 +434,22 @@ void VlkDevice::CreateWindowsSurface()
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create window surface!");
+#endif
+	}
+}
+
+void Hail::VlkDevice::CreateCommandPool()
+{
+	QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(m_physicalDevice);
+
+	VkCommandPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily;
+	if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		throw std::runtime_error("failed to create command pool!");
 #endif
 	}
 }

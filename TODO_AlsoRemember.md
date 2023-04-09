@@ -2,14 +2,15 @@
 1. [x] Complete Tutorial
 2. [x] Implement ImGui
 3. [x] Implement a mesh in a basic way
-4. [] Setup basic threaded workflow between renderer and Game to move said mesh
-5. [] Imgui interface over threads
-6. [] Create several cylinders and instance render them.
-7. [] Sprite component
-8. [] Texture importation pipeline
-9. [] Profiling and Unit tests
-10. [] Cleanup Renderer from tutorial now when more comfortable with the API
-11. [] Resource Manager
+4. [x] Setup basic threaded workflow between renderer and Game to move said mesh
+5. [] Imgui interface over threads (will skip for now)
+6. [x] Create several 3D objects and instance render them.
+7. [x] Sprite component
+8. [] Resource Manager (create material system to make rendering assets more data driven)
+9. [] Create tool to utilize resource system to be able to create game assets
+10. [] Use material system to take control over render styles
+12. [] Profiling and Unit tests
+12. [] 
 
 # TODO: unspecified order
 

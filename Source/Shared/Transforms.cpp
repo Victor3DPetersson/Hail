@@ -194,7 +194,8 @@ namespace Hail
 
 	void Hail::Transform2D::AddToRotation(const float rotInEulerAngles)
 	{
-		m_rot = fmod(rotInEulerAngles, 360.0f);
+		m_rot += rotInEulerAngles;
+		m_rot = fmod(m_rot, 360.0f);
 		if (m_rot > 180)
 			m_rot -= 360;
 		else if (m_rot < -180)

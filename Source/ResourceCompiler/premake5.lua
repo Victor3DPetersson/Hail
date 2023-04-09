@@ -25,6 +25,7 @@ project "ResourceCompiler"
 	includedirs {
 		".",
 		"%{dirs.srcdir}/Shared/",
+		"%{dirs.srcdir}/Engine/Resources",
 		"%{dirs.extdir}/Vulkan/Include/",
 	}
 	defines {

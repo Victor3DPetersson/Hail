@@ -2,6 +2,7 @@
 #include "Vertices.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
+#include "../EngineConstants.h"
 
 namespace Hail
 {
@@ -18,15 +19,11 @@ namespace Hail
 		CUTOUT,
 		ADDITIVE
 	};
+
 	class Material
 	{
 	public:
-
-
-
-
-	protected:
-
+		GUID m_uuid;
 		uint32_t m_identifier = 0;
 
 		String64 m_vertexShader;
@@ -46,9 +43,9 @@ namespace Hail
 	public:
 
 
-	private:
 		//Textures
 		uint32_t m_materialIdentifier = 0;
+		uint32_t m_textureHandles[8]{};
 		BLEND_MODE m_blendMode;
 		//Other instanced parameters
 		glm::vec4 m_instanceFloatParameters;
