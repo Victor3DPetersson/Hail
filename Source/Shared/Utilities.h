@@ -2,9 +2,7 @@
 
 #include "glm\vec2.hpp"
 
-#ifdef DEBUG
-#include <iostream>
-#endif
+
 #include <type_traits>
 
 

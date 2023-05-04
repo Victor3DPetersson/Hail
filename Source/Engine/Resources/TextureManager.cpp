@@ -73,8 +73,11 @@ namespace Hail
 		std::ifstream inStream(inPath.Data(), std::ios::in | std::ios::binary);
 		if (!inStream)
 		{
-			bool foundTexture = CompileTexture(textureName);
-			return false;
+			if (!CompileTexture(textureName))
+			{
+				return false;
+			}
+			inStream.open(inPath.Data(), std::ios::in | std::ios::binary);
 		}
 
 		Debug_PrintConsoleString256(String256::Format("\nImporting Texture:\n%s:", textureName));

@@ -64,9 +64,9 @@ namespace Hail
 		VkQueue m_computeQueue = VK_NULL_HANDLE;
 		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 
-#ifdef DEBUG
+//#ifdef DEBUG
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
-#endif
+//#endif
 
 	};
 

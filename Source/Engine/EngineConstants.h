@@ -4,7 +4,7 @@
 
 namespace Hail
 {
-	constexpr uint32_t MAX_NUMBER_OF_SPRITES = 1024;
+	constexpr uint32_t MAX_NUMBER_OF_SPRITES = 1024u;
 
     struct GUID {
         unsigned long  Data1{};

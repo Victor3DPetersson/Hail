@@ -22,7 +22,7 @@ void GameApplication::Init(void* initData)
 	g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 	player.transform.SetPosition({ 0.5f, 0.5f });
-
+	player.materialInstanceID = 1;
 	for (uint32_t i = 0; i < 5; i++)
 	{
 		sprites[i].transform.SetPosition({ 0.1f + 0.15f * i, 0.5f });
@@ -104,5 +104,7 @@ void GameApplication::FillFrameData(Hail::RenderCommandPool& renderCommandPoolTo
 	{
 		renderCommandPoolToFill.spriteCommands.Add(player);
 	}
+
+	renderCommandPoolToFill.meshCommands.Add(Hail::RenderCommand_Mesh());
 }
 

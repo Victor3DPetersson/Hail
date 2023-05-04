@@ -13,7 +13,6 @@
 
 #include "../Windows_ApplicationWindow.h"
 #include "HailEngine.h"
-#include "Resources\ShaderManager.h"
 #include "Rendering\UniformBufferManager.h"
 #include "Resources\TextureManager.h"
 
@@ -30,7 +29,7 @@ const char* deviceExtensions[DEVICEEXTENSIONCOUNT] = { VK_KHR_SWAPCHAIN_EXTENSIO
 
 
 #ifdef NDEBUG
-const bool enableValidationLayers = false;
+constexpr bool enableValidationLayers = false;
 constexpr uint32_t REQUIREDEXTENSIONCOUNT = 2;
 const char* requiredExtensions[REQUIREDEXTENSIONCOUNT] = {
 	"VK_KHR_surface",
@@ -40,7 +39,7 @@ const char* requiredExtensions[REQUIREDEXTENSIONCOUNT] = {
 #else
 #include <iostream> 
 
-const bool enableValidationLayers = true;
+constexpr bool enableValidationLayers = true;
 constexpr uint32_t REQUIREDEXTENSIONCOUNT = 3;
 const char* requiredExtensions[REQUIREDEXTENSIONCOUNT] = { 
 	"VK_KHR_surface", 

@@ -1,13 +1,13 @@
 #version 450
 //Add to include file later
-layout(binding = 0, std140) uniform UniformBufferObject 
+layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
 {
     uvec2 renderResolution;
     uvec2 screenResolution;
 	float totalTime;
 } constantVariables;
 
-layout(binding = 1) uniform usampler2D texSampler;
+layout(binding = 1, set = 1) uniform usampler2D texSampler;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 0) in vec2 fragTexCoord;

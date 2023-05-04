@@ -48,6 +48,7 @@ void Hail::ThreadSyncronizer::TransferBufferSizes()
 {
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	m_rendererCommandPool.spriteCommands.TransferSize(readPool.spriteCommands);
+	m_rendererCommandPool.meshCommands.TransferSize(readPool.meshCommands);
 }
 
 void Hail::ThreadSyncronizer::LerpRenderBuffers()
@@ -58,6 +59,19 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
 	m_rendererCommandPool.renderCamera = Camera::LerpCamera(readPool.renderCamera, lastReadPool.renderCamera, tValue);
 	
+	LerpSprites(tValue);
+	Lerp3DModels(tValue);
+}
+namespace Hail
+{
+	void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t);
+	void LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t);
+}
+
+void Hail::ThreadSyncronizer::LerpSprites(float tValue)
+{
+	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
+	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
 	//Lerp sprites
 	const uint32_t numberOfSprites = readPool.spriteCommands.Size();
 	const uint32_t lastReadNumberOfSprites = lastReadPool.spriteCommands.Size();
@@ -104,15 +118,78 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 			writeSprite = readSprite;
 		}
 	}
+}
 
+void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
+{
+	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
+	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
+	//Lerp sprites
+	const uint32_t numberOfModels = readPool.meshCommands.Size();
+	const uint32_t lastReadNumberOfModels = lastReadPool.meshCommands.Size();
+	for (uint16_t mesh = 0; mesh < numberOfModels; mesh++)
+	{
+		const RenderCommand_Mesh& readMesh = readPool.meshCommands[mesh];
+		RenderCommand_Mesh& writeMesh = m_rendererCommandPool.meshCommands[mesh];
 
+		if (mesh >= lastReadNumberOfModels)
+		{
+			writeMesh = readMesh;
+			continue;
+		}
+
+		const RenderCommand_Mesh& lastReadMesh = lastReadPool.meshCommands[mesh];
+		if (readMesh.lerpCommand)
+		{
+			if (readMesh.index == lastReadMesh.index)
+			{
+				LerpMeshCommand(readMesh, lastReadMesh, writeMesh, tValue);
+			}
+			else
+			{
+				//search for correct index
+				//Switch to use an ordered heap or something like that later to increase performance.
+				bool foundMesh = false;
+				for (uint16_t missingMesh = mesh; missingMesh < lastReadNumberOfModels; missingMesh++)
+				{
+					if (readMesh.index == lastReadPool.spriteCommands[missingMesh].index)
+					{
+						foundMesh = true;
+						LerpMeshCommand(readMesh, lastReadPool.meshCommands[missingMesh], writeMesh, tValue);
+						break;
+					}
+				}
+				if (foundMesh == false)
+				{
+					writeMesh = readMesh;
+				}
+			}
+		}
+		else
+		{
+			writeMesh = readMesh;
+		}
+	}
 }
 
 
-void Hail::ThreadSyncronizer::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
+void Hail::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
 {
 	writeSprite.transform = Transform2D::LerpTransforms(readSprite.transform, lastReadSprite.transform, t);
 	writeSprite.uvTR_BL = glm::mix(readSprite.uvTR_BL, lastReadSprite.uvTR_BL, t);
 	writeSprite.color = glm::mix(readSprite.color, lastReadSprite.color, t);
 	writeSprite.pivot = glm::mix(readSprite.pivot, lastReadSprite.pivot, t);
+	writeSprite.index = readSprite.index;
+	writeSprite.materialInstanceID = readSprite.materialInstanceID;
+	writeSprite.lerpCommand = readSprite.lerpCommand;
+}
+
+void Hail::LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t)
+{
+	writeMesh.transform = Transform3D::LerpTransforms_t(readMesh.transform, lastReadMesh.transform, t);
+	writeMesh.color = glm::mix(readMesh.color, lastReadMesh.color, t);
+	writeMesh.meshID = readMesh.meshID;
+	writeMesh.index = readMesh.index;
+	writeMesh.materialInstanceID = readMesh.materialInstanceID;
+	writeMesh.lerpCommand = readMesh.lerpCommand;
 }

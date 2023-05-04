@@ -29,7 +29,7 @@ project "ResourceCompiler"
 		"%{dirs.extdir}/Vulkan/Include/",
 	}
 	defines {
-	 	 	'SHADER_DIR_IN="' .. (dirs.shadersindir):gsub("%\\", "/") .. '/"',
+	 	'SHADER_DIR_IN="' .. (dirs.shadersindir):gsub("%\\", "/") .. '/"',
 	 	'SHADER_DIR_OUT="' .. (dirs.shadersoutdir):gsub("%\\", "/") .. '/"',
 	 	'TEXTURES_DIR_IN="' .. (dirs.texturesindir):gsub("%\\", "/") .. '/"',
 	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"'
@@ -48,6 +48,6 @@ project "ResourceCompiler"
 			 }
 	filter { "configurations:Production" }
 		links { 
-			"shaderc_combinedd"
+			"shaderc_combined"
 			 }
 

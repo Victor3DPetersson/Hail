@@ -2,33 +2,48 @@
 
 #include "MeshResources.h"
 #include "TextureManager.h"
-#include "ShaderManager.h"
-
+#include "MaterialManager.h"
+#include "Containers\VectonOnStack\VectorOnStack.h"
 #ifdef PLATFORM_WINDOWS
 #include "windows/VulkanInternal/VlkResourceManager.h"
+#include "windows/VulkanInternal/VlkSwapChain.h"
 #endif
 
+class Timer;
 
 namespace Hail
 {
+	struct RenderCommandPool;
 	class RenderingDevice;
 	class ResourceManager
 	{
 	public:
 		ResourceManager();
 		bool InitResources(RenderingDevice* renderingDevice);
-		ShaderManager& GetShaderManager() { return m_shaderManager; }
+		MaterialManager& GetMaterialManager() { return m_materialManager; }
 		TextureManager& GetTextureManager() { return m_textureManager; }
 
+		void SetTargetResolution(glm::uvec2 targetResolution);
+
+
+		void LoadMaterial(GUID guid);
+		void LoadMaterial(String256 name);
 
 		void LoadTextureResource(GUID guid);
 		void LoadTextureResource(String256 name);
 		void LoadMaterialResource(GUID guid);
 		void LoadMaterialResource(String256 name);
 
+		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat);
+		
+		void UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer);
+		void ClearFrameData();
+		void SetSwapchainTargetResolution(glm::uvec2 targetResolution);
 
 #ifdef PLATFORM_WINDOWS
-		VlkResourceManager& GetVulkanResources() { return m_platformResourceManager; }
+		VlkTextureResourceManager& GetVulkanTextureResources() { return m_platformTextureResourceManager; }
+		VlkMaterialeResourceManager& GetVulkanMaterialResources() { return m_platformMaterialResourceManager; }
+		VlkSwapChain& GetVulkanSwapChain() { return m_platformSwapChain; }
 #endif
 
 		Mesh m_unitCube;
@@ -37,15 +52,20 @@ namespace Hail
 
 	private:
 
-		ShaderManager m_shaderManager;
+		MaterialManager m_materialManager;
 		TextureManager m_textureManager;
 		RenderingDevice* m_renderDevice;
 
 #ifdef PLATFORM_WINDOWS
-		VlkResourceManager m_platformResourceManager;
+		VlkTextureResourceManager m_platformTextureResourceManager;
+		VlkMaterialeResourceManager m_platformMaterialResourceManager;
+		VlkSwapChain m_platformSwapChain;
 #endif
+		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
 
-		GrowingArray<Material> m_materials;
+
+		VectorOnStack<SpriteInstanceData, MAX_NUMBER_OF_SPRITES, false> m_spriteInstanceData;
+
 	};
 }
 

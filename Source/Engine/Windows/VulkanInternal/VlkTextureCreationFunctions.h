@@ -1,4 +1,3 @@
-//Interface for the entire engine
 #pragma once
 
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -19,6 +18,7 @@ namespace Hail
 	void CopyBufferToImage(VlkDevice& device, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, VkCommandPool commandPool, VkQueue queue);
 
 	VkFormat ToVkFormat(TEXTURE_FORMAT format);
+	TEXTURE_FORMAT ToInternalFromVkFormat(VkFormat format);
 	VkFormat ToVkFormat(TEXTURE_DEPTH_FORMAT format);
 }
 

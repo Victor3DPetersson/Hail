@@ -75,12 +75,12 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-	g_engineData->renderer->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
 	if (!g_engineData->renderer->InitDevice(startupData.startupResolution,g_engineData->timer))
 	{
 		return false;
 	}
 	g_engineData->resourceManager = new ResourceManager();
+	g_engineData->resourceManager->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
 	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice()))
 	{
 		Cleanup();

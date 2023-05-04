@@ -5,23 +5,26 @@
 #include "Containers\GrowingArray\GrowingArray.h"
 
 
-class ShaderManager;
-class ShaderCompiler
+namespace Hail
 {
-public:
-	friend class ShaderManager;
+	class ShaderManager;
+	class ShaderCompiler
+	{
+	public:
+		friend class MaterialManager;
 
-	void CompileAllShaders();
-	bool CompileAndExportAllRequiredShaders(const char** requiredShaders, uint32_t numberOfRequiredShaders);
-	void CompileSpecificShader(const char* relativePath, const char* shaderName);
-	bool IsShaderCompiled(const char* relativePath, const char* shaderName);
+		void CompileAllShaders();
+		bool CompileAndExportAllRequiredShaders(const char** requiredShaders, uint32_t numberOfRequiredShaders);
+		bool CompileSpecificShader(const char* shaderName, SHADERTYPE shaderType);
+		bool IsShaderCompiled(const char* relativePath, const char* shaderName);
 
-private:
+	private:
 
-	void Init(SHADERLANGUAGETARGET shaderCompilationTarget);
+		void Init(SHADERLANGUAGETARGET shaderCompilationTarget);
 
 
-	SHADERTYPE CheckShaderType(const char* shaderExtension);
+		SHADERTYPE CheckShaderType(const char* shaderExtension);
 
-	SHADERLANGUAGETARGET m_languageToCompileTo;
-};
+		SHADERLANGUAGETARGET m_languageToCompileTo;
+	};
+}

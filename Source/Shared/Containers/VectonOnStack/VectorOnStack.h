@@ -22,7 +22,7 @@ public:
 	inline Type* Data() { return m_data; }
 	inline void Clear();
 	inline void DeleteAll();
-	inline bool Empty() { return static_cast<bool>(m_size); }
+	inline bool Empty() { return static_cast<bool>(m_end == 0); }
 	void TransferSize(const VectorOnStack& otherArray);
 
 	__forceinline CountType Size() const;

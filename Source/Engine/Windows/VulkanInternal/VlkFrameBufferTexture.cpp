@@ -11,22 +11,15 @@ namespace Hail
 	{
 	}
 
+	VlkFrameBufferTexture::VlkFrameBufferTexture() : FrameBufferTexture()
+	{
+		NullMemory();
+	}
+
 	VlkFrameBufferTexture::VlkFrameBufferTexture(glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) :
 		FrameBufferTexture(resolution, format, depthFormat)
 	{
-		m_textureImage[0] = VK_NULL_HANDLE;
-		m_textureMemory[0] = VK_NULL_HANDLE;
-		m_textureView[0] = VK_NULL_HANDLE;
-		m_depthTextureImage[0] = VK_NULL_HANDLE;
-		m_depthTextureMemory[0] = VK_NULL_HANDLE;
-		m_depthTextureView[0] = VK_NULL_HANDLE;
-
-		m_textureImage[1] = VK_NULL_HANDLE;
-		m_textureMemory[1] = VK_NULL_HANDLE;
-		m_textureView[1] = VK_NULL_HANDLE;
-		m_depthTextureImage[1] = VK_NULL_HANDLE;
-		m_depthTextureMemory[1] = VK_NULL_HANDLE;
-		m_depthTextureView[1] = VK_NULL_HANDLE;
+		NullMemory();
 	}
 
 	void VlkFrameBufferTexture::CreateFrameBufferTextureObjects(VlkDevice& device)
@@ -47,6 +40,35 @@ namespace Hail
 		else if(m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED)
 		{
 			CreateDepthTexture(device);
+		}
+	}
+
+	void VlkFrameBufferTexture::CleanupResources(VlkDevice& device, bool isSwapChain)
+	{
+		for (size_t i = 0; i < MAX_FRAMESINFLIGHT * 2; i++)
+		{
+			if(m_textureImage[i] && !isSwapChain)
+			{
+				vkDestroyImage(device.GetDevice(), m_textureImage[i], nullptr);
+			}
+			m_textureImage[i] = nullptr;
+			if (m_textureView[i])
+			{
+				vkDestroyImageView(device.GetDevice(), m_textureView[i], nullptr);
+				m_textureView[i] = nullptr;
+			}
+			if (m_textureMemory[i])
+			{
+				vkFreeMemory(device.GetDevice(), m_textureMemory[i], nullptr);
+				m_textureMemory[i] = nullptr;
+			}
+			if (m_depthTextureImage[i])
+			{
+				
+				vkDestroyImageView(device.GetDevice(), m_depthTextureView[i], nullptr);
+				vkFreeMemory(device.GetDevice(), m_depthTextureMemory[i], nullptr);
+				vkDestroyImage(device.GetDevice(), m_depthTextureImage[i], nullptr);
+			}
 		}
 	}
 
@@ -97,6 +119,37 @@ namespace Hail
 			}
 		}
 
+	}
+
+	void VlkFrameBufferTexture::NullMemory()
+	{
+		m_textureImage[0] = VK_NULL_HANDLE;
+		m_textureMemory[0] = VK_NULL_HANDLE;
+		m_textureView[0] = VK_NULL_HANDLE;
+		m_depthTextureImage[0] = VK_NULL_HANDLE;
+		m_depthTextureMemory[0] = VK_NULL_HANDLE;
+		m_depthTextureView[0] = VK_NULL_HANDLE;
+
+		m_textureImage[1] = VK_NULL_HANDLE;
+		m_textureMemory[1] = VK_NULL_HANDLE;
+		m_textureView[1] = VK_NULL_HANDLE;
+		m_depthTextureImage[1] = VK_NULL_HANDLE;
+		m_depthTextureMemory[1] = VK_NULL_HANDLE;
+		m_depthTextureView[1] = VK_NULL_HANDLE;
+
+		m_textureImage[2] = VK_NULL_HANDLE;
+		m_textureMemory[2] = VK_NULL_HANDLE;
+		m_textureView[2] = VK_NULL_HANDLE;
+		m_depthTextureImage[2] = VK_NULL_HANDLE;
+		m_depthTextureMemory[2] = VK_NULL_HANDLE;
+		m_depthTextureView[2] = VK_NULL_HANDLE;
+
+		m_textureImage[3] = VK_NULL_HANDLE;
+		m_textureMemory[3] = VK_NULL_HANDLE;
+		m_textureView[3] = VK_NULL_HANDLE;
+		m_depthTextureImage[3] = VK_NULL_HANDLE;
+		m_depthTextureMemory[3] = VK_NULL_HANDLE;
+		m_depthTextureView[3] = VK_NULL_HANDLE;
 	}
 
 }

@@ -7,7 +7,7 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 	vec2 totalTime_HorizonPosition;
 } constantVariables;
 
-layout(binding = 1, set = 1) uniform sampler2D texSampler;
+layout(binding = 1, set = 2) uniform sampler2D texSampler;
 
 layout(location = 0) out uvec4 outColor;
 layout(location = 0) in vec2 inTexCoord;

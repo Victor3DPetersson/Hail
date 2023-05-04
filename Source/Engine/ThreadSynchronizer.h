@@ -39,8 +39,10 @@ namespace Hail
 		void ClearApplicationBuffers();
 		void TransferBufferSizes();
 		void LerpRenderBuffers();
+		void LerpSprites(float tValue);
+		void Lerp3DModels(float tValue);
 
-		void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite,	RenderCommand_Sprite& writeSprite, float t);
+		
 
 		RenderCommandPool m_renderCommandPools[3]{};
 		RenderCommandPool m_rendererCommandPool{};

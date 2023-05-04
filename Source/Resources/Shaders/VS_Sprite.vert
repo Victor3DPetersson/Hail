@@ -23,7 +23,7 @@ struct UIData
 	uvec4 textureSize_effectData_padding;
 };
 
-layout(std140, set = 0, binding = 1) buffer UIDataBuffer 
+layout(std140, set = 1, binding = 1) buffer UIDataBuffer 
 {
    	UIData uiInstanceData[];
 };

@@ -10,25 +10,37 @@
 
 using namespace Hail;
 
-void Hail::VlkSwapChain::Init(VlkDevice& device)
+
+Hail::VlkSwapChain::VlkSwapChain() : SwapChain()
 {
+	m_swapChainImageFormat = VK_FORMAT_UNDEFINED;
+}
+
+void Hail::VlkSwapChain::Init(RenderingDevice* renderDevice)
+{
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(renderDevice);
+	m_frameBufferTexture.SetName("SwapchainFrameBuffer");
 	CreateSwapChain(device);
 	CreateImageViews(device);
 	CreateRenderPass(device);
-	CreateDepthResources(device);
 	CreateFramebuffers(device);
 }
 
-bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores, bool resizeSwapChain)
+bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores)
 {
-	bool resizedSwapChain = resizeSwapChain;
+	bool resizedSwapChain = m_resizeSwapChain;
 	vkWaitForFences(device.GetDevice(), 1, &inFrameFences[m_currentFrame], VK_TRUE, UINT64_MAX);
-	VkResult result = vkAcquireNextImageKHR(device.GetDevice(), m_swapChain, 10000, imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_currentImageIndex);
-
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || resizeSwapChain)
+	VkResult result = VK_SUCCESS;
+	if (!m_resizeSwapChain)
+	{
+		result = vkAcquireNextImageKHR(device.GetDevice(), m_swapChain, 10000, imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_currentImageIndex);
+	}
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_resizeSwapChain)
 	{
 		RecreateSwapchain(device, inFrameFences, imageAvailableSemaphores);
 		resizedSwapChain = true;
+		m_resizeSwapChain = false;
+		result = VK_SUCCESS;
 	}
 	else if (result != VK_SUCCESS)
 	{
@@ -70,17 +82,22 @@ void VlkSwapChain::RecreateSwapchain(VlkDevice& device, VkFence* inFrameFences, 
 	CleanupSwapchain(device);
 	CreateSwapChain(device);
 	CreateImageViews(device);
-	CreateDepthResources(device);
 	CreateFramebuffers(device);
 	vkDeviceWaitIdle(device.GetDevice());
 	vkResetFences(device.GetDevice(), 1, &inFrameFences[m_currentFrame]);
 	vkAcquireNextImageKHR(device.GetDevice(), m_swapChain, 10000, imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_currentImageIndex);
 }
 
-void Hail::VlkSwapChain::DestroySwapChain(VlkDevice& device)
+void Hail::VlkSwapChain::DestroySwapChain(RenderingDevice* renderDevice)
 {
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(renderDevice);
 	CleanupSwapchain(device);
 	vkDestroyRenderPass(device.GetDevice(), m_finalRenderPass, nullptr);
+}
+
+FrameBufferTexture* Hail::VlkSwapChain::GetFrameBufferTexture()
+{
+	return &m_frameBufferTexture;
 }
 
 void VlkSwapChain::CleanupSwapchain(VlkDevice& device)
@@ -89,19 +106,9 @@ void VlkSwapChain::CleanupSwapchain(VlkDevice& device)
 	{
 		vkDestroyFramebuffer(device.GetDevice(), m_swapChainFramebuffers[i], nullptr);
 	}
-	m_swapChainFramebuffers.DeleteAllAndDeinit();
-	for (size_t i = 0; i < m_swapChainImageViews.Size(); i++)
-	{
-		vkDestroyImageView(device.GetDevice(), m_swapChainImageViews[i], nullptr);
-	}
 	vkDestroySwapchainKHR(device.GetDevice(), m_swapChain, nullptr);
-	m_swapChainImageViews.DeleteAllAndDeinit();
-	m_swapChainImages.DeleteAllAndDeinit();
-
-	vkDestroyImageView(device.GetDevice(), m_depthImageView, nullptr);
-	vkDestroyImage(device.GetDevice(), m_depthImage, nullptr);
-	vkFreeMemory(device.GetDevice(), m_depthImageMemory, nullptr);
-
+	m_swapChainFramebuffers.DeleteAllAndDeinit();
+	m_frameBufferTexture.CleanupResources(device, true);
 }
 
 void VlkSwapChain::CreateSwapChain(VlkDevice& device)
@@ -155,11 +162,14 @@ void VlkSwapChain::CreateSwapChain(VlkDevice& device)
 #endif
 	}
 	vkGetSwapchainImagesKHR(device.GetDevice(), m_swapChain, &imageCount, nullptr);
-	m_swapChainImages.InitAndFill(imageCount);
-	vkGetSwapchainImagesKHR(device.GetDevice(), m_swapChain, &imageCount, m_swapChainImages.Data());
-
+	vkGetSwapchainImagesKHR(device.GetDevice(), m_swapChain, &imageCount, m_frameBufferTexture.m_textureImage);
+	m_imageCount = imageCount;
 	m_swapChainImageFormat = surfaceFormat.format;
+	m_frameBufferTexture.SetTextureFormat(ToInternalFromVkFormat(m_swapChainImageFormat));
 	m_swapChainExtent = extent;
+	m_windowResolution = { extent.width, extent.height };
+	m_frameBufferTexture.SetResolution(m_windowResolution);
+	CalculateRenderResolution();
 }
 
 VkSurfaceFormatKHR VlkSwapChain::ChooseSwapSurfaceFormat(const GrowingArray<VkSurfaceFormatKHR>& availableFormats)
@@ -207,6 +217,11 @@ VkExtent2D VlkSwapChain::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabi
 	}
 }
 
+VkFramebuffer Hail::VlkSwapChain::GetFrameBuffer(uint32_t index)
+{
+	return m_swapChainFramebuffers[index];
+}
+
 VkFormat Hail::VlkSwapChain::FindSupportedFormat(VlkDevice& device, const GrowingArray<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
 {
 	for (uint32_t i = 0; i < candidates.Size(); i++) 
@@ -239,27 +254,24 @@ VkFormat Hail::VlkSwapChain::FindDepthFormat(VlkDevice& device)
 
 void VlkSwapChain::CreateImageViews(VlkDevice& device)
 {
-	m_swapChainImageViews.InitAndFill(m_swapChainImages.Size());
-
-	for (size_t i = 0; i < m_swapChainImages.Size(); i++)
+	for (size_t i = 0; i < m_imageCount; i++)
 	{
-		m_swapChainImageViews[i] = CreateImageView(device, m_swapChainImages[i], m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		m_frameBufferTexture.m_textureView[i] = CreateImageView(device, m_frameBufferTexture.m_textureImage[i], m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 }
 
 
 void VlkSwapChain::CreateFramebuffers(VlkDevice& device)
 {
-	m_swapChainFramebuffers.InitAndFill(m_swapChainImageViews.Size());
-
-	for (size_t i = 0; i < m_swapChainImageViews.Size(); i++) 
+	m_swapChainFramebuffers.InitAndFill(m_imageCount);
+	for (size_t i = 0; i < m_imageCount; i++)
 	{
-		VkImageView attachments[2] = { m_swapChainImageViews[i], m_depthImageView };
+		VkImageView attachments[1] = { m_frameBufferTexture.m_textureView[i] };
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferInfo.renderPass = m_finalRenderPass;
-		framebufferInfo.attachmentCount = 2;
+		framebufferInfo.attachmentCount = 1;
 		framebufferInfo.pAttachments = attachments;
 		framebufferInfo.width = m_swapChainExtent.width;
 		framebufferInfo.height = m_swapChainExtent.height;
@@ -298,30 +310,16 @@ void Hail::VlkSwapChain::CreateRenderPass(VlkDevice& device)
 	colorAttachmentRef.attachment = 0;
 	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentDescription depthAttachment{};
-	depthAttachment.format = FindDepthFormat(device);
-	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference depthAttachmentRef{};
-	depthAttachmentRef.attachment = 1;
-	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
 	VkSubpassDescription subpass{};
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
-	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+	subpass.pDepthStencilAttachment = nullptr;
 
-	VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+	VkAttachmentDescription attachments[1] = { colorAttachment };
 	VkRenderPassCreateInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 2;
+	renderPassInfo.attachmentCount = 1;
 	renderPassInfo.pAttachments = attachments;
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
@@ -336,17 +334,4 @@ void Hail::VlkSwapChain::CreateRenderPass(VlkDevice& device)
 #endif
 	}
 }
-
-
-void VlkSwapChain::CreateDepthResources(VlkDevice& device)
-{
-	VkFormat depthFormat = FindDepthFormat(device);
-	CreateImage(device, m_swapChainExtent.width, m_swapChainExtent.height, depthFormat, 
-		VK_IMAGE_TILING_OPTIMAL, 
-		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		m_depthImage, m_depthImageMemory);
-	m_depthImageView = CreateImageView(device, m_depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-}
-
 

@@ -2,6 +2,9 @@
 
 #include "Utilities.h"
 #include "String.hpp"
+#ifdef DEBUG
+#include <iostream>
+#endif
 
 inline void Debug_PrintConsoleConstChar([[maybe_unused]]const char* string)
 {

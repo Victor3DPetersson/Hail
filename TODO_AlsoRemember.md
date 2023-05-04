@@ -6,11 +6,13 @@
 5. [] Imgui interface over threads (will skip for now)
 6. [x] Create several 3D objects and instance render them.
 7. [x] Sprite component
-8. [] Resource Manager (create material system to make rendering assets more data driven)
-9. [] Create tool to utilize resource system to be able to create game assets
+8. [x] Resource Manager (create material system to make rendering assets more data driven)
+9. [] Create Serializing so I can make materials be read from files()
 10. [] Use material system to take control over render styles
-12. [] Profiling and Unit tests
-12. [] 
+12. [] Add debug lines
+13. [] Font rendering
+14. [] Profiling and Unit tests
+
 
 # TODO: unspecified order
 

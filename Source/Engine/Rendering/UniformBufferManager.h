@@ -52,8 +52,8 @@ namespace Hail
 		SHADER_STORAGE, // Structured buffer in DX, read write on GPU
 	};
 
-	const uint32_t GetUniformBufferIndex(const BUFFERS buffer);
-	const uint32_t GetUniformBufferSize(const BUFFERS buffer);
+	[[nodiscard]] const uint32_t GetUniformBufferIndex(const BUFFERS buffer);
+	[[nodiscard]] const uint32_t GetUniformBufferSize(const BUFFERS buffer);
 
 
 

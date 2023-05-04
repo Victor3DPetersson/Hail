@@ -1,11 +1,8 @@
 //Interface for the entire engine
 #pragma once
 
-#define VK_USE_PLATFORM_WIN32_KHR
-#include "vulkan\vulkan.h"
-#include "VlkTextureCreationFunctions.h"
 #include "Containers\GrowingArray\GrowingArray.h"
-
+#include "VlkTextureCreationFunctions.h"
 #include "Rendering\FrameBufferTexture.h"
 
 namespace Hail
@@ -23,11 +20,13 @@ namespace Hail
 
 	class VlkFrameBufferTexture : public FrameBufferTexture
 	{
+		friend class VlkSwapChain;
 	public:
+		VlkFrameBufferTexture();
 		VlkFrameBufferTexture(glm::uvec2 resolution, TEXTURE_FORMAT format = TEXTURE_FORMAT::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED);
 		void CreateFrameBufferTextureObjects(VlkDevice& device);
 		//TODO: Make device be inherited from main framework and pass in a pointer to that framework here
-		void CleanupResources();
+		void CleanupResources(VlkDevice& device, bool isSwapchain = false);
 
 		FrameBufferTextureData GetTextureImage(uint32_t index);
 		FrameBufferTextureData GetDepthTextureImage(uint32_t index);
@@ -36,12 +35,13 @@ namespace Hail
 
 		void CreateTexture(VlkDevice& device);
 		void CreateDepthTexture(VlkDevice& device);
+		void NullMemory();
 
-		VkImage m_textureImage[MAX_FRAMESINFLIGHT];
-		VkDeviceMemory m_textureMemory[MAX_FRAMESINFLIGHT];
-		VkImageView m_textureView[MAX_FRAMESINFLIGHT];
-		VkImage m_depthTextureImage [MAX_FRAMESINFLIGHT];
-		VkDeviceMemory m_depthTextureMemory [MAX_FRAMESINFLIGHT];
-		VkImageView m_depthTextureView [MAX_FRAMESINFLIGHT];
+		VkImage m_textureImage[MAX_FRAMESINFLIGHT * 2];
+		VkDeviceMemory m_textureMemory[MAX_FRAMESINFLIGHT * 2];
+		VkImageView m_textureView[MAX_FRAMESINFLIGHT * 2];
+		VkImage m_depthTextureImage [MAX_FRAMESINFLIGHT * 2];
+		VkDeviceMemory m_depthTextureMemory [MAX_FRAMESINFLIGHT * 2];
+		VkImageView m_depthTextureView [MAX_FRAMESINFLIGHT * 2];
 	};
 }

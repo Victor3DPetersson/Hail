@@ -11,7 +11,7 @@ layout(location = 4) in vec4 inColor;
 layout(location = 5) in vec2 inTexCoord1;
 layout(location = 6) in vec2 inTexCoord2;
 
-layout(binding = 0) uniform UniformBufferObject {
+layout( std140, binding = 2, set = 1) uniform UniformBufferObject {
     mat4 model;
     mat4 view;
     mat4 proj;

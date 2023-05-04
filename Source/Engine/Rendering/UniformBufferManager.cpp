@@ -25,19 +25,28 @@ namespace Hail
             break;
         }
     }
+    constexpr uint32_t BUFFER_TUTORIAL_SIZE = sizeof(TutorialUniformBufferObject);
+    constexpr uint32_t BUFFER_SPRITE_SIZE = sizeof(SpriteInstanceData) * MAX_NUMBER_OF_SPRITES;
+    constexpr uint32_t BUFFER_PER_FRAME_SIZE = sizeof(PerFrameUniformBuffer);
     const uint32_t GetUniformBufferSize(const BUFFERS buffer)
     {
         //assert if buffer is count;
         switch (buffer)
         {
         case Hail::BUFFERS::TUTORIAL:
-            return sizeof(TutorialUniformBufferObject);
+        {
+            return BUFFER_TUTORIAL_SIZE;
+        }
             break;
-        case Hail::BUFFERS::PER_FRAME_DATA:
-            return sizeof(PerFrameUniformBuffer);
+        case Hail::BUFFERS::PER_FRAME_DATA: 
+        {
+            return BUFFER_PER_FRAME_SIZE;
+        }
             break;
         case Hail::BUFFERS::SPRITE_INSTANCE_BUFFER:
-            return sizeof(SpriteInstanceData) * MAX_NUMBER_OF_SPRITES;
+        {
+            return BUFFER_SPRITE_SIZE;
+        }
             break;
         case Hail::BUFFERS::COUNT:
             return 0;

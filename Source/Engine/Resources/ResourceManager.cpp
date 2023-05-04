@@ -2,6 +2,9 @@
 #include "ResourceManager.h"
 #include "glm\geometric.hpp"
 #include "MathUtils.h"
+#include "Renderer.h"
+#include "RenderCommands.h"
+#include "Timer.h"
 
 namespace Hail
 {
@@ -23,31 +26,144 @@ Hail::ResourceManager::ResourceManager()
 bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 {
 	m_renderDevice = renderingDevice;
-	m_platformResourceManager.Init(renderingDevice);
-
-	if (!m_shaderManager.LoadAllRequiredShaders())
+	m_platformSwapChain.Init(renderingDevice);
+	m_platformTextureResourceManager.Init(renderingDevice);
+	if (!m_platformMaterialResourceManager.Init(renderingDevice, &m_platformTextureResourceManager, &m_platformSwapChain))
 	{
 		return false;
 	}
 
+	m_mainPassFrameBufferTexture = m_platformTextureResourceManager.FrameBufferTexture_Create("MainRenderPass", m_platformSwapChain.GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 	if (m_textureManager.LoadAllRequiredTextures())
 	{
 		for (uint32_t i = 0; i < m_textureManager.m_loadedTextures.Size(); i++)
 		{
-			m_platformResourceManager.CreateTextureData(m_textureManager.m_loadedTextures[i].m_compiledTextureData);
+			m_platformTextureResourceManager.CreateTextureData(m_textureManager.m_loadedTextures[i].m_compiledTextureData);
 		}
 	}
+	else
+	{
+		return false;
+	}
 
+	//Temp for now
+	for (uint32_t i = 0; i < static_cast<uint32_t>(MATERIAL_TYPE::COUNT); i++)
+	{
+		if (!m_materialManager.LoadMaterial(static_cast<MATERIAL_TYPE>(i)))
+		{
+			return false;
+		}
+		switch (static_cast<MATERIAL_TYPE>(i))
+		{
+		case Hail::MATERIAL_TYPE::SPRITE:
+			if(!m_platformMaterialResourceManager.InitMaterial(m_materialManager.GetMaterial(static_cast<MATERIAL_TYPE>(i)), m_mainPassFrameBufferTexture))
+			{
+				return false;
+			}
+			
+			break;
+		case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+			if(!m_platformMaterialResourceManager.InitMaterial(m_materialManager.GetMaterial(static_cast<MATERIAL_TYPE>(i)), m_platformSwapChain.GetFrameBufferTexture()))
+			{
+				return false;
+			}
+			break;
+		case Hail::MATERIAL_TYPE::MODEL3D:
+			if(!m_platformMaterialResourceManager.InitMaterial(m_materialManager.GetMaterial(static_cast<MATERIAL_TYPE>(i)), m_mainPassFrameBufferTexture))
+			{
+				return false;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+	MaterialInstance& instance1 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
+	instance1.m_textureHandles[0] = 0;
+	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance1);
+	MaterialInstance& instance2 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
+	instance2.m_textureHandles[0] = 1;
+	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance2);
 	return true;
+}
+
+void Hail::ResourceManager::SetTargetResolution(glm::uvec2 targetResolution)
+{
+	m_platformSwapChain.SetTargetResolution(targetResolution);
+}
+
+void Hail::ResourceManager::LoadMaterial(String256 name)
+{
+	//Load from file and get the correct data, now will be hardcoded from the shader name
+
+
 }
 
 void Hail::ResourceManager::LoadTextureResource(String256 name)
 {
 	if (m_textureManager.LoadTexture(name))
 	{
-		m_platformResourceManager.CreateTextureData(m_textureManager.m_loadedTextures.GetLast().m_compiledTextureData);
+		m_platformTextureResourceManager.CreateTextureData(m_textureManager.m_loadedTextures.GetLast().m_compiledTextureData);
 		//connect UUID through some system
 	}
+}
+
+void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer)
+{
+	const GrowingArray<TextureResource>& textures = *m_textureManager.GetTextures();
+	const uint32_t numberOfSprites = renderPool.spriteCommands.Size();
+	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
+	{
+		const RenderCommand_Sprite& spriteCommand = renderPool.spriteCommands[sprite];
+		const glm::vec2 spriteScale = spriteCommand.transform.GetScale();
+		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
+		SpriteInstanceData spriteInstance{};
+		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
+		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
+		spriteInstance.color = spriteCommand.color;
+		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotation() * Math::DegToRadf + Math::PIf * -0.5f, 0.0f };
+		//Get sprite texture size and sort with material and everything here to the correct place. 
+		const TextureResource& texture = textures[spriteCommand.materialInstanceID];
+		spriteInstance.textureSize_effectData_padding = { texture.m_compiledTextureData.header.width, texture.m_compiledTextureData.header.height, static_cast<uint32_t>(spriteCommand.sizeRelativeToRenderTarget), 0 };
+		m_spriteInstanceData.Add(spriteInstance);
+	}
+	m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	const float deltaTime = timer->GetDeltaTime();
+	const float totalTime = timer->GetTotalTime();
+
+	PerFrameUniformBuffer perFrameData{};
+
+	perFrameData.totalTime_horizonLevel.x = totalTime;
+	perFrameData.totalTime_horizonLevel.y = 0.0f;
+	perFrameData.mainRenderResolution = m_platformSwapChain.GetRenderTargetResolution();
+	perFrameData.mainWindowResolution = m_platformSwapChain.GetSwapChainResolution();
+	m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::PER_FRAME_DATA, &perFrameData, sizeof(perFrameData));
+
+	TutorialUniformBufferObject ubo{};
+	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = Transform3D::GetMatrix(renderPool.renderCamera.GetTransform());
+	VkExtent2D swapExtent = m_platformSwapChain.GetSwapChainExtent();
+	ubo.proj = glm::perspective(glm::radians(renderPool.renderCamera.GetFov()), static_cast<float>(perFrameData.mainRenderResolution.x) / static_cast<float>(perFrameData.mainRenderResolution.y), renderPool.renderCamera.GetNear(), renderPool.renderCamera.GetFar());
+	ubo.proj[1][1] *= -1;
+	m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::TUTORIAL, &ubo, sizeof(ubo));
+
+	if (!m_spriteInstanceData.Empty())
+	{
+		m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	}
+
+
+}
+
+void Hail::ResourceManager::ClearFrameData()
+{
+	m_spriteInstanceData.Clear();
+}
+
+void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolution)
+{
+	m_platformSwapChain.SetTargetResolution(targetResolution);
 }
 
 Hail::Mesh Hail::CreateUnitCube()

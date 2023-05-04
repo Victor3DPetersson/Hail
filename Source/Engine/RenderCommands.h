@@ -56,10 +56,10 @@ namespace Hail
 	{
 		Transform3D transform;
 		glm::vec3 color;
-		uint32_t meshID;
-		uint32_t materialInstanceID;
-		uint16_t index;
-		bool lerpCommand;
+		uint32_t meshID = 0;
+		uint32_t materialInstanceID = 0;
+		uint16_t index = 0;
+		bool lerpCommand = true;
 	};
 
 

@@ -5,7 +5,7 @@
 
 namespace Hail
 {
-	void CreateBuffer(VlkDevice& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
+	bool CreateBuffer(VlkDevice& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
 	{
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -15,6 +15,7 @@ namespace Hail
 
 		if (vkCreateBuffer(device.GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
 		{
+			return false;
 #ifdef DEBUG
 			throw std::runtime_error("failed to create buffer!");
 #endif
@@ -30,12 +31,14 @@ namespace Hail
 
 		if (vkAllocateMemory(device.GetDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
 		{
+			return false;
 #ifdef DEBUG
 			throw std::runtime_error("failed to allocate buffer memory!");
 #endif
 		}
 
 		vkBindBufferMemory(device.GetDevice(), buffer, bufferMemory, 0);
+		return true;
 	}
 
 
