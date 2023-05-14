@@ -3,7 +3,7 @@
 #include "MeshResources.h"
 #include "TextureManager.h"
 #include "MaterialManager.h"
-#include "Containers\VectonOnStack\VectorOnStack.h"
+#include "Containers\VectorOnStack\VectorOnStack.h"
 #ifdef PLATFORM_WINDOWS
 #include "windows/VulkanInternal/VlkResourceManager.h"
 #include "windows/VulkanInternal/VlkSwapChain.h"

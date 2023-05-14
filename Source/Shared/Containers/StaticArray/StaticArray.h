@@ -6,6 +6,7 @@ class StaticArray
 {
 public:
 	StaticArray();
+	StaticArray(const std::initializer_list<Type>& initList);
 	~StaticArray();
 
 	inline const Type& operator[](const int& aIndex) const;
@@ -14,7 +15,7 @@ public:
 	// Utility functions
 	inline int Getsize();
 	inline void DeleteAll();
-	Type* Data() { return mData; };
+	Type* Data() { return m_data; };
 
 private:
 	Type m_data[size];
@@ -33,22 +34,34 @@ StaticArray<Type, size>::StaticArray()
 }
 
 template <typename Type, uint32_t size>
+StaticArray<Type, size>::StaticArray(const std::initializer_list<Type>& initList) :	m_size(size)
+{
+	int counter{ 0 };
+	assert(initList.size() <= static_cast<unsigned int>(m_size) && "List initialization larger than size.");
+	for (Type object : initList)
+	{
+		m_data[counter] = object;
+		counter++;
+	}
+}
+
+template <typename Type, uint32_t size>
 StaticArray<Type, size>::~StaticArray()
 {
 }
 
 template <typename Type, uint32_t size>
-const Type& StaticArray<Type, size>::operator[](const int& aIndex) const
+const Type& StaticArray<Type, size>::operator[](const int& index) const
 {
-	assert(aIndex <= m_size && "Index is out of range");
-	return m_data[aIndex];
+	assert(index <= m_size && "Index is out of range");
+	return m_data[index];
 }
 
 template <typename Type, uint32_t size>
-Type& StaticArray<Type, size>::operator[](const int& aIndex)
+Type& StaticArray<Type, size>::operator[](const int& index)
 {
-	assert(aIndex <= m_size && "Index is out of range");
-	return m_data[aIndex];
+	assert(index <= m_size && "Index is out of range");
+	return m_data[index];
 }
 
 template <typename Type, uint32_t size>

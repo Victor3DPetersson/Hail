@@ -8,7 +8,7 @@ class VectorOnStack
 public:
 	VectorOnStack() = default;
 	VectorOnStack(const VectorOnStack& vectorOnStack);
-
+	VectorOnStack(const std::initializer_list<Type>& initList);
 	~VectorOnStack();
 
 	VectorOnStack & operator=(const VectorOnStack & vectorOnStack);
@@ -38,6 +38,20 @@ template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename C
 VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::VectorOnStack(const VectorOnStack& vectorOnStack)
 {
 	(*this) = vectorOnStack;
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::VectorOnStack(const std::initializer_list<Type>& initList) : 
+	m_end(static_cast<CountType>(initList.size())),
+	m_size(Capacity)
+{
+	int counter{ 0 };
+	assert(initList.size() <= static_cast<unsigned int>(m_size) && "List initialization larger than size.");
+	for (Type object : initList)
+	{
+		m_data[counter] = object;
+		counter++;
+	}
 }
 
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>

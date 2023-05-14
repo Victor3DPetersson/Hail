@@ -8,11 +8,12 @@ constexpr uint32_t INVALID_UINT = 0xffffffff;
 namespace Hail
 {
 	struct RenderCommandPool;
+	struct ApplicationFrameData;
 }
 
 using callback_function = std::function<void()>;
 using callback_function_init = std::function<void(void*)>;
-using callback_function_totalTime_dt_frmData = std::function<void(double, float, void*)>;
+using callback_function_totalTime_dt_frmData = std::function<void(double, float, Hail::ApplicationFrameData&)>;
 
 
 namespace Hail

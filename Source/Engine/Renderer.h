@@ -6,7 +6,6 @@
 #include "Resources\Resource.h"
 #include "Resources\MaterialResources.h"
 #include "Rendering\UniformBufferManager.h"
-#include "Containers\VectonOnStack\VectorOnStack.h"
 #include "Rendering\SwapChain.h"
 
 #include "glm\vec2.hpp"

@@ -13,15 +13,12 @@ class Timer;
 
 namespace Hail
 {
-	struct RecordedImGuiCommands
-	{
-
-	};
+	class ImGuiCommandRecorder;
 	struct ApplicationFrameData
 	{
 		InputMap inputData;
 		RenderCommandPool* renderPool;
-		RecordedImGuiCommands* recordedImguiCommands;
+		ImGuiCommandRecorder* imguiCommandRecorder;
 	};
 
 	class ThreadSyncronizer
@@ -29,10 +26,9 @@ namespace Hail
 	public:
 		ThreadSyncronizer() = default;
 		void Init(float tickTimer);
-		void SynchronizeAppData(InputHandler& inputHandler);
+		void SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder);
 		void SynchronizeRenderData(float frameDeltaTime);
 		ApplicationFrameData& GetAppFrameData() { return m_appData; }
-		RecordedImGuiCommands* GetToEngineImGuiData() {	return &m_toEngineImguiData; }
 		RenderCommandPool& GetRenderPool() { return m_rendererCommandPool; }
 	private:
 		void SwapBuffersInternal();
@@ -47,7 +43,6 @@ namespace Hail
 		RenderCommandPool m_renderCommandPools[3]{};
 		RenderCommandPool m_rendererCommandPool{};
 		ApplicationFrameData m_appData{};
-		RecordedImGuiCommands m_toEngineImguiData{};
 		uint32_t m_currentActiveRenderPoolWrite = 0;
 		uint32_t m_currentActiveRenderPoolRead = 0;
 		uint32_t m_currentActiveRenderPoolLastRead = 0;

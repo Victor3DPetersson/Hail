@@ -15,7 +15,7 @@ class GameApplication
 {
 public:
 	void Init(void* initData);
-	void Update(double totalTime, float deltaTime, void* renderCommandPoolToFill);
+	void Update(double totalTime, float deltaTime, Hail::ApplicationFrameData& recievedFrameData);
 	void Shutdown();
 
 private:

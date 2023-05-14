@@ -7,6 +7,8 @@
 #include "../Engine/RenderCommands.h"
 
 #include "Camera.h"
+
+#include "../Engine/ImGui/ImGuiCommands.h"
 namespace
 {
 	Hail::Camera g_camera;
@@ -31,10 +33,36 @@ void GameApplication::Init(void* initData)
 	}
 }
 
-void GameApplication::Update(double totalTime, float deltaTime, void* recievedFrameData)
+bool g_bTest = false;
+float g_fTest = 0.0f;
+String256 g_sTest = "";
+
+void GameApplication::Update(double totalTime, float deltaTime, Hail::ApplicationFrameData& recievedFrameData)
 {
-	Hail::ApplicationFrameData& frameData = *reinterpret_cast<Hail::ApplicationFrameData*>(recievedFrameData);
+	Hail::ApplicationFrameData& frameData = recievedFrameData;
 	//Make Gawme ^^
+
+	g_fTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(3);
+	g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<String256>(4);
+	if(recievedFrameData.imguiCommandRecorder->AddBeginCommand("Will this work?", 0))
+	{
+		if (recievedFrameData.imguiCommandRecorder->AddButton("Button 1", 1))
+		{
+			g_fTest += 100.0f;
+		}
+		g_bTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<bool>(2);
+		recievedFrameData.imguiCommandRecorder->SameLine();
+		recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out", 2, g_bTest);
+		recievedFrameData.imguiCommandRecorder->Seperator();
+		if (recievedFrameData.imguiCommandRecorder->AddTextInput("Text test", 4, g_sTest))
+		{
+			g_fTest -= 50.0f;
+		}
+		recievedFrameData.imguiCommandRecorder->AddFloatSlider("FloatyMcFloatFace", 3, g_fTest);
+	}
+	recievedFrameData.imguiCommandRecorder->AddCloseCommand();
+
+
 
 	if (frameData.inputData.keyMap[m_inputMapping.Q] == Hail::KEY_PRESSED)
 	{

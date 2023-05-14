@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include "imgui.h"
+#include "ImGui\ImGuiCommands.h"
 
 #ifdef PLATFORM_WINDOWS
 
@@ -27,8 +28,8 @@ namespace Hail
 		ApplicationWindow* appWindow = nullptr;
 		Renderer* renderer = nullptr;
 		ResourceManager* resourceManager = nullptr;
-		ThreadSyncronizer* threadSynchronizer = nullptr;
-
+		ThreadSyncronizer threadSynchronizer;
+		ImGuiCommandManager imguiCommandRecorder;
 		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 		//callback_function_dt m_renderFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
@@ -93,12 +94,14 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	}
 
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
-	g_engineData->threadSynchronizer = new ThreadSyncronizer();
-	g_engineData->threadSynchronizer->Init(tickTime);
+	g_engineData->threadSynchronizer.Init(tickTime);
+	g_engineData->imguiCommandRecorder.Init();
 	startupData.initFunctionToCall(&g_engineData->inputHandler->GetInputMapping()); // Init the calling application
 	g_engineData->updateFunctionToCall = startupData.updateFunctionToCall;
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
 	g_engineData->applicationTickRate = static_cast<float>(startupData.applicationTickRate);
+
+	g_engineData->threadSynchronizer.SynchronizeAppData(*g_engineData->inputHandler, g_engineData->imguiCommandRecorder.FetchImguiResults());
 	return true;
 }
 
@@ -149,10 +152,11 @@ void Hail::MainLoop()
 		{
 			ProcessRendering();
 		}
-		engineData.threadSynchronizer->SynchronizeRenderData(engineData.timer->GetDeltaTime());
+		engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer->GetDeltaTime());
 		if (engineData.applicationLoopDone)
 		{
-			engineData.threadSynchronizer->SynchronizeAppData(*engineData.inputHandler);
+			engineData.imguiCommandRecorder.SwitchCommandBuffers();
+			engineData.threadSynchronizer.SynchronizeAppData(*engineData.inputHandler, engineData.imguiCommandRecorder.FetchImguiResults());
 			engineData.applicationLoopDone = false;
 			//Reset input handler
 			engineData.inputHandler->ResetKeyStates();
@@ -161,21 +165,18 @@ void Hail::MainLoop()
 	engineData.applicationThread.join();
 	Cleanup();
 }
-
+float g = 0.0f;
 void Hail::ProcessRendering()
 {
+	EngineData& engineData = *g_engineData;
 	Hail::InputMapping& inputMapping = g_engineData->inputHandler->GetInputMapping();
-	g_engineData->renderer->StartFrame(g_engineData->threadSynchronizer->GetRenderPool());
+	engineData.renderer->StartFrame(g_engineData->threadSynchronizer.GetRenderPool());
 
-	ImGui::Begin("Window");
-	//ImGuiCommands here
-	float val = 0;
-	ImGui::DragFloat("Hi", &val);
+	engineData.imguiCommandRecorder.RenderImguiCommands();
 
-	ImGui::End();
-	g_engineData->renderer->Render();
+	engineData.renderer->Render();
 
-	g_engineData->renderer->EndFrame();
+	engineData.renderer->EndFrame();
 }
 
 void Hail::ProcessApplication()
@@ -191,7 +192,7 @@ void Hail::ProcessApplication()
 
 		if (applicationTime >= tickTime && !engineData.applicationLoopDone)
 		{
-			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, &engineData.threadSynchronizer->GetAppFrameData());
+			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, engineData.threadSynchronizer.GetAppFrameData());
 			engineData.applicationLoopDone = true;
 			applicationTime = 0.0;
 		}

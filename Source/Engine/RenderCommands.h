@@ -8,7 +8,7 @@
 #include "String.hpp"
 
 #include "Containers\GrowingArray\GrowingArray.h"
-#include "Containers\VectonOnStack\VectorOnStack.h"
+#include "Containers\VectorOnStack\VectorOnStack.h"
 #include "Transforms.h"
 #include "Camera.h"
 #include "EngineConstants.h"
@@ -25,7 +25,7 @@ namespace Hail
 	{
 		glm::vec3 pos1;
 		glm::vec3 pos2;
-		glm::vec3 color;
+		glm::vec3 color; 
 		uint16_t index;
 		bool lerpCommand;
 	};

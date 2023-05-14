@@ -12,11 +12,12 @@ void Hail::ThreadSyncronizer::Init(float tickTimer)
 	m_appData.renderPool = &m_renderCommandPools[m_currentActiveRenderPoolWrite];
 }
 
-void Hail::ThreadSyncronizer::SynchronizeAppData(InputHandler& inputHandler)
+void Hail::ThreadSyncronizer::SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder)
 {
 	SwapBuffersInternal();
 	ClearApplicationBuffers();
 	m_appData.inputData = inputHandler.GetInputMap();
+	m_appData.imguiCommandRecorder = &imguiCommandRecorder;
 	m_currentRenderTimer = 0.0f;
 }
 
