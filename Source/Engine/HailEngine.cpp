@@ -36,6 +36,7 @@ namespace Hail
 
 
 		std::atomic<bool> runApplication = false;
+		std::atomic<bool> pauseApplication = false;
 		std::atomic<bool> runMainThread = false;
 		std::atomic<bool> terminateApplication = false;
 
@@ -49,7 +50,7 @@ namespace Hail
 	EngineData* g_engineData = nullptr;
 
 	void MainLoop();
-	void ProcessRendering();
+	void ProcessRendering(const bool applicationThreadLocked);
 	void ProcessApplication();
 	void Cleanup();
 }
@@ -142,6 +143,7 @@ ApplicationWindow* Hail::GetApplicationWIndow()
 
 void Hail::MainLoop()
 {
+	bool lockApplicationThread = false;
 	EngineData& engineData = *g_engineData;
 	while (engineData.runMainThread)
 	{
@@ -150,32 +152,62 @@ void Hail::MainLoop()
 		glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
 		if (resolution.x != 0.0f && resolution.y != 0.0f)
 		{
-			ProcessRendering();
+			ProcessRendering(lockApplicationThread);
 		}
-		engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer->GetDeltaTime());
+		if(lockApplicationThread == false)
+		{
+			engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer->GetDeltaTime());
+		}
+		//SwapData
 		if (engineData.applicationLoopDone)
 		{
-			engineData.imguiCommandRecorder.SwitchCommandBuffers();
+			engineData.imguiCommandRecorder.SwitchCommandBuffers(lockApplicationThread);
 			engineData.threadSynchronizer.SynchronizeAppData(*engineData.inputHandler, engineData.imguiCommandRecorder.FetchImguiResults());
+
+			if (lockApplicationThread)
+			{
+				engineData.pauseApplication = true;
+				engineData.runApplication = false;
+				engineData.applicationThread.join();
+				engineData.threadSynchronizer.SynchronizeRenderData(0.0f);
+			}
+
 			engineData.applicationLoopDone = false;
 			//Reset input handler
 			engineData.inputHandler->ResetKeyStates();
+		}
+		if (engineData.pauseApplication == false)
+		{
+			lockApplicationThread = false;
 		}
 	}
 	engineData.applicationThread.join();
 	Cleanup();
 }
 float g = 0.0f;
-void Hail::ProcessRendering()
+void Hail::ProcessRendering(const bool applicationThreadLocked)
 {
 	EngineData& engineData = *g_engineData;
 	Hail::InputMapping& inputMapping = g_engineData->inputHandler->GetInputMapping();
 	engineData.renderer->StartFrame(g_engineData->threadSynchronizer.GetRenderPool());
 
-	engineData.imguiCommandRecorder.RenderImguiCommands();
+	if (applicationThreadLocked)
+	{
+		bool unlockApplicationThread = false;
+		engineData.imguiCommandRecorder.RenderSingleImguiCommand(unlockApplicationThread);
+		if (unlockApplicationThread)
+		{
+			engineData.pauseApplication = false;
+			engineData.runApplication = true;
+			engineData.applicationThread = std::thread(&ProcessApplication);
+		}
+	}
+	else
+	{
+		engineData.imguiCommandRecorder.RenderImguiCommands();
+	}
 
 	engineData.renderer->Render();
-
 	engineData.renderer->EndFrame();
 }
 
@@ -189,7 +221,6 @@ void Hail::ProcessApplication()
 	{
 		applicationTimer.FrameStart();
 		applicationTime += applicationTimer.GetDeltaTime();
-
 		if (applicationTime >= tickTime && !engineData.applicationLoopDone)
 		{
 			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, engineData.threadSynchronizer.GetAppFrameData());
@@ -202,7 +233,10 @@ void Hail::ProcessApplication()
 			engineData.shutdownFunctionToCall();
 		}
 	}
-	g_engineData->runMainThread = false;
+	if (engineData.pauseApplication == false)
+	{
+		g_engineData->runMainThread = false;
+	}
 }
 
 void Hail::Cleanup()

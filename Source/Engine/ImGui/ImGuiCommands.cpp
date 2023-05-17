@@ -1,7 +1,7 @@
 #include "Engine_PCH.h"
 #include "ImGuiCommands.h"
 #include "imgui.h"
-
+#include "DebugMacros.h"
 bool Hail::ImGuiCommandRecorder::AddBeginCommand(const String256& windowName, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::WINDOW, windowName, responseIndex };
@@ -15,13 +15,53 @@ void Hail::ImGuiCommandRecorder::AddCloseCommand()
 	m_commands.Add(command);
 }
 
-void Hail::ImGuiCommandRecorder::SameLine()
+bool Hail::ImGuiCommandRecorder::AddTreeNode(const String256& name, uint32_t responseIndex)
+{
+	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TREENODE, name, responseIndex };
+	m_commands.Add(command);
+	return m_bools[responseIndex].GetResponseValue();
+}
+
+void Hail::ImGuiCommandRecorder::AddTreeNodeEnd()
+{
+	ImGuiCommand command = { IMGUI_TYPES::END_TREENODE, "" };
+	m_commands.Add(command);
+}
+
+bool Hail::ImGuiCommandRecorder::AddTabBar(const String256& name, uint32_t responseIndex)
+{
+	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TAB_BAR, name, responseIndex };
+	m_commands.Add(command);
+	return m_bools[responseIndex].GetResponseValue();
+}
+
+void Hail::ImGuiCommandRecorder::AddTabBarEnd()
+{
+	ImGuiCommand command = { IMGUI_TYPES::END_TAB_BAR, "" };
+	m_commands.Add(command);
+}
+
+bool Hail::ImGuiCommandRecorder::AddTabItem(const String256& name, uint32_t responseIndex)
+{
+	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TAB_ITEM, name, responseIndex };
+	m_commands.Add(command);
+	return m_bools[responseIndex].GetResponseValue();
+}
+
+void Hail::ImGuiCommandRecorder::AddTabItemEnd()
+{
+	ImGuiCommand command = { IMGUI_TYPES::END_TAB_ITEM, "" };
+	m_commands.Add(command);
+}
+
+
+void Hail::ImGuiCommandRecorder::AddSameLine()
 {
 	ImGuiCommand command = { IMGUI_TYPES::SAME_LINE, "" };
 	m_commands.Add(command);
 }
 
-void Hail::ImGuiCommandRecorder::Seperator()
+void Hail::ImGuiCommandRecorder::AddSeperator()
 {
 	ImGuiCommand command = { IMGUI_TYPES::SEPERATOR, "" };
 	m_commands.Add(command);
@@ -63,7 +103,13 @@ bool Hail::ImGuiCommandRecorder::AddTextInput(const String256& name, uint32_t re
 	return m_bools[responseIndex].GetResponseValue();
 }
 
-void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder& transferFrom)
+void Hail::ImGuiCommandRecorder::OpenFileBrowser()
+{
+	m_lockGameThread = true;
+	m_lockType = IMGUI_TYPES::FILE_BROWSER;
+}
+
+void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder& writeFrom)
 {
 	const uint32_t commandsSize = m_commands.Size();
 	for (size_t i = 0; i < commandsSize; i++)
@@ -71,7 +117,11 @@ void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder&
 		ImGuiCommandRecorder::ImGuiCommand& command = m_commands[i];
 		switch (command.commandType)
 		{
+			//Same behavior of these thre items
 		case ImGuiCommandRecorder::IMGUI_TYPES::WINDOW:
+		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE:
+		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM:
+		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_BAR:
 			m_bools[command.responseIndex].TransferOneTimeValue();
 			m_bools[command.responseIndex].GetRequestValueRef() = false;
 			break;
@@ -79,17 +129,20 @@ void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder&
 
 			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::CLOSEWINDOW:
+		case ImGuiCommandRecorder::IMGUI_TYPES::END_TREENODE:
+		case ImGuiCommandRecorder::IMGUI_TYPES::END_TAB_ITEM:
+		case ImGuiCommandRecorder::IMGUI_TYPES::END_TAB_BAR:
 			break;
 
 		case ImGuiCommandRecorder::IMGUI_TYPES::SLIDERF:
-			m_floats[command.responseIndex].TransferValue(transferFrom.m_floats[command.responseIndex]);
+			m_floats[command.responseIndex].TransferValue(writeFrom.m_floats[command.responseIndex]);
 			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::SLIDERI:
-			m_ints[command.responseIndex].TransferValue(transferFrom.m_ints[command.responseIndex]);
+			m_ints[command.responseIndex].TransferValue(writeFrom.m_ints[command.responseIndex]);
 
 			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::CHECKBOX:
-			m_bools[command.responseIndex].TransferValue(transferFrom.m_bools[command.responseIndex]);
+			m_bools[command.responseIndex].TransferValue(writeFrom.m_bools[command.responseIndex]);
 			break;
 
 		case ImGuiCommandRecorder::IMGUI_TYPES::BUTTON:
@@ -99,7 +152,7 @@ void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder&
 		case ImGuiCommandRecorder::IMGUI_TYPES::TEXT_INPUT:
 			m_bools[command.responseIndex].TransferOneTimeValue();
 			m_bools[command.responseIndex].GetRequestValueRef() = false;
-			m_strings[command.responseIndex].TransferValue(transferFrom.m_strings[command.responseIndex]);
+			m_strings[command.responseIndex].TransferValue(writeFrom.m_strings[command.responseIndex]);
 			break;
 		default:
 			break;
@@ -116,7 +169,6 @@ void Hail::ImGuiCommandManager::Init()
 
 void Hail::ImGuiCommandManager::RenderImguiCommands()
 {
-
 	ImGuiCommandRecorder& recorder = m_commandRecorder[m_readCommandRecorder];
 	const uint32_t commandsSize = recorder.m_commands.Size();
 	bool testBoolList[5];
@@ -126,11 +178,15 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 		switch (command.commandType)
 		{
 		case ImGuiCommandRecorder::IMGUI_TYPES::WINDOW:
-			m_numberOfOpenWindows++;
+			m_pushedTypeStack.Add(ImGuiCommandRecorder::IMGUI_TYPES::WINDOW);
 			if (ImGui::Begin(command.name.Data()))
 			{
 				recorder.m_bools[command.responseIndex].GetRequestValueRef() = true;
+				m_numberOfOpenWindows++;
 			}
+			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::CLOSEWINDOW:
+			PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES::WINDOW);
 			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::DROPDOWN:
 			//if (ImGui::BeginCombo("combo 1", "Din Mamma"))
@@ -139,21 +195,70 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 			//	ImGui::EndCombo();
 			//}
 			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE:
+			if (ImGui::TreeNode(command.name.Data()))
+			{
+				recorder.m_bools[command.responseIndex].GetRequestValueRef() = true;
+				m_pushedTypeStack.Add(ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE);
+				m_numberOfOpenTreeNodes++;
+				//m_numberOfOpenTreeNodes++;
+			}
+			else
+			{
+				recorder.m_bools[command.responseIndex].GetRequestValueRef() = false;
+			}
+			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::END_TREENODE:
+			if (m_numberOfOpenTreeNodes != 0)
+			{
+				PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE);
+			}
+
+			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_BAR:
+			if (ImGui::BeginTabBar(command.name.Data()))
+			{
+				recorder.m_bools[command.responseIndex].GetRequestValueRef() = true;
+				m_pushedTypeStack.Add(ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_BAR);
+				m_numberOfOpenTabBars++;
+			}
+			else
+			{
+				recorder.m_bools[command.responseIndex].GetRequestValueRef() = false;
+			}
+			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::END_TAB_BAR:
+			if (m_numberOfOpenTabBars != 0)
+			{
+				PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_BAR);
+			}
+			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM:
+			if (ImGui::BeginTabItem(command.name.Data()))
+			{
+				recorder.m_bools[command.responseIndex].GetRequestValueRef() = true;
+				m_pushedTypeStack.Add(ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM);
+				m_numberOfOpenTabItems++;
+			}
+			else
+			{
+				recorder.m_bools[command.responseIndex].GetRequestValueRef() = false;
+			}
+		
+			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::END_TAB_ITEM:
+			if (m_numberOfOpenTabItems != 0)
+			{
+				PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM);
+			}
+			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::SAME_LINE:
 			ImGui::SameLine();
 			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::SEPERATOR:
 			ImGui::Separator();
 			break;
-		case ImGuiCommandRecorder::IMGUI_TYPES::CLOSEWINDOW:
-			if (m_numberOfOpenWindows != 0)
-			{
 
-				m_numberOfOpenWindows--;
-				ImGui::End();
-			}
-			//else error handling
-			break;
 
 		case ImGuiCommandRecorder::IMGUI_TYPES::SLIDERF:
 			if (m_numberOfOpenWindows != 0)
@@ -201,25 +306,145 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 			break;
 		}
 	}
-
-	if (m_numberOfOpenWindows != 0)
+	if (m_numberOfOpenWindows != 0 ||
+		m_numberOfOpenTabItems != 0 ||
+		m_numberOfOpenTabBars != 0 ||
+		m_numberOfOpenTreeNodes != 0)
 	{
-		for (size_t i = 0; i < m_numberOfOpenWindows; i++)
+		//Add Error here
+		while (!m_pushedTypeStack.Empty())
 		{
-			m_numberOfOpenWindows--;
-			ImGui::End();
+			SendImGuiPopCommand(m_pushedTypeStack.RemoveLast());
 		}
 	}
-	//else error handling
 }
 
-void Hail::ImGuiCommandManager::SwitchCommandBuffers()
+void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread)
+{
+	RenderImguiCommands();
+	ImGui::OpenPopup("Single Window");
+	if (ImGui::BeginPopupModal("Single Window"))
+	{
+		//ImGui::BeginTabItem
+		if (ImGui::Button("Unlock GameThread here"))
+		{
+			unlockApplicationThread = true;
+		}
+		ImGui::EndPopup();
+	}
+}
+void Hail::ImGuiCommandManager::PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES typeToPop)
+{
+	if (m_pushedTypeStack.Empty())
+	{
+		//Add error here
+		return;
+	}
+	ImGuiCommandRecorder::IMGUI_TYPES poppedType = m_pushedTypeStack.RemoveLast();
+	while (poppedType != typeToPop)
+	{
+		SendImGuiPopCommand(poppedType);
+		poppedType = m_pushedTypeStack.Last();
+		if (m_pushedTypeStack.Empty())
+		{
+			//Add error here
+			return;
+		}
+		m_pushedTypeStack.RemoveLast();
+	}
+	SendImGuiPopCommand(poppedType);
+}
+void Hail::ImGuiCommandManager::PopLatestStackType()
+{
+	if (m_pushedTypeStack.Empty())
+	{
+		//Add error here
+		return;
+	}
+	SendImGuiPopCommand(m_pushedTypeStack.RemoveLast());
+}
+
+void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_TYPES typeToPop)
+{
+	switch (typeToPop)
+	{
+	case ImGuiCommandRecorder::IMGUI_TYPES::WINDOW:
+		if (m_numberOfOpenWindows != 0)
+		{
+			//Debug_PrintConsoleString256(String256::Format("Pop Window"));
+			m_numberOfOpenWindows--;
+		}
+		ImGui::End();
+		break;
+	case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE:
+		if (m_numberOfOpenTreeNodes != 0)
+		{
+			//Debug_PrintConsoleString256(String256::Format("Pop TreeNode"));
+			ImGui::TreePop();
+			m_numberOfOpenTreeNodes--;
+		}
+		break;
+	case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_BAR:
+		if (m_numberOfOpenTabBars != 0)
+		{
+			//Debug_PrintConsoleString256(String256::Format("Pop TabBar"));
+			ImGui::EndTabBar();
+			m_numberOfOpenTabBars--;
+		}
+		break;
+	case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM:
+		if (m_numberOfOpenTabItems != 0)
+		{
+			//Debug_PrintConsoleString256(String256::Format("Pop TabItem"));
+			ImGui::EndTabItem();
+			m_numberOfOpenTabItems--;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void Hail::ImGuiCommandManager::PopStackType(ImGuiCommandRecorder::IMGUI_TYPES referenceTypeToPop)
+{
+	if (m_pushedTypeStack.Empty())
+	{
+		//Add error here
+		return;
+	}
+	const ImGuiCommandRecorder::IMGUI_TYPES typeToPop = m_pushedTypeStack.RemoveLast();
+
+	if (referenceTypeToPop != typeToPop)
+	{
+		//AddErrorHere
+	}
+	SendImGuiPopCommand(typeToPop);
+}
+
+void Hail::ImGuiCommandManager::SwitchCommandBuffers(bool& shouldLockApplicationThread)
 {
 	//Read will become write, transfer read to writes values
 	m_commandRecorder[m_readCommandRecorder].ClearAndTransferResponses(m_commandRecorder[m_writeCommandRecorder]);
 	const uint32_t oldWrite = m_writeCommandRecorder;
 	m_writeCommandRecorder = m_readCommandRecorder;
 	m_readCommandRecorder = oldWrite;
+
+	if (m_commandRecorder[m_readCommandRecorder].m_lockGameThread)
+	{
+		m_renderSingleCommand = true;
+		switch (m_commandRecorder[m_readCommandRecorder].m_lockType)
+		{
+		case ImGuiCommandRecorder::IMGUI_TYPES::FILE_BROWSER:
+			m_commandRecorder[m_readCommandRecorder].m_lockType = ImGuiCommandRecorder::IMGUI_TYPES::COUNT;
+			m_commandRecorder[m_readCommandRecorder].m_lockGameThread = false;
+			m_singleCommandRenderType = ImGuiCommandRecorder::IMGUI_TYPES::FILE_BROWSER;
+			shouldLockApplicationThread = true;
+			break;
+		default:
+			break;
+		}
+	}
+
 }
 
 template<typename Type>

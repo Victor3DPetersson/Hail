@@ -49,16 +49,50 @@ void GameApplication::Update(double totalTime, float deltaTime, Hail::Applicatio
 		if (recievedFrameData.imguiCommandRecorder->AddButton("Button 1", 1))
 		{
 			g_fTest += 100.0f;
+			recievedFrameData.imguiCommandRecorder->OpenFileBrowser();
 		}
 		g_bTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<bool>(2);
-		recievedFrameData.imguiCommandRecorder->SameLine();
+		recievedFrameData.imguiCommandRecorder->AddSameLine();
 		recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out", 2, g_bTest);
-		recievedFrameData.imguiCommandRecorder->Seperator();
-		if (recievedFrameData.imguiCommandRecorder->AddTextInput("Text test", 4, g_sTest))
+		recievedFrameData.imguiCommandRecorder->AddSeperator();
+		if (recievedFrameData.imguiCommandRecorder->AddTreeNode("TestTree", 5))
 		{
-			g_fTest -= 50.0f;
+			if (recievedFrameData.imguiCommandRecorder->AddTextInput("Text test", 4, g_sTest))
+			{
+				g_fTest -= 50.0f;
+			}
+			if (recievedFrameData.imguiCommandRecorder->AddTabBar("TabBar", 6))
+			{
+				bool anyTabOpened = false;
+				if (recievedFrameData.imguiCommandRecorder->AddTabItem("TestTab1", 7))
+				{
+					anyTabOpened = true;
+					recievedFrameData.imguiCommandRecorder->AddFloatSlider("FloatyMcFloatFace", 3, g_fTest);
+					recievedFrameData.imguiCommandRecorder->AddTabItemEnd();
+				}
+				if (recievedFrameData.imguiCommandRecorder->AddTabItem("TestTab2", 8))
+				{
+					anyTabOpened = true;
+					recievedFrameData.imguiCommandRecorder->AddFloatSlider("FloatyMcFloatierFace", 3, g_fTest);
+					recievedFrameData.imguiCommandRecorder->AddTabItemEnd();
+
+					if (recievedFrameData.imguiCommandRecorder->AddTreeNode("Tree within a tree", 9))
+					{
+						recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out3", 2, g_bTest);
+						recievedFrameData.imguiCommandRecorder->AddTreeNodeEnd();
+					}
+				}
+				recievedFrameData.imguiCommandRecorder->AddTabBarEnd();
+			}
+
+			recievedFrameData.imguiCommandRecorder->AddTreeNodeEnd();
 		}
-		recievedFrameData.imguiCommandRecorder->AddFloatSlider("FloatyMcFloatFace", 3, g_fTest);
+		if (recievedFrameData.imguiCommandRecorder->AddTreeNode("Tree within a tree", 10))
+		{
+			recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out 2", 2, g_bTest);
+			recievedFrameData.imguiCommandRecorder->AddTreeNodeEnd();
+		}
+
 	}
 	recievedFrameData.imguiCommandRecorder->AddCloseCommand();
 

@@ -23,6 +23,8 @@ public:
 	inline void Clear();
 	inline void DeleteAll();
 	inline bool Empty() { return static_cast<bool>(m_end == 0); }
+	Type Last() const;
+	inline Type RemoveLast();
 	void TransferSize(const VectorOnStack& otherArray);
 
 	__forceinline CountType Size() const;
@@ -125,7 +127,7 @@ void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Insert(CountType
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
 void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::RemoveCyclicAtIndex(CountType itemNumber)
 {
-	assert(aItemNumber < m_end && "Index is out of range");
+	assert(itemNumber < m_end && "Index is out of range");
 
 	if (m_end != 1)
 	{
@@ -152,6 +154,26 @@ template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename C
 void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Clear()
 {
 	m_end = 0;
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+Type VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Last() const
+{
+	//Add error here if end = 0;
+	if (m_end != 0)
+	{
+		return m_data[m_end - 1];
+	}
+	return Type();
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+Type VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::RemoveLast()
+{
+	if (m_end != 0)
+	{
+		return m_data[--m_end];
+	}
 }
 
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
