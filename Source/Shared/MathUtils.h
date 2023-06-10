@@ -9,7 +9,7 @@ namespace Math
 	template <typename T>
 	inline T Max(const T firstValue, const T secondValue)
 	{
-		if (frstValue < secondValue)
+		if (firstValue < secondValue)
 		{
 			return secondValue;
 		}

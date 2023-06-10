@@ -173,7 +173,6 @@ void Hail::MainLoop()
 			}
 
 			engineData.applicationLoopDone = false;
-			//Reset input handler
 			engineData.inputHandler->ResetKeyStates();
 		}
 		if (engineData.pauseApplication == false)
@@ -184,7 +183,7 @@ void Hail::MainLoop()
 	engineData.applicationThread.join();
 	Cleanup();
 }
-float g = 0.0f;
+
 void Hail::ProcessRendering(const bool applicationThreadLocked)
 {
 	EngineData& engineData = *g_engineData;
@@ -200,6 +199,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 			engineData.pauseApplication = false;
 			engineData.runApplication = true;
 			engineData.applicationThread = std::thread(&ProcessApplication);
+			engineData.inputHandler->ResetKeyStates();
 		}
 	}
 	else

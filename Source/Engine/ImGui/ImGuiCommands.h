@@ -3,16 +3,14 @@
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "Containers\StaticArray\StaticArray.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
+#include "ImGuiFileBrowser.h"
+#include "Utility\FilePath.hpp"
 
 namespace Hail
 {
-	enum class IMGUI_BEGIN_TYPES : uint32_t
-	{
-		WINDOW,
-		DROPDOWN
-	};
-
 	constexpr uint32_t MAX_NUMBER_OF_IMGUI_RESPONSES = 1024;
+
+
 	template<typename Type>
 	class ImGuiCommand
 	{
@@ -51,7 +49,7 @@ namespace Hail
 		void AddIntSlider(const String256& name, uint32_t responseIndex, int value);
 		bool AddButton(const String256& name, uint32_t responseIndex);
 		bool AddTextInput(const String256& name, uint32_t responseIndex, const String256& textValue);
-		void OpenFileBrowser(/*Add shit here*/);
+		void OpenFileBrowser(ImGuiFileBrowserData* fileBrowserDataToFill);
 		template<typename Type>
 		Type GetResponseValue(uint32_t responseIndex);
 
@@ -93,6 +91,7 @@ namespace Hail
 		};
 		GrowingArray<ImGuiCommand> m_commands;
 		bool m_lockGameThread = false;
+		void* m_lockThreadData = nullptr;
 		IMGUI_TYPES m_lockType = IMGUI_TYPES::COUNT;
 	};
 
@@ -106,7 +105,7 @@ namespace Hail
 		//Figure out what to do with this later
 		ImGuiCommandRecorder& FetchImguiResults() { return m_commandRecorder[m_writeCommandRecorder]; }
 	private:
-
+		void RenderErrorModal(bool& unlockApplicationThread);
 		void PopLatestStackType();
 		void PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES typeToPop);
 		void PopStackType(ImGuiCommandRecorder::IMGUI_TYPES referenceTypeToPop);
@@ -119,8 +118,10 @@ namespace Hail
 		uint32_t m_writeCommandRecorder = 1;
 
 		VectorOnStack<ImGuiCommandRecorder::IMGUI_TYPES, 128> m_pushedTypeStack;
-		bool m_renderSingleCommand = false;
+		void* m_lockThreadData = nullptr;
+		bool m_successfullySetupSingleRenderSystem = false;
 		ImGuiCommandRecorder::IMGUI_TYPES m_singleCommandRenderType = ImGuiCommandRecorder::IMGUI_TYPES::COUNT;
+		ImGuiFileBrowser m_fileBrowser;
 
 		ImGuiCommandRecorder m_commandRecorder[2];
 	};

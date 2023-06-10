@@ -9,6 +9,7 @@
 #include "Camera.h"
 
 #include "../Engine/ImGui/ImGuiCommands.h"
+#include "../Engine/ImGui/ImGuiFileBrowser.h"
 namespace
 {
 	Hail::Camera g_camera;
@@ -17,6 +18,7 @@ namespace
 	Hail::RenderCommand_Sprite player;
 	Hail::RenderCommand_Sprite sprites[5];
 	bool renderPlayer = false;
+	Hail::ImGuiFileBrowserData g_fileBrowserData;
 }
 
 void GameApplication::Init(void* initData)
@@ -31,11 +33,16 @@ void GameApplication::Init(void* initData)
 		sprites[i].transform.SetRotation({ i * Math::PIf * 0.25f });
 		sprites[i].index = i + 1;
 	}
+	g_fileBrowserData.objectsToSelect.Init(16);
+	g_fileBrowserData.extensionsToSearchFor = { "tga", "frag", "vert" };
+	g_fileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 }
 
 bool g_bTest = false;
 float g_fTest = 0.0f;
 String256 g_sTest = "";
+
+
 
 void GameApplication::Update(double totalTime, float deltaTime, Hail::ApplicationFrameData& recievedFrameData)
 {
@@ -49,7 +56,7 @@ void GameApplication::Update(double totalTime, float deltaTime, Hail::Applicatio
 		if (recievedFrameData.imguiCommandRecorder->AddButton("Button 1", 1))
 		{
 			g_fTest += 100.0f;
-			recievedFrameData.imguiCommandRecorder->OpenFileBrowser();
+			recievedFrameData.imguiCommandRecorder->OpenFileBrowser(&g_fileBrowserData);
 		}
 		g_bTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<bool>(2);
 		recievedFrameData.imguiCommandRecorder->AddSameLine();

@@ -103,8 +103,9 @@ bool Hail::ImGuiCommandRecorder::AddTextInput(const String256& name, uint32_t re
 	return m_bools[responseIndex].GetResponseValue();
 }
 
-void Hail::ImGuiCommandRecorder::OpenFileBrowser()
+void Hail::ImGuiCommandRecorder::OpenFileBrowser(ImGuiFileBrowserData* fileBrowserDataToFill)
 {
+	m_lockThreadData = fileBrowserDataToFill;
 	m_lockGameThread = true;
 	m_lockType = IMGUI_TYPES::FILE_BROWSER;
 }
@@ -169,6 +170,7 @@ void Hail::ImGuiCommandManager::Init()
 
 void Hail::ImGuiCommandManager::RenderImguiCommands()
 {
+
 	ImGuiCommandRecorder& recorder = m_commandRecorder[m_readCommandRecorder];
 	const uint32_t commandsSize = recorder.m_commands.Size();
 	bool testBoolList[5];
@@ -318,19 +320,31 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 		}
 	}
 }
-
 void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread)
 {
 	RenderImguiCommands();
-	ImGui::OpenPopup("Single Window");
-	if (ImGui::BeginPopupModal("Single Window"))
+	bool succesfulSetup = true;
+	if (m_successfullySetupSingleRenderSystem)
 	{
-		//ImGui::BeginTabItem
-		if (ImGui::Button("Unlock GameThread here"))
+		switch (m_singleCommandRenderType)
 		{
-			unlockApplicationThread = true;
+		case ImGuiCommandRecorder::IMGUI_TYPES::FILE_BROWSER:
+			m_fileBrowser.RenderImGuiCommands(unlockApplicationThread);
+			break;
+		default:
+			break;
 		}
-		ImGui::EndPopup();
+	}
+	else
+	{
+		RenderErrorModal(unlockApplicationThread);
+	}
+
+	if (unlockApplicationThread)
+	{
+		m_lockThreadData = nullptr;
+		m_singleCommandRenderType = ImGuiCommandRecorder::IMGUI_TYPES::COUNT;
+		m_successfullySetupSingleRenderSystem = false;
 	}
 }
 void Hail::ImGuiCommandManager::PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES typeToPop)
@@ -362,6 +376,28 @@ void Hail::ImGuiCommandManager::PopLatestStackType()
 		return;
 	}
 	SendImGuiPopCommand(m_pushedTypeStack.RemoveLast());
+}
+
+void Hail::ImGuiCommandManager::RenderErrorModal(bool& unlockApplicationThread)
+{
+	ImGui::OpenPopup("Error Message");
+	if (ImGui::BeginPopupModal("Error Message"))
+	{
+		switch (m_singleCommandRenderType)
+		{
+		case ImGuiCommandRecorder::IMGUI_TYPES::FILE_BROWSER:
+			ImGui::Text("Filepath used when setting up filebrowser is not valid.\nTo make filebrowser work, update calling command's filepath.");
+		default:
+			break;
+		}
+
+		ImGui::Separator();
+		if (ImGui::Button("Done"))
+		{
+			unlockApplicationThread = true;
+		}
+		ImGui::EndPopup();
+	}
 }
 
 void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_TYPES typeToPop)
@@ -431,15 +467,17 @@ void Hail::ImGuiCommandManager::SwitchCommandBuffers(bool& shouldLockApplication
 
 	if (m_commandRecorder[m_readCommandRecorder].m_lockGameThread)
 	{
-		m_renderSingleCommand = true;
-		switch (m_commandRecorder[m_readCommandRecorder].m_lockType)
+		m_singleCommandRenderType = m_commandRecorder[m_readCommandRecorder].m_lockType;
+		m_commandRecorder[m_readCommandRecorder].m_lockType = ImGuiCommandRecorder::IMGUI_TYPES::COUNT;
+		m_lockThreadData = m_commandRecorder[m_readCommandRecorder].m_lockThreadData;
+		m_commandRecorder[m_readCommandRecorder].m_lockThreadData = nullptr;
+		m_commandRecorder[m_readCommandRecorder].m_lockGameThread = false;
+		shouldLockApplicationThread = true;
+
+		switch (m_singleCommandRenderType)
 		{
 		case ImGuiCommandRecorder::IMGUI_TYPES::FILE_BROWSER:
-			m_commandRecorder[m_readCommandRecorder].m_lockType = ImGuiCommandRecorder::IMGUI_TYPES::COUNT;
-			m_commandRecorder[m_readCommandRecorder].m_lockGameThread = false;
-			m_singleCommandRenderType = ImGuiCommandRecorder::IMGUI_TYPES::FILE_BROWSER;
-			shouldLockApplicationThread = true;
-			break;
+			m_successfullySetupSingleRenderSystem = m_fileBrowser.Init(reinterpret_cast<ImGuiFileBrowserData*>(m_lockThreadData));
 		default:
 			break;
 		}

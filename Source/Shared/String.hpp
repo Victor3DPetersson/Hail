@@ -84,6 +84,7 @@ public:
 	{
 		return m_data[0] == '\0';
 	}
+	const uint32_t Length() const { return strlen(m_data); }
 
 private:
 	char m_data[64];
@@ -184,7 +185,7 @@ public:
 	{
 		return m_data;
 	}
-
+	const uint32_t Length() const { return wcslen(m_data); }
 private:
 	wchar_t m_data[64];
 };
@@ -292,6 +293,7 @@ public:
 	{
 		return m_data[0] == '\0';
 	}
+	const uint32_t Length() const { return strlen(m_data); }
 
 private:
 	char m_data[256];
@@ -392,30 +394,31 @@ public:
 	{
 		return m_data;
 	}
+	const uint32_t Length() const { return wcslen(m_data); }
 
 private:
 	wchar_t m_data[256];
 };
 
-static bool operator<(const WString256& aString1, const WString256& aString2)
+static bool operator<(const WString256& string1, const WString256& string2)
 {
-	return wcscmp(aString1, aString2) < -0;
+	return wcscmp(string1, string2) < -0;
 }
-static bool operator>(const WString256& aString1, const WString256& aString2)
+static bool operator>(const WString256& string1, const WString256& string2)
 {
-	return wcscmp(aString1, aString2) > 0;
+	return wcscmp(string1, string2) > 0;
 }
-static bool operator==(const WString256& aString1, const WString256& aString2)
+static bool operator==(const WString256& string1, const WString256& string2)
 {
-	return wcscmp(aString1, aString2) == 0;
+	return wcscmp(string1, string2) == 0;
 }
-static bool operator!=(const WString256& aString1, const WString256& aString2)
+static bool operator!=(const WString256& string1, const WString256& string2)
 {
-	return wcscmp(aString1, aString2) != 0;
+	return wcscmp(string1, string2) != 0;
 }
-static WString256 operator+(const WString256& aString1, const WString256& aString2)
+static WString256 operator+(const WString256& string1, const WString256& string2)
 {
-	WString256 str = aString1;
-	wcscat_s(str, 256 - wcslen(aString1), aString2);
+	WString256 str = string1;
+	wcscat_s(str, 256 - wcslen(string1), string2);
 	return str;
 }

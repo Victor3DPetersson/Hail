@@ -197,7 +197,7 @@ inline void GrowingArray<T, CountType>::Fill()
 }
 
 template <typename T, typename CountType>
-GrowingArray<typename T, typename CountType> & GrowingArray<typename T, typename CountType>::operator=(const GrowingArray& growingArray)
+GrowingArray<typename T, typename CountType>& GrowingArray<typename T, typename CountType>::operator=(const GrowingArray& growingArray)
 {
 	if (m_imInitialized != false)
 	{
@@ -208,7 +208,7 @@ GrowingArray<typename T, typename CountType> & GrowingArray<typename T, typename
 
 	for (CountType iSlot = 0; iSlot < m_sizeActual; ++iSlot)
 	{
-		growingArray[iSlot] = growingArray.m_arrayPointer[iSlot];
+		m_arrayPointer[iSlot] = growingArray.m_arrayPointer[iSlot];
 	}
 
 	m_elementCount = growingArray.m_elementCount;
