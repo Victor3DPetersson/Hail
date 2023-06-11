@@ -1,2 +1,2 @@
-# Slask
- GameEngine - Lightweigth framework for c++ development
+# Hail
+ Custom game engine - framework for c++ game development
