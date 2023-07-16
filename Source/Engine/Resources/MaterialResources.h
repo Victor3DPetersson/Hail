@@ -20,7 +20,8 @@ namespace Hail
 		NORMAL,
 		ALPHABLEND,
 		CUTOUT,
-		ADDITIVE
+		ADDITIVE,
+		COUNT
 	};
 
 	class MaterialInstance
@@ -47,7 +48,7 @@ namespace Hail
 
 		//Add shader reflection data here
 
-		MATERIAL_TYPE m_type;
+		MATERIAL_TYPE m_type = MATERIAL_TYPE::COUNT;
 	};
 
 

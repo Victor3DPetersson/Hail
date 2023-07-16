@@ -12,6 +12,7 @@ namespace Hail
 		GrowingArray<FilePath> objectsToSelect;
 		FilePath pathToBeginSearchingIn;
 		VectorOnStack<String64, 8> extensionsToSearchFor;
+		bool allowMultipleSelection = true;
 	};
 
 	class ImGuiFileBrowser

@@ -63,20 +63,21 @@ namespace Hail
 		vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 		DeleteCompiledTexture(compiledTexture);
 
-		//Todo, add support for more formats
+		VkFormat textureFormat = ToVkFormat(TextureTypeToTextureFormat(static_cast<TEXTURE_TYPE>(compiledTexture.header.textureType)));
+
 		CreateImage(device, compiledTexture.header.width, compiledTexture.header.height,
-			VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+			textureFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 			VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			vlkTextureData.textureImage, vlkTextureData.textureImageMemory);
 
-		TransitionImageLayout(device, vlkTextureData.textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
+		TransitionImageLayout(device, vlkTextureData.textureImage, textureFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
 		CopyBufferToImage(device, stagingBuffer, vlkTextureData.textureImage, compiledTexture.header.width, compiledTexture.header.height, device.GetCommandPool(), device.GetGraphicsQueue());
-		TransitionImageLayout(device, vlkTextureData.textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
+		TransitionImageLayout(device, vlkTextureData.textureImage, textureFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
 
 		vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
 		vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 
-		vlkTextureData.textureImageView = CreateImageView(device, vlkTextureData.textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+		vlkTextureData.textureImageView = CreateImageView(device, vlkTextureData.textureImage, textureFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
 		m_textureData.Add(vlkTextureData);
 

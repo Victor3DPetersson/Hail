@@ -23,19 +23,19 @@ namespace Hail
 
 		switch (ToEnum<TEXTURE_TYPE>(header.textureType))
 		{
-		case TEXTURE_TYPE::R8G8B8A8:
+		case TEXTURE_TYPE::R8G8B8A8_SRGB:
 		{
 			byteSizePixel = 1;
 			numberOfColors = 4;
 		}
 		break;
-		case TEXTURE_TYPE::R8G8B8:
+		case TEXTURE_TYPE::R8G8B8_SRGB:
 		{
 			byteSizePixel = 1;
 			numberOfColors = 3;
 		}
 		break;
-		case TEXTURE_TYPE::R8:
+		case TEXTURE_TYPE::R8_SRGB:
 		{
 			byteSizePixel = 1;
 			numberOfColors = 1;
@@ -80,6 +80,51 @@ namespace Hail
 		default:
 			break;
 		}
-		return byteSizePixel * numberOfColors * width * heigth;;
+		return byteSizePixel * numberOfColors * width * heigth;
+	}
+	TEXTURE_FORMAT TextureTypeToTextureFormat(TEXTURE_TYPE type)
+	{
+		switch (type)
+		{
+		case Hail::TEXTURE_TYPE::R32G32B32A32F:
+			return TEXTURE_FORMAT::R32G32B32A32_SFLOAT;
+			break;
+		case Hail::TEXTURE_TYPE::R32G32B32F:
+			return TEXTURE_FORMAT::R32G32B32_SFLOAT;
+			break;
+		case Hail::TEXTURE_TYPE::R32F:
+			return TEXTURE_FORMAT::R32_SFLOAT;
+			break;
+		case Hail::TEXTURE_TYPE::R32G32B32A32:
+			return TEXTURE_FORMAT::R32G32B32A32_UINT;
+			break;
+		case Hail::TEXTURE_TYPE::R32G32B32:
+			return TEXTURE_FORMAT::R32G32B32_UINT;
+			break;
+		case Hail::TEXTURE_TYPE::R32:
+			return TEXTURE_FORMAT::R32_UINT;
+			break;
+		case Hail::TEXTURE_TYPE::R16G16B16A16:
+			return TEXTURE_FORMAT::R16G16B16A16_UINT;
+			break;
+		case Hail::TEXTURE_TYPE::R16G16B16:
+			return TEXTURE_FORMAT::R16G16B16_UINT;
+			break;
+		case Hail::TEXTURE_TYPE::R16:
+			return TEXTURE_FORMAT::R16_UINT;
+			break;
+		case Hail::TEXTURE_TYPE::R8G8B8A8_SRGB:
+			return TEXTURE_FORMAT::R8G8B8A8_SRGB;
+			break;
+		case Hail::TEXTURE_TYPE::R8G8B8_SRGB:
+			return TEXTURE_FORMAT::R8G8B8A8_SRGB;
+			break;
+		case Hail::TEXTURE_TYPE::R8_SRGB:
+			return TEXTURE_FORMAT::R8_UNORM;
+			break;
+		default:
+			return TEXTURE_FORMAT::UNDEFINED;
+			break;
+		}
 	}
 }

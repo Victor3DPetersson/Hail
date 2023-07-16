@@ -237,7 +237,7 @@ void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandTo
 	}
 
 	glm::uvec4 pushConstants_instanceID_padding = { spriteInstance, 0, 0, 0 };
-	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager().GetMaterialInstance(MATERIAL_TYPE::SPRITE, spriteCommandToRender.materialInstanceID);
+	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager().GetMaterialInstance(spriteCommandToRender.materialInstanceID);
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 2, 1, &baseMaterial.m_materialDescriptors[instanceMaterialData.m_instanceIdentifier].descriptors[frameInFlightIndex], 0, nullptr);
 	vkCmdPushConstants(commandBuffer, baseMaterial.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
@@ -351,7 +351,7 @@ void Hail::VlkRenderer::EndFrame()
 	if (vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, m_inFrameFences[currentFrame]) != VK_SUCCESS)
 	{
 #ifdef DEBUG
-		throw std::runtime_error("failed to submit draw command buffer!");
+		//throw std::runtime_error("failed to submit draw command buffer!");
 #endif
 	}
 	m_swapChain->FrameEnd(signalSemaphores, device.GetPresentQueue());

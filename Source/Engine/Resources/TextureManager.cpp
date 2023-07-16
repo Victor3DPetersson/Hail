@@ -16,6 +16,7 @@ namespace
 	{
 		"Debug_Grid",
 		"spaceShip",
+		"cloud shapes test"
 	};
 	void Read8BitStream(std::ifstream& stream, void** outData, const uint32_t numberOfBytesToRead)
 	{
@@ -86,13 +87,39 @@ namespace Hail
 		Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", outTexture.header.width, outTexture.header.height, "\n"));
 		switch (ToEnum<TEXTURE_TYPE>(outTexture.header.textureType))
 		{
-		case TEXTURE_TYPE::R8G8B8A8:
+		case TEXTURE_TYPE::R8G8B8A8_SRGB:
 			Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 			break;
-		case TEXTURE_TYPE::R8G8B8:
-			Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
+		case TEXTURE_TYPE::R8G8B8_SRGB:
+		{
+			void* tempData = nullptr;
+			Read8BitStream(inStream, &tempData, GetTextureByteSize(outTexture.header));
+			outTexture.header.textureType = static_cast<uint32_t>(TEXTURE_TYPE::R8G8B8A8_SRGB);
+			outTexture.compiledColorValues = new uint8_t[1 * 4 * outTexture.header.width * outTexture.header.height];
+			uint32_t rgbIterator = 0;
+			for (size_t i = 0; i < 4 * outTexture.header.width * outTexture.header.height; i++)
+			{
+				switch (i % 4)
+				{
+				case 0:
+					static_cast<uint8_t*>(outTexture.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+					break;
+				case 1:
+					static_cast<uint8_t*>(outTexture.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+					break;
+				case 2:
+					static_cast<uint8_t*>(outTexture.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+					break;
+				case 3:
+					static_cast<uint8_t*>(outTexture.compiledColorValues)[i] = 255;
+					break;
+				}
+			}
+			delete[] tempData;
+		}
+
 			break;
-		case TEXTURE_TYPE::R8:
+		case TEXTURE_TYPE::R8_SRGB:
 			Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 			break;
 		case TEXTURE_TYPE::R16G16B16A16:

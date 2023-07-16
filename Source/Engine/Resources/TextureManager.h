@@ -1,7 +1,7 @@
 #pragma once
 #include "String.hpp"
 #include "TextureResource.h"
-constexpr uint32_t REQUIRED_TEXTURE_COUNT = 2;
+constexpr uint32_t REQUIRED_TEXTURE_COUNT = 3;
 
 namespace Hail
 {

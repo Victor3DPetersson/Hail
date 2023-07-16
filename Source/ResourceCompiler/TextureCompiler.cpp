@@ -115,15 +115,15 @@ bool TextureCompiler::CompileInternalTexture(Hail::TextureHeader header, const c
 	uint32_t sizeOfColor, numberOfColors;
 	switch (ToEnum<Hail::TEXTURE_TYPE>(header.textureType))
 	{
-	case Hail::TEXTURE_TYPE::R8G8B8A8:
+	case Hail::TEXTURE_TYPE::R8G8B8A8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 4;
 		break;
-	case Hail::TEXTURE_TYPE::R8G8B8:
+	case Hail::TEXTURE_TYPE::R8G8B8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 3;
 		break;
-	case Hail::TEXTURE_TYPE::R8:
+	case Hail::TEXTURE_TYPE::R8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 1;
 		break;
@@ -258,11 +258,11 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 		tgaFile.read(skip, colourMapSize);
 	}
 
-	if (!IsPowerOfTwo(tgaHeader.height) || !IsPowerOfTwo(tgaHeader.width))
-	{
-		Debug_PrintConsoleConstChar("Texture is not in Power of 2");
-		return false;
-	}
+	//if (!IsPowerOfTwo(tgaHeader.height) || !IsPowerOfTwo(tgaHeader.width))
+	//{
+	//	Debug_PrintConsoleConstChar("Texture is not in Power of 2");
+	//	return false;
+	//}
 
 	// imageDataSize is the total number of bytes taken by the image
 	// after being loaded and decompressed if necessary
@@ -353,12 +353,12 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 	uint32_t numberOfColors = 0;
 	if (tgaHeader.bitsPerPixel / 8 == 3)
 	{
-		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8);
+		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8_SRGB);
 		numberOfColors = 3;
 	}
 	else if (tgaHeader.bitsPerPixel / 8 == 4)
 	{
-		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8A8);
+		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8A8_SRGB);
 		numberOfColors = 4;
 	}
 	compileHeader.height = tgaHeader.height;

@@ -45,7 +45,7 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 	{
 		return false;
 	}
-
+	m_materialManager.Init();
 	//Temp for now
 	for (uint32_t i = 0; i < static_cast<uint32_t>(MATERIAL_TYPE::COUNT); i++)
 	{
@@ -79,11 +79,14 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 		}
 	}
 	MaterialInstance& instance1 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
-	instance1.m_textureHandles[0] = 0;
+	instance1.m_textureHandles[0] = 1;
 	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance1);
 	MaterialInstance& instance2 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
-	instance2.m_textureHandles[0] = 1;
+	instance2.m_textureHandles[0] = 2;
 	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance2);
+	MaterialInstance& instance3 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
+	instance3.m_textureHandles[0] = 0;
+	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance3);
 	return true;
 }
 
@@ -123,7 +126,8 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		spriteInstance.color = spriteCommand.color;
 		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotation() * Math::DegToRadf + Math::PIf * -0.5f, 0.0f };
 		//Get sprite texture size and sort with material and everything here to the correct place. 
-		const TextureResource& texture = textures[spriteCommand.materialInstanceID];
+		const MaterialInstance& materialInstance = m_materialManager.GetMaterialInstance(spriteCommand.materialInstanceID);
+		const TextureResource& texture = textures[materialInstance.m_textureHandles[0]];
 		spriteInstance.textureSize_effectData_padding = { texture.m_compiledTextureData.header.width, texture.m_compiledTextureData.header.height, static_cast<uint32_t>(spriteCommand.sizeRelativeToRenderTarget), 0 };
 		m_spriteInstanceData.Add(spriteInstance);
 	}

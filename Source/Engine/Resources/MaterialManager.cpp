@@ -16,6 +16,10 @@ namespace Hail
 	void MaterialManager::Update()
 	{
 	}
+	void MaterialManager::Init()
+	{
+		m_materialsInstanceData.Init(10);
+	}
 	//Index is temp
 	bool MaterialManager::LoadMaterial(MATERIAL_TYPE type)
 	{
@@ -49,7 +53,6 @@ namespace Hail
 		///VERY TEMP ABOVE ^
 		material.m_type = type;
 		m_materials[static_cast<uint32_t>(type)] = material;
-		m_materialsInstanceData[static_cast<uint32_t>(type)].Init(10);
 		return true;
 	}
 
@@ -58,18 +61,18 @@ namespace Hail
 		return m_materials[static_cast<uint32_t>(materialType)];
 	}
 
-	const MaterialInstance& MaterialManager::GetMaterialInstance(MATERIAL_TYPE materialType, uint32_t instanceID)
+	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID)
 	{
-		return m_materialsInstanceData[static_cast<uint32_t>(materialType)][instanceID];
+		return m_materialsInstanceData[instanceID];
 	}
 
 	MaterialInstance& MaterialManager::CreateInstance(MATERIAL_TYPE materialType)
 	{
 		MaterialInstance instance;
-		instance.m_instanceIdentifier = m_materialsInstanceData[static_cast<uint32_t>(materialType)].Size();
+		instance.m_instanceIdentifier = m_materialsInstanceData.Size();
 		instance.m_materialIdentifier = static_cast<uint32_t>(materialType);
-		m_materialsInstanceData[static_cast<uint32_t>(materialType)].Add(instance);
-		return m_materialsInstanceData[static_cast<uint32_t>(materialType)].GetLast();
+		m_materialsInstanceData.Add(instance);
+		return m_materialsInstanceData.GetLast();
 	}
 
 	//TODO: Add relative path support in the shader output

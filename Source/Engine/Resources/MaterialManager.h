@@ -13,10 +13,11 @@ namespace Hail
 	public:
 
 		void Update();
+		void Init();
 		bool LoadMaterial(MATERIAL_TYPE  type);
 		bool LoadMaterial(GUID uuid);
 		Material& GetMaterial(MATERIAL_TYPE materialType);
-		const MaterialInstance& GetMaterialInstance(MATERIAL_TYPE materialType, uint32_t instanceID);
+		const MaterialInstance& GetMaterialInstance(uint32_t instanceID);
 		MaterialInstance& CreateInstance(MATERIAL_TYPE materialType);
 	protected:
 
@@ -28,6 +29,6 @@ namespace Hail
 		ShaderCompiler* m_compiler = nullptr;
 		GrowingArray<CompiledShader> m_compiledRequiredShaders;
 		Material m_materials[static_cast<uint32_t>(MATERIAL_TYPE::COUNT)];
-		GrowingArray< MaterialInstance> m_materialsInstanceData[static_cast<uint32_t>(MATERIAL_TYPE::COUNT)];
+		GrowingArray< MaterialInstance> m_materialsInstanceData;
 	};
 }

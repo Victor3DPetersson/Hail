@@ -27,11 +27,19 @@ void GameApplication::Init(void* initData)
 	m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 	player.transform.SetPosition({ 0.5f, 0.5f });
 	player.materialInstanceID = 1;
-	for (uint32_t i = 0; i < 5; i++)
+	sprites[0].materialInstanceID = 2;
+	sprites[0].transform.SetPosition({ 0.5f, 0.5f });
+
+
+	sprites[1].transform.SetPosition({ 0.25f, 0.25f });
+	sprites[2].transform.SetPosition({ 0.75f, 0.25f });
+	sprites[3].transform.SetPosition({ 0.25f, 0.75f });
+	sprites[4].transform.SetPosition({ 0.75f, 0.75f });
+	for (uint32_t i = 1; i < 5; i++)
 	{
-		sprites[i].transform.SetPosition({ 0.1f + 0.15f * i, 0.5f });
 		sprites[i].transform.SetRotation({ i * Math::PIf * 0.25f });
 		sprites[i].index = i + 1;
+		sprites[i].transform.SetScale({ 0.25, 0.25 });
 	}
 	g_fileBrowserData.objectsToSelect.Init(16);
 	g_fileBrowserData.extensionsToSearchFor = { "tga", "frag", "vert" };
@@ -51,18 +59,18 @@ void GameApplication::Update(double totalTime, float deltaTime, Hail::Applicatio
 
 	g_fTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(3);
 	g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<String256>(4);
-	if(recievedFrameData.imguiCommandRecorder->AddBeginCommand("Will this work?", 0))
+	if(recievedFrameData.imguiCommandRecorder->AddBeginCommand("ImGui From Game Thread", 0))
 	{
-		if (recievedFrameData.imguiCommandRecorder->AddButton("Button 1", 1))
+		if (recievedFrameData.imguiCommandRecorder->AddButton("File Browser", 1))
 		{
 			g_fTest += 100.0f;
 			recievedFrameData.imguiCommandRecorder->OpenFileBrowser(&g_fileBrowserData);
 		}
 		g_bTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<bool>(2);
 		recievedFrameData.imguiCommandRecorder->AddSameLine();
-		recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out", 2, g_bTest);
+		recievedFrameData.imguiCommandRecorder->AddCheckbox("Checkbox", 2, g_bTest);
 		recievedFrameData.imguiCommandRecorder->AddSeperator();
-		if (recievedFrameData.imguiCommandRecorder->AddTreeNode("TestTree", 5))
+		if (recievedFrameData.imguiCommandRecorder->AddTreeNode("Tree", 5))
 		{
 			if (recievedFrameData.imguiCommandRecorder->AddTextInput("Text test", 4, g_sTest))
 			{
@@ -74,18 +82,18 @@ void GameApplication::Update(double totalTime, float deltaTime, Hail::Applicatio
 				if (recievedFrameData.imguiCommandRecorder->AddTabItem("TestTab1", 7))
 				{
 					anyTabOpened = true;
-					recievedFrameData.imguiCommandRecorder->AddFloatSlider("FloatyMcFloatFace", 3, g_fTest);
+					recievedFrameData.imguiCommandRecorder->AddFloatSlider("Float slider", 3, g_fTest);
 					recievedFrameData.imguiCommandRecorder->AddTabItemEnd();
 				}
 				if (recievedFrameData.imguiCommandRecorder->AddTabItem("TestTab2", 8))
 				{
+					recievedFrameData.imguiCommandRecorder->OpenMaterialEditor();
 					anyTabOpened = true;
-					recievedFrameData.imguiCommandRecorder->AddFloatSlider("FloatyMcFloatierFace", 3, g_fTest);
+					recievedFrameData.imguiCommandRecorder->AddFloatSlider("Float slider", 3, g_fTest);
 					recievedFrameData.imguiCommandRecorder->AddTabItemEnd();
 
 					if (recievedFrameData.imguiCommandRecorder->AddTreeNode("Tree within a tree", 9))
 					{
-						recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out3", 2, g_bTest);
 						recievedFrameData.imguiCommandRecorder->AddTreeNodeEnd();
 					}
 				}
@@ -96,7 +104,6 @@ void GameApplication::Update(double totalTime, float deltaTime, Hail::Applicatio
 		}
 		if (recievedFrameData.imguiCommandRecorder->AddTreeNode("Tree within a tree", 10))
 		{
-			recievedFrameData.imguiCommandRecorder->AddCheckbox("Check this out 2", 2, g_bTest);
 			recievedFrameData.imguiCommandRecorder->AddTreeNodeEnd();
 		}
 
@@ -148,7 +155,7 @@ void GameApplication::Update(double totalTime, float deltaTime, Hail::Applicatio
 
 	player.color.r = sinf(totalTime) * 0.5 + 0.5f;
 
-	for (uint32_t i = 0; i < 5; i++)
+	for (uint32_t i = 1; i < 5; i++)
 	{
 		sprites[i].transform.AddToRotation({  0.025f * (i + 1) });
 	}

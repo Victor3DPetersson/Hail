@@ -121,7 +121,7 @@ void Hail::ImGuiFileBrowser::FileSystemLogic()
             wcstombs(fileName, fileObject.m_fileObject.Name(), fileObject.m_fileObject.Length() + 1);
             if (ImGui::Selectable(fileName.Data(), &fileObject.m_selected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick))
             {
-                if (!ImGui::GetIO().KeyCtrl)    // Clear selection when CTRL is not held
+                if (!ImGui::GetIO().KeyCtrl || m_dataToSearchFor->allowMultipleSelection == false)    // Clear selection when CTRL is not held
                 {
                     DeselectFiles();
                 }

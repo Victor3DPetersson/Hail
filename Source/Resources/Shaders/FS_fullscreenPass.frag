@@ -15,6 +15,7 @@ layout(location = 0) in vec2 fragTexCoord;
 void main() 
 {
 
+	float renderTexelSizeX = 1.0 / float(constantVariables.renderResolution.x);
 	uint xHalfOffset = (constantVariables.screenResolution.x - constantVariables.renderResolution.x) / 2;
 	uint yHalfOffset = (constantVariables.screenResolution.y - constantVariables.renderResolution.y) / 2;
 
@@ -31,8 +32,8 @@ void main()
 	else
 	{
 		float ratioX = constantVariables.screenResolution.x / constantVariables.screenResolution.y;
-		float remappedXCoord = float(xIndex - xHalfOffset) / float(constantVariables.renderResolution.x);
-		float remappedYCoord = 1.0 - float(yIndex - yHalfOffset) / float(constantVariables.renderResolution.y);
+		float remappedXCoord = min(float(xIndex - xHalfOffset) / float(constantVariables.renderResolution.x), 1.0);
+		float remappedYCoord = min(1.0 - float(yIndex - yHalfOffset) / float(constantVariables.renderResolution.y), 1.0);
 		uvec3 sampledColor = texture(texSampler, vec2(remappedXCoord, remappedYCoord)).rgb;
 		vec3 color = vec3(sampledColor) / 255.0;
 		//vec3 color = vec3(remappedXCoord, remappedYCoord, 1.0);

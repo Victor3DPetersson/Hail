@@ -50,6 +50,7 @@ namespace Hail
 		bool AddButton(const String256& name, uint32_t responseIndex);
 		bool AddTextInput(const String256& name, uint32_t responseIndex, const String256& textValue);
 		void OpenFileBrowser(ImGuiFileBrowserData* fileBrowserDataToFill);
+		void OpenMaterialEditor();
 		template<typename Type>
 		Type GetResponseValue(uint32_t responseIndex);
 
@@ -80,6 +81,7 @@ namespace Hail
 			BUTTON,
 			TEXT_INPUT,
 			FILE_BROWSER,
+			MATERIAL_EDITOR,
 			COUNT
 		};
 

@@ -2,6 +2,14 @@
 #include "ImGuiCommands.h"
 #include "imgui.h"
 #include "DebugMacros.h"
+#include "ImGuiMaterialEditor.h"
+
+namespace Hail
+{
+	ImGuiMaterialEditor g_materialEditor;
+}
+
+
 bool Hail::ImGuiCommandRecorder::AddBeginCommand(const String256& windowName, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::WINDOW, windowName, responseIndex };
@@ -46,6 +54,12 @@ bool Hail::ImGuiCommandRecorder::AddTabItem(const String256& name, uint32_t resp
 	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TAB_ITEM, name, responseIndex };
 	m_commands.Add(command);
 	return m_bools[responseIndex].GetResponseValue();
+}
+
+void Hail::ImGuiCommandRecorder::OpenMaterialEditor()
+{
+	ImGuiCommand command = { IMGUI_TYPES::MATERIAL_EDITOR, "" };
+	m_commands.Add(command);
 }
 
 void Hail::ImGuiCommandRecorder::AddTabItemEnd()
@@ -118,7 +132,6 @@ void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder&
 		ImGuiCommandRecorder::ImGuiCommand& command = m_commands[i];
 		switch (command.commandType)
 		{
-			//Same behavior of these thre items
 		case ImGuiCommandRecorder::IMGUI_TYPES::WINDOW:
 		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE:
 		case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM:
@@ -304,6 +317,10 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 			}
 			//else error handling
 			break;
+		case ImGuiCommandRecorder::IMGUI_TYPES::MATERIAL_EDITOR:
+			g_materialEditor.RenderImGuiCommands(&m_fileBrowser);
+			break;
+
 		default:
 			break;
 		}

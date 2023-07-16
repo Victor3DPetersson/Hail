@@ -35,10 +35,10 @@ uint TR = 2;
 
 const vec2 offsets[4] =
 {
-	{-1.0, 1.0}, //BL
-	{-1.0, -1.0}, //TL
-	{1.0, -1.0}, //TR
-	{1.0, 1.0} //BR
+	{-1.0, -1.0}, //BL
+	{-1.0, 1.0}, //TL
+	{1.0, 1.0}, //TR
+	{1.0, -1.0} //BR
 };
 
 layout(location = 0) out vec2 outTexCoord;
