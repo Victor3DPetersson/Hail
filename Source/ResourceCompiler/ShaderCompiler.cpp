@@ -25,7 +25,7 @@ namespace Hail
 #endif // DEBUG
 	}
 
-	bool CompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, SHADERTYPE type, const char* shaderName, GrowingArray<char, unsigned int>& shaderData, shaderc_compile_options_t compileOptions);
+	bool CompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, SHADERTYPE type, const char* shaderName, GrowingArray<char>& shaderData, shaderc_compile_options_t compileOptions);
 	bool CompileShaderInternalHLSL(const char* relativePath, const char* shaderName);
 	bool CompileShaderInternalMETAL(const char* relativePath, const char* shaderName);
 	void ExportCompiledShader(const char* shaderName, const char* compiledShaderData, ShaderHeader shaderHeader);
@@ -207,7 +207,7 @@ namespace Hail
 	}
 
 
-	bool CompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, SHADERTYPE type, const char* shaderName, GrowingArray<char, unsigned int>& shaderData, shaderc_compile_options_t compileOptions)
+	bool CompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, SHADERTYPE type, const char* shaderName, GrowingArray<char>& shaderData, shaderc_compile_options_t compileOptions)
 	{
 		shaderc_compilation_result_t compiledShader{};
 		switch (type)

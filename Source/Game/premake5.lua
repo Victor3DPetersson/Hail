@@ -25,13 +25,15 @@ project "Game"
 	includedirs {
 		".",
 		"./**",
-		"%{dirs.srcdir}/Shared/",
+		"%{dirs.srcdir}/Shared/"
 	}
 
+	dependson { "ReflectionCodeGenerator" }
 
 	libdirs { "%{dirs.libdir}" }	
 	links { 
 		"Engine",
+		"Reflection",
 		"Shared"
 		 }
 
@@ -44,3 +46,8 @@ project "Game"
 	 	'TEXTURES_DIR_IN="' .. (dirs.texturesindir):gsub("%\\", "/") .. '/"',
 	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"'
 	}
+
+	filter { "system:windows" }
+		prebuildcommands { "start %{dirs.outdir}/ReflectionCodeGenerator_%{cfg.buildcfg}.exe Game" }
+
+		

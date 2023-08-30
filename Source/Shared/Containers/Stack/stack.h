@@ -1,62 +1,61 @@
 #pragma once
 
-namespace CommonUtilities
+template <typename T>
+class Stack
 {
-	template <typename T>
-	class Stack
+public:
+	Stack();
+	T Pop();
+	const T& Top() const;
+	T& Top();
+	inline int Size() const;
+	void Push(const T& value);
+
+private:
+	GrowingArray<T> m_data;
+};
+
+template <typename T>
+T Stack<T>::Pop()
+{
+	assert(m_data.Size() > 0 && "Trying to pop top element on empty stack!");
+	T temp{};
+	if (m_data.Size() > 0)
 	{
-	public:
-		Stack(); // konstruktor som skapar en tom stack
-		~Stack();
-
-		T Pop(); // Assertar om stacken är tom
-
-		const T & Top() const; // Assertar om stacken är tom
-
-		inline int Size() const;
-
-		void Push(const T& aValue);
-
-	private:
-		GrowingArray<T, int> myData;
-	};
-
-	template <typename T>
-	T Stack<T>::Pop()
-	{
-		assert(myData.Size() > 0 && "Trying to pop top element on empty stack!");
-		T temp = Top();
-		myData.RemoveCyclicAtIndex(myData.Size() - 1);
-		return temp;
+		temp = Top();
+		m_data.RemoveLast();
 	}
+	return temp;
+}
 
-	template <typename T>
-	const T & Stack<T>::Top() const
-	{
-		assert(myData.Size() > 0 && "Trying to access top element on empty stack!");
-		return myData.GetLast();
-	}
+template <typename T>
+const T & Stack<T>::Top() const
+{
+	assert(m_data.Size() > 0 && "Trying to access top element on empty stack!");
+	return m_data.GetLast();
+}
 
-	template <typename T>
-	void Stack<T>::Push(const T& aValue)
-	{
-		myData.Add(aValue);
-	}
+template <typename T>
+T& Stack<T>::Top()
+{
+	assert(m_data.Size() > 0 && "Trying to access top element on empty stack!");
+	return m_data.GetLast();
+}
 
-	template <typename T>
-	Stack<T>::Stack()
-	{
-		myData.Init(10);
-	}
+template <typename T>
+void Stack<T>::Push(const T& value)
+{
+	m_data.Add(value);
+}
 
-	template <typename T>
-	Stack<T>::~Stack()
-	{
-	}
+template <typename T>
+Stack<T>::Stack()
+{
+	m_data.Init(10);
+}
 
-	template <typename T>
-	int Stack<T>::Size() const
-	{
-		return myData.Size();
-	}
+template <typename T>
+int Stack<T>::Size() const
+{
+	return m_data.Size();
 }

@@ -43,6 +43,7 @@ dirs.shadersoutdir = os.realpath("Generated/bin/resources/shaders")
 dirs.shadersindir = os.realpath("Source/Resources/Shaders")
 dirs.sourcedir = os.realpath("Source")
 dirs.intdir = os.realpath("Generated/int-bin")
+dirs.reflectiongenerationdir = os.realpath("Generated/int-bin/generatedCode")
 dirs.libdir = os.realpath("Generated/lib")
 dirs.localdir = os.realpath("Generated/local")
 

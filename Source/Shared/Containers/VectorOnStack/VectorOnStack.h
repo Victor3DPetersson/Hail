@@ -18,7 +18,7 @@ public:
 
 	inline void Add(const Type& object);
 	inline void Insert(CountType index, Type& object);
-	inline void RemoveCyclicAtIndex(CountType aItemNumber);
+	inline void RemoveCyclicAtIndex(CountType itemNumber);
 	inline Type* Data() { return m_data; }
 	inline void Clear();
 	inline void DeleteAll();

@@ -1,5 +1,6 @@
 group ("Core")
 	include ("Engine")
+	include ("Reflection")
 group ("")
 
 group ("Game")
@@ -14,4 +15,5 @@ group ("Utilities")
 	include ("Shared")
 	group ("Utilities/ResourceCompilation")
 		include ("ResourceCompiler")
+	include ("ReflectionCodeGenerator")
 group ("")

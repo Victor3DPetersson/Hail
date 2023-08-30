@@ -5,19 +5,9 @@
 #include <stdarg.h>
 #include <clocale>
 #include "String.hpp"
+
 namespace Hail
 {
-
-#ifdef PLATFORM_WINDOWS
-
-	constexpr const wchar_t* SourceSeparatorAndEnd = L"\\\0";
-	constexpr const wchar_t End = L'\0';
-	constexpr const wchar_t Wildcard = L'*';
-	constexpr const wchar_t SourceSeparator = L'\\';
-	constexpr const wchar_t Separator = L'/';
-
-#endif
-
 	constexpr uint32_t MAX_FILE_LENGTH = 1024;
 	class FilePath;
 	struct FileTime
@@ -33,6 +23,20 @@ namespace Hail
 		uint64_t m_filesizeInBytes = 0;
 	};
 
+#ifdef PLATFORM_WINDOWS
+
+	constexpr const wchar_t* g_SourceSeparatorAndEnd = L"\\\0";
+	constexpr const wchar_t g_End = L'\0';
+	constexpr const wchar_t g_Wildcard = L'*';
+	constexpr const wchar_t g_SourceSeparator = L'\\';
+	constexpr const wchar_t g_Separator = L'/';
+
+
+
+
+#endif
+
+
 	class FileObject
 	{
 	public:
@@ -40,6 +44,7 @@ namespace Hail
 		FileObject(const FileObject& otherObject);
 		FileObject(const FilePath& filePath);
 		FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData);
+		FileObject(const char* const name, const char* extension, const FilePath& directoryLevel);
 
 		FileObject& operator=(const FileObject& object);
 		FileObject& operator=(const FileObject&& moveableObject) noexcept;
@@ -172,9 +177,11 @@ namespace Hail
 		uint32_t Length() const { return m_length; }
 		uint16_t GetDirectoryLevel() const { return m_directoryLevel; }
 		void AddWildcard();
+		//Creates a directory if none exist, otherwise this function does nothing 
+		bool CreateFileDirectory() const;
 	protected:
 		FilePath(const FilePath& path, uint32_t lengthOfPath);
-		bool FindExtension();
+		void FindExtension();
 		void CreateFileObject();
 
 	private:

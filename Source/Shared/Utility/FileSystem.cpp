@@ -1,12 +1,7 @@
 #include "Shared_PCH.h"
 #include "FileSystem.h"
 #include "DebugMacros.h"
-#ifdef PLATFORM_WINDOWS
 
-#include <windows.h>
-//#elif PLATFORM_OSX//.... more to be added
-
-#endif
 #include <stack>
 #include <string>
 #include <locale> 
@@ -19,6 +14,7 @@
 namespace Hail
 {
 #ifdef PLATFORM_WINDOWS
+
     CommonFileData ConstructFileData(WIN32_FIND_DATA findData)
     {
         CommonFileData fileData;
@@ -33,10 +29,10 @@ namespace Hail
         fileData.m_lastWriteTime.m_lowDateTime = findData.ftLastWriteTime.dwLowDateTime;
         return fileData;
     }
-#else 
 
 
 #endif
+
 
     SelecteableFileObject::SelecteableFileObject(const FileObject& fileObject) : m_fileObject(fileObject)
     {
@@ -45,49 +41,57 @@ namespace Hail
 
     void FileSystem::IterateOverFilesRecursively(FilePath currentPath)
     {
-        FileObject object = FileObject(currentPath);
-        if (IsValidFilePath(currentPath))
+        RecursiveFileIterator iterator = RecursiveFileIterator(currentPath);
+        while (iterator.IterateOverFolderRecursively())
         {
-            WIN32_FIND_DATA FindFileData;
-            HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
-
-            do {
-                if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
-                    && wcscmp(FindFileData.cFileName, L".") != 0
-                    && wcscmp(FindFileData.cFileName, L"..") != 0)
-                {
-                    // Call our function again to search in this sub-directory 
-                    String64 fileName;
-                    wcstombs(fileName, FindFileData.cFileName, wcslen(FindFileData.cFileName) + 1);
-                    Debug_PrintConsoleConstChar("\nDirectory:");
-                    Debug_PrintConsoleConstChar(fileName);
-                    
-
-                    FileObject directoryObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-                    m_files[currentPath.GetDirectoryLevel()].Add(directoryObject);
-                    FilePath newPath = (currentPath);
-                    newPath = newPath + FindFileData.cFileName + L"*\0";
-                    IterateOverFilesRecursively(newPath);
-                }
-                else
-                {
-                    if (wcscmp(FindFileData.cFileName, L".") != 0
-                        && wcscmp(FindFileData.cFileName, L"..") != 0)
-                    {
-                        FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-                        m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
-                        String64 file;
-                        wcstombs(file, FindFileData.cFileName, wcslen(FindFileData.cFileName) + 1);
-                        Debug_PrintConsoleConstChar(file.Data());
-                    }
-                }
-            } while (FindNextFile(hFind, &FindFileData) != 0);
-            FindClose(hFind);
+            const FilePath iteratedPath = iterator.GetCurrentPath();
+            const FileObject currentObject = iteratedPath.Object();
+            m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
         }
-        else
-        {
-            //error message? 
-        }
+
+        //FileObject object = FileObject(currentPath);
+        //if (IsValidFilePath(currentPath))
+        //{
+        //    WIN32_FIND_DATA FindFileData;
+        //    HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
+
+        //    do {
+        //        if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        //            && wcscmp(FindFileData.cFileName, L".") != 0
+        //            && wcscmp(FindFileData.cFileName, L"..") != 0)
+        //        {
+        //            // Call our function again to search in this sub-directory 
+        //            String64 fileName;
+        //            wcstombs(fileName, FindFileData.cFileName, wcslen(FindFileData.cFileName) + 1);
+        //            Debug_PrintConsoleConstChar("\nDirectory:");
+        //            Debug_PrintConsoleConstChar(fileName);
+        //            
+
+        //            FileObject directoryObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
+        //            m_files[currentPath.GetDirectoryLevel()].Add(directoryObject);
+        //            FilePath newPath = (currentPath);
+        //            newPath = newPath + FindFileData.cFileName + L"*\0";
+        //            IterateOverFilesRecursively(newPath);
+        //        }
+        //        else
+        //        {
+        //            if (wcscmp(FindFileData.cFileName, L".") != 0
+        //                && wcscmp(FindFileData.cFileName, L"..") != 0)
+        //            {
+        //                FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
+        //                m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
+        //                String64 file;
+        //                wcstombs(file, FindFileData.cFileName, wcslen(FindFileData.cFileName) + 1);
+        //                Debug_PrintConsoleConstChar(file.Data());
+        //            }
+        //        }
+        //    } while (FindNextFile(hFind, &FindFileData) != 0);
+        //    FindClose(hFind);
+        //}
+        //else
+        //{
+        //    //error message? 
+        //}
     }
 
     void FileSystem::JumpUpOneDirectory(const SelecteableFileObject& directoryToJumpTo)
@@ -95,13 +99,12 @@ namespace Hail
         if (directoryToJumpTo.m_fileObject.IsDirectory())
         {
             WString64 name = directoryToJumpTo.m_fileObject.Name();
-            if (name.Data()[name.Length() - 1] != SourceSeparator)
+            if (name.Data()[name.Length() - 1] != g_SourceSeparator)
             {
-                name = name + SourceSeparatorAndEnd;
-                //name = name + L"*\0";
+                name = name + g_SourceSeparatorAndEnd;
             }
             FilePath newPath = m_basePath + name;
-            if (IsValidFilePath(newPath))
+            if (newPath.IsValid())
             {
                 m_basePath = newPath;
                 m_baseDepth = m_basePath.GetDirectoryLevel();
@@ -138,14 +141,14 @@ namespace Hail
                 for (uint16_t i = m_basePath.GetDirectoryLevel(); i < depthToGoTo; i++)
                 {
                     WString64 name = m_directories[i].m_fileObject.Name();
-                    if (name.Data()[name.Length() - 1] != SourceSeparator)
+                    if (name.Data()[name.Length() - 1] != g_SourceSeparator)
                     {
-                        name = name + SourceSeparatorAndEnd;
+                        name = name + g_SourceSeparatorAndEnd;
                     }
                     newPath = newPath + name;
                 }
             }
-            if (IsValidFilePath(newPath))
+            if (newPath.IsValid())
             {
                 m_basePath = newPath;
                 m_baseDepth = m_basePath.GetDirectoryLevel();
@@ -157,62 +160,102 @@ namespace Hail
 
     void FileSystem::IterateOverFolder(FilePath currentPath)
     {
-        currentPath.AddWildcard();
-
-        if (IsValidFilePath(currentPath))
+        if (currentPath.IsValid())
         {
             m_files[currentPath.GetDirectoryLevel()].RemoveAll();
-            WIN32_FIND_DATA FindFileData;
-            HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
-            do {
-                if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
-                    && wcscmp(FindFileData.cFileName, L".") != 0
-                    && wcscmp(FindFileData.cFileName, L"..") != 0)
+            FileIterator iterator = FileIterator(currentPath);
+            while (iterator.IterateOverFolder())
+            {
+                const FilePath iteratedPath = iterator.GetCurrentPath();
+                const FileObject currentObject = iteratedPath.Object();
+                if (currentObject.IsDirectory())
                 {
-                    FileObject directoryObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-                    m_files[currentPath.GetDirectoryLevel()].Add(directoryObject);
+                    m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
                 }
                 else
                 {
-                    if (wcscmp(FindFileData.cFileName, L".") != 0
-                        && wcscmp(FindFileData.cFileName, L"..") != 0)
+                    if (m_extensionsToSearchFor.Empty())
                     {
-                        if (m_extensionsToSearchFor.Empty())
+                        m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
+                    }
+                    else
+                    {
+                        bool isObjectInList = false;
+                        for (uint32_t i = 0; i < m_extensionsToSearchFor.Size(); i++)
                         {
-                            FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-                            m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
-                        }
-                        else
-                        {
-                            FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-                            bool isObjectInList = false;
-                            for (uint32_t i = 0; i < m_extensionsToSearchFor.Size(); i++)
+                            String64 extension;
+                            WString64 wExtension = currentObject.Extension();
+                            wcstombs(extension.Data(), wExtension, wExtension.Length());
+                            extension[wExtension.Length()] = '\0';
+                            if (m_extensionsToSearchFor[i] == extension)
                             {
-                                String64 extension;
-                                WString64 wExtension = fileObject.Extension();
-                                wcstombs(extension.Data(), wExtension, wExtension.Length());
-                                extension[wExtension.Length()] = '\0';
-                                if (m_extensionsToSearchFor[i] == extension)
-                                {
-                                    isObjectInList = true;
-                                    break;
-                                }
-                            }
-                            if (isObjectInList)
-                            {
-                                m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
+                                isObjectInList = true;
+                                break;
                             }
                         }
-
+                        if (isObjectInList)
+                        {
+                            m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
+                        }
                     }
                 }
-            } while (FindNextFile(hFind, &FindFileData) != 0);
-            FindClose(hFind);
+            }
         }
-        else
-        {
-            //error message? 
-        }
+        //currentPath.AddWildcard();
+        //if (IsValidFilePath(currentPath))
+        //{
+        //    m_files[currentPath.GetDirectoryLevel()].RemoveAll();
+        //    WIN32_FIND_DATA FindFileData;
+        //    HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
+        //    do {
+        //        if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+        //            && wcscmp(FindFileData.cFileName, L".") != 0
+        //            && wcscmp(FindFileData.cFileName, L"..") != 0)
+        //        {
+        //            FileObject directoryObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
+        //            m_files[currentPath.GetDirectoryLevel()].Add(directoryObject);
+        //        }
+        //        else
+        //        {
+        //            if (wcscmp(FindFileData.cFileName, L".") != 0
+        //                && wcscmp(FindFileData.cFileName, L"..") != 0)
+        //            {
+        //                if (m_extensionsToSearchFor.Empty())
+        //                {
+        //                    FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
+        //                    m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
+        //                }
+        //                else
+        //                {
+        //                    FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
+        //                    bool isObjectInList = false;
+        //                    for (uint32_t i = 0; i < m_extensionsToSearchFor.Size(); i++)
+        //                    {
+        //                        String64 extension;
+        //                        WString64 wExtension = fileObject.Extension();
+        //                        wcstombs(extension.Data(), wExtension, wExtension.Length());
+        //                        extension[wExtension.Length()] = '\0';
+        //                        if (m_extensionsToSearchFor[i] == extension)
+        //                        {
+        //                            isObjectInList = true;
+        //                            break;
+        //                        }
+        //                    }
+        //                    if (isObjectInList)
+        //                    {
+        //                        m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
+        //                    }
+        //                }
+
+        //            }
+        //        }
+        //    } while (FindNextFile(hFind, &FindFileData) != 0);
+        //    FindClose(hFind);
+        //}
+        //else
+        //{
+        //    //error message? 
+        //}
     }
 
     void FileSystem::SetDirectories(FilePath path)
@@ -243,7 +286,7 @@ namespace Hail
 
     bool FileSystem::SetFilePath(FilePath basePath)
     {
-        if (basePath.IsValid() && IsValidFilePath(basePath))
+        if (basePath.IsValid())
         {
             Initialize();
             m_basePath = basePath;
@@ -282,39 +325,123 @@ namespace Hail
         return m_directories[requestedDepth];
     }
 
-    bool FileSystem::IsValidFilePath(FilePath pathToCheck) const
+    FileIterator::~FileIterator()
     {
-        pathToCheck.AddWildcard();
-        //IfDef Windows here
-        WIN32_FIND_DATA FindFileData;
-        HANDLE hFind = FindFirstFile(pathToCheck.Data(), &FindFileData);
-        if (hFind == INVALID_HANDLE_VALUE)
+        if (m_osHandleIsOpen)
         {
-            Debug_PrintConsoleConstChar("File not valid\n");
-            return false;
+            FindClose(m_currentFileFindData.m_hFind);
+        }
+    }
+
+    FileIterator::FileIterator(FilePath basePath)
+    {
+        m_basePath = basePath;
+        m_baseDepth = m_basePath.GetDirectoryLevel();
+        InitPath(m_basePath);
+    }
+
+    void FileIterator::InitPath(const FilePath& basePath)
+    {
+        m_currentFileObject = FileObject();
+        FilePath currentPath = basePath;
+        currentPath.AddWildcard();
+
+        if (currentPath.IsValid())
+        {
+            WIN32_FIND_DATA FindFileData;
+            HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
+            m_osHandleIsOpen = hFind != 0;
+            m_currentFileFindData.m_findFileData = FindFileData;
+            m_currentFileFindData.m_hFind = hFind;
+        }
+        else
+        {
+            m_osHandleIsOpen = false;
+        }
+    }
+
+    bool FileIterator::IterateOverFolder()
+    {
+        FilePath currentPath = m_basePath + m_currentFileObject;
+        currentPath.AddWildcard();
+
+        if (m_osHandleIsOpen)
+        {
+            do 
+            {
+                if ((m_currentFileFindData.m_findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+                    && wcscmp(m_currentFileFindData.m_findFileData.cFileName, L".") != 0
+                    && wcscmp(m_currentFileFindData.m_findFileData.cFileName, L"..") != 0)
+                {
+                    m_currentFileObject = FileObject(m_currentFileFindData.m_findFileData.cFileName, currentPath.Object(), ConstructFileData(m_currentFileFindData.m_findFileData));
+                    if (FindNextFile(m_currentFileFindData.m_hFind, &m_currentFileFindData.m_findFileData) == 0)
+                    {
+                        m_osHandleIsOpen = false;
+                        FindClose(m_currentFileFindData.m_hFind);
+                    }
+                    return true;
+                }
+                else
+                {
+                    if (wcscmp(m_currentFileFindData.m_findFileData.cFileName, L".") != 0
+                        && wcscmp(m_currentFileFindData.m_findFileData.cFileName, L"..") != 0)
+                    {
+                        m_currentFileObject = FileObject(m_currentFileFindData.m_findFileData.cFileName, currentPath.Object(), ConstructFileData(m_currentFileFindData.m_findFileData));
+                        if (FindNextFile(m_currentFileFindData.m_hFind, &m_currentFileFindData.m_findFileData) == 0)
+                        {
+                            m_osHandleIsOpen = false;
+                            FindClose(m_currentFileFindData.m_hFind);
+                        }
+                        return true;
+                    }
+                }
+            } while (FindNextFile(m_currentFileFindData.m_hFind, &m_currentFileFindData.m_findFileData) != 0);
+            m_osHandleIsOpen = false;
+            FindClose(m_currentFileFindData.m_hFind);
+            return true;
+        }
+        return false;
+    }
+
+    FilePath FileIterator::GetCurrentPath() const
+    {
+        FilePath returnPath = m_basePath;
+        return returnPath + m_currentFileObject;
+    }
+
+    RecursiveFileIterator::~RecursiveFileIterator()
+    {
+    }
+
+    RecursiveFileIterator::RecursiveFileIterator(FilePath basePath) : FileIterator(basePath)
+    {
+    }
+
+    bool RecursiveFileIterator::IterateOverFolderRecursively()
+    {
+        const bool iterationResult = IterateOverFolder();
+        if (iterationResult)
+        {
+            if (m_currentFileObject.IsDirectory())
+            {
+                m_directoriesToIterateOver.Push(m_basePath + m_currentFileObject);
+            }
+        }
+        else
+        {
+            if (m_directoriesToIterateOver.Size() > 0)
+            {
+                m_basePath = m_directoriesToIterateOver.Pop();
+                InitPath(m_basePath);
+                Debug_PrintConsoleConstChar("\n\nNew Path");
+            }
+            else
+            {
+                return false;
+            }
         }
         return true;
     }
-
-
-    //bool ListFiles(FilePath path, std::wstring mask/*, vector<wstring>& files*/)
-    //{
-
-    //    WIN32_FIND_DATA FindFileData;
-    //    HANDLE hFind = FindFirstFile(path.Data(), &FindFileData);
-    //    if (hFind == INVALID_HANDLE_VALUE) {
-
-    //        Debug_PrintConsoleConstChar("File not valid\n");
-    //        return false;
-    //    }
-    //    IterateOverFilesRecursively(path);
-    //    FindClose(hFind);
-
-
-
-
-    //    return true;
-    //}
 
 }
 

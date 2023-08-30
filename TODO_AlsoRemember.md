@@ -7,8 +7,8 @@
 6. [x] Create several 3D objects and instance render them.
 7. [x] Sprite component
 8. [x] Resource Manager (create material system and break out tutorial code)
-9. [] Material Editor and Asset Browser to browse and save files
-10. [] Create Serializing so I can make materials be read from files
+9. [] Create Serializing so I can make materials be read from files
+10. [] Material Editor and Asset Browser to browse and save files
 11. [] Use material system to take control over render styles
 12. [] Add debug lines
 13. [] Font rendering
@@ -17,8 +17,11 @@ s
 
 # TODO: unspecified order
 
-- [] FileIterator and remove last of std::filesystem
+- [] FileIterator(done) and remove last of std::filesystem
 - [] Implement Mip-Mapping from Vulkan tutorial
+- [] Implement a File watcher
+- [] Hookup file-watcher to the reflection system and material system
+- [] Hookup file-watcher to textures and shaders
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.

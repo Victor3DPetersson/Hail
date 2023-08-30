@@ -1,43 +1,37 @@
  #pragma once
 #include <cassert>
+#include <initializer_list>
 
-template <typename Type, uint32_t size>
+template <typename Type, size_t size = static_cast<size_t>(128)>
 class StaticArray
 {
 public:
-	StaticArray();
-	StaticArray(const std::initializer_list<Type>& initList);
-	~StaticArray();
+	StaticArray() = default;
 
-	inline const Type& operator[](const int& aIndex) const;
-	inline Type& operator[](const int& aIndex);
+	StaticArray(const std::initializer_list<Type>& initList);
+
+	inline const Type& operator[](const int& index) const;
+	inline Type& operator[](const int& index);
 
 	// Utility functions
-	inline int Getsize();
-	inline void DeleteAll();
+	inline size_t Getsize();
 	Type* Data() { return m_data; };
 
 private:
 	Type m_data[size];
-	unsigned int m_size = size - 1;
 };
 
-template <typename Type, uint32_t size>
-int StaticArray<Type, size>::Getsize()
+template <typename Type, size_t size>
+size_t StaticArray<Type, size>::Getsize()
 {
-	return m_size;
+	return size;
 }
 
-template <typename Type, uint32_t size>
-StaticArray<Type, size>::StaticArray()
-{
-}
-
-template <typename Type, uint32_t size>
-StaticArray<Type, size>::StaticArray(const std::initializer_list<Type>& initList) :	m_size(size)
+template <typename Type, size_t size>
+StaticArray<Type, size>::StaticArray(const std::initializer_list<Type>& initList)
 {
 	int counter{ 0 };
-	assert(initList.size() <= static_cast<unsigned int>(m_size) && "List initialization larger than size.");
+	assert(initList.size() <= static_cast<unsigned int>(size) && "List initialization larger than size.");
 	for (Type object : initList)
 	{
 		m_data[counter] = object;
@@ -45,31 +39,17 @@ StaticArray<Type, size>::StaticArray(const std::initializer_list<Type>& initList
 	}
 }
 
-template <typename Type, uint32_t size>
-StaticArray<Type, size>::~StaticArray()
-{
-}
-
-template <typename Type, uint32_t size>
+template <typename Type, size_t size>
 const Type& StaticArray<Type, size>::operator[](const int& index) const
 {
-	assert(index <= m_size && "Index is out of range");
+	assert(index <= size && "Index is out of range");
 	return m_data[index];
 }
 
-template <typename Type, uint32_t size>
+template <typename Type, size_t size>
 Type& StaticArray<Type, size>::operator[](const int& index)
 {
-	assert(index <= m_size && "Index is out of range");
+	assert(index <= size && "Index is out of range");
 	return m_data[index];
 }
 
-template <typename Type, uint32_t size>
-void StaticArray<Type, size>::DeleteAll()
-{
-	for (size_t iSlot = 0; iSlot <= static_cast<size_t>(m_size); ++iSlot)
-	{
-		delete m_data[iSlot];
-		m_data[iSlot] = nullptr;
-	}
-}

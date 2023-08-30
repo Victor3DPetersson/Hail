@@ -24,12 +24,14 @@ project "Engine"
 		".",
 		"%{dirs.extdir}/dearimgui/",
 		"%{dirs.srcdir}/Shared/",
+		"%{dirs.srcdir}/Reflection/",
 		"%{dirs.srcdir}/ResourceCompiler/",
 	}
 
 	libdirs { "%{dirs.libdir}" }	
 	links { 
 		"dearimgui",
+		"Reflection",
 		"ResourceCompiler",
 		"Shared"
 		 }
@@ -42,6 +44,8 @@ filter { "platforms:Windows" }
 		"%{dirs.extdir}/Vulkan/Include/",
 	}
 	
+	dependson { "ReflectionCodeGenerator" }
+
 	defines {
 
 	 	'SOURCE_DIR="' .. (dirs.sourcedir):gsub("%\\", "/") .. '/"',
@@ -51,6 +55,11 @@ filter { "platforms:Windows" }
 	 	'TEXTURES_DIR_IN="' .. (dirs.texturesindir):gsub("%\\", "/") .. '/"',
 	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"'
 	}
+
+	--filter { "system:windows" } Add later once I fix the parser for longer lines than 256
+	--	prebuildcommands { "start %{dirs.outdir}/ReflectionCodeGenerator_%{cfg.buildcfg}.exe Engine" }
+
 	--defines {
 	--	'RESOURCE_DIR="' .. resdir.engine:gsub("%\\", "/") .. '/"',
 	--}
+

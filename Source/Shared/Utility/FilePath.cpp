@@ -3,9 +3,36 @@
 
 #include <string>
 #include <iostream>
+#include "DebugMacros.h"
+#ifdef PLATFORM_WINDOWS
+
+#include <windows.h>
+//#elif PLATFORM_OSX//.... more to be added
+
+#endif
+
+#include "Utility\StringUtility.h"
 
 namespace
 {
+    //TODO: Make sure that this function does not take a copy as that gets very expensive quickly
+    bool IsValidFilePathInternal(Hail::FilePath pathToCheck)
+    {
+        pathToCheck.AddWildcard();
+        //IfDef Windows here
+        WIN32_FIND_DATA FindFileData;
+        HANDLE hFind = FindFirstFile(pathToCheck.Data(), &FindFileData);
+        if (hFind == INVALID_HANDLE_VALUE)
+        {
+            Debug_PrintConsoleConstChar("Path not valid\n");
+            FindClose(hFind);
+            return false;
+        }
+        FindClose(hFind);
+        return true;
+    }
+
+
     int GetParentSeperator(const wchar_t* path, uint32_t length, bool isDirectory)
     {
         if (length == 0)
@@ -19,13 +46,13 @@ namespace
         {
             if (isDirectory && !foundFirstSeperator)
             {
-                if (currentCharacter == Hail::SourceSeparator)
+                if (currentCharacter == Hail::g_SourceSeparator)
                 {
                     currentCharacter = L'\0';
                     foundFirstSeperator = true;
                 }
             }
-            if (currentCharacter == Hail::SourceSeparator)
+            if (currentCharacter == Hail::g_SourceSeparator)
             {
                 return length - (seperator + 1);
                 break;
@@ -43,17 +70,66 @@ void Hail::FilePath::CreateFileObject()
 
 void Hail::FilePath::AddWildcard()
 {
-    if (m_isDirectory && m_data[m_length - 1] != Wildcard)
+    if (m_isDirectory && m_data[m_length - 1] != g_Wildcard)
     {
-        m_data[m_length++] = Wildcard;
+        m_data[m_length++] = g_Wildcard;
         m_data[m_length] = L'\0';
     }
+}
+
+bool Hail::FilePath::CreateFileDirectory() const
+{
+    FilePath pathToCreate = *this;
+    if (!m_isDirectory)
+    {
+        pathToCreate = Parent();
+    }
+    if (!pathToCreate.IsValid())
+    {
+        uint16_t directoryLevelWhereParentExist = 0;
+        {
+            Hail::FilePath parentPath = pathToCreate.Parent();
+            while (!parentPath.IsValid())
+            {
+                parentPath = parentPath.Parent();
+                //There is no valid parent path, meaning the directory is entirely invalid
+                if (parentPath.GetDirectoryLevel() == 1 && !parentPath.IsValid())
+                {
+                    return false;
+                }
+            }
+            directoryLevelWhereParentExist = parentPath.GetDirectoryLevel();
+        }
+
+        //construct the entire folder hierarchy
+        for (size_t i = pathToCreate.GetDirectoryLevel() - directoryLevelWhereParentExist; i > 0; i--)
+        {
+            pathToCreate = *this;
+            while (pathToCreate.GetDirectoryLevel() != directoryLevelWhereParentExist + i)
+            {
+                pathToCreate = pathToCreate.Parent();
+            }
+#ifdef PLATFORM_WINDOWS
+            if (CreateDirectory(pathToCreate.Data(), NULL) ||
+                ERROR_ALREADY_EXISTS == GetLastError())
+            {
+                directoryLevelWhereParentExist++;
+            }
+            else
+            {
+                // Failed to create directory.
+                std::cout << " Failed to create Directory! " << std::endl;
+            }
+#endif
+        }
+    }
+
+    return true;
 }
 
 Hail::FilePath::FilePath(const FilePath& path, uint32_t lengthOfPath)
 {
     *this = path;
-    m_directoryLevel--;
     for (; ; --m_length)
     {
         m_data[m_length] = L'\0';
@@ -63,6 +139,7 @@ Hail::FilePath::FilePath(const FilePath& path, uint32_t lengthOfPath)
             break;
         }
     }
+    FindExtension();
 }
 
 Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
@@ -71,7 +148,7 @@ Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
     {
         if (m_isDirectory)
         {
-            if (m_data[m_length - 1] == Wildcard)
+            if (m_data[m_length - 1] == g_Wildcard)
             {
                 m_data[--m_length] = L'\0';
                 wcscat_s(m_data, Hail::MAX_FILE_LENGTH - m_length, otherPath.Data());
@@ -94,31 +171,32 @@ Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
 
 Hail::FilePath Hail::FilePath::operator+(const FileObject& object)
 {
+    FilePath returnPath = *this;
     uint32_t length = 0;
     if (object.IsValid() && m_isDirectory)
     {
-        if (m_data[m_length - 1] == Wildcard)
+        if (m_data[returnPath.m_length - 1] == g_Wildcard)
         {
-            m_data[--m_length] = L'\0';
+            returnPath.m_data[--returnPath.m_length] = L'\0';
         }
         length += object.Name().Length();
-        wcscat_s(m_data, MAX_FILE_LENGTH - m_length, object.Name());
+        wcscat_s(returnPath.m_data, MAX_FILE_LENGTH - returnPath.m_length, object.Name());
         if (object.IsDirectory())
         {
-            m_data[m_length + length++] = SourceSeparator;
+            returnPath.m_data[returnPath.m_length + length++] = g_SourceSeparator;
         }
         else
         {
-            m_data[m_length + length++] = L'.';
-            m_data[m_length + length] = End;
+            returnPath.m_data[returnPath.m_length + length++] = L'.';
+            returnPath.m_data[returnPath.m_length + length] = g_End;
             length += object.Extension().Length();
-            wcscat_s(m_data, MAX_FILE_LENGTH - (m_length + length), object.Extension());
+            wcscat_s(returnPath.m_data, MAX_FILE_LENGTH - (returnPath.m_length + length), object.Extension());
         }
-        m_data[m_length + length] = End;
-        m_length += length;
-        FindExtension();
+        returnPath.m_data[returnPath.m_length + length] = g_End;
+        returnPath.m_length += length;
+        returnPath.FindExtension();
     }
-    return *this;
+    return returnPath;
 }
 
 Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
@@ -128,7 +206,7 @@ Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
     {
         if (m_isDirectory)
         {
-            if (m_data[m_length - 1] == Wildcard)
+            if (m_data[m_length - 1] == g_Wildcard)
             {
                 m_data[--m_length] = L'\0';
                 wcscat_s(m_data, Hail::MAX_FILE_LENGTH - m_length, string);
@@ -150,96 +228,83 @@ Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
 
 Hail::FilePath Hail::FilePath::Parent() const
 {
-    if (IsValid())
+    if (m_directoryLevel > 1)
     {
-        if (m_directoryLevel > 1)
-        {
-            const int objectLength = GetParentSeperator(m_data, m_length, m_isDirectory);
-            FilePath path = FilePath(*this, objectLength);
-            path.CreateFileObject();
-            return path;
-        }
-        else
-        {
-            //No parent directory
-            return *this;
-        }
+        const int objectLength = GetParentSeperator(m_data, m_length, m_isDirectory);
+        FilePath path = FilePath(*this, objectLength + 1);
+        return path;
     }
-    return FilePath();
+    else
+    {
+        //No parent directory
+        return *this;
+    }
 }
 
 void Hail::FilePath::Slashify()
 {
-    size_t size = wcslen(m_data);
-    size_t i(0);
+    size_t size = StringLength(m_data);
     if (size == 0)
     {
         return;
     }
+    if (m_data[size - 1] == g_SourceSeparator || m_data[size - 1] == g_Separator)
+    {
+        m_data[size - 1] = g_End;
+        size--;
+    }
+
     m_directoryLevel = 0;
     wchar_t temp[MAX_FILE_LENGTH];
     temp[0] = L'\0';
     wcscpy_s(temp, m_data);
     uint32_t counter = 0;
+    size_t i(0);
     for (; i < size; i++)
     {
-        if ((temp[i] == SourceSeparator || temp[i] == Separator) && temp[i + 1] != SourceSeparator && temp[i + 1] != Separator)
+        if ((temp[i] == g_SourceSeparator || temp[i] == g_Separator) && temp[i + 1] != g_SourceSeparator && temp[i + 1] != g_Separator)
         {
-            m_data[counter++] = SourceSeparator;
+            m_data[counter++] = g_SourceSeparator;
             m_directoryLevel++;
         }
-        else if (m_data[i] != SourceSeparator && m_data[i] != Separator)
+        else if (m_data[i] != g_SourceSeparator && m_data[i] != g_Separator)
         {
             m_data[counter++] = temp[i];
         }
     }
-    for (i = 0; i < counter; i++)
-    {
-        if (m_data[i] == Separator && m_data[i] != SourceSeparator )
-        {
-            m_data[i] = SourceSeparator;
-        }
-    }
+
     if (m_isDirectory)
     {
-        if (m_data[counter - 1] != SourceSeparator && m_data[counter - 1] != L'*')
+        if (m_data[counter - 1] != g_SourceSeparator && m_data[counter - 1] != L'*')
         {
-            m_data[counter] = SourceSeparator;
+            m_data[counter] = g_SourceSeparator;
             m_data[++counter] = L'\0';
         }
     }
     m_length = counter;
-    //m_directoryLevel--;
-    //wcscat_s(m_data, MAX_FILE_LENGTH - counter, L"\\*\0");
 }
-
-//const wchar_t* Hail::FilePath::GetObject() const
-//{
-//    if (IsValid())
-//    {
-//        const int objectLength = GetParentSeperator(m_data, m_length, m_isDirectory);
-//        return m_data + (m_length - objectLength);
-//    }
-//    return nullptr;
-//}
 
 bool Hail::FilePath::IsValid() const
-{
-    return m_length != 0;
-}
-
-bool Hail::FilePath::FindExtension()
 {
     if (m_length == 0)
     {
         return false;
+    }
+    return IsValidFilePathInternal(m_data);
+}
+
+void Hail::FilePath::FindExtension()
+{
+    if (m_length == 0)
+    {
+        return;
     }
     m_isDirectory = true;
     int32_t seperator = m_length - 1;
     wchar_t currentCharacter = 0;
     while (seperator != 0)
     {
-        if (currentCharacter == Wildcard)
+        if (currentCharacter == g_Wildcard)
         {
             break;
         }
@@ -252,11 +317,6 @@ bool Hail::FilePath::FindExtension()
     }
     Slashify();
     CreateFileObject();
-    if (m_isDirectory == false)
-    {
-        return true;
-    }
-    return false;
 }
 
 bool Hail::FileObject::IsValid() const
@@ -310,7 +370,7 @@ Hail::FileObject::FileObject(const FileObject& otherObject) :
 Hail::FileObject::FileObject(const FilePath& filePath)
 {
     Reset();
-    if(!filePath.IsValid())
+    if(filePath.Length() == 0)
     {
         return;
     }
@@ -355,14 +415,15 @@ Hail::FileObject::FileObject(const FilePath& filePath)
             if (currentCharacter == L'.')
             {
                 m_isDirectory = false;
+                seperator++;
                 break;
             }
             currentCharacter = m_name[seperator--];
         }
-        const uint32_t fileNameLength = m_name.Length() - (seperator + 1);
-        memcpy(m_extension, m_name + fileNameLength + 1, sizeof(wchar_t) * seperator);
-        m_extension[seperator] = L'\0';
-        memset(m_name + fileNameLength, 0, sizeof(wchar_t) * (seperator + 1));
+        const uint32_t fileExtensionLength = m_name.Length() != 0 ? m_name.Length() - (seperator + 1) : 0;
+        memcpy(m_extension, m_name + seperator + 1, sizeof(wchar_t) * fileExtensionLength);
+        m_extension[fileExtensionLength] = L'\0';
+        memset(m_name + seperator, 0, sizeof(wchar_t) * (fileExtensionLength + 1));
     }
 
     if (filePath.GetDirectoryLevel() == 2)
@@ -391,12 +452,32 @@ Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& pare
     FindExtension();
 }
 
+Hail::FileObject::FileObject(const char* const name, const char* extension, const FilePath& directoryLevel)
+{
+    FileObject parentObject;
+    m_directoryLevel = directoryLevel.GetDirectoryLevel();
+    if (directoryLevel.IsDirectory())
+    {
+        m_directoryLevel++;
+        parentObject = directoryLevel.Object();
+    }
+    else
+    {
+        parentObject = directoryLevel.Parent().Object();
+    }
+    memcpy(m_parentName, parentObject.m_name, sizeof(m_parentName));
+
+    FromConstCharToWChar(name, m_name, 64);
+    FromConstCharToWChar(extension, m_extension, 64);
+    m_isDirectory = false;
+
+}
+
 Hail::FileObject& Hail::FileObject::operator=(const FileObject& object)
 {
     m_name = object.m_name;
     m_parentName = object.m_parentName;
     m_extension = object.m_extension;
-    //m_length = object.m_length;
     m_isDirectory = object.m_isDirectory;
     m_fileData = object.m_fileData;
     m_directoryLevel = object.m_directoryLevel;

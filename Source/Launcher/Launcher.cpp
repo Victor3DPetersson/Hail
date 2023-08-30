@@ -11,7 +11,7 @@ namespace Hail
 int main()
 {
 
-	GameApplication* game = new GameApplication();
+	Hail::GameApplication* game = new Hail::GameApplication();
 
 	StartupAttributes startData;
 
