@@ -2,13 +2,8 @@
 #include "MaterialManager.h"
 #include "ShaderCompiler.h"
 
-#include <filesystem>
-
-#include <iostream>
-#include <vector>
-#include <string>
-#include <fstream>
 #include "DebugMacros.h"
+#include "Utility\InOutStream.h"
 
 namespace Hail
 {
@@ -81,8 +76,9 @@ namespace Hail
 		CompiledShader shader{};
 		String256 inPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
 
-		std::ifstream inStream(inPath.Data(), std::ios::in | std::ios::binary);
-		if (!inStream)
+		InOutStream inStream;
+
+		if (!inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true))
 		{
 			InitCompiler();
 			if (!m_compiler->CompileSpecificShader(shaderName, shaderType))
@@ -90,19 +86,19 @@ namespace Hail
 				return shader;
 			}
 			DeInitCompiler();
-			inStream.open(inPath.Data(), std::ios::in | std::ios::binary);
 		}
+		inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
 		Debug_PrintConsoleString256(String256::Format("\nImporting Shader:\n%s:", shaderName));
 
-		inStream.read((char*)&shader.header, sizeof(ShaderHeader));
+		inStream.Read((char*)&shader.header, sizeof(ShaderHeader));
 		Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shader.header.sizeOfShaderData, "\n"));
 
 		shader.compiledCode = new char[shader.header.sizeOfShaderData];
-		inStream.read((char*)shader.compiledCode, sizeof(char) * shader.header.sizeOfShaderData);
-		inStream.read(shader.compiledCode, shader.header.sizeOfShaderData);
+		inStream.Read((char*)shader.compiledCode, sizeof(char) * shader.header.sizeOfShaderData);
+		inStream.Read(shader.compiledCode, shader.header.sizeOfShaderData);
 
-		inStream.close();
+		inStream.CloseFile();
 
 		shader.loadState = SHADER_LOADSTATE::LOADED_TO_RAM;
 		shader.shaderName = shaderName;

@@ -2,6 +2,8 @@
 #include <iostream>
 #include "String.hpp"
 #include "ReflectionDefines.h"
+#include "Containers\StaticArray\StaticArray.h"
+#include "Types.h"
 namespace Hail
 {
 	namespace Reflection

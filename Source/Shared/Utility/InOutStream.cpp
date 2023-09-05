@@ -47,18 +47,26 @@ Hail::InOutStream::~InOutStream()
 
 bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpenFile, bool binaryMode)
 {
-    const bool canCreateFile = wayToOpenFile == FILE_OPEN_TYPE::APPENDS || wayToOpenFile == FILE_OPEN_TYPE::CLEAR_READ_WRITE || wayToOpenFile == FILE_OPEN_TYPE::WRITE;
     const bool alreadyOpenedFile = m_fileAction != FILE_OPEN_TYPE::NONE;
+    if (alreadyOpenedFile)
+    {
+        return false;
+    }
+    if (!fileToWriteTo.CreateFileDirectory())
+    {
+        return false;
+    }
+    const bool canCreateFile = wayToOpenFile == FILE_OPEN_TYPE::APPENDS || wayToOpenFile == FILE_OPEN_TYPE::CLEAR_READ_WRITE || wayToOpenFile == FILE_OPEN_TYPE::WRITE;
     if (canCreateFile)
     {
-        if (fileToWriteTo.IsDirectory() || alreadyOpenedFile)
+        if (fileToWriteTo.IsDirectory())
         {
             return false;
         }
     }
     else
     {
-        if (fileToWriteTo.IsDirectory() || !fileToWriteTo.IsValid() || alreadyOpenedFile)
+        if (fileToWriteTo.IsDirectory() || !fileToWriteTo.IsValid())
         {
             return false;
         }
@@ -73,7 +81,7 @@ bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpe
         return false;
     }
     m_fileAction = wayToOpenFile;
-
+    m_fileSize = 0;
     if (IsReading())
     {
         if (binaryMode)
@@ -88,7 +96,6 @@ bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpe
         }
         else
         {
-            m_fileSize = 0;
             while (true)
             {
                 fgetc(openedFile);
@@ -148,13 +155,18 @@ bool Hail::InOutStream::Write(const void* writeOutData, size_t sizeOfData, size_
     return true;
 }
 
-bool Hail::InOutStream::Seek(size_t sizeOfData, size_t numberOfElements)
+bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)
 {
     if (IsReading() && m_currentPosition + sizeOfData * numberOfElements < m_fileSize)
     {
         int result = fseek((FILE*)m_fileHandle, sizeOfData * numberOfElements, SEEK_CUR);
-        return result == 0;
+        if (result == 0)
+        {
+            m_currentPosition += sizeOfData * numberOfElements;
+            return true;
+        }
     }
+    return false;
 }
 
 void Hail::InOutStream::SeekToStart()
@@ -163,6 +175,16 @@ void Hail::InOutStream::SeekToStart()
     {
         m_currentPosition = 0;
         fseek((FILE*)m_fileHandle, 0, SEEK_SET);
+    }
+}
+
+void Hail::InOutStream::SeekToEnd()
+{
+    if (m_fileAction != FILE_OPEN_TYPE::NONE)
+    {
+        m_currentPosition = 0;
+        fseek((FILE*)m_fileHandle, 0, SEEK_END);
+        m_currentPosition = m_fileSize;
     }
 }
 

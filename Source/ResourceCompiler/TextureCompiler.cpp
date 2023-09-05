@@ -1,12 +1,14 @@
 #include "ResourceCompiler_PCH.h"
 #include "TextureCompiler.h"
 
-#include <filesystem>
-
 #include "DebugMacros.h"
 
-#include <iostream>
-#include <fstream>
+#include "Utility\FileSystem.h"
+#include "Utility\StringUtility.h"
+#include "Utility\InOutStream.h"
+
+using namespace Hail;
+using namespace TextureCompiler;
 
 bool IsPowerOfTwo(uint32_t x)
 {
@@ -61,48 +63,50 @@ void TextureCompiler::CompileAllTextures()
 
 }
 
-bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTextureData, Hail::TextureHeader shaderHeader, uint32_t numberOfColors);
-bool ExportCompiled16BitTexture(const char* textureName, uint16_t* compiledTextureData, Hail::TextureHeader shaderHeader, uint32_t numberOfColors) { return false; };
-bool ExportCompiled32BitTexture(const char* textureName, uint32_t* compiledTextureData, Hail::TextureHeader shaderHeader, uint32_t numberOfColors){ return false; };
+bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors);
+bool ExportCompiled16BitTexture(FileObject textureName, uint16_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors) { return false; };
+bool ExportCompiled32BitTexture(FileObject textureName, uint32_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors){ return false; };
 
-bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32_t numberOfRequiredTextures)
+bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32 numberOfRequiredTextures)
 {
-	std::filesystem::path pathToShow{ TEXTURES_DIR_IN };
-	Debug_PrintConsoleString256(String256(pathToShow.string().c_str()));
+	GrowingArray<FilePath> texturesToCompile(numberOfRequiredTextures);
+	RecursiveFileIterator fileIterator = RecursiveFileIterator(TEXTURES_DIR_IN);
+	bool foundTexture = false;
 
-	GrowingArray<std::filesystem::directory_entry> texturesToCompile(numberOfRequiredTextures);
-	for (auto& entry : std::filesystem::directory_iterator(pathToShow)) {
-		const auto filenameStr = entry.path().filename().replace_extension().string();
-		if (entry.is_directory())
+	FilePath currentPath;
+	while (fileIterator.IterateOverFolderRecursively())
+	{
+		currentPath = fileIterator.GetCurrentPath();
+		if (currentPath.IsFile())
 		{
-			//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tdir:  ", filenameStr));
-		}
-		else if (entry.is_regular_file())
-		{
+			const FileObject& currentFileObject = currentPath.Object();
+			String256 filenameStr;
+			FromWCharToConstChar(currentFileObject.Name(), filenameStr, 256);
 			for (uint32_t i = 0; i < numberOfRequiredTextures; i++)
 			{
-				if (strcmp(requiredTextures[i], filenameStr.c_str()) == 0)
+				if (StringCompare(requiredTextures[i], filenameStr)
+					&& StringCompare(L"tga", currentFileObject.Extension())
+					|| StringCompare(L"TGA", currentFileObject.Extension()))
 				{
-					//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
-					const String64 extension = entry.path().extension().string().c_str();
-					if (extension == String64(".tga") || extension == String64(".TGA"))
-					{
-						texturesToCompile.Add(entry);
-					}
+					texturesToCompile.Add(currentPath);
 				}
 			}
+
 		}
+
 	}
+
 	if (texturesToCompile.Size() < numberOfRequiredTextures)
 	{
 		Debug_PrintConsoleConstChar("Missing a required texture in Texture Folder.");
 		return false;
 	}
 
+	//TODO replace with new long string once implemented
+	char finalEntry[1024];
 	for (uint32_t i = 0; i < numberOfRequiredTextures; i++)
 	{
-		const String256 textureName = texturesToCompile[i].path().filename().replace_extension().string();
-		if (!CompileSpecificTGATexture(texturesToCompile[i].path().string().c_str(), textureName.Data()))
+		if (!CompileSpecificTGATexture(texturesToCompile[i]))
 		{
 			return false;
 		}
@@ -110,47 +114,47 @@ bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredT
 	return true;
 }
 
-bool TextureCompiler::CompileInternalTexture(Hail::TextureHeader header, const char* textureName)
+bool TextureCompiler::CompileInternalTexture(TextureHeader header, const char* textureName)
 {
 	uint32_t sizeOfColor, numberOfColors;
-	switch (ToEnum<Hail::TEXTURE_TYPE>(header.textureType))
+	switch (ToEnum<TEXTURE_TYPE>(header.textureType))
 	{
-	case Hail::TEXTURE_TYPE::R8G8B8A8_SRGB:
+	case TEXTURE_TYPE::R8G8B8A8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 4;
 		break;
-	case Hail::TEXTURE_TYPE::R8G8B8_SRGB:
+	case TEXTURE_TYPE::R8G8B8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 3;
 		break;
-	case Hail::TEXTURE_TYPE::R8_SRGB:
+	case TEXTURE_TYPE::R8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 1;
 		break;
-	case Hail::TEXTURE_TYPE::R16G16B16A16:
+	case TEXTURE_TYPE::R16G16B16A16:
 		sizeOfColor = 2;
 		numberOfColors = 4;
 		break;
-	case Hail::TEXTURE_TYPE::R16G16B16:
+	case TEXTURE_TYPE::R16G16B16:
 		sizeOfColor = 2;
 		numberOfColors = 3;
 		break;
-	case Hail::TEXTURE_TYPE::R16:
+	case TEXTURE_TYPE::R16:
 		sizeOfColor = 2;
 		numberOfColors = 1;
 		break;
-	case Hail::TEXTURE_TYPE::R32G32B32A32F:
-	case Hail::TEXTURE_TYPE::R32G32B32A32:
+	case TEXTURE_TYPE::R32G32B32A32F:
+	case TEXTURE_TYPE::R32G32B32A32:
 		sizeOfColor = 4;
 		numberOfColors = 4;
 		break;
-	case Hail::TEXTURE_TYPE::R32G32B32F:
-	case Hail::TEXTURE_TYPE::R32G32B32:
+	case TEXTURE_TYPE::R32G32B32F:
+	case TEXTURE_TYPE::R32G32B32:
 		sizeOfColor = 4;
 		numberOfColors = 3;
 		break;
-	case Hail::TEXTURE_TYPE::R32F:
-	case Hail::TEXTURE_TYPE::R32:
+	case TEXTURE_TYPE::R32F:
+	case TEXTURE_TYPE::R32:
 		sizeOfColor = 4;
 		numberOfColors = 1;
 		break;
@@ -161,37 +165,38 @@ bool TextureCompiler::CompileInternalTexture(Hail::TextureHeader header, const c
 	return false;
 }
 
-bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* textureName)
+bool TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 {
 	TGAHEADER tgaHeader;
 
 	// Holds bitwise flags for TGA file
 	int tgaDesc = 0;
 
-	std::ifstream tgaFile(path, std::ios::in | std::ios::binary);
+	InOutStream tgaFile;
 
-	if (!tgaFile.is_open())
+	if (!tgaFile.OpenFile(filePath, FILE_OPEN_TYPE::READ, true))
 	{
-		Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
+		//Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
 		return false;
 	}
 
 	// Go to end of file to check TGA version
-	tgaFile.seekg(0, std::ios::end);
+	// 
+	tgaFile.SeekToEnd();
 
 	// We need to store the file size for a worst case scenario
 	// RLE compression can increase the amount of data
 	// depending on the image. (This scenario will only arise, in
 	// an image with very few same pixel runs).
-	int fileSize = (int)tgaFile.tellg();
 
 	// Seek to version identifier (Always specified as being 18
 	// characters from the end of the file)
-	tgaFile.seekg(-18, std::ios::end);
+
+	tgaFile.Seek(-18, 1);
 
 	// Read version identifier
 	char versionCheck[17] = "";
-	tgaFile.read(versionCheck, 16);
+	tgaFile.Read(versionCheck, 16);
 
 	// Check version
 	int version = 1;
@@ -201,26 +206,27 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 	}
 
 	// Back to the beginning of the file
-	tgaFile.seekg(0, std::ios::beg);
+	tgaFile.SeekToStart();
 
 	// Need to read each field in one at a time since the structure padding likes
 	// to eat the 4th and 10th bytes
-	tgaFile.read(&tgaHeader.idLength, sizeof(tgaHeader.idLength));
-	tgaFile.read(&tgaHeader.colourMapType, sizeof(tgaHeader.colourMapType));
-	tgaFile.read(&tgaHeader.imageType, sizeof(tgaHeader.imageType));
+	// 
+	tgaFile.Read(&tgaHeader.idLength, sizeof(tgaHeader.idLength));
+	tgaFile.Read(&tgaHeader.colourMapType, sizeof(tgaHeader.colourMapType));
+	tgaFile.Read(&tgaHeader.imageType, sizeof(tgaHeader.imageType));
 
 	// If colourMapType is 0 and these 3 fields below are not 0, something may have went wrong
-	tgaFile.read((char*)(&tgaHeader.firstEntry), sizeof(tgaHeader.firstEntry));
-	tgaFile.read((char*)(&tgaHeader.numEntries), sizeof(tgaHeader.numEntries));
-	tgaFile.read(&tgaHeader.bitsPerEntry, sizeof(tgaHeader.bitsPerEntry));
+	tgaFile.Read((char*)(&tgaHeader.firstEntry), sizeof(tgaHeader.firstEntry));
+	tgaFile.Read((char*)(&tgaHeader.numEntries), sizeof(tgaHeader.numEntries));
+	tgaFile.Read(&tgaHeader.bitsPerEntry, sizeof(tgaHeader.bitsPerEntry));
 
 
-	tgaFile.read((char*)(&tgaHeader.xOrigin), sizeof(tgaHeader.xOrigin));
-	tgaFile.read((char*)(&tgaHeader.yOrigin), sizeof(tgaHeader.yOrigin));
-	tgaFile.read((char*)(&tgaHeader.width), sizeof(tgaHeader.width));
-	tgaFile.read((char*)(&tgaHeader.height), sizeof(tgaHeader.height));
-	tgaFile.read(&tgaHeader.bitsPerPixel, sizeof(tgaHeader.bitsPerPixel));
-	tgaFile.read(&tgaHeader.descriptor, sizeof(tgaHeader.descriptor));
+	tgaFile.Read((char*)(&tgaHeader.xOrigin), sizeof(tgaHeader.xOrigin));
+	tgaFile.Read((char*)(&tgaHeader.yOrigin), sizeof(tgaHeader.yOrigin));
+	tgaFile.Read((char*)(&tgaHeader.width), sizeof(tgaHeader.width));
+	tgaFile.Read((char*)(&tgaHeader.height), sizeof(tgaHeader.height));
+	tgaFile.Read(&tgaHeader.bitsPerPixel, sizeof(tgaHeader.bitsPerPixel));
+	tgaFile.Read(&tgaHeader.descriptor, sizeof(tgaHeader.descriptor));
 
 	switch (tgaHeader.imageType)
 	{
@@ -238,24 +244,26 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 		break;
 	}
 
-	if ((tgaDesc & TGA_UNSUPPORTED) == 0)
+	if ((tgaDesc & TGA_UNSUPPORTED) == 0) 
 	{
 		//Debug_PrintConsoleConstChar("TGA Format Supported");
 	}
 	else
 	{
+		String64 textureName;
+		FromWCharToConstChar(filePath.Object().Name(), textureName, 64);
 		Debug_PrintConsoleConstChar("TGA Format UnSupported in file: ");
 		Debug_PrintConsoleConstChar(textureName);
 		return false;
 	}
 	char* skip = "";
-	tgaFile.read(skip, tgaHeader.idLength);
+	tgaFile.Read(skip, tgaHeader.idLength);
 
 	// Skip the colour map if it doesn't exist
 	if (!(tgaDesc & TGA_MAP))
 	{
 		int colourMapSize = tgaHeader.colourMapType * tgaHeader.numEntries;
-		tgaFile.read(skip, colourMapSize);
+		tgaFile.Read(skip, colourMapSize);
 	}
 
 	//if (!IsPowerOfTwo(tgaHeader.height) || !IsPowerOfTwo(tgaHeader.width))
@@ -271,11 +279,11 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 	unsigned char* pixelData = new unsigned char[imageDataSize];
 
 	// Read the image data
-	int originalPosition = (int)tgaFile.tellg();
+	int originalPosition = (int)tgaFile.GetFileSeekPosition();
 
 	// This read operation may read past the end of the file
 	// so could break something (hasn't happened yet)
-	tgaFile.read((char*)pixelData, imageDataSize);
+	tgaFile.Read((char*)pixelData, imageDataSize);
 
 	// RLE decoding
 	if (tgaDesc & TGA_RLE)
@@ -283,9 +291,9 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 		Debug_PrintConsoleConstChar("Decoding RLE");
 		// Used to decode RLE
 		char* tempPixelData;
-		tempPixelData = new char[fileSize];
+		tempPixelData = new char[tgaFile.GetFileSize()];
 		// Copy data over for decoding
-		memcpy(tempPixelData, pixelData, fileSize);
+		memcpy(tempPixelData, pixelData, tgaFile.GetFileSize());
 		// Holds the current pixel index for the j loop below
 		int indexAccum = 0;
 		int bytesPerPixel = (tgaHeader.bitsPerPixel / 8);
@@ -335,7 +343,7 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 
 		delete[] tempPixelData;
 	}
-
+	tgaFile.CloseFile();
 	//Flipping texture in Y Coord for Vulkan Renderdoc became annoying, but better to work from correct space
 	//unsigned char* tempPixelData = new unsigned char[imageDataSize];
 	//memcpy(tempPixelData, pixelData, imageDataSize);
@@ -349,27 +357,22 @@ bool TextureCompiler::CompileSpecificTGATexture(const char* path, const char* te
 	//}
 	//delete[] tempPixelData;
 
-	Hail::TextureHeader compileHeader;
+	TextureHeader compileHeader;
 	uint32_t numberOfColors = 0;
 	if (tgaHeader.bitsPerPixel / 8 == 3)
 	{
-		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8_SRGB);
+		compileHeader.textureType = static_cast<uint16>(Hail::TEXTURE_TYPE::R8G8B8_SRGB);
 		numberOfColors = 3;
 	}
 	else if (tgaHeader.bitsPerPixel / 8 == 4)
 	{
-		compileHeader.textureType = ToUnderlyingType<Hail::TEXTURE_TYPE>(Hail::TEXTURE_TYPE::R8G8B8A8_SRGB);
+		compileHeader.textureType = static_cast<uint16>(Hail::TEXTURE_TYPE::R8G8B8A8_SRGB);
 		numberOfColors = 4;
 	}
 	compileHeader.height = tgaHeader.height;
 	compileHeader.width = tgaHeader.width;
 
-	if (!ExportCompiled8BitTexture(textureName, pixelData, compileHeader, numberOfColors))
-	{
-		return false;
-	}
-
-	return true;
+	return ExportCompiled8BitTexture(filePath.Object(), pixelData, compileHeader, numberOfColors);
 }
 
 
@@ -385,53 +388,52 @@ void TextureCompiler::Init()
 }
 
 
-bool ExportCompiled8BitTexture(const char* textureName, uint8_t* compiledTextureData, Hail::TextureHeader textureHeader, uint32_t numberOfColors)
+bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureData, TextureHeader textureHeader, uint32_t numberOfColors)
 {
-	Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", textureName));
-	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));
-
-	if (std::filesystem::exists(TEXTURES_DIR_OUT) == false)
+	InOutStream textureExporter;
+	textureName.SetExtension(L"txr");
+	FilePath finalPath = FilePath(TEXTURES_DIR_OUT) + textureName;
+	
+	if (!textureExporter.OpenFile(finalPath, FILE_OPEN_TYPE::WRITE, true))
 	{
-		std::filesystem::create_directory(TEXTURES_DIR_OUT);
-	}
-
-	String256 outPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
-	std::ofstream outStream(outPath.Data(), std::ios::out | std::ios::binary);
-	if (!outStream)
-	{
-		Debug_PrintConsoleConstChar("ERROR: Failed to export^");
+		//Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
 		return false;
 	}
-	outStream.write((char*)&textureHeader, sizeof(textureHeader));
+	String64 nameCString;
+	FromWCharToConstChar(textureName.Name(), nameCString, 64);
+	Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", nameCString));
+	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));
+
+	textureExporter.Write((char*)&textureHeader, sizeof(textureHeader), 1);
 
 	for (uint32_t i = 0; i < textureHeader.width * textureHeader.height * numberOfColors; i+= numberOfColors)
 	{
 		switch (numberOfColors)
 		{
 		case 1:
-			outStream.write((char*)&compiledTextureData[i], sizeof(char));
+			textureExporter.Write((char*)&compiledTextureData[i], sizeof(char), 1);
 			break;
 		case 2:
-			outStream.write((char*)&compiledTextureData[i], sizeof(char));
-			outStream.write((char*)&compiledTextureData[i + 1], sizeof(char));
+			textureExporter.Write((char*)&compiledTextureData[i], sizeof(char), 1);
+			textureExporter.Write((char*)&compiledTextureData[i + 1], sizeof(char), 1);
 			break;
 		case 3:
-			outStream.write((char*)&compiledTextureData[i + 2], sizeof(char)); //flipping to rgb from bgr
-			outStream.write((char*)&compiledTextureData[i + 1], sizeof(char));
-			outStream.write((char*)&compiledTextureData[i], sizeof(char));
+			textureExporter.Write((char*)&compiledTextureData[i + 2], sizeof(char), 1); //flipping to rgb from bgr
+			textureExporter.Write((char*)&compiledTextureData[i + 1], sizeof(char), 1);
+			textureExporter.Write((char*)&compiledTextureData[i], sizeof(char), 1);
 			break;
 		case 4:
-			outStream.write((char*)&compiledTextureData[i + 2], sizeof(char)); //flipping to rgb from bgr
-			outStream.write((char*)&compiledTextureData[i + 1], sizeof(char));
-			outStream.write((char*)&compiledTextureData[i], sizeof(char));
-			outStream.write((char*)&compiledTextureData[i + 3], sizeof(char));
+			textureExporter.Write((char*)&compiledTextureData[i + 2], sizeof(char), 1); //flipping to rgb from bgr
+			textureExporter.Write((char*)&compiledTextureData[i + 1], sizeof(char), 1);
+			textureExporter.Write((char*)&compiledTextureData[i], sizeof(char), 1);
+			textureExporter.Write((char*)&compiledTextureData[i + 3], sizeof(char), 1);
 			break;
 		default:
 			break;
 		}
 	}
 	//outStream.write((char*)&compiledTextureData, textureHeader.width * textureHeader.height * sizeOfColor * numberOfColors);
-	outStream.close();
+	textureExporter.CloseFile();
 	return true;
 }
 

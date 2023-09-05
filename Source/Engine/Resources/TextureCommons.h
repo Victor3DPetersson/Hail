@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "Types.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
 #include "DebugMacros.h"
@@ -8,7 +9,7 @@
 
 namespace Hail
 {
-	enum class TEXTURE_TYPE : uint32_t
+	enum class TEXTURE_TYPE : uint16
 	{
 		R32G32B32A32F,
 		R32G32B32F,

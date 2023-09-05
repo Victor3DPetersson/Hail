@@ -54,6 +54,7 @@ namespace Hail
 		const WString64& Name() const { return m_name; }
 		const WString64& ParentName() const { return m_parentName; }
 		const WString64& Extension() const { return m_extension; }
+		void SetExtension(WString64 newExtension);
 		bool IsDirectory() const { return m_isDirectory; }
 		bool IsValid() const;
 		bool IsFile() const { return !m_isDirectory; }
@@ -174,6 +175,7 @@ namespace Hail
 		bool IsDirectory() const { return m_isDirectory; }
 		bool IsValid() const;
 		bool IsFile() const	{ return !m_isDirectory; }
+		bool IsEmpty() const { return m_length == 0; }
 		uint32_t Length() const { return m_length; }
 		uint16_t GetDirectoryLevel() const { return m_directoryLevel; }
 		void AddWildcard();

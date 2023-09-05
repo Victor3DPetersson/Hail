@@ -1,6 +1,4 @@
 #pragma once
-#include "Containers\StaticArray\StaticArray.h"
-#include "Utilities.h"
 
 namespace Hail
 {

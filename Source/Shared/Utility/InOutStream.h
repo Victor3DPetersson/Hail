@@ -1,5 +1,6 @@
 #pragma once
 #include <ios>
+#include "Types.h"
 #include "FilePath.hpp"
 namespace Hail
 {
@@ -20,15 +21,17 @@ namespace Hail
 		bool OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpenFile, bool binaryMode);
 		void CloseFile();
 		size_t GetFileSize() const { return m_fileSize; }
+		size_t GetFileSeekPosition() const { return m_currentPosition; }
 
 		//This function will return false if the file has not been opened in a read state
-		bool Read(void* readOutData, size_t sizeOfData, size_t numberOfElements);
+		bool Read(void* readOutData, size_t sizeOfData, size_t numberOfElements = 1);
 		//This function will return false if the file have not been opened in a write state
-		bool Write(const void* writeOutData, size_t sizeOfData, size_t numberOfElements);
+		bool Write(const void* writeOutData, size_t sizeOfData, size_t numberOfElements = 1);
 
-		bool Seek(size_t sizeOfData, size_t numberOfElements);
+		bool Seek(int64 sizeOfData, int64 numberOfElements);
 
 		void SeekToStart();
+		void SeekToEnd();
 
 		bool IsReading();
 		bool IsWriting();

@@ -44,6 +44,23 @@ namespace Hail
 		}
 		return true;
 	}
+	bool StringCompare(const wchar_t* string1, const wchar_t* string2)
+	{
+		const size_t size1 = StringLength(string1);
+		const size_t size2 = StringLength(string2);
+		if (size1 != size2)
+		{
+			return false;
+		}
+		for (size_t i = 0; i < size1; i++)
+		{
+			if (string1[i] != string2[i])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
 	bool StringContains(const char* string, const char charToFind)
 	{
 		const size_t stringSize = StringLength(string);

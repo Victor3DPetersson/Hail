@@ -6,6 +6,7 @@ constexpr uint32_t REQUIRED_TEXTURE_COUNT = 3;
 namespace Hail
 {
 	class ResourceManager;
+
 	class TextureManager
 	{
 		friend class ResourceManager;

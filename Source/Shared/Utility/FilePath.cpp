@@ -319,6 +319,14 @@ void Hail::FilePath::FindExtension()
     CreateFileObject();
 }
 
+void Hail::FileObject::SetExtension(WString64 newExtension)
+{
+    if (!m_isDirectory)
+    {
+        m_extension = newExtension;
+    }
+}
+
 bool Hail::FileObject::IsValid() const
 {
     return m_name.Length() != 0;

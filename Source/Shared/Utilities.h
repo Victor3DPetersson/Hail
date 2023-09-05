@@ -2,19 +2,6 @@
 #include "glm\vec2.hpp"
 #include <type_traits>
 
-using uint8 = unsigned char;
-using uint16 = unsigned short;
-using uint32 = unsigned int;
-using uint64 = unsigned long long;
-
-using int8 = char;
-using int16 = short;
-using int32 = int;
-using int64 = long long;
-
-using float32 = float;
-using float64 = double;
-
 template <typename E>
 constexpr typename std::underlying_type<E>::type ToUnderlyingType(E e) noexcept 
 {

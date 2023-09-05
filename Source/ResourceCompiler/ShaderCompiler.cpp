@@ -3,12 +3,11 @@
 
 #include "shaderc/shaderc.hpp"
 
-#include <filesystem>
-
 #include "DebugMacros.h"
 
-#include <iostream>
-#include <fstream>
+#include "Utility\FileSystem.h"
+#include "Utility\StringUtility.h"
+#include "Utility\InOutStream.h"
 
 namespace Hail
 {
@@ -33,27 +32,23 @@ namespace Hail
 	bool ShaderCompiler::CompileAndExportAllRequiredShaders(const char** requiredShaders, uint32_t numberOfRequiredShaders)
 	{
 		shaderc_compiler_t compiler = shaderc_compiler_initialize();
-		std::filesystem::path pathToShow{ SHADER_DIR_IN };
-		Debug_PrintConsoleString256(String256(pathToShow.string().c_str()));
-		GrowingArray<std::filesystem::directory_entry> shadersToCompile = GrowingArray<std::filesystem::directory_entry>(numberOfRequiredShaders);
-		for (auto& entry : std::filesystem::directory_iterator(pathToShow)) {
-			const auto filenameStr = entry.path().filename().replace_extension().string();
-			if (entry.is_directory())
-			{
-				//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tdir:  ", filenameStr));
-			}
-			else if (entry.is_regular_file())
+		RecursiveFileIterator pathToShow = RecursiveFileIterator(SHADER_DIR_IN);
+		String256 fileName;
+		GrowingArray<FilePath> shadersToCompile = GrowingArray<FilePath>(numberOfRequiredShaders);
+		while (pathToShow.IterateOverFolder()) 
+		{
+			FilePath currentPath = pathToShow.GetCurrentPath();
+			if (currentPath.IsFile())
 			{
 				for (uint32_t i = 0; i < numberOfRequiredShaders; i++)
 				{
-					if (strcmp(requiredShaders[i], filenameStr.c_str()) == 0)
+					FromWCharToConstChar(currentPath.Object().Name(), fileName, 256);
+					if (StringCompare(requiredShaders[i], fileName) 
+						&& StringCompare(currentPath.Object().Extension(), L"frag")
+						|| StringCompare(currentPath.Object().Extension(), L"vert"))
 					{
 						//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
-						const String64 extension = entry.path().extension().string().c_str();
-						if (extension == String64(".frag") || extension == String64(".vert"))
-						{
-							shadersToCompile.Add(entry);
-						}
+						shadersToCompile.Add(currentPath);
 					}
 				}
 			}
@@ -68,33 +63,19 @@ namespace Hail
 		shaderc_compile_options_set_target_env(compileOptions, shaderc_target_env::shaderc_target_env_vulkan, 0);
 		for (uint32_t i = 0; i < numberOfRequiredShaders; i++)
 		{
-			const String256 shaderName = shadersToCompile[i].path().filename().replace_extension().string();
-			const String64 shaderExtension = shadersToCompile[i].path().extension().string();
-
-			uint32_t memblockSize = 0;
-			std::ifstream stream(shadersToCompile[i].path().string().c_str());
-			if (!stream)
+			InOutStream stream;
+			if (!stream.OpenFile(shadersToCompile[i], FILE_OPEN_TYPE::READ, false))
 			{
 				continue;
 			}
 			GrowingArray<char> readShader;
-			std::string line;
-			stream.seekg(0);
-			char character = 1;
-			uint32_t sizeofchar = sizeof(char);
-			while (stream.peek() != EOF)
-			{
-				stream.read(&character, sizeof(char));
-				memblockSize++;
-			}
-			stream.clear();
-			stream.seekg(0);
-			readShader.InitAndFill(memblockSize);
-			stream.read(readShader.Data(), memblockSize);
-			//readShader[memblockSize] = '\0';//null terminating the string
-			//DEBUG_PRINT_CONSOLE_CONSTCHAR(readShader.Data());
-
-			if (!CompileShaderInternalGLSL(compiler, CheckShaderType(shaderExtension), shaderName.Data(), readShader, compileOptions))
+			readShader.InitAndFill(stream.GetFileSize());
+			stream.Read(readShader.Data(), stream.GetFileSize());
+			String64 shaderName;
+			FromWCharToConstChar(shadersToCompile[i].Object().Name(), shaderName, 64);
+			String64 extension;
+			FromWCharToConstChar(shadersToCompile[i].Object().Extension(), extension, 64);
+			if (!CompileShaderInternalGLSL(compiler, CheckShaderType(extension), shaderName.Data(), readShader, compileOptions))
 			{
 				shaderc_compile_options_release(compileOptions);
 				shaderc_compiler_release(compiler);
@@ -111,52 +92,49 @@ namespace Hail
 	bool ShaderCompiler::CompileSpecificShader(const char* shaderName, SHADERTYPE shaderType)
 	{
 		shaderc_compiler_t compiler = shaderc_compiler_initialize();
-		std::filesystem::path pathToShow{ SHADER_DIR_IN };
-		Debug_PrintConsoleString256(String256(pathToShow.string().c_str()));
-		String64 extension{};
+		WString64 extension{};
+		WString64 wShaderName;
+		FromConstCharToWChar(shaderName, wShaderName, 64);
 		switch (shaderType)
 		{
 		case Hail::SHADERTYPE::COMPUTE:
-			extension = ".cmp";
+			extension = L"cmp";
 			break;
 		case Hail::SHADERTYPE::VERTEX:
-			extension = ".vert";
+			extension = L"vert";
 			break;
 		case Hail::SHADERTYPE::CONTROL:
-			extension = ".ctrl";
+			extension = L"ctrl";
 			break;
 		case Hail::SHADERTYPE::EVALUATION:
-			extension = ".evl";
+			extension = L"evl";
 			break;
 		case Hail::SHADERTYPE::FRAGMENT:
-			extension = ".frag";
+			extension = L"frag";
 			break;
 		default:
 			break;
 		}
-		String256 filePath{};
+		FilePath filePath{};
+		RecursiveFileIterator pathToShow = RecursiveFileIterator(SHADER_DIR_IN);
 		
-		for (auto& entry : std::filesystem::directory_iterator(pathToShow)) {
-			const auto filenameStr = entry.path().filename().replace_extension().string();
-			if (entry.is_directory())
+		while(pathToShow.IterateOverFolderRecursively())
+		{
+			FilePath currentPath = pathToShow.GetCurrentPath();
+			if (currentPath.IsFile())
 			{
-				//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tdir:  ", filenameStr));
-			}
-			else if (entry.is_regular_file())
-			{
-				if (strcmp(shaderName, filenameStr.c_str()) == 0)
+				if (StringCompare(wShaderName, currentPath.Object().Name()))
 				{
 					//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
-					const String64 fileExtension = entry.path().extension().string().c_str();
-					if (fileExtension == extension)
+					if (StringCompare(currentPath.Object().Extension(), extension))
 					{
-						filePath = entry.path().string();
+						filePath = currentPath;
 						break;
 					}
 				}
 			}
 		}
-		if (filePath.Empty())
+		if (filePath.IsEmpty())
 		{
 			return false;
 		}
@@ -164,26 +142,14 @@ namespace Hail
 		shaderc_compile_options_t compileOptions = shaderc_compile_options_initialize();
 		shaderc_compile_options_set_target_env(compileOptions, shaderc_target_env::shaderc_target_env_vulkan, 0);
 
-		uint32_t memblockSize = 0;
-		std::ifstream stream(filePath);
-		if (!stream)
+		InOutStream stream;
+		if (!stream.OpenFile(filePath, FILE_OPEN_TYPE::READ, false))
 		{
 			return false;
 		}
 		GrowingArray<char> readShader;
-		std::string line;
-		stream.seekg(0);
-		char character = 1;
-		uint32_t sizeofchar = sizeof(char);
-		while (stream.peek() != EOF)
-		{
-			stream.read(&character, sizeof(char));
-			memblockSize++;
-		}
-		stream.clear();
-		stream.seekg(0);
-		readShader.InitAndFill(memblockSize);
-		stream.read(readShader.Data(), memblockSize);
+		readShader.InitAndFill(stream.GetFileSize());
+		stream.Read(readShader.Data(), stream.GetFileSize());
 		//readShader[memblockSize] = '\0';//null terminating the string
 		//DEBUG_PRINT_CONSOLE_CONSTCHAR(readShader.Data());
 
@@ -264,24 +230,25 @@ namespace Hail
 	{
 		Debug_PrintConsoleString256(String256::Format("\nExporting Shader:\n%s:", shaderName));
 		Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shaderHeader.sizeOfShaderData, "\n"));
-
-		if (std::filesystem::exists(SHADER_DIR_OUT) == false)
 		{
-			std::filesystem::create_directory(SHADER_DIR_OUT);
+			FilePath filePath(SHADER_DIR_OUT);
+			filePath.CreateFileDirectory();
 		}
+		FilePath outPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
 
-		String256 outPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
-
-		std::ofstream outStream(outPath.Data(), std::ios::out | std::ios::binary);
-
-		outStream.write((char*)&shaderHeader, sizeof(shaderHeader));
+		InOutStream outStream;
+		if (!outStream.OpenFile(outPath, FILE_OPEN_TYPE::WRITE, true))
+		{
+			return;
+		}
+		outStream.Write((char*)&shaderHeader, sizeof(shaderHeader));
 		for (uint32_t i = 0; i < shaderHeader.sizeOfShaderData; i++)
 		{
-			outStream.write(&compiledShaderData[i], 1);
+			outStream.Write(&compiledShaderData[i], 1);
 			std::cout << compiledShaderData[i];
 		}
 		std::cout << std::endl;
-		outStream.close();
+		outStream.CloseFile();
 	}
 
 
