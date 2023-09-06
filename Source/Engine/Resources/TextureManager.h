@@ -21,7 +21,6 @@ namespace Hail
 
 
 	protected:
-		bool CompileRequiredTextures();
 		bool CompileTexture(const char* textureName);
 		void Cleanup();
 

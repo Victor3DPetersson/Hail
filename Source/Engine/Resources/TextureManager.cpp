@@ -12,9 +12,9 @@ namespace
 {
 	const char* REQUIRED_TEXTURES[REQUIRED_TEXTURE_COUNT] =
 	{
+		"cloud shapes test",
 		"Debug_Grid",
-		"spaceShip",
-		"cloud shapes test"
+		"spaceShip"
 	};
 	//TODO: Move the memory that is used here to a temporary memory buffer
 	void Read8BitStream(Hail::InOutStream& stream, void** outData, const uint32_t numberOfBytesToRead)
@@ -158,58 +158,14 @@ namespace Hail
 
 	bool TextureManager::LoadAllRequiredTextures()
 	{
-		GrowingArray<String256> foundCompiledTextures(REQUIRED_TEXTURE_COUNT);
-		RecursiveFileIterator fileIterator = RecursiveFileIterator(TEXTURES_DIR_OUT);
-
-		Debug_PrintConsoleString64(String64("Required Textures:    "));
+		for (size_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
 		{
-			FilePath currentPath;
-			while (fileIterator.IterateOverFolderRecursively())
+			if (!LoadTexture(REQUIRED_TEXTURES[i]))
 			{
-				currentPath = fileIterator.GetCurrentPath();
-				if (currentPath.IsFile())
-				{
-					const FileObject& currentFileObject = currentPath.Object();
-					String256 filenameStr;
-					FromWCharToConstChar(currentFileObject.Name(), filenameStr.Data(), 256);
-					Debug_PrintConsoleString256(String256::Format("%s%s", "\tfile: ", filenameStr));
-					foundCompiledTextures.Add(filenameStr);
-				}
-
+				return false;
 			}
 		}
-
-
-		uint32_t foundCounter = 0;
-		for (uint32_t texture = 0; texture < foundCompiledTextures.Size(); texture++)
-		{
-			bool foundTexture = false;
-			for (uint32_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
-			{
-				if (StringCompare(REQUIRED_TEXTURES[i], foundCompiledTextures[texture].Data()))
-				{
-					foundTexture = true;
-					foundCounter++;
-				}
-			}
-			if (!foundTexture)
-			{
-				foundCompiledTextures.RemoveCyclicAtIndex(texture);
-				texture--;
-			}
-		}
-		if (foundCounter == REQUIRED_TEXTURE_COUNT)
-		{
-			for (size_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
-			{
-				if (!LoadTexture(foundCompiledTextures[i]))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-		return CompileRequiredTextures();
+		return true;
 	}
 
 	GrowingArray<TextureResource>* TextureManager::GetTextures()
@@ -221,23 +177,6 @@ namespace Hail
 		return nullptr;
 	}
 
-	bool TextureManager::CompileRequiredTextures()
-	{
-		bool compilationSuccess = TextureCompiler::CompileAndExportAllRequiredTextures(REQUIRED_TEXTURES, REQUIRED_TEXTURE_COUNT);
-		if (compilationSuccess)
-		{
-			for (size_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
-			{
-				TextureResource textureResource;
-				CompiledTexture texture;
-				if (!LoadTexture(REQUIRED_TEXTURES[i]))
-				{
-					return false;
-				}
-			}
-		}
-		return compilationSuccess;
-	}
 
 	bool TextureManager::CompileTexture(const char* textureName)
 	{
