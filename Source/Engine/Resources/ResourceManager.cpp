@@ -90,6 +90,13 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 	return true;
 }
 
+void Hail::ResourceManager::ClearAllResources()
+{
+	m_platformTextureResourceManager.ClearAllResources();
+	m_platformMaterialResourceManager.ClearAllResources();
+	m_mainPassFrameBufferTexture->ClearResources(m_renderDevice);
+}
+
 void Hail::ResourceManager::SetTargetResolution(glm::uvec2 targetResolution)
 {
 	m_platformSwapChain.SetTargetResolution(targetResolution);

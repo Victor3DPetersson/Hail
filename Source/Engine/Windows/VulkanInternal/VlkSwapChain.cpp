@@ -108,7 +108,7 @@ void VlkSwapChain::CleanupSwapchain(VlkDevice& device)
 	}
 	vkDestroySwapchainKHR(device.GetDevice(), m_swapChain, nullptr);
 	m_swapChainFramebuffers.DeleteAllAndDeinit();
-	m_frameBufferTexture.CleanupResources(device, true);
+	m_frameBufferTexture.ClearResources(&device, true);
 }
 
 void VlkSwapChain::CreateSwapChain(VlkDevice& device)

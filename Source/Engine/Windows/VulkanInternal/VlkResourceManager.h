@@ -16,6 +16,7 @@ namespace Hail
 	{
 	public:
 		void Init(RenderingDevice* device);
+		void ClearAllResources();
 		bool CreateTextureData(CompiledTexture& textureData );
 
 		VlkTextureData& GetTextureData(uint32_t index);
@@ -27,19 +28,11 @@ namespace Hail
 		GrowingArray<VlkTextureData> m_textureData;
 	};
 
-	struct VlkBufferObject
-	{
-		VkBuffer m_buffer[MAX_FRAMESINFLIGHT];
-		VkDeviceMemory m_bufferMemory[MAX_FRAMESINFLIGHT];
-		void* m_bufferMapped[MAX_FRAMESINFLIGHT];
-	};
-
-
-
 	class VlkMaterialeResourceManager
 	{
 	public:
 		bool Init(RenderingDevice* device, VlkTextureResourceManager* textureResourceManager, VlkSwapChain* swapChain);
+		void ClearAllResources();
 		bool InitMaterial(Material& material, FrameBufferTexture* frameBufferTexture);
 		bool InitInstance(const Material material, MaterialInstance& instance);
 
@@ -56,7 +49,7 @@ namespace Hail
 		VlkSwapChain* m_swapChain = nullptr;
 		VlkDevice* m_device = nullptr;
 		VlkTextureResourceManager* m_textureResourceManager = nullptr;
-		VlkPassData m_passData[static_cast<uint32_t>(MATERIAL_TYPE::COUNT)];
+		VlkPassData m_passData[(uint32)(MATERIAL_TYPE::COUNT)];
 
 
 		VkDescriptorPool m_globalDescriptorPool = VK_NULL_HANDLE;
@@ -68,7 +61,7 @@ namespace Hail
 		VkSampler m_linearTextureSampler = VK_NULL_HANDLE;
 		VkSampler m_pointTextureSampler = VK_NULL_HANDLE;
 
-		VlkBufferObject m_buffers[static_cast<uint32_t>(BUFFERS::COUNT)];
+		VlkBufferObject m_buffers[(uint32)(BUFFERS::COUNT)];
 
 		VlkFrameBufferTexture* m_passesFrameBufferTextures[static_cast<uint32_t>(MATERIAL_TYPE::COUNT)];
 		//This is here so the local variables does not get optimized away in release

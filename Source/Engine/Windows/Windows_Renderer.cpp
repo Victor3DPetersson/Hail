@@ -360,12 +360,14 @@ void Hail::VlkRenderer::EndFrame()
 
 void VlkRenderer::Cleanup()
 {
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	vkDeviceWaitIdle(device.GetDevice());	  
 
 	vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
 	ImGui_ImplVulkan_Shutdown();
 
+	m_resourceManager->ClearAllResources();
+	m_swapChain->DestroySwapChain((VlkDevice*)(m_renderDevice));
 	//vkDestroySampler(device.GetDevice(), m_textureSampler, nullptr);
 	//vkDestroySampler(device.GetDevice(), m_pointTextureSampler, nullptr);
 
@@ -381,6 +383,11 @@ void VlkRenderer::Cleanup()
 
 	//vkDestroyDescriptorPool(device.GetDevice(), m_descriptorPool, nullptr);
 	//vkDestroyDescriptorSetLayout(device.GetDevice(), m_descriptorSetLayout, nullptr);
+
+	vkDestroyBuffer(device.GetDevice(), m_fullscreenVertexBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), m_fullscreenVertexBufferMemory, nullptr);
+	vkDestroyBuffer(device.GetDevice(), m_spriteVertexBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), m_spriteVertexBufferMemory, nullptr);
 
 	vkDestroyBuffer(device.GetDevice(), m_indexBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), m_indexBufferMemory, nullptr);

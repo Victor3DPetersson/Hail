@@ -38,6 +38,15 @@ namespace Hail
 
     }
 
+	void VlkTextureResourceManager::ClearAllResources()
+	{
+		for (size_t i = 0; i < m_textureData.Size(); i++)
+		{
+			m_textureData[i].CleanupResource(*m_device);
+		}
+		m_textureData.RemoveAll();
+	}
+
 	bool VlkTextureResourceManager::CreateTextureData(CompiledTexture& compiledTexture)
     {
 		VlkTextureData vlkTextureData{};
@@ -92,10 +101,9 @@ namespace Hail
 
 	FrameBufferTexture* VlkTextureResourceManager::FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat)
 	{
-		VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_device);
 		VlkFrameBufferTexture* frameBuffer = new VlkFrameBufferTexture(resolution, format, depthFormat);
 		frameBuffer->SetName(name);
-		frameBuffer->CreateFrameBufferTextureObjects(device);
+		frameBuffer->CreateFrameBufferTextureObjects(m_device);
 		return frameBuffer;
 	}
 
@@ -140,9 +148,31 @@ namespace Hail
 		}
 	}
 
+	void VlkMaterialeResourceManager::ClearAllResources()
+	{
+		if (!m_device)
+		{
+			//TODO: Add a assert here
+			return;
+		}
+		vkDestroySampler(m_device->GetDevice(), m_linearTextureSampler, nullptr);
+		vkDestroySampler(m_device->GetDevice(), m_pointTextureSampler, nullptr);
+		for (size_t i = 0; i < (uint32)(BUFFERS::COUNT); i++)
+		{
+			m_buffers[i].CleanupResource(*m_device);
+		}
+		for (size_t i = 0; i < (uint32)(MATERIAL_TYPE::COUNT); i++)
+		{
+			//m_passesFrameBufferTextures[i]->CleanupResources(*m_device, false);
+			m_passData[i].CleanupResource(*m_device);
+		}
+		vkDestroyDescriptorSetLayout(m_device->GetDevice(), m_globalPerFrameSetLayout, nullptr);
+		vkDestroyDescriptorPool(m_device->GetDevice(), m_globalDescriptorPool, nullptr);
+	}
+
 	bool VlkMaterialeResourceManager::InitMaterial(Material& material, FrameBufferTexture* frameBufferTexture)
 	{
-		m_passesFrameBufferTextures[static_cast<uint32_t>(material.m_type)] = reinterpret_cast<VlkFrameBufferTexture*>(frameBufferTexture);
+		m_passesFrameBufferTextures[(uint32)(material.m_type)] = reinterpret_cast<VlkFrameBufferTexture*>(frameBufferTexture);
 		bool result = CreateMaterialPipeline(material);
 		return result;
 	}
@@ -551,14 +581,14 @@ namespace Hail
 		return true;
 	}
 
-	[[nodiscard]] volatile bool ValidateDescriptorSamplerWrite(VkDescriptorImageInfo& descriptorToValidate)
+	bool ValidateDescriptorSamplerWrite(VkDescriptorImageInfo& descriptorToValidate)
 	{
 		bool returnValue = true;
 		returnValue |= descriptorToValidate.imageView != VK_NULL_HANDLE;
 		returnValue |= descriptorToValidate.sampler != VK_NULL_HANDLE;
 		return returnValue;
 	}
-	[[nodiscard]] volatile bool ValidateDescriptorBufferWrite(VkDescriptorBufferInfo& descriptorToValidate)
+	bool ValidateDescriptorBufferWrite(VkDescriptorBufferInfo& descriptorToValidate)
 	{
 		bool returnValue = true;
 		returnValue |= descriptorToValidate.buffer != VK_NULL_HANDLE;
@@ -704,7 +734,7 @@ namespace Hail
 					setWrites.Init(1);
 
 					m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-					m_descriptorImageInfo.imageView = m_passesFrameBufferTextures[static_cast<uint32_t>(MATERIAL_TYPE::SPRITE)]->GetTextureImage(i).imageView;
+					m_descriptorImageInfo.imageView = m_passesFrameBufferTextures[(uint32)(MATERIAL_TYPE::SPRITE)]->GetTextureImage(i).imageView;
 					m_descriptorImageInfo.sampler = m_pointTextureSampler;
 					if (!ValidateDescriptorSamplerWrite(m_descriptorImageInfo))
 					{
@@ -914,7 +944,9 @@ namespace Hail
 		}
 		else
 		{
-			for (uint32_t i = 0; i < m_swapChain->GetSwapchainImageCount(); i++)
+			passData.m_ownsFrameBuffer = false;
+			passData.m_ownsRenderpass = false;
+			for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 			{
 				passData.m_frameBuffer[i] = m_swapChain->GetFrameBuffer(i);
 			}

@@ -20,6 +20,7 @@ namespace Hail
 	public:
 		ResourceManager();
 		bool InitResources(RenderingDevice* renderingDevice);
+		void ClearAllResources();
 		MaterialManager& GetMaterialManager() { return m_materialManager; }
 		TextureManager& GetTextureManager() { return m_textureManager; }
 

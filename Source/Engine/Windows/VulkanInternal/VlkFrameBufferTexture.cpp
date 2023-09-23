@@ -22,57 +22,59 @@ namespace Hail
 		NullMemory();
 	}
 
-	void VlkFrameBufferTexture::CreateFrameBufferTextureObjects(VlkDevice& device)
+	void VlkFrameBufferTexture::CreateFrameBufferTextureObjects(RenderingDevice* device)
 	{
+		VlkDevice* vlkDevice = (VlkDevice*)device;
+
+
 		uint32_t attachmentCount = 0;
 		attachmentCount += m_textureFormat != TEXTURE_FORMAT::UNDEFINED ? 1 : 0;
 		attachmentCount += m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED ? 1 : 0;
 
 		if (m_textureFormat != TEXTURE_FORMAT::UNDEFINED && m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED )
 		{
-			CreateTexture(device);
-			CreateDepthTexture(device);
+			CreateTexture(*vlkDevice);
+			CreateDepthTexture(*vlkDevice);
 		}
 		else if(m_textureFormat != TEXTURE_FORMAT::UNDEFINED)
 		{
-			CreateTexture(device);
+			CreateTexture(*vlkDevice);
 		}
 		else if(m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED)
 		{
-			CreateDepthTexture(device);
+			CreateDepthTexture(*vlkDevice);
 		}
 	}
 
-	void VlkFrameBufferTexture::CleanupResources(VlkDevice& device, bool isSwapChain)
+	void VlkFrameBufferTexture::ClearResources(RenderingDevice* device, bool isSwapChain)
 	{
+		VlkDevice* vlkDevice = (VlkDevice*)device;
 		for (size_t i = 0; i < MAX_FRAMESINFLIGHT * 2; i++)
 		{
 			if(m_textureImage[i] && !isSwapChain)
 			{
-				vkDestroyImage(device.GetDevice(), m_textureImage[i], nullptr);
+				vkDestroyImage(vlkDevice->GetDevice(), m_textureImage[i], nullptr);
 			}
 			m_textureImage[i] = nullptr;
 			if (m_textureView[i])
 			{
-				vkDestroyImageView(device.GetDevice(), m_textureView[i], nullptr);
+				vkDestroyImageView(vlkDevice->GetDevice(), m_textureView[i], nullptr);
 				m_textureView[i] = nullptr;
 			}
 			if (m_textureMemory[i])
 			{
-				vkFreeMemory(device.GetDevice(), m_textureMemory[i], nullptr);
+				vkFreeMemory(vlkDevice->GetDevice(), m_textureMemory[i], nullptr);
 				m_textureMemory[i] = nullptr;
 			}
 			if (m_depthTextureImage[i])
 			{
 				
-				vkDestroyImageView(device.GetDevice(), m_depthTextureView[i], nullptr);
-				vkFreeMemory(device.GetDevice(), m_depthTextureMemory[i], nullptr);
-				vkDestroyImage(device.GetDevice(), m_depthTextureImage[i], nullptr);
+				vkDestroyImageView(vlkDevice->GetDevice(), m_depthTextureView[i], nullptr);
+				vkFreeMemory(vlkDevice->GetDevice(), m_depthTextureMemory[i], nullptr);
+				vkDestroyImage(vlkDevice->GetDevice(), m_depthTextureImage[i], nullptr);
 			}
 		}
 	}
-
-
 
 	FrameBufferTextureData Hail::VlkFrameBufferTexture::GetTextureImage(uint32_t index)
 	{

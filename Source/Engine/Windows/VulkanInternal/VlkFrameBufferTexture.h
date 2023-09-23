@@ -7,8 +7,6 @@
 
 namespace Hail
 {
-	class VlkDevice;
-
 	struct FrameBufferTextureData
 	{
 		FrameBufferTextureData() = delete;
@@ -24,9 +22,9 @@ namespace Hail
 	public:
 		VlkFrameBufferTexture();
 		VlkFrameBufferTexture(glm::uvec2 resolution, TEXTURE_FORMAT format = TEXTURE_FORMAT::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED);
-		void CreateFrameBufferTextureObjects(VlkDevice& device);
+		void CreateFrameBufferTextureObjects(RenderingDevice* device) override;
 		//TODO: Make device be inherited from main framework and pass in a pointer to that framework here
-		void CleanupResources(VlkDevice& device, bool isSwapchain = false);
+		void ClearResources(RenderingDevice* device, bool isSwapchain = false) override;
 
 		FrameBufferTextureData GetTextureImage(uint32_t index);
 		FrameBufferTextureData GetDepthTextureImage(uint32_t index);
