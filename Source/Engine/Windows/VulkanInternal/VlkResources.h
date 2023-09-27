@@ -41,8 +41,8 @@ namespace Hail
 		VkImage textureImage = VK_NULL_HANDLE;
 		VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
 		VkImageView textureImageView = VK_NULL_HANDLE;
-		void CleanupResource(VlkDevice& device);
 	};
+
 	struct VlkBufferObject
 	{
 		VkBuffer m_buffer[MAX_FRAMESINFLIGHT];

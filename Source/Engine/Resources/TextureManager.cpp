@@ -54,10 +54,10 @@ namespace
 
 namespace Hail
 {
-	TextureManager::TextureManager()
+
+	void TextureManager::Init(RenderingDevice* device)
 	{
-		//m_compiledRequiredTextures.Init(REQUIRED_TEXTURE_COUNT);
-		m_loadedTextures.Init(10);
+		m_textureCommonData.Init(10);
 	}
 
 	void TextureManager::Update()
@@ -65,8 +65,21 @@ namespace Hail
 		//TODO: Add file watcher here
 	}
 
-	bool TextureManager::LoadTexture(const char* textureName)
+	bool TextureManager::LoadAllRequiredTextures()
 	{
+		for (size_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
+		{
+			if (!LoadTexture(REQUIRED_TEXTURES[i]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool TextureManager::LoadTextureInternal(const char* textureName)
+	{
+		TextureResource resource;
 		CompiledTexture outTexture;
 		String256 inPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
 
@@ -118,7 +131,7 @@ namespace Hail
 			delete[] tempData;
 		}
 
-			break;
+		break;
 		case TEXTURE_TYPE::R8_SRGB:
 			Read8BitStream(inStream, &outTexture.compiledColorValues, GetTextureByteSize(outTexture.header));
 			break;
@@ -148,35 +161,13 @@ namespace Hail
 
 		outTexture.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 
-		TextureResource textureResource{};
-		textureResource.m_compiledTextureData = outTexture;
-		textureResource.index = m_loadedTextures.Size();
-		textureResource.textureName = textureName;
-		m_loadedTextures.Add(textureResource);
+		resource.m_compiledTextureData = outTexture;
+		resource.textureName = textureName;
+		resource.index = m_textureCommonData.Size();
+		m_textureCommonData.Add(resource);
+
 		return true;
 	}
-
-	bool TextureManager::LoadAllRequiredTextures()
-	{
-		for (size_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
-		{
-			if (!LoadTexture(REQUIRED_TEXTURES[i]))
-			{
-				return false;
-			}
-		}
-		return true;
-	}
-
-	GrowingArray<TextureResource>* TextureManager::GetTextures()
-	{
-		if (m_loadedTextures.IsInitialized() && m_loadedTextures.Size() == REQUIRED_TEXTURE_COUNT)
-		{
-			return  &m_loadedTextures;
-		}
-		return nullptr;
-	}
-
 
 	bool TextureManager::CompileTexture(const char* textureName)
 	{
@@ -212,9 +203,4 @@ namespace Hail
 		return TextureCompiler::CompileSpecificTGATexture(currentPath);
 	}
 
-
-	void TextureManager::Cleanup()
-	{
-		m_loadedTextures.DeleteAll();
-	}
 }

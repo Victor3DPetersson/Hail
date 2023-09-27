@@ -34,22 +34,37 @@ namespace Hail
     void VlkTextureResourceManager::Init(RenderingDevice* device)
     {
         m_device = reinterpret_cast<VlkDevice*>(device);
-		m_textureData.Init(10);
-
+		m_textures.Init(10);
+		TextureManager::Init(device);
     }
 
 	void VlkTextureResourceManager::ClearAllResources()
 	{
-		for (size_t i = 0; i < m_textureData.Size(); i++)
+		for (size_t i = 0; i < m_textures.Size(); i++)
 		{
-			m_textureData[i].CleanupResource(*m_device);
+			m_textures[i].CleanupResource(m_device);
 		}
-		m_textureData.RemoveAll();
+		m_textures.RemoveAll();
 	}
 
-	bool VlkTextureResourceManager::CreateTextureData(CompiledTexture& compiledTexture)
+	bool VlkTextureResourceManager::LoadTexture(const char* textureName)
+	{
+		VlkTextureResource textureResource;
+		if (LoadTextureInternal(textureName))
+		{
+			if (!CreateTextureData(m_textureCommonData.GetLast().m_compiledTextureData, textureResource.GetVlkTextureData()))
+			{
+				textureResource.CleanupResource(m_device);
+				return false;
+			}
+		}
+		m_textures.Add(textureResource);
+
+		return true;
+	}
+
+	bool VlkTextureResourceManager::CreateTextureData(CompiledTexture& compiledTexture, VlkTextureData& vlkTextureData)
     {
-		VlkTextureData vlkTextureData{};
 
 		VlkDevice& device = *m_device;
 		if (compiledTexture.loadState != TEXTURE_LOADSTATE::LOADED_TO_RAM)
@@ -87,16 +102,13 @@ namespace Hail
 		vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 
 		vlkTextureData.textureImageView = CreateImageView(device, vlkTextureData.textureImage, textureFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-
-		m_textureData.Add(vlkTextureData);
-
 		return true;
     }
 
 
     VlkTextureData& VlkTextureResourceManager::GetTextureData(uint32_t index)
     {
-		return m_textureData[index];
+		return m_textures[index].GetVlkTextureData();
     }
 
 	FrameBufferTexture* VlkTextureResourceManager::FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat)
@@ -108,11 +120,11 @@ namespace Hail
 	}
 
 
-	bool VlkMaterialeResourceManager::Init(RenderingDevice* device, VlkTextureResourceManager* textureResourceManager, VlkSwapChain* swapChain)
+	bool VlkMaterialeResourceManager::Init(RenderingDevice* device, TextureManager* textureResourceManager, VlkSwapChain* swapChain)
 	{
 		m_device = reinterpret_cast<VlkDevice*>(device);
 		m_swapChain = swapChain;
-		m_textureResourceManager = textureResourceManager;
+		m_textureResourceManager = (VlkTextureResourceManager*)textureResourceManager;
 		m_linearTextureSampler = CreateTextureSampler(*m_device, TextureSamplerData{});
 		TextureSamplerData pointSamplerData;
 		pointSamplerData.sampler_mode = TEXTURE_SAMPLER_FILTER_MODE::POINT;

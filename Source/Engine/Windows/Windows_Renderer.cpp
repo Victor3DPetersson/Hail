@@ -368,21 +368,6 @@ void VlkRenderer::Cleanup()
 
 	m_resourceManager->ClearAllResources();
 	m_swapChain->DestroySwapChain((VlkDevice*)(m_renderDevice));
-	//vkDestroySampler(device.GetDevice(), m_textureSampler, nullptr);
-	//vkDestroySampler(device.GetDevice(), m_pointTextureSampler, nullptr);
-
-	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++) 
-	{
-		//vkDestroyBuffer(device.GetDevice(), m_uniformBuffers[i], nullptr);
-		//vkFreeMemory(device.GetDevice(), m_uniformBuffersMemory[i], nullptr);
-
-		//vkDestroyBuffer(device.GetDevice(), m_perFrameDataBuffers[i], nullptr);
-		//vkFreeMemory(device.GetDevice(), m_perFrameDataBuffersMemory[i], nullptr);
-	}
-
-
-	//vkDestroyDescriptorPool(device.GetDevice(), m_descriptorPool, nullptr);
-	//vkDestroyDescriptorSetLayout(device.GetDevice(), m_descriptorSetLayout, nullptr);
 
 	vkDestroyBuffer(device.GetDevice(), m_fullscreenVertexBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), m_fullscreenVertexBufferMemory, nullptr);
@@ -394,8 +379,6 @@ void VlkRenderer::Cleanup()
 	vkDestroyBuffer(device.GetDevice(), m_vertexBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), m_vertexBufferMemory, nullptr);
 
-	//vkDestroyPipeline(device.GetDevice(), m_graphicsPipeline, nullptr);
-	//vkDestroyPipelineLayout(device.GetDevice(), m_pipelineLayout, nullptr);
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
 		vkDestroySemaphore(device.GetDevice(), m_imageAvailableSemaphores[i], nullptr);

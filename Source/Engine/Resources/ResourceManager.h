@@ -22,7 +22,7 @@ namespace Hail
 		bool InitResources(RenderingDevice* renderingDevice);
 		void ClearAllResources();
 		MaterialManager& GetMaterialManager() { return m_materialManager; }
-		TextureManager& GetTextureManager() { return m_textureManager; }
+		TextureManager* GetTextureManager() { return m_textureManager; }
 
 		void SetTargetResolution(glm::uvec2 targetResolution);
 
@@ -42,7 +42,6 @@ namespace Hail
 		void SetSwapchainTargetResolution(glm::uvec2 targetResolution);
 
 #ifdef PLATFORM_WINDOWS
-		VlkTextureResourceManager& GetVulkanTextureResources() { return m_platformTextureResourceManager; }
 		VlkMaterialeResourceManager& GetVulkanMaterialResources() { return m_platformMaterialResourceManager; }
 		VlkSwapChain& GetVulkanSwapChain() { return m_platformSwapChain; }
 #endif
@@ -54,11 +53,10 @@ namespace Hail
 	private:
 
 		MaterialManager m_materialManager;
-		TextureManager m_textureManager;
+		TextureManager* m_textureManager;
 		RenderingDevice* m_renderDevice;
 
 #ifdef PLATFORM_WINDOWS
-		VlkTextureResourceManager m_platformTextureResourceManager;
 		VlkMaterialeResourceManager m_platformMaterialResourceManager;
 		VlkSwapChain m_platformSwapChain;
 #endif

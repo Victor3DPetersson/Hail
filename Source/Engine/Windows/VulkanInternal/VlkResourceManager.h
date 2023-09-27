@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Resources\TextureManager.h"
 #include "Resources\MaterialResources.h"
 #include "VlkResources.h"
 #include "Rendering\UniformBufferManager.h"
+#include "Resources\Vulkan\VlkTextureResource.h"
 
 namespace Hail
 {
@@ -12,26 +14,27 @@ namespace Hail
 	class VlkFrameBufferTexture;
 	class VlkSwapChain;
 
-	class VlkTextureResourceManager
+	class VlkTextureResourceManager : public TextureManager
 	{
 	public:
-		void Init(RenderingDevice* device);
-		void ClearAllResources();
-		bool CreateTextureData(CompiledTexture& textureData );
+		void Init(RenderingDevice* device) final;
+		void ClearAllResources() final;
+		bool LoadTexture(const char* textureName) final;
 
 		VlkTextureData& GetTextureData(uint32_t index);
-		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat);
+		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) final;
 
 	private:
+		bool CreateTextureData(CompiledTexture& textureData, VlkTextureData& vlkTextureData);
 		VlkDevice* m_device;
 
-		GrowingArray<VlkTextureData> m_textureData;
+		GrowingArray<VlkTextureResource> m_textures;
 	};
 
 	class VlkMaterialeResourceManager
 	{
 	public:
-		bool Init(RenderingDevice* device, VlkTextureResourceManager* textureResourceManager, VlkSwapChain* swapChain);
+		bool Init(RenderingDevice* device, TextureManager* textureResourceManager, VlkSwapChain* swapChain);
 		void ClearAllResources();
 		bool InitMaterial(Material& material, FrameBufferTexture* frameBufferTexture);
 		bool InitInstance(const Material material, MaterialInstance& instance);

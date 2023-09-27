@@ -4,10 +4,10 @@
 
 namespace Hail
 {
+	class RenderingDevice;
 	class TextureResource
 	{
 	public:
-
 
 	//private:
 		String64 textureName;

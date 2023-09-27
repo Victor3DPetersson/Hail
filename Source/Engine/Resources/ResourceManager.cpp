@@ -21,30 +21,25 @@ Hail::ResourceManager::ResourceManager()
 	m_unitCube = CreateUnitCube();
 	m_unitSphere = CreateUnitSphere();
 	m_unitCylinder = CreateUnitCylinder();
+	m_textureManager = new VlkTextureResourceManager();
 }
 
 bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 {
 	m_renderDevice = renderingDevice;
 	m_platformSwapChain.Init(renderingDevice);
-	m_platformTextureResourceManager.Init(renderingDevice);
-	if (!m_platformMaterialResourceManager.Init(renderingDevice, &m_platformTextureResourceManager, &m_platformSwapChain))
+	m_textureManager->Init(renderingDevice);
+	if (!m_platformMaterialResourceManager.Init(renderingDevice, m_textureManager, &m_platformSwapChain))
 	{
 		return false;
 	}
 
-	m_mainPassFrameBufferTexture = m_platformTextureResourceManager.FrameBufferTexture_Create("MainRenderPass", m_platformSwapChain.GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
-	if (m_textureManager.LoadAllRequiredTextures())
-	{
-		for (uint32_t i = 0; i < m_textureManager.m_loadedTextures.Size(); i++)
-		{
-			m_platformTextureResourceManager.CreateTextureData(m_textureManager.m_loadedTextures[i].m_compiledTextureData);
-		}
-	}
-	else
+	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_platformSwapChain.GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
+	if (!m_textureManager->LoadAllRequiredTextures())
 	{
 		return false;
 	}
+
 	m_materialManager.Init();
 	//Temp for now
 	for (uint32_t i = 0; i < static_cast<uint32_t>(MATERIAL_TYPE::COUNT); i++)
@@ -92,7 +87,7 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 
 void Hail::ResourceManager::ClearAllResources()
 {
-	m_platformTextureResourceManager.ClearAllResources();
+	m_textureManager->ClearAllResources();
 	m_platformMaterialResourceManager.ClearAllResources();
 	m_mainPassFrameBufferTexture->ClearResources(m_renderDevice);
 }
@@ -111,16 +106,15 @@ void Hail::ResourceManager::LoadMaterial(String256 name)
 
 void Hail::ResourceManager::LoadTextureResource(String256 name)
 {
-	if (m_textureManager.LoadTexture(name))
+	if (m_textureManager->LoadTexture(name))
 	{
-		m_platformTextureResourceManager.CreateTextureData(m_textureManager.m_loadedTextures.GetLast().m_compiledTextureData);
 		//connect UUID through some system
 	}
 }
 
 void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer)
 {
-	const GrowingArray<TextureResource>& textures = *m_textureManager.GetTextures();
+	const GrowingArray<TextureResource>& textures = m_textureManager->GetTexturesCommonData();
 	const uint32_t numberOfSprites = renderPool.spriteCommands.Size();
 	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
 	{

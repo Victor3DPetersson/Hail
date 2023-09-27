@@ -49,25 +49,6 @@ void Hail::VlkPassData::CleanupResource(VlkDevice& device)
 	m_frameBufferTextures = nullptr;
 }
 
-void Hail::VlkTextureData::CleanupResource(VlkDevice& device)
-{
-	if (textureImageView != VK_NULL_HANDLE)
-	{
-		vkDestroyImageView(device.GetDevice(), textureImageView, nullptr);
-	}
-	if (textureImage != VK_NULL_HANDLE)
-	{
-		vkDestroyImage(device.GetDevice(), textureImage, nullptr);
-	}
-	if (textureImageMemory != VK_NULL_HANDLE)
-	{
-		vkFreeMemory(device.GetDevice(), textureImageMemory, nullptr);
-	}
-	textureImageView = VK_NULL_HANDLE;
-	textureImage = VK_NULL_HANDLE;
-	textureImageMemory = VK_NULL_HANDLE;
-}
-
 void Hail::VlkBufferObject::CleanupResource(VlkDevice& device)
 {
 	for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
