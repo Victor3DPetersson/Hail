@@ -6,6 +6,14 @@
 #include "RenderCommands.h"
 #include "Timer.h"
 
+#ifdef PLATFORM_WINDOWS
+#include "windows\VulkanInternal\VlkResourceManager.h"
+#include "windows\VulkanInternal\VlkSwapChain.h"
+#include "Resources\Vulkan\VlkTextureManager.h"
+#include "Resources\Vulkan\VlkMaterialManager.h"
+
+#endif
+
 namespace Hail
 {
 	Mesh CreateUnitCube();
@@ -21,50 +29,48 @@ Hail::ResourceManager::ResourceManager()
 	m_unitCube = CreateUnitCube();
 	m_unitSphere = CreateUnitSphere();
 	m_unitCylinder = CreateUnitCylinder();
+
+#ifdef PLATFORM_WINDOWS
 	m_textureManager = new VlkTextureResourceManager();
+	m_materialManager = new VlkMaterialManager();
+	m_renderingResourceManager = new VlkRenderingResourceManager();
+	m_swapChain = new VlkSwapChain();
+#endif
+
 }
 
 bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 {
 	m_renderDevice = renderingDevice;
-	m_platformSwapChain.Init(renderingDevice);
-	m_textureManager->Init(renderingDevice);
-	if (!m_platformMaterialResourceManager.Init(renderingDevice, m_textureManager, &m_platformSwapChain))
-	{
-		return false;
-	}
-
-	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_platformSwapChain.GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
+	m_swapChain->Init(m_renderDevice);
+	m_textureManager->Init(m_renderDevice);
+	m_renderingResourceManager->Init(m_renderDevice, m_swapChain);
+	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain );
+	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 	if (!m_textureManager->LoadAllRequiredTextures())
 	{
 		return false;
 	}
 
-	m_materialManager.Init();
 	//Temp for now
 	for (uint32_t i = 0; i < static_cast<uint32_t>(MATERIAL_TYPE::COUNT); i++)
 	{
-		if (!m_materialManager.LoadMaterial(static_cast<MATERIAL_TYPE>(i)))
-		{
-			return false;
-		}
 		switch (static_cast<MATERIAL_TYPE>(i))
 		{
 		case Hail::MATERIAL_TYPE::SPRITE:
-			if(!m_platformMaterialResourceManager.InitMaterial(m_materialManager.GetMaterial(static_cast<MATERIAL_TYPE>(i)), m_mainPassFrameBufferTexture))
+			if(!m_materialManager->InitMaterial((MATERIAL_TYPE)i, m_mainPassFrameBufferTexture))
 			{
 				return false;
 			}
-			
 			break;
 		case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-			if(!m_platformMaterialResourceManager.InitMaterial(m_materialManager.GetMaterial(static_cast<MATERIAL_TYPE>(i)), m_platformSwapChain.GetFrameBufferTexture()))
+			if(!m_materialManager->InitMaterial((MATERIAL_TYPE)i, m_swapChain->GetFrameBufferTexture()))
 			{
 				return false;
 			}
 			break;
 		case Hail::MATERIAL_TYPE::MODEL3D:
-			if(!m_platformMaterialResourceManager.InitMaterial(m_materialManager.GetMaterial(static_cast<MATERIAL_TYPE>(i)), m_mainPassFrameBufferTexture))
+			if(!m_materialManager->InitMaterial((MATERIAL_TYPE)i, m_mainPassFrameBufferTexture))
 			{
 				return false;
 			}
@@ -73,28 +79,48 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 			break;
 		}
 	}
-	MaterialInstance& instance1 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
+	MaterialInstance instance1;
 	instance1.m_textureHandles[0] = 1;
-	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance1);
-	MaterialInstance& instance2 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
+	m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance1);
+	MaterialInstance instance2;
 	instance2.m_textureHandles[0] = 2;
-	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance2);
-	MaterialInstance& instance3 = m_materialManager.CreateInstance(MATERIAL_TYPE::SPRITE);
+	m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance2);
+	MaterialInstance instance3;
 	instance3.m_textureHandles[0] = 0;
-	m_platformMaterialResourceManager.InitInstance(m_materialManager.GetMaterial(MATERIAL_TYPE::SPRITE), instance3);
+	m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance3);
 	return true;
 }
 
 void Hail::ResourceManager::ClearAllResources()
 {
 	m_textureManager->ClearAllResources();
-	m_platformMaterialResourceManager.ClearAllResources();
+	m_materialManager->ClearAllResources();
+	m_renderingResourceManager->ClearAllResources();
 	m_mainPassFrameBufferTexture->ClearResources(m_renderDevice);
 }
 
 void Hail::ResourceManager::SetTargetResolution(glm::uvec2 targetResolution)
 {
-	m_platformSwapChain.SetTargetResolution(targetResolution);
+	m_swapChain->SetTargetResolution(targetResolution);
+}
+
+void Hail::ResourceManager::ReloadResources()
+{
+	if (!m_reloadTextures)
+	{
+		return;
+	}
+
+	if (m_reloadTextures)
+	{
+		//TODO: Replace with guuids
+		GrowingArray<String64> reloadedTextures(10);
+		m_textureManager->ReloadAllTextures(reloadedTextures);
+
+
+	}
+
+	m_reloadTextures = false;
 }
 
 void Hail::ResourceManager::LoadMaterial(String256 name)
@@ -127,12 +153,12 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		spriteInstance.color = spriteCommand.color;
 		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotation() * Math::DegToRadf + Math::PIf * -0.5f, 0.0f };
 		//Get sprite texture size and sort with material and everything here to the correct place. 
-		const MaterialInstance& materialInstance = m_materialManager.GetMaterialInstance(spriteCommand.materialInstanceID);
+		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID);
 		const TextureResource& texture = textures[materialInstance.m_textureHandles[0]];
 		spriteInstance.textureSize_effectData_padding = { texture.m_compiledTextureData.header.width, texture.m_compiledTextureData.header.height, static_cast<uint32_t>(spriteCommand.sizeRelativeToRenderTarget), 0 };
 		m_spriteInstanceData.Add(spriteInstance);
 	}
-	m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
 	const float deltaTime = timer->GetDeltaTime();
 	const float totalTime = timer->GetTotalTime();
 
@@ -140,22 +166,21 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 
 	perFrameData.totalTime_horizonLevel.x = totalTime;
 	perFrameData.totalTime_horizonLevel.y = 0.0f;
-	perFrameData.mainRenderResolution = m_platformSwapChain.GetRenderTargetResolution();
-	perFrameData.mainWindowResolution = m_platformSwapChain.GetSwapChainResolution();
-	m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::PER_FRAME_DATA, &perFrameData, sizeof(perFrameData));
+	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
+	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
+	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::PER_FRAME_DATA, &perFrameData, sizeof(perFrameData));
 
 	TutorialUniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = Transform3D::GetMatrix(renderPool.renderCamera.GetTransform());
-	VkExtent2D swapExtent = m_platformSwapChain.GetSwapChainExtent();
 	ubo.proj = glm::perspective(glm::radians(renderPool.renderCamera.GetFov()), static_cast<float>(perFrameData.mainRenderResolution.x) / static_cast<float>(perFrameData.mainRenderResolution.y), renderPool.renderCamera.GetNear(), renderPool.renderCamera.GetFar());
 	ubo.proj[1][1] *= -1;
-	m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::TUTORIAL, &ubo, sizeof(ubo));
+	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::TUTORIAL, &ubo, sizeof(ubo));
 
 	if (!m_spriteInstanceData.Empty())
 	{
-		m_platformMaterialResourceManager.MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+		m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
 	}
 
 
@@ -168,7 +193,7 @@ void Hail::ResourceManager::ClearFrameData()
 
 void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolution)
 {
-	m_platformSwapChain.SetTargetResolution(targetResolution);
+	m_swapChain->SetTargetResolution(targetResolution);
 }
 
 Hail::Mesh Hail::CreateUnitCube()

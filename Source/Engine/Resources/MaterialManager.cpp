@@ -11,12 +11,16 @@ namespace Hail
 	void MaterialManager::Update()
 	{
 	}
-	void MaterialManager::Init()
+	void MaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain)
 	{
+		m_renderDevice = renderingDevice;
+		m_textureManager = textureResourceManager;
+		m_swapChain = swapChain;
+		m_renderingResourceManager = renderingResourceManager;
 		m_materialsInstanceData.Init(10);
 	}
-	//Index is temp
-	bool MaterialManager::LoadMaterial(MATERIAL_TYPE type)
+
+	bool MaterialManager::InitMaterial(MATERIAL_TYPE type, FrameBufferTexture* frameBufferToBindToMaterial)
 	{
 		Material material;
 		//Get this Data from a data file
@@ -47,8 +51,9 @@ namespace Hail
 
 		///VERY TEMP ABOVE ^
 		material.m_type = type;
-		m_materials[static_cast<uint32_t>(type)] = material;
-		return true;
+		m_materials[(uint32_t)(type)] = material;
+
+		return InitMaterialInternal(type, frameBufferToBindToMaterial);
 	}
 
 	Material& MaterialManager::GetMaterial(MATERIAL_TYPE materialType)
@@ -61,13 +66,12 @@ namespace Hail
 		return m_materialsInstanceData[instanceID];
 	}
 
-	MaterialInstance& MaterialManager::CreateInstance(MATERIAL_TYPE materialType)
+	bool MaterialManager::CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData)
 	{
-		MaterialInstance instance;
-		instance.m_instanceIdentifier = m_materialsInstanceData.Size();
-		instance.m_materialIdentifier = static_cast<uint32_t>(materialType);
-		m_materialsInstanceData.Add(instance);
-		return m_materialsInstanceData.GetLast();
+		instanceData.m_instanceIdentifier = m_materialsInstanceData.Size();
+		instanceData.m_materialIdentifier = static_cast<uint32_t>(materialType);
+		m_materialsInstanceData.Add(instanceData);
+		return InitMaterialInstanceInternal(m_materials[(uint32_t)(materialType)], m_materialsInstanceData.GetLast());
 	}
 
 	//TODO: Add relative path support in the shader output
@@ -124,7 +128,7 @@ namespace Hail
 		SAFEDELETE(m_compiler)
 	}
 
-	void MaterialManager::Cleanup()
+	void MaterialManager::ClearAllResources()
 	{
 	}
 }

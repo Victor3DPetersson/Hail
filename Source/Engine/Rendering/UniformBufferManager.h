@@ -7,7 +7,7 @@
 
 namespace Hail
 {
-	enum class BUFFERS : uint32_t
+	enum class BUFFERS : uint32
 	{
 		PER_FRAME_DATA,
 		SPRITE_INSTANCE_BUFFER,
@@ -37,14 +37,14 @@ namespace Hail
 		glm::uvec4 textureSize_effectData_padding;
 	};
 
-	enum class SHADER_STORAGE_BUFFER_USAGE : uint32_t
+	enum class SHADER_STORAGE_BUFFER_USAGE : uint32
 	{
 		READ,
 		WRITE,
 		READ_WRITE
 	};
 
-	enum class BUFFER_TYPE : uint32_t
+	enum class BUFFER_TYPE : uint32
 	{
 		VERTEX,
 		INDEX,
@@ -59,7 +59,7 @@ namespace Hail
 
 	struct BufferObject
 	{
-		const uint32_t GetBufferSize();
+		const uint32 GetBufferSize();
 
 		BUFFER_TYPE type{};
 		uint32_t sizeInBytes = 0;

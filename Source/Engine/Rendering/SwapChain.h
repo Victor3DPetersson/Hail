@@ -5,6 +5,7 @@ namespace Hail
 {
 	class RenderingDevice;
 	class FrameBufferTexture;
+
 	class SwapChain
 	{
 	public:

@@ -30,12 +30,8 @@ namespace Hail
 
 	private:
 
-
-
 		void CreateCommandBuffers();
-
 		void CreateSyncObjects();
-
 
 		void CreateVertexBuffer();
 		void CreateFullscreenVertexBuffer();

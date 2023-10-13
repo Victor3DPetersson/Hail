@@ -1,31 +1,35 @@
 #pragma once
 
+#include "EngineConstants.h"
+#include "Resource.h"
 #include "MeshResources.h"
-#include "TextureManager.h"
-#include "MaterialManager.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
-#ifdef PLATFORM_WINDOWS
-#include "windows/VulkanInternal/VlkResourceManager.h"
-#include "windows/VulkanInternal/VlkSwapChain.h"
-#endif
+#include "Rendering\UniformBufferManager.h"
 
 class Timer;
 
 namespace Hail
 {
 	struct RenderCommandPool;
+	class FrameBufferTexture;
+	class MaterialManager;
 	class RenderingDevice;
+	class RenderingResourceManager;
+	class SwapChain;
+	class TextureManager;
+
 	class ResourceManager
 	{
 	public:
 		ResourceManager();
 		bool InitResources(RenderingDevice* renderingDevice);
 		void ClearAllResources();
-		MaterialManager& GetMaterialManager() { return m_materialManager; }
+		MaterialManager* GetMaterialManager() { return m_materialManager; }
 		TextureManager* GetTextureManager() { return m_textureManager; }
-
+		RenderingResourceManager* GetRenderingResourceManager() { return m_renderingResourceManager; }
 		void SetTargetResolution(glm::uvec2 targetResolution);
-
+		void SetReloadOfAllTextures() { m_reloadTextures = true; }
+		void ReloadResources();
 
 		void LoadMaterial(GUID guid);
 		void LoadMaterial(String256 name);
@@ -35,16 +39,11 @@ namespace Hail
 		void LoadMaterialResource(GUID guid);
 		void LoadMaterialResource(String256 name);
 
-		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat);
-		
 		void UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer);
 		void ClearFrameData();
 		void SetSwapchainTargetResolution(glm::uvec2 targetResolution);
 
-#ifdef PLATFORM_WINDOWS
-		VlkMaterialeResourceManager& GetVulkanMaterialResources() { return m_platformMaterialResourceManager; }
-		VlkSwapChain& GetVulkanSwapChain() { return m_platformSwapChain; }
-#endif
+		SwapChain* GetSwapChain() { return m_swapChain; }
 
 		Mesh m_unitCube;
 		Mesh m_unitSphere;
@@ -52,19 +51,17 @@ namespace Hail
 
 	private:
 
-		MaterialManager m_materialManager;
-		TextureManager* m_textureManager;
-		RenderingDevice* m_renderDevice;
+		MaterialManager* m_materialManager = nullptr;
+		TextureManager* m_textureManager = nullptr;
+		RenderingDevice* m_renderDevice = nullptr;
 
-#ifdef PLATFORM_WINDOWS
-		VlkMaterialeResourceManager m_platformMaterialResourceManager;
-		VlkSwapChain m_platformSwapChain;
-#endif
+		SwapChain* m_swapChain = nullptr;
+		RenderingResourceManager* m_renderingResourceManager = nullptr;
 		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
 
 
 		VectorOnStack<SpriteInstanceData, MAX_NUMBER_OF_SPRITES, false> m_spriteInstanceData;
-
+		bool m_reloadTextures = false;
 	};
 }
 

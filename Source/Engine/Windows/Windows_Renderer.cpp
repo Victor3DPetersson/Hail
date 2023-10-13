@@ -21,6 +21,10 @@
 #include "Resources\Vertices.h"
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
+#include "Resources\Vulkan\VlkMaterialManager.h"
+
+#include "VulkanInternal\VlkSwapChain.h"
+#include "VulkanInternal\VlkResourceManager.h"
 
 #include "VulkanInternal/VlkVertex_Descriptor.h"
 #include "VulkanInternal/VlkTextureCreationFunctions.h"
@@ -47,10 +51,11 @@ bool VlkRenderer::InitDevice(RESOLUTIONS startupResolution, Timer* timer)
 
 	return true;
 }
+
 bool Hail::VlkRenderer::InitGraphicsEngine(ResourceManager* resourceManager)
 {
 	m_resourceManager = resourceManager;
-	m_swapChain = &m_resourceManager->GetVulkanSwapChain();
+	m_swapChain = (VlkSwapChain*)m_resourceManager->GetSwapChain();
 
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 
@@ -152,7 +157,7 @@ void VlkRenderer::InitImGui()
 void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
-	VlkPassData& passData = m_resourceManager->GetVulkanMaterialResources().GetMaterialData(materialToBind.m_type);
+	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(materialToBind.m_type);
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 
 	VkCommandBufferBeginInfo beginInfo{};
@@ -179,7 +184,7 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 	if (materialToBind.m_type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		renderPassInfo.renderPass = passData.m_renderPass;
-		renderPassInfo.framebuffer = passData.m_frameBuffer[materialToBind.m_type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX ? m_swapChain->GetCurrentFrame() : m_swapChain->GetCurrentSwapImageIndex()];
+		renderPassInfo.framebuffer = passData.m_frameBuffer[m_swapChain->GetCurrentFrame()];
 	}
 	else
 	{
@@ -224,12 +229,12 @@ void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandTo
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& baseMaterial = m_resourceManager->GetVulkanMaterialResources().GetMaterialData(MATERIAL_TYPE::SPRITE);
+	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::SPRITE);
 
 	//binding pass data first round
 	if (m_boundMaterialType != MATERIAL_TYPE::SPRITE)
 	{
-		VkDescriptorSet sets[2] = { m_resourceManager->GetVulkanMaterialResources().GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
+		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
 		VkDeviceSize spriteOffsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_spriteVertexBuffer, spriteOffsets);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 0, 2, sets, 0, nullptr);
@@ -237,7 +242,7 @@ void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandTo
 	}
 
 	glm::uvec4 pushConstants_instanceID_padding = { spriteInstance, 0, 0, 0 };
-	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager().GetMaterialInstance(spriteCommandToRender.materialInstanceID);
+	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID);
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 2, 1, &baseMaterial.m_materialDescriptors[instanceMaterialData.m_instanceIdentifier].descriptors[frameInFlightIndex], 0, nullptr);
 	vkCmdPushConstants(commandBuffer, baseMaterial.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
@@ -248,12 +253,12 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& baseMaterial = m_resourceManager->GetVulkanMaterialResources().GetMaterialData(MATERIAL_TYPE::MODEL3D);
+	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::MODEL3D);
 
 	//binding pass data first round
 	if (m_boundMaterialType != MATERIAL_TYPE::MODEL3D)
 	{
-		VkDescriptorSet sets[2] = { m_resourceManager->GetVulkanMaterialResources().GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
+		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 0, 2, sets, 0, nullptr);
 		m_boundMaterialType = MATERIAL_TYPE::MODEL3D;
 	}
@@ -271,12 +276,12 @@ void Hail::VlkRenderer::RenderLetterBoxPass()
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& passData = m_resourceManager->GetVulkanMaterialResources().GetMaterialData(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX);
+	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX);
 
 	//binding pass data first round
 	if (m_boundMaterialType != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
 	{
-		VkDescriptorSet sets[2] = { m_resourceManager->GetVulkanMaterialResources().GetGlobalDescriptorSet(frameInFlightIndex), passData.m_passDescriptors[frameInFlightIndex] };
+		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), passData.m_passDescriptors[frameInFlightIndex] };
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passData.m_pipelineLayout, 0, 2, sets, 0, nullptr);
 		m_boundMaterialType = MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX;
 	}
@@ -307,7 +312,7 @@ void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 	Renderer::StartFrame(renderPool);
 	if (m_swapChain->FrameStart(device, m_inFrameFences, m_imageAvailableSemaphores))
 	{
-		//Send message to resource manager to resize resources affected
+		m_resourceManager->ReloadResources();
 	}
 	m_framebufferResized = false;
 	ImGui_ImplWin32_NewFrame();
