@@ -6,7 +6,6 @@
 
 namespace Hail
 {
-	const uint32_t MAX_FRAMESINFLIGHT = 2;
 
 	class VlkDevice;
 	VkImageView  CreateImageView(VlkDevice& device, VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);

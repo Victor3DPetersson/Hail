@@ -14,10 +14,7 @@ namespace Hail
 	public:
 		virtual void Init(RenderingDevice* device);
 		virtual void ClearAllResources() = 0;
-		//TODO: replace with a guiid instead of a const char*
-		void ClearTexture(const char* textureName);
-		bool ReloadTexture(const char* textureName);
-		void ReloadAllTextures(GrowingArray<String64>& reloadedTextures);
+		void ReloadAllTextures(uint32 frameInFlight);
 		void Update();
 
 		virtual bool LoadTexture(const char* textureName) = 0;
@@ -26,14 +23,14 @@ namespace Hail
 
 		const GrowingArray<TextureResource>& GetTexturesCommonData() const { return m_textureCommonData; }
 
-
 	protected:
-		virtual void ClearTextureInternal(int textureIndex);
+		virtual void ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight);
 		//Reloading will always call ClearTextureInternal
-		virtual bool ReloadTextureInternal(int textureIndex);
-		bool LoadTextureInternal(const char* textureName, TextureResource& textureToFill);
+		virtual bool ReloadTextureInternal(int textureIndex, uint32 frameInFlight);
+		bool LoadTextureInternal(const char* textureName, TextureResource& textureToFill, bool reloadTexture);
 		bool CompileTexture(const char* textureName);
 
 		GrowingArray<TextureResource> m_textureCommonData;
+		GrowingArray<ResourceValidator> m_textureCommonDataValidators;
 	};
 }

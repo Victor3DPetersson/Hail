@@ -14,6 +14,7 @@ void Hail::Renderer::WindowSizeUpdated()
 void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 {
 	m_commandPoolToRender = &renderPool;
+	m_resourceManager->ReloadResources();
 	m_resourceManager->UpdateRenderBuffers(renderPool, m_timer);
 }
 

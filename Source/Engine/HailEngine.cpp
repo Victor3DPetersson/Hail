@@ -96,7 +96,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
 	g_engineData->threadSynchronizer.Init(tickTime);
-	g_engineData->imguiCommandRecorder.Init();
+	g_engineData->imguiCommandRecorder.Init(g_engineData->resourceManager);
 	startupData.initFunctionToCall(&g_engineData->inputHandler->GetInputMapping()); // Init the calling application
 	g_engineData->updateFunctionToCall = startupData.updateFunctionToCall;
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;

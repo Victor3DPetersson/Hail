@@ -26,7 +26,7 @@ bool VlkTextureResourceManager::LoadTexture(const char* textureName)
 {
 	TextureResource textureResource;
 	VlkTextureResource vlkTextureResource;
-	if (LoadTextureInternal(textureName, textureResource))
+	if (LoadTextureInternal(textureName, textureResource, false))
 	{
 		textureResource.index = m_textureCommonData.Size();
 		m_textureCommonData.Add(textureResource);
@@ -43,24 +43,25 @@ bool VlkTextureResourceManager::LoadTexture(const char* textureName)
 }
 
 
-void Hail::VlkTextureResourceManager::ClearTextureInternal(int textureIndex)
+void Hail::VlkTextureResourceManager::ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight)
 {
-	TextureManager::ClearTextureInternal(textureIndex);
-	m_textures[textureIndex].CleanupResource(m_device);
+	TextureManager::ClearTextureInternalForReload(textureIndex, frameInFlight);
+	m_textures[textureIndex].CleanupResourceForReload(m_device, frameInFlight);
 }
 
-bool Hail::VlkTextureResourceManager::ReloadTextureInternal(int textureIndex)
+bool Hail::VlkTextureResourceManager::ReloadTextureInternal(int textureIndex, uint32 frameInFlight)
 {
-	if (!TextureManager::ReloadTextureInternal(textureIndex))
+	if (!TextureManager::ReloadTextureInternal(textureIndex, frameInFlight))
 	{
 		return false;
 	}
-	if (!CreateTextureData(m_textureCommonData[textureIndex].m_compiledTextureData, m_textures[textureIndex].GetVlkTextureData()))
+ 	if (m_textures[textureIndex].GetValidator().IsAllFrameResourcesDirty() && !CreateTextureData(m_textureCommonData[textureIndex].m_compiledTextureData, m_textures[textureIndex].GetVlkTextureData()))
 	{
 		m_textures[textureIndex].CleanupResource(m_device);
 		DeleteCompiledTexture(m_textureCommonData[textureIndex].m_compiledTextureData);
 		return false;
 	}
+	m_textures[textureIndex].GetValidator().ClearFrameData(frameInFlight);
 	return true;
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "String.hpp"
+#include "Types.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "Containers\StaticArray\StaticArray.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
@@ -8,6 +9,8 @@
 
 namespace Hail
 {
+	class ResourceManager;
+
 	constexpr uint32_t MAX_NUMBER_OF_IMGUI_RESPONSES = 1024;
 
 
@@ -100,7 +103,7 @@ namespace Hail
 	class ImGuiCommandManager
 	{
 	public:
-		void Init();
+		void Init(ResourceManager* resourceManager);
 		void RenderImguiCommands();
 		void RenderSingleImguiCommand(bool& unlockApplicationThread);
 		void SwitchCommandBuffers(bool& shouldLockApplicationThread);
@@ -112,12 +115,15 @@ namespace Hail
 		void PopDownToType(ImGuiCommandRecorder::IMGUI_TYPES typeToPop);
 		void PopStackType(ImGuiCommandRecorder::IMGUI_TYPES referenceTypeToPop);
 		void SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_TYPES typeToPop);
-		uint32_t m_numberOfOpenWindows = 0;
-		uint32_t m_numberOfOpenTabItems = 0;
-		uint32_t m_numberOfOpenTabBars = 0;
-		uint32_t m_numberOfOpenTreeNodes = 0;
-		uint32_t m_readCommandRecorder = 0;
-		uint32_t m_writeCommandRecorder = 1;
+
+		void RenderEngineImgui();
+
+		uint32 m_numberOfOpenWindows = 0;
+		uint32 m_numberOfOpenTabItems = 0;
+		uint32 m_numberOfOpenTabBars = 0;
+		uint32 m_numberOfOpenTreeNodes = 0;
+		uint32 m_readCommandRecorder = 0;
+		uint32 m_writeCommandRecorder = 1;
 
 		VectorOnStack<ImGuiCommandRecorder::IMGUI_TYPES, 128> m_pushedTypeStack;
 		void* m_lockThreadData = nullptr;
@@ -126,33 +132,34 @@ namespace Hail
 		ImGuiFileBrowser m_fileBrowser;
 
 		ImGuiCommandRecorder m_commandRecorder[2];
+		ResourceManager* m_resourceManager = nullptr;
 	};
 
 	template<typename Type>
-	inline Type ImGuiCommandRecorder::GetResponseValue(uint32_t responseIndex)
+	inline Type ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
 	{
 		return Type();
 	}
 
 	template<>
-	inline float ImGuiCommandRecorder::GetResponseValue(uint32_t responseIndex)
+	inline float ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
 	{
 		return m_floats[responseIndex].GetResponseValue();
 	}
 
 	template<>
-	inline int ImGuiCommandRecorder::GetResponseValue(uint32_t responseIndex)
+	inline int ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
 	{
 		return m_ints[responseIndex].GetResponseValue();
 	}
 	template<>
-	inline bool ImGuiCommandRecorder::GetResponseValue(uint32_t responseIndex)
+	inline bool ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
 	{
 		return m_bools[responseIndex].GetResponseValue();
 	}
 
 	template<>
-	inline String256 ImGuiCommandRecorder::GetResponseValue(uint32_t responseIndex)
+	inline String256 ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
 	{
 		return m_strings[responseIndex].GetResponseValue();
 	}

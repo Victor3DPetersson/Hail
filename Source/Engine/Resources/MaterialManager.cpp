@@ -8,9 +8,6 @@
 namespace Hail
 {
 
-	void MaterialManager::Update()
-	{
-	}
 	void MaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain)
 	{
 		m_renderDevice = renderingDevice;
@@ -18,47 +15,57 @@ namespace Hail
 		m_swapChain = swapChain;
 		m_renderingResourceManager = renderingResourceManager;
 		m_materialsInstanceData.Init(10);
+		m_materialsInstanceValidationData.Init(10);
 	}
 
-	bool MaterialManager::InitMaterial(MATERIAL_TYPE type, FrameBufferTexture* frameBufferToBindToMaterial)
+	bool MaterialManager::InitMaterial(MATERIAL_TYPE type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight)
 	{
-		Material material;
-		//Get this Data from a data file
-		switch (type)
+		if (m_materials[(uint32_t)type].m_fragmentShader.loadState == SHADER_LOADSTATE::UNLOADED
+			&& m_materials[(uint32_t)type].m_vertexShader.loadState == SHADER_LOADSTATE::UNLOADED)
 		{
-		case Hail::MATERIAL_TYPE::SPRITE:
-			material.m_vertexShader = LoadShader("VS_Sprite", SHADERTYPE::VERTEX);
-			material.m_fragmentShader = LoadShader("FS_Sprite", SHADERTYPE::FRAGMENT);
-			break;
-		case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-			material.m_vertexShader = LoadShader("VS_fullscreenPass", SHADERTYPE::VERTEX);
-			material.m_fragmentShader = LoadShader("FS_fullscreenPass", SHADERTYPE::FRAGMENT);
-			break;
-		case Hail::MATERIAL_TYPE::MODEL3D:
-			material.m_vertexShader = LoadShader("VS_triangle", SHADERTYPE::VERTEX);
-			material.m_fragmentShader = LoadShader("FS_triangle", SHADERTYPE::FRAGMENT);
-			break;
-		case Hail::MATERIAL_TYPE::COUNT:
-			break;
-		default:
-			break;
-		}
-		if (material.m_vertexShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM ||
-			material.m_fragmentShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM)
-		{
-			return false;
-		}
+			Material material;
+			//Get this Data from a data file
+			switch (type)
+			{
+			case Hail::MATERIAL_TYPE::SPRITE:
+				material.m_vertexShader = LoadShader("VS_Sprite", SHADERTYPE::VERTEX, reloadShader);
+				material.m_fragmentShader = LoadShader("FS_Sprite", SHADERTYPE::FRAGMENT, reloadShader);
+				break;
+			case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+				material.m_vertexShader = LoadShader("VS_fullscreenPass", SHADERTYPE::VERTEX, reloadShader);
+				material.m_fragmentShader = LoadShader("FS_fullscreenPass", SHADERTYPE::FRAGMENT, reloadShader);
+				break;
+			case Hail::MATERIAL_TYPE::MODEL3D:
+				material.m_vertexShader = LoadShader("VS_triangle", SHADERTYPE::VERTEX, reloadShader);
+				material.m_fragmentShader = LoadShader("FS_triangle", SHADERTYPE::FRAGMENT, reloadShader);
+				break;
+			case Hail::MATERIAL_TYPE::COUNT:
+				break;
+			default:
+				break;
+			}
+			if (material.m_vertexShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM ||
+				material.m_fragmentShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM)
+			{
+				return false;
+			}
 
+			material.m_type = type;
+			m_materials[(uint32_t)type] = material;
+		}
 		///VERY TEMP ABOVE ^
-		material.m_type = type;
-		m_materials[(uint32_t)(type)] = material;
 
-		return InitMaterialInternal(type, frameBufferToBindToMaterial);
+		if (InitMaterialInternal(type, frameBufferToBindToMaterial, frameInFlight))
+		{
+			m_materialValidators[(uint32)type].ClearFrameData(frameInFlight);
+			return true;
+		}
+		return false;
 	}
 
 	Material& MaterialManager::GetMaterial(MATERIAL_TYPE materialType)
 	{
-		return m_materials[static_cast<uint32_t>(materialType)];
+		return m_materials[(uint32)materialType];
 	}
 
 	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID)
@@ -66,23 +73,75 @@ namespace Hail
 		return m_materialsInstanceData[instanceID];
 	}
 
-	bool MaterialManager::CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData)
+	uint32 MaterialManager::CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData)
 	{
 		instanceData.m_instanceIdentifier = m_materialsInstanceData.Size();
-		instanceData.m_materialIdentifier = static_cast<uint32_t>(materialType);
+		instanceData.m_materialIdentifier = (uint32_t)materialType;
 		m_materialsInstanceData.Add(instanceData);
-		return InitMaterialInstanceInternal(m_materials[(uint32_t)(materialType)], m_materialsInstanceData.GetLast());
+		ResourceValidator instanceValidator = ResourceValidator();
+		instanceValidator.MarkResourceAsDirty(0);
+		m_materialsInstanceValidationData.Add(instanceValidator);
+		return instanceData.m_instanceIdentifier;
+	}
+
+	bool MaterialManager::InitMaterialInstance(uint32 instanceID, uint32 frameInFlight)
+	{
+		if (InitMaterialInstanceInternal(m_materialsInstanceData[instanceID], frameInFlight))
+		{
+			m_materialsInstanceValidationData[instanceID].ClearFrameData(frameInFlight); 
+			return true;
+		}
+		return false;
+	}
+
+	bool MaterialManager::ReloadAllMaterials(uint32 frameInFlight)
+	{
+		bool result = true;
+		for (uint32_t i = 0; i < (uint32)(MATERIAL_TYPE::COUNT); i++)
+		{
+			const bool firstFrameOfReload = m_materialValidators[i].GetIsResourceDirty() == false;
+			if(firstFrameOfReload)
+			{
+				ClearHighLevelMaterial((MATERIAL_TYPE)i, frameInFlight);
+			}
+			ClearMaterialInternal((MATERIAL_TYPE)i, frameInFlight);
+			if (InitMaterial((MATERIAL_TYPE)i, nullptr, true, frameInFlight))
+			{
+				m_materialValidators[i].ClearFrameData(frameInFlight);
+			}
+		}
+
+		for (uint32 i = 0; i < m_materialsInstanceData.Size(); i++)
+		{
+			m_materialsInstanceValidationData[i].MarkResourceAsDirty(frameInFlight);
+			if (InitMaterialInstanceInternal(m_materialsInstanceData[i], frameInFlight))
+			{
+				m_materialsInstanceValidationData[i].ClearFrameData(frameInFlight);
+				result = false;
+			}
+		}
+
+		return result;
+	}
+
+	void MaterialManager::ClearHighLevelMaterial(MATERIAL_TYPE materialType, uint32 frameInFlight)
+	{
+		//TODO make more proper and robust validation later =) 
+		m_materials[(uint32)materialType].m_fragmentShader.loadState = SHADER_LOADSTATE::UNLOADED;
+		m_materials[(uint32)materialType].m_vertexShader.loadState = SHADER_LOADSTATE::UNLOADED;
+		m_materialValidators[(uint32)materialType].MarkResourceAsDirty(frameInFlight);
+
 	}
 
 	//TODO: Add relative path support in the shader output
-	CompiledShader MaterialManager::LoadShader(const char* shaderName, SHADERTYPE shaderType)
+	CompiledShader MaterialManager::LoadShader(const char* shaderName, SHADERTYPE shaderType, bool reloadShader)
 	{
 		CompiledShader shader{};
 		String256 inPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
 
 		InOutStream inStream;
 
-		if (!inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true))
+		if (!inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true) || reloadShader)
 		{
 			InitCompiler();
 			if (!m_compiler->CompileSpecificShader(shaderName, shaderType))
@@ -93,10 +152,10 @@ namespace Hail
 		}
 		inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
-		Debug_PrintConsoleString256(String256::Format("\nImporting Shader:\n%s:", shaderName));
+		//Debug_PrintConsoleString256(String256::Format("\nImporting Shader:\n%s:", shaderName));
 
 		inStream.Read((char*)&shader.header, sizeof(ShaderHeader));
-		Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shader.header.sizeOfShaderData, "\n"));
+		//Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shader.header.sizeOfShaderData, "\n"));
 
 		shader.compiledCode = new char[shader.header.sizeOfShaderData];
 		inStream.Read((char*)shader.compiledCode, sizeof(char) * shader.header.sizeOfShaderData);

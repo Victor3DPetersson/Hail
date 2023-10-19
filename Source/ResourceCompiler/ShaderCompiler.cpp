@@ -228,8 +228,8 @@ namespace Hail
 
 	void ExportCompiledShader(const char* shaderName, const char* compiledShaderData, ShaderHeader shaderHeader)
 	{
-		Debug_PrintConsoleString256(String256::Format("\nExporting Shader:\n%s:", shaderName));
-		Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shaderHeader.sizeOfShaderData, "\n"));
+		//Debug_PrintConsoleString256(String256::Format("\nExporting Shader:\n%s:", shaderName));
+		//Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shaderHeader.sizeOfShaderData, "\n"));
 		{
 			FilePath filePath(SHADER_DIR_OUT);
 			filePath.CreateFileDirectory();
@@ -245,9 +245,7 @@ namespace Hail
 		for (uint32_t i = 0; i < shaderHeader.sizeOfShaderData; i++)
 		{
 			outStream.Write(&compiledShaderData[i], 1);
-			std::cout << compiledShaderData[i];
 		}
-		std::cout << std::endl;
 		outStream.CloseFile();
 	}
 

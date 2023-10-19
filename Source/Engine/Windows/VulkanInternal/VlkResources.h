@@ -7,17 +7,37 @@
 namespace Hail
 {
 	class VlkDevice;
-	struct VlkPassData
+	class VlkPassData
 	{
+	public:
+		VlkPassData()
+		{
+			for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+			{
+				m_passDescriptors[i] = VK_NULL_HANDLE;
+				m_frameBuffer[i] = VK_NULL_HANDLE;
+			}
+		}
 		struct VkInternalMaterialDescriptorSet
 		{
+			VkInternalMaterialDescriptorSet()
+			{
+				for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+				{
+					descriptors[i] = VK_NULL_HANDLE;
+				}
+			}
 			VkDescriptorSet descriptors[MAX_FRAMESINFLIGHT];
 		};
-		VkDescriptorSet m_passDescriptors[MAX_FRAMESINFLIGHT];
+
+		void CleanupResource(VlkDevice& device);
+		void CleanupResourceFrameData(VlkDevice& device, uint32 frameInFlight);
+
 		GrowingArray<VkInternalMaterialDescriptorSet> m_materialDescriptors;
+		VkDescriptorSet m_passDescriptors[MAX_FRAMESINFLIGHT];
 
 
-		VlkFrameBufferTexture* m_frameBufferTextures;
+		VlkFrameBufferTexture* m_frameBufferTextures = nullptr;
 		uint32 numberOfFrameBufferTextures = 0;
 
 		bool m_ownsRenderpass = true;
@@ -33,7 +53,6 @@ namespace Hail
 
 		uint32 m_numberOfFramesInFlight = MAX_FRAMESINFLIGHT;
 
-		void CleanupResource(VlkDevice& device);
 	};
 
 	struct VlkTextureData

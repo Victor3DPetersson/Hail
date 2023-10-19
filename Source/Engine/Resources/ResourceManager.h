@@ -28,7 +28,7 @@ namespace Hail
 		TextureManager* GetTextureManager() { return m_textureManager; }
 		RenderingResourceManager* GetRenderingResourceManager() { return m_renderingResourceManager; }
 		void SetTargetResolution(glm::uvec2 targetResolution);
-		void SetReloadOfAllTextures() { m_reloadTextures = true; }
+		void SetReloadOfAllResources();
 		void ReloadResources();
 
 		void LoadMaterial(GUID guid);
@@ -51,17 +51,29 @@ namespace Hail
 
 	private:
 
-		MaterialManager* m_materialManager = nullptr;
-		TextureManager* m_textureManager = nullptr;
+		//Dependency
 		RenderingDevice* m_renderDevice = nullptr;
 
-		SwapChain* m_swapChain = nullptr;
+		//Resource managers
 		RenderingResourceManager* m_renderingResourceManager = nullptr;
+		MaterialManager* m_materialManager = nullptr;
+		TextureManager* m_textureManager = nullptr;
+		SwapChain* m_swapChain = nullptr;
+
 		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
 
+		//Instance resources
 
 		VectorOnStack<SpriteInstanceData, MAX_NUMBER_OF_SPRITES, false> m_spriteInstanceData;
-		bool m_reloadTextures = false;
+
+
+		//Reloading
+		
+		bool m_reloadEverything = false;
+		uint32 m_frameInFlightIndex = 0;
+		uint32 m_reloadFrameCounter = 0;
+
+
 	};
 }
 

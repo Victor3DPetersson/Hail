@@ -56,53 +56,16 @@ using namespace Hail;
 void TextureManager::Init(RenderingDevice* device)
 {
 	m_textureCommonData.Init(10);
+	m_textureCommonDataValidators.Init(10);
 }
 
-void Hail::TextureManager::ClearTexture(const char* textureName)
-{
-	int textureIndex = -1;
-	for (int i = 0; i < m_textureCommonData.Size(); i++)
-	{
-		if (StringCompare(textureName, m_textureCommonData[i].textureName))
-		{
-			textureIndex = i;
-			break;
-		}
-	}
-	if (textureIndex == -1)
-	{
-		//assert that texture does not exist bruvh
-		return;
-	}
-	ClearTextureInternal(textureIndex);
-}
-
-bool Hail::TextureManager::ReloadTexture(const char* textureName)
-{
-	int textureIndex = -1;
-	for (int i = 0; i < m_textureCommonData.Size(); i++)
-	{
-		if (StringCompare(textureName, m_textureCommonData[i].textureName))
-		{
-			textureIndex = i;
-			break;
-		}
-	}
-	if (textureIndex == -1)
-	{
-		//assert that texture does not exist bruvh
-		return false;
-	}
-	return ReloadTextureInternal(textureIndex);
-}
-
-void Hail::TextureManager::ReloadAllTextures(GrowingArray<String64>& reloadedTextures)
+void Hail::TextureManager::ReloadAllTextures(uint32 frameInFlight)
 {
 	for (uint32 i = 0; i < m_textureCommonData.Size(); i++)
 	{
-		if (ReloadTextureInternal(i))
+		if (ReloadTextureInternal(i, frameInFlight))
 		{
-			reloadedTextures.Add(m_textureCommonData[i].textureName);
+
 		}
 	}
 }
@@ -120,35 +83,42 @@ bool TextureManager::LoadAllRequiredTextures()
 		{
 			return false;
 		}
+		m_textureCommonDataValidators.Add(ResourceValidator());
 	}
 	return true;
 }
 
-void Hail::TextureManager::ClearTextureInternal(int textureIndex)
+void Hail::TextureManager::ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight)
 {
+	m_textureCommonDataValidators[textureIndex].MarkResourceAsDirty(frameInFlight);
 	if (m_textureCommonData[textureIndex].m_compiledTextureData.loadState == TEXTURE_LOADSTATE::LOADED_TO_RAM)
 	{
 		DeleteCompiledTexture(m_textureCommonData[textureIndex].m_compiledTextureData);
 	}
 }
 
-bool Hail::TextureManager::ReloadTextureInternal(int textureIndex)
+bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameInFlight)
 {
-	ClearTextureInternal(textureIndex);
-	if (!LoadTextureInternal(m_textureCommonData[textureIndex].textureName, m_textureCommonData[textureIndex]))
+	ClearTextureInternalForReload(textureIndex, frameInFlight);
+	if (m_textureCommonDataValidators[textureIndex].IsAllFrameResourcesDirty())
 	{
-		return false;
+		if (!LoadTextureInternal(m_textureCommonData[textureIndex].textureName, m_textureCommonData[textureIndex], true))
+		{
+			return false;
+		}
 	}
+	m_textureCommonDataValidators[textureIndex].ClearFrameData(frameInFlight);
+
 	return true;
 }
 
-bool TextureManager::LoadTextureInternal(const char* textureName, TextureResource& textureToFill)
+bool TextureManager::LoadTextureInternal(const char* textureName, TextureResource& textureToFill, bool reloadTexture)
 {
 	String256 inPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
 
 	InOutStream inStream;
 
-	if (!inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true))
+	if (!inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true) || reloadTexture)
 	{
 		if (!CompileTexture(textureName))
 		{
@@ -157,10 +127,10 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 	}
 	inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
-	Debug_PrintConsoleString256(String256::Format("\nImporting Texture:\n%s:", textureName));
+	//Debug_PrintConsoleString256(String256::Format("\nImporting Texture:\n%s:", textureName));
 
 	inStream.Read((char*)&textureToFill.m_compiledTextureData.header, sizeof(TextureHeader));
-	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, "\n"));
+	//Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, "\n"));
 	switch (ToEnum<TEXTURE_TYPE>(textureToFill.m_compiledTextureData.header.textureType))
 	{
 	case TEXTURE_TYPE::R8G8B8A8_SRGB:

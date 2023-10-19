@@ -19,14 +19,18 @@ namespace Hail
 
 	private:
 
-		bool InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial) final;
-		bool InitMaterialInstanceInternal(const Material material, MaterialInstance& instance) final;
-		bool CreateMaterialPipeline(Material& material);
-		bool SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TYPE type);
-		bool CreateRenderpassAndFramebuffers(VlkPassData& passData, MATERIAL_TYPE type);
+		bool InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial, uint32 frameInFlight) final;
+		bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight) final;
+		void ClearMaterialInternal(MATERIAL_TYPE materialType, uint32 frameInFlight) final;
+		bool CreateMaterialPipeline(Material& material, uint32 frameInFlight);
+		bool SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
+		bool SetUpPipelineLayout(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
+		bool CreateRenderpassAndFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
+
 
 		VlkFrameBufferTexture* m_passesFrameBufferTextures[(uint32)(MATERIAL_TYPE::COUNT)];
 		VlkPassData m_passData[(uint32)(MATERIAL_TYPE::COUNT)];
+		ResourceValidator m_passDataValidators[(uint32)MATERIAL_TYPE::COUNT];
 
 		//This is here so the local variables does not get optimized away in release
 		VkDescriptorImageInfo m_descriptorImageInfo;

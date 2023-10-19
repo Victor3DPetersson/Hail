@@ -21,8 +21,8 @@ namespace Hail
 		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) final;
 
 	private:
-		void ClearTextureInternal(int textureIndex) final;
-		bool ReloadTextureInternal(int textureIndex) final;
+		void ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight) final;
+		bool ReloadTextureInternal(int textureIndex, uint32 frameInFlight) final;
 		bool CreateTextureData(CompiledTexture& textureData, VlkTextureData& vlkTextureData);
 		VlkDevice* m_device;
 		GrowingArray<VlkTextureResource> m_textures;

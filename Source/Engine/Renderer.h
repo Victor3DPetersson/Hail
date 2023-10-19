@@ -29,6 +29,7 @@ namespace Hail
 
 		virtual bool InitDevice(RESOLUTIONS startupResolution, Timer* timer) = 0;
 		virtual bool InitGraphicsEngine(ResourceManager* resourceManager) = 0;
+		//Always call virtual version of this function after swapchain has finished the previous frame
 		virtual void StartFrame(RenderCommandPool& renderPool);
 		virtual void EndFrame();
 		virtual void Render();

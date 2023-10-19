@@ -12,15 +12,16 @@ namespace Hail
 	{
 	public:
 		VlkSwapChain();
-		void Init(RenderingDevice* renderDevice) override;
+		void Init(RenderingDevice* renderDevice) final;
+		//TODO: make FrameStart and end in to internal overriden virtual functions
 		bool FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores);
 		void FrameEnd(VkSemaphore* endSemaphore, VkQueue presentQueue);
-		void DestroySwapChain(RenderingDevice* device) override;
-		FrameBufferTexture* GetFrameBufferTexture() override;
+		void DestroySwapChain(RenderingDevice* device) final;
+		FrameBufferTexture* GetFrameBufferTexture() final;
+		uint32_t GetFrameInFlight() final { return m_currentFrame; }
 
 		VkExtent2D GetSwapChainExtent() { return m_swapChainExtent; }
 		VkFormat GetSwapChainFormat() { return m_swapChainImageFormat; }
-		uint32_t GetCurrentFrame() { return m_currentFrame; }
 		uint32_t GetCurrentSwapImageIndex() { return m_currentImageIndex; }
 		uint32_t GetSwapchainImageCount(){ return m_imageCount; }
 		VkRenderPass GetRenderPass() { return m_finalRenderPass; }

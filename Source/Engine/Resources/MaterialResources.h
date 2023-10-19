@@ -1,5 +1,6 @@
 #pragma once
-#include "Vertices.h"
+#include "glm\vec4.hpp"
+#include "Resource.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
 #include "../EngineConstants.h"
@@ -7,7 +8,7 @@
 
 namespace Hail
 {
-	enum class MATERIAL_TYPE : uint32_t
+	enum class MATERIAL_TYPE : uint32
 	{
 		SPRITE,
 		//FULLSCREEN_POSTEFFECTS,
@@ -15,7 +16,7 @@ namespace Hail
 		MODEL3D,
 		COUNT
 	};
-	enum class BLEND_MODE : uint32_t
+	enum class BLEND_MODE : uint32
 	{
 		NORMAL,
 		ALPHABLEND,
@@ -27,10 +28,11 @@ namespace Hail
 	class MaterialInstance
 	{
 	public:
+		uint32 m_materialIdentifier = 0;
+		uint32 m_instanceIdentifier = 0;
+		uint32 m_gpuResourceInstance = 0;
 		//Textures
-		uint32_t m_materialIdentifier = 0;
-		uint32_t m_instanceIdentifier = 0;
-		uint32_t m_textureHandles[8]{};
+		uint32 m_textureHandles[8]{};
 		//Other instanced parameters
 		glm::vec4 m_instanceFloatParameters;
 	};

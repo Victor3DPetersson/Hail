@@ -1,9 +1,15 @@
 #pragma once
+#include "Types.h"
 #include "glm\vec3.hpp"
 #include "glm\gtx\color_encoding.hpp"
+
 namespace Hail
 {
-    enum class TEXTURE_FORMAT : uint32_t
+#ifdef PLATFORM_WINDOWS
+    const uint32 MAX_FRAMESINFLIGHT = 2;
+#endif
+
+    enum class TEXTURE_FORMAT : uint32
     {
         UNDEFINED = 0,
         R4G4_UNORM_PACK8 = 1,
@@ -198,5 +204,24 @@ namespace Hail
         COMPARE_MODE compareOp = COMPARE_MODE::ALWAYS;
         glm::vec3 borderColor = Color_BLACK;
         bool anisotropy = true;
+    };
+
+    class ResourceValidator
+    {
+    public:
+        ResourceValidator();
+        void MarkResourceAsDirty(uint32 frameInFlight);
+        bool IsAllFrameResourcesDirty() const;
+        uint32 GetFrameThatMarkedFrameDirty() const { return m_frameInFlightThatSetDirty; }
+        
+        bool GetIsFrameDataDirty(uint32 frameInFlight) const { return m_dirtyFrameData[frameInFlight]; }
+        bool GetIsResourceDirty() const { return m_resourceIsDirty; }
+        void ClearFrameData(uint32 frameInFlight);
+    private:
+
+        bool m_dirtyFrameData[MAX_FRAMESINFLIGHT];
+        //Variable to mark that we have started a reload of the resource
+        bool m_resourceIsDirty = false;
+        uint32 m_frameInFlightThatSetDirty = 0;
     };
 }

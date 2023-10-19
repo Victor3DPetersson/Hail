@@ -5,24 +5,45 @@
 
 using namespace Hail;
 
-void VlkTextureResource::CleanupResource(RenderingDevice* device)
+namespace
 {
-	VlkDevice& vlkDevice = *(VlkDevice*)device;
-	if (m_textureData.textureImageView != VK_NULL_HANDLE)
+	void ClearTexture(VlkTextureData& textureData, VlkDevice& vlkDevice)
 	{
-		vkDestroyImageView(vlkDevice.GetDevice(), m_textureData.textureImageView, nullptr);
+		if (textureData.textureImageView != VK_NULL_HANDLE)
+		{
+			vkDestroyImageView(vlkDevice.GetDevice(), textureData.textureImageView, nullptr);
+		}
+		if (textureData.textureImage != VK_NULL_HANDLE)
+		{
+			vkDestroyImage(vlkDevice.GetDevice(), textureData.textureImage, nullptr);
+		}
+		if (textureData.textureImageMemory != VK_NULL_HANDLE)
+		{
+			vkFreeMemory(vlkDevice.GetDevice(), textureData.textureImageMemory, nullptr);
+		}
+		textureData.textureImageView = VK_NULL_HANDLE;
+		textureData.textureImage = VK_NULL_HANDLE;
+		textureData.textureImageMemory = VK_NULL_HANDLE;
 	}
-	if (m_textureData.textureImage != VK_NULL_HANDLE)
-	{
-		vkDestroyImage(vlkDevice.GetDevice(), m_textureData.textureImage, nullptr);
-	}
-	if (m_textureData.textureImageMemory != VK_NULL_HANDLE)
-	{
-		vkFreeMemory(vlkDevice.GetDevice(), m_textureData.textureImageMemory, nullptr);
-	}
-	m_textureData.textureImageView = VK_NULL_HANDLE;
-	m_textureData.textureImage = VK_NULL_HANDLE;
-	m_textureData.textureImageMemory = VK_NULL_HANDLE;
 }
 
 
+void VlkTextureResource::CleanupResource(RenderingDevice* device)
+{
+	m_validator.MarkResourceAsDirty(0);
+	ClearTexture(m_unloadingTextureData, *(VlkDevice*)device);
+	ClearTexture(m_textureData, *(VlkDevice*)device);
+}
+
+void Hail::VlkTextureResource::CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth)
+{
+	if (!m_validator.GetIsResourceDirty())
+	{
+		m_validator.MarkResourceAsDirty(frameInFligth);
+		m_unloadingTextureData = m_textureData;
+	}
+	else
+	{
+		ClearTexture(m_unloadingTextureData, *(VlkDevice*)device);
+	}
+}

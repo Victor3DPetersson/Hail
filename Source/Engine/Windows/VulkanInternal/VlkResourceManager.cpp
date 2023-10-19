@@ -96,7 +96,7 @@ namespace Hail
 
 	void VlkRenderingResourceManager::MapMemoryToBuffer(BUFFERS buffer, void* dataToMap, uint32_t sizeOfData)
 	{
-		memcpy(m_resources.m_buffers[static_cast<uint32_t>(buffer)].m_bufferMapped[((VlkSwapChain*)m_swapChain)->GetCurrentFrame()], dataToMap, sizeOfData);
+		memcpy(m_resources.m_buffers[static_cast<uint32_t>(buffer)].m_bufferMapped[m_swapChain->GetFrameInFlight()], dataToMap, sizeOfData);
 	}
 
 	VkDescriptorSet& VlkRenderingResourceManager::GetGlobalDescriptorSet(uint32_t frameInFlight)
@@ -153,7 +153,7 @@ namespace Hail
 				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
 				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 10 },
 				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10 },
-				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 }
+				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 }
 			}
 		};
 		VkDescriptorPoolCreateInfo finalPoolInfo{};

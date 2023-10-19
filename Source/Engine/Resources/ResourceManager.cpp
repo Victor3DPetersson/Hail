@@ -53,41 +53,38 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 	}
 
 	//Temp for now
-	for (uint32_t i = 0; i < static_cast<uint32_t>(MATERIAL_TYPE::COUNT); i++)
+	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		switch (static_cast<MATERIAL_TYPE>(i))
+		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::SPRITE, m_mainPassFrameBufferTexture, false, i))
 		{
-		case Hail::MATERIAL_TYPE::SPRITE:
-			if(!m_materialManager->InitMaterial((MATERIAL_TYPE)i, m_mainPassFrameBufferTexture))
-			{
-				return false;
-			}
-			break;
-		case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-			if(!m_materialManager->InitMaterial((MATERIAL_TYPE)i, m_swapChain->GetFrameBufferTexture()))
-			{
-				return false;
-			}
-			break;
-		case Hail::MATERIAL_TYPE::MODEL3D:
-			if(!m_materialManager->InitMaterial((MATERIAL_TYPE)i, m_mainPassFrameBufferTexture))
-			{
-				return false;
-			}
-			break;
-		default:
-			break;
+			return false;
+		}
+		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX, m_swapChain->GetFrameBufferTexture(), false, i))
+		{
+			return false;
+		}
+		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::MODEL3D, m_mainPassFrameBufferTexture, false, i))
+		{
+			return false;
 		}
 	}
 	MaterialInstance instance1;
 	instance1.m_textureHandles[0] = 1;
-	m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance1);
+	const uint32 instance1ID = m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance1);
 	MaterialInstance instance2;
 	instance2.m_textureHandles[0] = 2;
-	m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance2);
+	const uint32 instance2ID = m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance2);
 	MaterialInstance instance3;
 	instance3.m_textureHandles[0] = 0;
-	m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance3);
+	const uint32 instance3ID = m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance3);
+
+	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+	{
+		m_materialManager->InitMaterialInstance(instance1ID, i);
+		m_materialManager->InitMaterialInstance(instance2ID, i);
+		m_materialManager->InitMaterialInstance(instance3ID, i);
+	}
+	//TODO: TEMP above with the instances, will be more data driven laters
 	return true;
 }
 
@@ -104,23 +101,35 @@ void Hail::ResourceManager::SetTargetResolution(glm::uvec2 targetResolution)
 	m_swapChain->SetTargetResolution(targetResolution);
 }
 
+void Hail::ResourceManager::SetReloadOfAllResources()
+{
+	if (m_reloadEverything)
+	{
+		return;
+	}
+	m_reloadEverything = true;
+	m_reloadFrameCounter = 0;
+}
+
 void Hail::ResourceManager::ReloadResources()
 {
-	if (!m_reloadTextures)
+	m_frameInFlightIndex = m_swapChain->GetFrameInFlight();
+	if (!m_reloadEverything)
 	{
 		return;
 	}
 
-	if (m_reloadTextures)
+	if (m_reloadEverything)
 	{
-		//TODO: Replace with guuids
-		GrowingArray<String64> reloadedTextures(10);
-		m_textureManager->ReloadAllTextures(reloadedTextures);
-
-
+		m_textureManager->ReloadAllTextures(m_frameInFlightIndex);
+		m_materialManager->ReloadAllMaterials(m_frameInFlightIndex);
 	}
 
-	m_reloadTextures = false;
+	if (++m_reloadFrameCounter == MAX_FRAMESINFLIGHT)
+	{
+		m_reloadEverything = false;
+	}
+
 }
 
 void Hail::ResourceManager::LoadMaterial(String256 name)

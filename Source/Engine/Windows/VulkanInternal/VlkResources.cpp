@@ -6,17 +6,7 @@
 
 void Hail::VlkPassData::CleanupResource(VlkDevice& device)
 {
-	for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
-	{
-		if (m_frameBuffer[i] != VK_NULL_HANDLE)
-		{
-			if (m_ownsFrameBuffer)
-			{
-				vkDestroyFramebuffer(device.GetDevice(), m_frameBuffer[i], nullptr);
-			}
-			m_frameBuffer[i] = VK_NULL_HANDLE;
-		}
-	}
+	//destruction functions of shared resources
 	if (m_materialSetLayout != VK_NULL_HANDLE)
 	{
 		vkDestroyDescriptorSetLayout(device.GetDevice(), m_materialSetLayout, nullptr);
@@ -63,5 +53,17 @@ void Hail::VlkBufferObject::CleanupResource(VlkDevice& device)
 		}
 		m_buffer[i] = VK_NULL_HANDLE;
 		m_bufferMemory[i] = VK_NULL_HANDLE;
+	}
+}
+
+void Hail::VlkPassData::CleanupResourceFrameData(VlkDevice& device, uint32 frameInFlight)
+{
+	if (m_frameBuffer[frameInFlight] != VK_NULL_HANDLE)
+	{
+		if (m_ownsFrameBuffer)
+		{
+			vkDestroyFramebuffer(device.GetDevice(), m_frameBuffer[frameInFlight], nullptr);
+		}
+		m_frameBuffer[frameInFlight] = VK_NULL_HANDLE;
 	}
 }

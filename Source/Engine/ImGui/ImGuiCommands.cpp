@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "DebugMacros.h"
 #include "ImGuiMaterialEditor.h"
+#include "Resources\ResourceManager.h"
 
 namespace Hail
 {
@@ -175,8 +176,9 @@ void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder&
 	m_commands.RemoveAll();
 }
 
-void Hail::ImGuiCommandManager::Init()
+void Hail::ImGuiCommandManager::Init(ResourceManager* resourceManager)
 {
+	m_resourceManager = resourceManager;
 	m_commandRecorder[0].m_commands.Init(100);
 	m_commandRecorder[1].m_commands.Init(100);
 }
@@ -336,6 +338,7 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 			SendImGuiPopCommand(m_pushedTypeStack.RemoveLast());
 		}
 	}
+	RenderEngineImgui();
 }
 void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread)
 {
@@ -356,6 +359,8 @@ void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplication
 	{
 		RenderErrorModal(unlockApplicationThread);
 	}
+
+	RenderEngineImgui();
 
 	if (unlockApplicationThread)
 	{
@@ -455,6 +460,18 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 		break;
 	default:
 		break;
+	}
+}
+
+void Hail::ImGuiCommandManager::RenderEngineImgui()
+{
+	if (ImGui::Begin("Engine Window"))
+	{
+		if (ImGui::Button("Reload All Resources"))
+		{
+			m_resourceManager->SetReloadOfAllResources();
+		}
+		ImGui::End();
 	}
 }
 

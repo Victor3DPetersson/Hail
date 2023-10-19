@@ -401,8 +401,8 @@ bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureD
 	}
 	String64 nameCString;
 	FromWCharToConstChar(textureName.Name(), nameCString, 64);
-	Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", nameCString));
-	Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));
+	//Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", nameCString));
+	//Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));
 
 	textureExporter.Write((char*)&textureHeader, sizeof(textureHeader), 1);
 

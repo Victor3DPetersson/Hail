@@ -154,9 +154,67 @@ void VlkRenderer::InitImGui()
 
 }
 
+
+void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
+{
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	if (m_swapChain->FrameStart(device, m_inFrameFences, m_imageAvailableSemaphores))
+	{
+		//Swapchain has been resized
+	}
+	Renderer::StartFrame(renderPool);
+	m_framebufferResized = false;
+	ImGui_ImplWin32_NewFrame();
+	ImGui_ImplVulkan_NewFrame();
+	ImGui::NewFrame();
+	//g_camera = renderPool.renderCamera;
+}
+
+void VlkRenderer::Render()
+{
+	ImGui::Render();
+	const uint32_t currentFrame = m_swapChain->GetFrameInFlight();
+	vkResetCommandBuffer(m_commandBuffers[currentFrame], 0);
+	Renderer::Render();
+
+	//RecordCommandBuffer(m_commandBuffers[currentFrame], m_swapChain->GetCurrentSwapImageIndex());
+}
+
+
+void Hail::VlkRenderer::EndFrame()
+{
+	Renderer::EndFrame();
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	const uint32_t currentFrame = m_swapChain->GetFrameInFlight();
+	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[currentFrame] };
+
+	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSemaphores;
+	submitInfo.pWaitDstStageMask = waitStages;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &m_commandBuffers[currentFrame];
+
+	VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[currentFrame] };
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = signalSemaphores;
+
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	if (vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, m_inFrameFences[currentFrame]) != VK_SUCCESS)
+	{
+#ifdef DEBUG
+		//throw std::runtime_error("failed to submit draw command buffer!");
+#endif
+	}
+	m_swapChain->FrameEnd(signalSemaphores, device.GetPresentQueue());
+	m_boundMaterialType = MATERIAL_TYPE::COUNT;
+}
+
 void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 {
-	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
+	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(materialToBind.m_type);
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 
@@ -184,7 +242,7 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 	if (materialToBind.m_type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		renderPassInfo.renderPass = passData.m_renderPass;
-		renderPassInfo.framebuffer = passData.m_frameBuffer[m_swapChain->GetCurrentFrame()];
+		renderPassInfo.framebuffer = passData.m_frameBuffer[m_swapChain->GetFrameInFlight()];
 	}
 	else
 	{
@@ -221,13 +279,13 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 
 void Hail::VlkRenderer::EndMaterialPass()
 {
-	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
+	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	vkCmdEndRenderPass(m_commandBuffers[frameInFlightIndex]);
 }
 
 void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance)
 {
-	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
+	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::SPRITE);
 
@@ -244,14 +302,14 @@ void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandTo
 	glm::uvec4 pushConstants_instanceID_padding = { spriteInstance, 0, 0, 0 };
 	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID);
 
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 2, 1, &baseMaterial.m_materialDescriptors[instanceMaterialData.m_instanceIdentifier].descriptors[frameInFlightIndex], 0, nullptr);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 2, 1, &baseMaterial.m_materialDescriptors[instanceMaterialData.m_gpuResourceInstance].descriptors[frameInFlightIndex], 0, nullptr);
 	vkCmdPushConstants(commandBuffer, baseMaterial.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
 	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 }
 
 void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance)
 {
-	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
+	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::MODEL3D);
 
@@ -274,7 +332,7 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 
 void Hail::VlkRenderer::RenderLetterBoxPass()
 {
-	const uint32_t frameInFlightIndex = m_swapChain->GetCurrentFrame();
+	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX);
 
@@ -306,62 +364,7 @@ void Hail::VlkRenderer::RenderLetterBoxPass()
 
 
 
-void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
-{
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	Renderer::StartFrame(renderPool);
-	if (m_swapChain->FrameStart(device, m_inFrameFences, m_imageAvailableSemaphores))
-	{
-		m_resourceManager->ReloadResources();
-	}
-	m_framebufferResized = false;
-	ImGui_ImplWin32_NewFrame();
-	ImGui_ImplVulkan_NewFrame();
-	ImGui::NewFrame();
-	//g_camera = renderPool.renderCamera;
-}
 
-void VlkRenderer::Render()
-{
-	ImGui::Render();
-	const uint32_t currentFrame = m_swapChain->GetCurrentFrame();
-	vkResetCommandBuffer(m_commandBuffers[currentFrame], 0);
-	Renderer::Render();
-
-	//RecordCommandBuffer(m_commandBuffers[currentFrame], m_swapChain->GetCurrentSwapImageIndex());
-}
-
-
-void Hail::VlkRenderer::EndFrame()
-{
-	Renderer::EndFrame();
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-	const uint32_t currentFrame = m_swapChain->GetCurrentFrame();
-	VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[currentFrame] };
-	
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
-	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &m_commandBuffers[currentFrame];
-
-	VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[currentFrame] };
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = signalSemaphores;
-
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	if (vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, m_inFrameFences[currentFrame]) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		//throw std::runtime_error("failed to submit draw command buffer!");
-#endif
-	}
-	m_swapChain->FrameEnd(signalSemaphores, device.GetPresentQueue());
-	m_boundMaterialType = MATERIAL_TYPE::COUNT;
-}
 
 void VlkRenderer::Cleanup()
 {

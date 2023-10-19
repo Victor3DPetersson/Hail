@@ -18,21 +18,25 @@ namespace Hail
 	{
 	public:
 
-		void Update();
 		virtual void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain);
-		bool InitMaterial(MATERIAL_TYPE  type, FrameBufferTexture* frameBufferToBindToMaterial);
+		bool InitMaterial(MATERIAL_TYPE  type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight);
 		bool LoadMaterial(GUID uuid);
 		Material& GetMaterial(MATERIAL_TYPE materialType);
 		const MaterialInstance& GetMaterialInstance(uint32_t instanceID);
-		bool CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData);
+		uint32 CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData);
+		bool InitMaterialInstance(uint32 instanceID, uint32 frameInFlight);
+		virtual bool ReloadAllMaterials(uint32 frameInFlight);
 		virtual void ClearAllResources();
 
 	protected:
 
-		virtual bool InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial) = 0;
-		virtual bool InitMaterialInstanceInternal(const Material material, MaterialInstance& instance) = 0;
+		virtual bool InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial, uint32 frameInFlight) = 0;
+		virtual bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight) = 0;
+		virtual void ClearMaterialInternal(MATERIAL_TYPE materialType, uint32 frameInFlight) = 0;
 
-		CompiledShader LoadShader(const char* shaderName, SHADERTYPE shaderType);
+		void ClearHighLevelMaterial(MATERIAL_TYPE materialType, uint32 frameInFlight);
+
+		CompiledShader LoadShader(const char* shaderName, SHADERTYPE shaderType, bool reloadShader);
 		void InitCompiler();
 		void DeInitCompiler();
 
@@ -43,7 +47,10 @@ namespace Hail
 
 		ShaderCompiler* m_compiler = nullptr;
 		GrowingArray<CompiledShader> m_compiledRequiredShaders;
-		Material m_materials[static_cast<uint32_t>(MATERIAL_TYPE::COUNT)];
-		GrowingArray< MaterialInstance> m_materialsInstanceData;
+		Material m_materials[(uint32)MATERIAL_TYPE::COUNT];
+		ResourceValidator m_materialValidators[(uint32)MATERIAL_TYPE::COUNT];
+
+		GrowingArray<MaterialInstance> m_materialsInstanceData;
+		GrowingArray<ResourceValidator> m_materialsInstanceValidationData;
 	};
 }
