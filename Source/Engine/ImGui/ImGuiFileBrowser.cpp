@@ -142,17 +142,25 @@ void Hail::ImGuiFileBrowser::FileSystemLogic()
             extension[fileObject.m_fileObject.Extension().Length()] = '\0';
             ImGui::Text(extension);
             ImGui::TableNextColumn();
-            ImGui::Text("%f mb", static_cast<float>((static_cast<double>(fileData.m_filesizeInBytes) / 1000000.f)));
+            if (fileObject.m_fileObject.IsDirectory())
+            {
+                ImGui::Text("-");
+            }
+            else
+            {
+                ImGui::Text("%f mb", (float)((double)fileData.m_filesizeInBytes) / 1000000.f);
+            }
 
             String64 timePreview;
 #ifdef PLATFORM_WINDOWS
-            FILETIME time;
-            time.dwLowDateTime = fileData.m_lastWriteTime.m_lowDateTime;
-            time.dwHighDateTime = fileData.m_lastWriteTime.m_highDateTime;
-            SYSTEMTIME SystemTime{};
-            FileTimeToSystemTime(&time, &SystemTime);
-            timePreview = String64::Format("%u/%u/%u  %u:%u:%u", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond);
+                FILETIME time;
+                time.dwLowDateTime = fileData.m_lastWriteTime.m_lowDateTime;
+                time.dwHighDateTime = fileData.m_lastWriteTime.m_highDateTime;
+                SYSTEMTIME SystemTime{};
+                FileTimeToSystemTime(&time, &SystemTime);
+                timePreview = String64::Format("%u/%u/%u  %u:%u:%u", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond);
 #endif
+
             ImGui::TableNextColumn();
             ImGui::Text(timePreview.Data());
         }
@@ -173,16 +181,16 @@ void Hail::ImGuiFileBrowser::DirectoryPanelLogic()
     uint16_t depthWeReached = 0;
     uint16_t selectedDepth = 0;
     bool jumpToADepth = false;
-    for (uint16_t i = 0; i < m_fileSystem.GetMaxDepth(); i++)
+    for (uint16_t i = 0; i < m_fileSystem.GetMaxDepth() + 1; i++)
     {
         const auto& folder = m_fileSystem.GetDirectoryAtDepth(i);
         String64 folderName;
         wcstombs(folderName, folder.m_fileObject.Name(), folder.m_fileObject.Length() + 1);
-        if (i == m_fileSystem.GetCurrentDepth() - 1)
+        if (i == m_fileSystem.GetCurrentDepth())
         {
             folderName = "-> " + folderName;
         }
-        if (ImGui::Selectable(folderName.Data(), folder.m_selected) && i != m_fileSystem.GetCurrentDepth() - 1)
+        if (ImGui::Selectable(folderName.Data(), folder.m_selected) && i != m_fileSystem.GetCurrentDepth())
         {
             jumpToADepth = true;
             selectedDepth = folder.m_fileObject.GetDirectoryLevel();

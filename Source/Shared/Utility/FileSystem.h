@@ -1,5 +1,4 @@
 #pragma once
-#include <string>
 #include "..\Containers\StaticArray\StaticArray.h"
 #include "..\Containers\GrowingArray\GrowingArray.h"
 #include "..\Containers\Stack\stack.h"
@@ -7,28 +6,14 @@
 #include "String.hpp"
 #include "Utility\FilePath.hpp"
 
-#ifdef PLATFORM_WINDOWS
-//TODO move to cpp file to rewmove windows.h from header
-#include <windows.h>
-
-#else 
-
-#endif
-
 namespace Hail
 {
 	constexpr uint32_t MAX_FILE_DEPTH = 16u;
 
 	class FileIterator
 	{
-		struct FindFileData
-		{
-#ifdef PLATFORM_WINDOWS
-			WIN32_FIND_DATA m_findFileData;
-			HANDLE m_hFind;
-#endif
-		};
 	public:
+		FileIterator();
 		~FileIterator();
 		explicit FileIterator(FilePath basePath);
 		//Iterates over a single folder, not entering any subdirectories
@@ -36,20 +21,22 @@ namespace Hail
 		FilePath GetCurrentPath() const;
 
 	protected:
-
+		void Init();
+		void DeInit();
 		void InitPath(const FilePath& basePath);
 		FilePath m_basePath;
 		FileObject m_currentFileObject;
 		uint16_t m_baseDepth = 0;
 		uint16_t m_maxDepth = 0;
 
-		FindFileData m_currentFileFindData;
 		bool m_osHandleIsOpen = false;
+		void* m_currentFileFindData = nullptr;
 	};
 
 	class RecursiveFileIterator : public FileIterator
 	{
 	public:
+		RecursiveFileIterator();
 		~RecursiveFileIterator();
 		explicit RecursiveFileIterator(FilePath basePath);
 		//Iterate over a folder and all its sub-directories. Will return true until it has iterated over all files.

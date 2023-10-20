@@ -34,7 +34,7 @@ namespace Hail
 
 		char m_currentDisplayPath[MAX_FILE_LENGTH];
 		char m_editedFilePath[MAX_FILE_LENGTH];
-		FileSystem m_fileSystem;
+		FileSystem m_fileSystem = FileSystem();
 		ImGuiFileBrowserData* m_dataToSearchFor = nullptr;
 	};
 }

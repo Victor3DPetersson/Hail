@@ -11,28 +11,22 @@
 #include "String.hpp"
 #include "MathUtils.h"
 
-namespace Hail
-{
 #ifdef PLATFORM_WINDOWS
+#include <windows.h>
 
-    CommonFileData ConstructFileData(WIN32_FIND_DATA findData)
-    {
-        CommonFileData fileData;
-        LARGE_INTEGER largeInteger;
-        largeInteger.LowPart = findData.nFileSizeLow;
-        largeInteger.HighPart = findData.nFileSizeHigh;
-        fileData.m_filesizeInBytes = largeInteger.QuadPart;
-
-        fileData.m_creationTime.m_highDateTime = findData.ftCreationTime.dwHighDateTime;
-        fileData.m_creationTime.m_lowDateTime = findData.ftCreationTime.dwLowDateTime;
-        fileData.m_lastWriteTime.m_highDateTime = findData.ftLastWriteTime.dwHighDateTime;
-        fileData.m_lastWriteTime.m_lowDateTime = findData.ftLastWriteTime.dwLowDateTime;
-        return fileData;
-    }
-
+#else 
 
 #endif
 
+namespace Hail
+{
+    struct FindFileData
+    {
+#ifdef PLATFORM_WINDOWS
+        WIN32_FIND_DATA m_findFileData;
+#endif
+        void* m_hFind;
+    };
 
     SelecteableFileObject::SelecteableFileObject(const FileObject& fileObject) : m_fileObject(fileObject)
     {
@@ -48,50 +42,6 @@ namespace Hail
             const FileObject currentObject = iteratedPath.Object();
             m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
         }
-
-        //FileObject object = FileObject(currentPath);
-        //if (IsValidFilePath(currentPath))
-        //{
-        //    WIN32_FIND_DATA FindFileData;
-        //    HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
-
-        //    do {
-        //        if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
-        //            && wcscmp(FindFileData.cFileName, L".") != 0
-        //            && wcscmp(FindFileData.cFileName, L"..") != 0)
-        //        {
-        //            // Call our function again to search in this sub-directory 
-        //            String64 fileName;
-        //            wcstombs(fileName, FindFileData.cFileName, wcslen(FindFileData.cFileName) + 1);
-        //            Debug_PrintConsoleConstChar("\nDirectory:");
-        //            Debug_PrintConsoleConstChar(fileName);
-        //            
-
-        //            FileObject directoryObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-        //            m_files[currentPath.GetDirectoryLevel()].Add(directoryObject);
-        //            FilePath newPath = (currentPath);
-        //            newPath = newPath + FindFileData.cFileName + L"*\0";
-        //            IterateOverFilesRecursively(newPath);
-        //        }
-        //        else
-        //        {
-        //            if (wcscmp(FindFileData.cFileName, L".") != 0
-        //                && wcscmp(FindFileData.cFileName, L"..") != 0)
-        //            {
-        //                FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-        //                m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
-        //                String64 file;
-        //                wcstombs(file, FindFileData.cFileName, wcslen(FindFileData.cFileName) + 1);
-        //                Debug_PrintConsoleConstChar(file.Data());
-        //            }
-        //        }
-        //    } while (FindNextFile(hFind, &FindFileData) != 0);
-        //    FindClose(hFind);
-        //}
-        //else
-        //{
-        //    //error message? 
-        //}
     }
 
     void FileSystem::JumpUpOneDirectory(const SelecteableFileObject& directoryToJumpTo)
@@ -140,7 +90,7 @@ namespace Hail
             {
                 for (uint16_t i = m_basePath.GetDirectoryLevel(); i < depthToGoTo; i++)
                 {
-                    WString64 name = m_directories[i].m_fileObject.Name();
+                    WString64 name = m_directories[i + 1].m_fileObject.Name();
                     if (name.Data()[name.Length() - 1] != g_SourceSeparator)
                     {
                         name = name + g_SourceSeparatorAndEnd;
@@ -201,61 +151,6 @@ namespace Hail
                 }
             }
         }
-        //currentPath.AddWildcard();
-        //if (IsValidFilePath(currentPath))
-        //{
-        //    m_files[currentPath.GetDirectoryLevel()].RemoveAll();
-        //    WIN32_FIND_DATA FindFileData;
-        //    HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
-        //    do {
-        //        if ((FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
-        //            && wcscmp(FindFileData.cFileName, L".") != 0
-        //            && wcscmp(FindFileData.cFileName, L"..") != 0)
-        //        {
-        //            FileObject directoryObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-        //            m_files[currentPath.GetDirectoryLevel()].Add(directoryObject);
-        //        }
-        //        else
-        //        {
-        //            if (wcscmp(FindFileData.cFileName, L".") != 0
-        //                && wcscmp(FindFileData.cFileName, L"..") != 0)
-        //            {
-        //                if (m_extensionsToSearchFor.Empty())
-        //                {
-        //                    FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-        //                    m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
-        //                }
-        //                else
-        //                {
-        //                    FileObject fileObject = FileObject(FindFileData.cFileName, currentPath.Object(), ConstructFileData(FindFileData));
-        //                    bool isObjectInList = false;
-        //                    for (uint32_t i = 0; i < m_extensionsToSearchFor.Size(); i++)
-        //                    {
-        //                        String64 extension;
-        //                        WString64 wExtension = fileObject.Extension();
-        //                        wcstombs(extension.Data(), wExtension, wExtension.Length());
-        //                        extension[wExtension.Length()] = '\0';
-        //                        if (m_extensionsToSearchFor[i] == extension)
-        //                        {
-        //                            isObjectInList = true;
-        //                            break;
-        //                        }
-        //                    }
-        //                    if (isObjectInList)
-        //                    {
-        //                        m_files[currentPath.GetDirectoryLevel()].Add(fileObject);
-        //                    }
-        //                }
-
-        //            }
-        //        }
-        //    } while (FindNextFile(hFind, &FindFileData) != 0);
-        //    FindClose(hFind);
-        //}
-        //else
-        //{
-        //    //error message? 
-        //}
     }
 
     void FileSystem::SetDirectories(FilePath path)
@@ -263,13 +158,14 @@ namespace Hail
         m_maxDepth = Math::Max(m_maxDepth, path.GetDirectoryLevel());
         while (path.GetDirectoryLevel() != 0)
         {
-            m_directories[path.GetDirectoryLevel() - 1] = path.Object();
+            m_directories[path.GetDirectoryLevel()] = path.Object();
             if (path.GetDirectoryLevel() == 1)
             {
                 break;
             }
             path = path.Parent();
         }
+        m_directories[0] = path.Parent().Object();
     }
 
     void FileSystem::Initialize()
@@ -325,19 +221,38 @@ namespace Hail
         return m_directories[requestedDepth];
     }
 
+    FileIterator::FileIterator()
+    {
+        Init();
+    }
+
     FileIterator::~FileIterator()
     {
-        if (m_osHandleIsOpen)
-        {
-            FindClose(m_currentFileFindData.m_hFind);
-        }
+        DeInit();
     }
 
     FileIterator::FileIterator(FilePath basePath)
     {
+        Init();
         m_basePath = basePath;
         m_baseDepth = m_basePath.GetDirectoryLevel();
         InitPath(m_basePath);
+    }
+
+    void FileIterator::Init()
+    {
+        //TODO: make sure that this object is in pooled memory to prevent fragmentation
+        m_currentFileFindData = new FindFileData();
+    }
+
+    void FileIterator::DeInit()
+    {
+        if (m_osHandleIsOpen)
+        {
+            FindClose(((FindFileData*)m_currentFileFindData)->m_hFind);
+        }
+        delete m_currentFileFindData;
+        m_currentFileFindData = nullptr;
     }
 
     void FileIterator::InitPath(const FilePath& basePath)
@@ -348,11 +263,11 @@ namespace Hail
 
         if (currentPath.IsValid())
         {
-            WIN32_FIND_DATA FindFileData;
-            HANDLE hFind = FindFirstFile(currentPath.Data(), &FindFileData);
+            WIN32_FIND_DATA findFileData;
+            HANDLE hFind = FindFirstFile(currentPath.Data(), &findFileData);
             m_osHandleIsOpen = hFind != 0;
-            m_currentFileFindData.m_findFileData = FindFileData;
-            m_currentFileFindData.m_hFind = hFind;
+            ((FindFileData*)m_currentFileFindData)->m_findFileData = findFileData;
+            ((FindFileData*)m_currentFileFindData)->m_hFind = hFind;
         }
         else
         {
@@ -365,39 +280,40 @@ namespace Hail
         FilePath currentPath = m_basePath + m_currentFileObject;
         currentPath.AddWildcard();
 
+        FindFileData& currentFileData = *((FindFileData*)m_currentFileFindData);
         if (m_osHandleIsOpen)
         {
             do 
             {
-                if ((m_currentFileFindData.m_findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
-                    && wcscmp(m_currentFileFindData.m_findFileData.cFileName, L".") != 0
-                    && wcscmp(m_currentFileFindData.m_findFileData.cFileName, L"..") != 0)
+                if ((currentFileData.m_findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0
+                    && wcscmp(currentFileData.m_findFileData.cFileName, L".") != 0
+                    && wcscmp(currentFileData.m_findFileData.cFileName, L"..") != 0)
                 {
-                    m_currentFileObject = FileObject(m_currentFileFindData.m_findFileData.cFileName, currentPath.Object(), ConstructFileData(m_currentFileFindData.m_findFileData));
-                    if (FindNextFile(m_currentFileFindData.m_hFind, &m_currentFileFindData.m_findFileData) == 0)
+                    m_currentFileObject = FileObject(currentFileData.m_findFileData.cFileName, currentPath.Object(), ConstructFileData(&currentFileData.m_findFileData));
+                    if (FindNextFile(currentFileData.m_hFind, &currentFileData.m_findFileData) == 0)
                     {
                         m_osHandleIsOpen = false;
-                        FindClose(m_currentFileFindData.m_hFind);
+                        FindClose(currentFileData.m_hFind);
                     }
                     return true;
                 }
                 else
                 {
-                    if (wcscmp(m_currentFileFindData.m_findFileData.cFileName, L".") != 0
-                        && wcscmp(m_currentFileFindData.m_findFileData.cFileName, L"..") != 0)
+                    if (wcscmp(currentFileData.m_findFileData.cFileName, L".") != 0
+                        && wcscmp(currentFileData.m_findFileData.cFileName, L"..") != 0)
                     {
-                        m_currentFileObject = FileObject(m_currentFileFindData.m_findFileData.cFileName, currentPath.Object(), ConstructFileData(m_currentFileFindData.m_findFileData));
-                        if (FindNextFile(m_currentFileFindData.m_hFind, &m_currentFileFindData.m_findFileData) == 0)
+                        m_currentFileObject = FileObject(currentFileData.m_findFileData.cFileName, currentPath.Object(), ConstructFileData(&currentFileData.m_findFileData));
+                        if (FindNextFile(currentFileData.m_hFind, &currentFileData.m_findFileData) == 0)
                         {
                             m_osHandleIsOpen = false;
-                            FindClose(m_currentFileFindData.m_hFind);
+                            FindClose(currentFileData.m_hFind);
                         }
                         return true;
                     }
                 }
-            } while (FindNextFile(m_currentFileFindData.m_hFind, &m_currentFileFindData.m_findFileData) != 0);
+            } while (FindNextFile(currentFileData.m_hFind, &currentFileData.m_findFileData) != 0);
             m_osHandleIsOpen = false;
-            FindClose(m_currentFileFindData.m_hFind);
+            FindClose(currentFileData.m_hFind);
             return true;
         }
         return false;
@@ -409,8 +325,14 @@ namespace Hail
         return returnPath + m_currentFileObject;
     }
 
+    RecursiveFileIterator::RecursiveFileIterator()
+    {
+        Init();
+    }
+
     RecursiveFileIterator::~RecursiveFileIterator()
     {
+        DeInit();
     }
 
     RecursiveFileIterator::RecursiveFileIterator(FilePath basePath) : FileIterator(basePath)

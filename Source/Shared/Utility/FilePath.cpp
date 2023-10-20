@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include "DebugMacros.h"
+
 #ifdef PLATFORM_WINDOWS
 
 #include <windows.h>
@@ -15,24 +16,6 @@
 
 namespace
 {
-    //TODO: Make sure that this function does not take a copy as that gets very expensive quickly
-    bool IsValidFilePathInternal(Hail::FilePath pathToCheck)
-    {
-        pathToCheck.AddWildcard();
-        //IfDef Windows here
-        WIN32_FIND_DATA FindFileData;
-        HANDLE hFind = FindFirstFile(pathToCheck.Data(), &FindFileData);
-        if (hFind == INVALID_HANDLE_VALUE)
-        {
-            Debug_PrintConsoleConstChar("Path not valid\n");
-            FindClose(hFind);
-            return false;
-        }
-        FindClose(hFind);
-        return true;
-    }
-
-
     int GetParentSeperator(const wchar_t* path, uint32_t length, bool isDirectory)
     {
         if (length == 0)
@@ -196,6 +179,7 @@ Hail::FilePath Hail::FilePath::operator+(const FileObject& object)
         returnPath.m_length += length;
         returnPath.FindExtension();
     }
+    returnPath.m_object = object;
     return returnPath;
 }
 
@@ -228,7 +212,7 @@ Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
 
 Hail::FilePath Hail::FilePath::Parent() const
 {
-    if (m_directoryLevel > 1)
+    if (m_directoryLevel >= 1)
     {
         const int objectLength = GetParentSeperator(m_data, m_length, m_isDirectory);
         FilePath path = FilePath(*this, objectLength + 1);
@@ -290,7 +274,7 @@ bool Hail::FilePath::IsValid() const
     {
         return false;
     }
-    return IsValidFilePathInternal(m_data);
+    return IsValidFilePathInternal(this);
 }
 
 void Hail::FilePath::FindExtension()
@@ -383,11 +367,11 @@ Hail::FileObject::FileObject(const FilePath& filePath)
         return;
     }
 
-    if (filePath.GetDirectoryLevel() <= 1)
+    if (filePath.GetDirectoryLevel() < 1)
     {
         m_name.Data()[0] = filePath.Data()[0];
         m_name.Data()[1] = L'\0';
-        m_directoryLevel = 1;
+        m_directoryLevel = 0;
         m_isDirectory = true;
         const wchar_t* folderName = L"folder\0";
         memcpy(m_extension, folderName, sizeof(wchar_t) * 7);
@@ -443,10 +427,20 @@ Hail::FileObject::FileObject(const FilePath& filePath)
     else
     {
         int32_t parentParentSeperator = GetParentSeperator(filePath.Data(), (filePath.Length() - parentSeperator) + 1, true);
-        memcpy(m_parentName, filePath.Data() + ((filePath.Length() - parentSeperator) - parentParentSeperator) + 2, sizeof(wchar_t) * (parentParentSeperator));
-        m_parentName[parentParentSeperator - 2] = L'\0';
+        if (parentParentSeperator != -1)
+        {
+            memcpy(m_parentName, filePath.Data() + ((filePath.Length() - parentSeperator) - parentParentSeperator) + 2, sizeof(wchar_t) * (parentParentSeperator));
+            m_parentName[parentParentSeperator - 2] = L'\0';
+        }
+        //Parent is Root directory
+        else
+        {
+            m_parentName[0] = filePath.Data()[0];
+            m_parentName[1] = L'\0';
+        }
     }
     m_directoryLevel = filePath.GetDirectoryLevel();
+    m_fileData = ConstructFileDataFromPath(filePath);
 }
 
 Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData) :

@@ -5,23 +5,12 @@
 #include <stdarg.h>
 #include <clocale>
 #include "String.hpp"
+#include "FileData.h"
 
 namespace Hail
 {
 	constexpr uint32_t MAX_FILE_LENGTH = 1024;
 	class FilePath;
-	struct FileTime
-	{
-		uint32_t m_lowDateTime = 0;
-		uint32_t m_highDateTime = 0;
-	};
-	struct CommonFileData
-	{
-		FileTime m_creationTime;
-		FileTime m_lastWriteTime;
-
-		uint64_t m_filesizeInBytes = 0;
-	};
 
 #ifdef PLATFORM_WINDOWS
 
@@ -30,9 +19,6 @@ namespace Hail
 	constexpr const wchar_t g_Wildcard = L'*';
 	constexpr const wchar_t g_SourceSeparator = L'\\';
 	constexpr const wchar_t g_Separator = L'/';
-
-
-
 
 #endif
 
