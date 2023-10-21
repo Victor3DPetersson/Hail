@@ -103,7 +103,7 @@ void Hail::ResourceManager::SetTargetResolution(glm::uvec2 targetResolution)
 
 void Hail::ResourceManager::SetReloadOfAllResources()
 {
-	if (m_reloadEverything)
+	if (m_reloadEverything || m_reloadAllTextures)
 	{
 		return;
 	}
@@ -111,23 +111,39 @@ void Hail::ResourceManager::SetReloadOfAllResources()
 	m_reloadFrameCounter = 0;
 }
 
+void Hail::ResourceManager::SetReloadOfAllTextures()
+{
+	if (m_reloadEverything || m_reloadAllTextures)
+	{
+		return;
+	}
+	m_reloadAllTextures = true;
+	m_reloadFrameCounter = 0;
+}
+
 void Hail::ResourceManager::ReloadResources()
 {
-	m_frameInFlightIndex = m_swapChain->GetFrameInFlight();
-	if (!m_reloadEverything)
+	if (!m_reloadEverything && !m_reloadAllTextures)
 	{
 		return;
 	}
 
+	m_frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	if (m_reloadEverything)
 	{
 		m_textureManager->ReloadAllTextures(m_frameInFlightIndex);
 		m_materialManager->ReloadAllMaterials(m_frameInFlightIndex);
 	}
+	if (m_reloadAllTextures)
+	{
+		m_textureManager->ReloadAllTextures(m_frameInFlightIndex);
+		m_materialManager->ReloadAllMaterialInstances(m_frameInFlightIndex);
+	}
 
 	if (++m_reloadFrameCounter == MAX_FRAMESINFLIGHT)
 	{
 		m_reloadEverything = false;
+		m_reloadAllTextures = false;
 	}
 
 }

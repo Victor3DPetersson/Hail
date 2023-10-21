@@ -57,15 +57,16 @@ void TextureManager::Init(RenderingDevice* device)
 {
 	m_textureCommonData.Init(10);
 	m_textureCommonDataValidators.Init(10);
+	CreateDefaultTexture();
 }
 
 void Hail::TextureManager::ReloadAllTextures(uint32 frameInFlight)
 {
 	for (uint32 i = 0; i < m_textureCommonData.Size(); i++)
 	{
-		if (ReloadTextureInternal(i, frameInFlight))
+		if (!ReloadTextureInternal(i, frameInFlight))
 		{
-
+			//TODO: Add an assert here to catch this error
 		}
 	}
 }
@@ -75,9 +76,21 @@ void TextureManager::Update()
 	//TODO: Add file watcher here
 }
 
+bool Hail::TextureManager::LoadTexture(const char* textureName)
+{
+	TextureResource textureResource;
+	if (LoadTextureInternal(textureName, textureResource, false))
+	{
+		textureResource.index = m_textureCommonData.Size();
+		m_textureCommonData.Add(textureResource);
+		return CreateTextureInternal(m_textureCommonData.GetLast(), false);
+	}
+	return false;
+}
+
 bool TextureManager::LoadAllRequiredTextures()
 {
-	for (size_t i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
+	for (uint32 i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
 	{
 		if (!LoadTexture(REQUIRED_TEXTURES[i]))
 		{
@@ -148,16 +161,16 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 			switch (i % 4)
 			{
 			case 0:
-				static_cast<uint8_t*>(textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 1:
-				static_cast<uint8_t*>(textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 2:
-				static_cast<uint8_t*>(textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 3:
-				static_cast<uint8_t*>(textureToFill.m_compiledTextureData.compiledColorValues)[i] = 255;
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = 255;
 				break;
 			}
 		}
@@ -219,7 +232,6 @@ bool TextureManager::CompileTexture(const char* textureName)
 				break;
 			}
 		}
-
 	}
 
 	if (!foundTexture)
@@ -231,3 +243,65 @@ bool TextureManager::CompileTexture(const char* textureName)
 	return TextureCompiler::CompileSpecificTGATexture(currentPath);
 }
 
+void Hail::TextureManager::CreateDefaultTexture()
+{
+	const uint8 widthHeight = 16;
+	m_defaultTexture.index = MAX_UINT;
+	m_defaultTexture.textureName = "Default Texture";
+	m_defaultTexture.m_compiledTextureData.header.height = widthHeight;
+	m_defaultTexture.m_compiledTextureData.header.width = widthHeight;
+	m_defaultTexture.m_compiledTextureData.header.textureType = (uint32)TEXTURE_TYPE::R8G8B8A8_SRGB;
+	m_defaultTexture.m_compiledTextureData.compiledColorValues = new uint8[GetTextureByteSize(m_defaultTexture.m_compiledTextureData.header)];
+	m_defaultTexture.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+	struct Color
+	{
+		uint8 r = 255;
+		uint8 g = 255;
+		uint8 b = 255;
+		uint8 a = 255;
+	};
+
+	Color color1;
+	color1.r = 89;
+	color1.g = 104;
+	color1.b = 128;
+
+	Color color2;
+	color2.r = 41;
+	color2.g = 51;
+	color2.b = 42;
+
+	//multiply with 4, so we cover each color
+	for (uint8 x = 0; x < widthHeight * 4; x = x + 4)
+	{
+		const uint8 xIndexValue = (x / 4) % 4;
+		for (uint8 y = 0; y < widthHeight * 4; y = y + 4)
+		{
+			const uint8 yIndexValue = ((y * widthHeight) / 4) % 64;
+			if (xIndexValue == 0 || xIndexValue == 1)
+			{
+				if ((yIndexValue == 0 || yIndexValue == 16))
+				{
+					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
+				}
+				else
+				{
+					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
+				}
+			}
+			else
+			{
+				if ((yIndexValue == 32 || yIndexValue == 48))
+				{
+					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
+				}
+				else
+				{
+					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
+				}
+			}
+
+		}
+	}
+	CreateTextureInternal(m_defaultTexture, true);
+}

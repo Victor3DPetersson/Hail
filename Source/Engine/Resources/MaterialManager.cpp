@@ -1,5 +1,6 @@
 #include "Engine_PCH.h"
 #include "MaterialManager.h"
+#include "TextureManager.h"
 #include "ShaderCompiler.h"
 
 #include "DebugMacros.h"
@@ -124,6 +125,24 @@ namespace Hail
 		return result;
 	}
 
+	bool MaterialManager::ReloadAllMaterialInstances(uint32 frameInFlight)
+	{
+		CheckMaterialInstancesToReload(frameInFlight);
+		bool result = true;
+		for (uint32 i = 0; i < m_materialsInstanceData.Size(); i++)
+		{
+			if (m_materialsInstanceValidationData[i].GetIsFrameDataDirty(frameInFlight))
+			{
+				if (InitMaterialInstanceInternal(m_materialsInstanceData[i], frameInFlight))
+				{
+					m_materialsInstanceValidationData[i].ClearFrameData(frameInFlight);
+					result = false;
+				}
+			}
+		}
+		return false;
+	}
+
 	void MaterialManager::ClearHighLevelMaterial(MATERIAL_TYPE materialType, uint32 frameInFlight)
 	{
 		//TODO make more proper and robust validation later =) 
@@ -131,6 +150,35 @@ namespace Hail
 		m_materials[(uint32)materialType].m_vertexShader.loadState = SHADER_LOADSTATE::UNLOADED;
 		m_materialValidators[(uint32)materialType].MarkResourceAsDirty(frameInFlight);
 
+	}
+
+	void MaterialManager::CheckMaterialInstancesToReload(uint32 frameInFlight)
+	{
+		//TODO: potentionally quite slow, but is this a problem as it is only done for reload? 
+		const GrowingArray<ResourceValidator>& textureValidators = m_textureManager->GetTextureValidators();
+		for (size_t textureID = 0; textureID < textureValidators.Size(); textureID++)
+		{
+			//If the texture is marked dirty this frame
+			if (textureValidators[textureID].GetIsResourceDirty())
+			{
+				for (uint32 instance = 0; instance < m_materialsInstanceData.Size(); instance++)
+				{
+					//if we are not already reloading this texture
+					if (m_materialsInstanceValidationData[instance].GetIsResourceDirty())
+					{
+						continue;
+					}
+					for (uint32 instanceTexture = 0; instanceTexture < MAX_TEXTURE_HANDLES; instanceTexture++)
+					{
+						if(m_materialsInstanceData[instance].m_textureHandles[instanceTexture] == textureID)
+						{
+							m_materialsInstanceValidationData[instance].MarkResourceAsDirty(frameInFlight);
+							break;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	//TODO: Add relative path support in the shader output

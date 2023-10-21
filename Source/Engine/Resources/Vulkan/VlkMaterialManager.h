@@ -25,7 +25,8 @@ namespace Hail
 		bool CreateMaterialPipeline(Material& material, uint32 frameInFlight);
 		bool SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
 		bool SetUpPipelineLayout(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
-		bool CreateRenderpassAndFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
+		bool CreateFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
+		bool CreateRenderpass(VlkPassData& passData, MATERIAL_TYPE type);
 
 
 		VlkFrameBufferTexture* m_passesFrameBufferTextures[(uint32)(MATERIAL_TYPE::COUNT)];

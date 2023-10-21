@@ -27,9 +27,9 @@ namespace Hail
 
 	struct TextureHeader
 	{
-		uint32_t width = 0;
-		uint32_t height = 0;
-		uint32_t textureType = 0;
+		uint32 width = 0;
+		uint32 height = 0;
+		uint32 textureType = 0;
 	};
 
 	enum class TEXTURE_LOADSTATE

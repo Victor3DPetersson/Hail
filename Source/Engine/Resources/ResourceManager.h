@@ -29,6 +29,7 @@ namespace Hail
 		RenderingResourceManager* GetRenderingResourceManager() { return m_renderingResourceManager; }
 		void SetTargetResolution(glm::uvec2 targetResolution);
 		void SetReloadOfAllResources();
+		void SetReloadOfAllTextures();
 		void ReloadResources();
 
 		void LoadMaterial(GUID guid);
@@ -70,6 +71,7 @@ namespace Hail
 		//Reloading
 		
 		bool m_reloadEverything = false;
+		bool m_reloadAllTextures = false;
 		uint32 m_frameInFlightIndex = 0;
 		uint32 m_reloadFrameCounter = 0;
 

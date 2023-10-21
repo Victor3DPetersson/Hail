@@ -2,6 +2,7 @@
 #include "glm\vec4.hpp"
 #include "Resource.h"
 #include "Containers\GrowingArray\GrowingArray.h"
+#include "Containers\StaticArray\StaticArray.h"
 #include "String.hpp"
 #include "../EngineConstants.h"
 #include "ShaderCommons.h"
@@ -24,7 +25,7 @@ namespace Hail
 		ADDITIVE,
 		COUNT
 	};
-
+	constexpr uint8 MAX_TEXTURE_HANDLES = 8;
 	class MaterialInstance
 	{
 	public:
@@ -32,7 +33,7 @@ namespace Hail
 		uint32 m_instanceIdentifier = 0;
 		uint32 m_gpuResourceInstance = 0;
 		//Textures
-		uint32 m_textureHandles[8]{};
+		StaticArray<uint32, MAX_TEXTURE_HANDLES> m_textureHandles = (MAX_UINT);
 		//Other instanced parameters
 		glm::vec4 m_instanceFloatParameters;
 	};

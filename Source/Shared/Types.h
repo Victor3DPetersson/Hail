@@ -15,6 +15,7 @@ namespace Hail
     using float32 = float;
     using float64 = double;
 
+    constexpr uint32 MAX_UINT = 0xFFFFFFFF;
 
     struct GUID {
         unsigned long  Data1{};

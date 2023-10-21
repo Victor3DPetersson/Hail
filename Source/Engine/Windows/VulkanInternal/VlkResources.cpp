@@ -35,7 +35,6 @@ void Hail::VlkPassData::CleanupResource(VlkDevice& device)
 		}
 		m_renderPass = VK_NULL_HANDLE;
 	}
-	m_renderPass = VK_NULL_HANDLE;
 	m_frameBufferTextures = nullptr;
 }
 

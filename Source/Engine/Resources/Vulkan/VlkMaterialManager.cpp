@@ -390,13 +390,15 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 			//TODO ASSERT
 			return false;
 		}
+		if (!CreateRenderpass(passData, type))
+		{
+			return false;
+		}
 	}
-
-	if (!CreateRenderpassAndFramebuffers(passData, type, frameInFlight))
+	if (!CreateFramebuffers(passData, type, frameInFlight))
 	{
 		return false;
 	}
-
 
 	GrowingArray< VkWriteDescriptorSet> setWrites;
 	uint32_t bufferSize = 0;
@@ -454,7 +456,7 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 		setWrites.Add(tutorialBufferSet);
 
 		m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		m_descriptorImageInfo.imageView = ((VlkTextureResourceManager*)m_textureManager)->GetTextureData(1).textureImageView;
+		m_descriptorImageInfo.imageView = ((VlkTextureResourceManager*)m_textureManager)->GetDefaultTextureData().GetVlkTextureData().textureImageView;
 		m_descriptorImageInfo.sampler = vlkRenderingResources->m_linearTextureSampler;
 		if (!ValidateDescriptorSamplerWrite(m_descriptorImageInfo))
 		{
@@ -561,8 +563,16 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 	}
 }
 
-bool VlkMaterialManager::CreateRenderpassAndFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight)
+bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_TYPE type)
 {
+	if (type == MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
+	{
+		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
+		passData.m_ownsRenderpass = false;
+		passData.m_renderPass = swapChain->GetRenderPass();
+		return true;
+	}
+
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	GrowingArray<VkAttachmentDescription> attachmentDescriptors;
 	VkAttachmentReference colorAttachmentRef{};
@@ -604,25 +614,6 @@ bool VlkMaterialManager::CreateRenderpassAndFramebuffers(VlkPassData& passData, 
 	}
 
 	break;
-	case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-	{
-		attachmentDescriptors.Init(1);
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		attachmentDescriptors.Add(colorAttachment);
-	}
-
-
-	break;
 	case Hail::MATERIAL_TYPE::MODEL3D:
 	{
 		attachmentDescriptors.Init(2);
@@ -659,7 +650,6 @@ bool VlkMaterialManager::CreateRenderpassAndFramebuffers(VlkPassData& passData, 
 	default:
 		break;
 	}
-
 	//Todo set up dependencies depending on pass
 	VkSubpassDependency dependency{};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -684,15 +674,19 @@ bool VlkMaterialManager::CreateRenderpassAndFramebuffers(VlkPassData& passData, 
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
+	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &passData.m_renderPass) != VK_SUCCESS)
+	{
+		//TODO ASSERT
+		return false;
+	}
+	return true;
+}
 
+bool VlkMaterialManager::CreateFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight)
+{
 	if (type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
 	{
-		if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &passData.m_renderPass) != VK_SUCCESS)
-		{
-			//TODO ASSERT
-			return false;
-		}
-
+		VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 		FrameBufferTextureData colorTexture = passData.m_frameBufferTextures->GetTextureImage(frameInFlight);
 		FrameBufferTextureData depthTexture = passData.m_frameBufferTextures->GetDepthTextureImage(frameInFlight);
 		VkImageView attachments[2] = { colorTexture.imageView, depthTexture.imageView };

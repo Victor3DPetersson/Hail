@@ -325,16 +325,6 @@ namespace Hail
         return returnPath + m_currentFileObject;
     }
 
-    RecursiveFileIterator::RecursiveFileIterator()
-    {
-        Init();
-    }
-
-    RecursiveFileIterator::~RecursiveFileIterator()
-    {
-        DeInit();
-    }
-
     RecursiveFileIterator::RecursiveFileIterator(FilePath basePath) : FileIterator(basePath)
     {
     }

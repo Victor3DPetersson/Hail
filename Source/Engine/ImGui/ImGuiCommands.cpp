@@ -471,6 +471,10 @@ void Hail::ImGuiCommandManager::RenderEngineImgui()
 		{
 			m_resourceManager->SetReloadOfAllResources();
 		}
+		if (ImGui::Button("Reload All Texures"))
+		{
+			m_resourceManager->SetReloadOfAllTextures();
+		}
 		ImGui::End();
 	}
 }

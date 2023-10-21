@@ -8,6 +8,7 @@ class StaticArray
 public:
 	StaticArray() = default;
 
+	StaticArray(const Type initialArrayValue);
 	StaticArray(const std::initializer_list<Type>& initList);
 
 	inline const Type& operator[](const int& index) const;
@@ -25,6 +26,12 @@ template <typename Type, size_t size>
 size_t StaticArray<Type, size>::Getsize()
 {
 	return size;
+}
+
+template <typename Type, size_t size>
+StaticArray<Type, size>::StaticArray(const Type initialArrayValue)
+{
+	memset(m_data, initialArrayValue, sizeof(Type) * size);
 }
 
 template <typename Type, size_t size>

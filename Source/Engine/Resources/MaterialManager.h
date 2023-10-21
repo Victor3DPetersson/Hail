@@ -25,7 +25,8 @@ namespace Hail
 		const MaterialInstance& GetMaterialInstance(uint32_t instanceID);
 		uint32 CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData);
 		bool InitMaterialInstance(uint32 instanceID, uint32 frameInFlight);
-		virtual bool ReloadAllMaterials(uint32 frameInFlight);
+		bool ReloadAllMaterials(uint32 frameInFlight);
+		bool ReloadAllMaterialInstances(uint32 frameInFlight);
 		virtual void ClearAllResources();
 
 	protected:
@@ -35,6 +36,7 @@ namespace Hail
 		virtual void ClearMaterialInternal(MATERIAL_TYPE materialType, uint32 frameInFlight) = 0;
 
 		void ClearHighLevelMaterial(MATERIAL_TYPE materialType, uint32 frameInFlight);
+		void CheckMaterialInstancesToReload(uint32 frameInFlight);
 
 		CompiledShader LoadShader(const char* shaderName, SHADERTYPE shaderType, bool reloadShader);
 		void InitCompiler();

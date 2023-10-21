@@ -326,7 +326,6 @@ void Hail::VlkSwapChain::CreateRenderPass(VlkDevice& device)
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-
 	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &m_finalRenderPass) != VK_SUCCESS)
 	{
 #ifdef DEBUG

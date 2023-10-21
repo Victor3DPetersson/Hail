@@ -36,8 +36,6 @@ namespace Hail
 	class RecursiveFileIterator : public FileIterator
 	{
 	public:
-		RecursiveFileIterator();
-		~RecursiveFileIterator();
 		explicit RecursiveFileIterator(FilePath basePath);
 		//Iterate over a folder and all its sub-directories. Will return true until it has iterated over all files.
 		bool IterateOverFolderRecursively();
