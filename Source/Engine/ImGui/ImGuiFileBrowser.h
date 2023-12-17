@@ -25,7 +25,6 @@ namespace Hail
 	private:
 
 		void FileSystemLogic();
-		void DirectoryPanelLogic();
 		void CopyPath();
 		void DeselectFiles();
 

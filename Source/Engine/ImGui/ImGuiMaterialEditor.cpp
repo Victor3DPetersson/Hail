@@ -25,9 +25,9 @@ namespace Hail
 		}
 		g_inited = true;
 
-		g_materialTypeStrings[static_cast<uint32_t>(MATERIAL_TYPE::SPRITE)] = "Sprite";
-		g_materialTypeStrings[static_cast<uint32_t>(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)] = "Fullscreen Effect";
-		g_materialTypeStrings[static_cast<uint32_t>(MATERIAL_TYPE::MODEL3D)] = "Model";
+		g_materialTypeStrings[(uint32)MATERIAL_TYPE::SPRITE] = "Sprite";
+		g_materialTypeStrings[(uint32)MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX] = "Fullscreen Effect";
+		g_materialTypeStrings[(uint32)MATERIAL_TYPE::MODEL3D] = "Model";
 	}
 
 	void InitFileBrowser()

@@ -6,7 +6,12 @@ constexpr uint32_t REQUIRED_TEXTURE_COUNT = 3;
 namespace Hail
 {
 	class ResourceManager;
+	class RenderingResourceManager;
 	class FrameBufferTexture;
+
+	class FilePath;
+	class ImGuiTextureResource;
+
 
 	class TextureManager
 	{
@@ -24,6 +29,9 @@ namespace Hail
 		const GrowingArray<ResourceValidator>& GetTextureValidators() const { return m_textureCommonDataValidators; }
 		const GrowingArray<TextureResource>& GetTexturesCommonData() const { return m_textureCommonData; }
 		const TextureResource& GetDefaultTextureCommonData() const { return m_defaultTexture; }
+
+		virtual ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager) = 0;
+
 	protected:
 		void CreateDefaultTexture();
 		virtual bool CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture) = 0;
@@ -37,5 +45,8 @@ namespace Hail
 
 		GrowingArray<TextureResource> m_textureCommonData;
 		GrowingArray<ResourceValidator> m_textureCommonDataValidators;
+
+
+
 	};
 }

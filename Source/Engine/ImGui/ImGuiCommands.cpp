@@ -3,11 +3,13 @@
 #include "imgui.h"
 #include "DebugMacros.h"
 #include "ImGuiMaterialEditor.h"
+#include "ImGuiAssetBrowser.h"
 #include "Resources\ResourceManager.h"
 
 namespace Hail
 {
 	ImGuiMaterialEditor g_materialEditor;
+	ImGuiAssetBrowser g_assetBrowser;
 }
 
 
@@ -475,6 +477,9 @@ void Hail::ImGuiCommandManager::RenderEngineImgui()
 		{
 			m_resourceManager->SetReloadOfAllTextures();
 		}
+
+		g_assetBrowser.RenderImGuiCommands(&m_fileBrowser, m_resourceManager);
+
 		ImGui::End();
 	}
 }

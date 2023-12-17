@@ -15,5 +15,20 @@ namespace Hail
 		GUID m_uuid;
 		CompiledTexture m_compiledTextureData;
 	};
+
+
+	class ImGuiTextureResource
+	{
+	public:
+
+		virtual void* GetImguiTextureResource() = 0;
+
+	
+		uint32 m_width = 0;
+		uint32 m_height = 0;
+		String64 textureName;
+
+	};
+
 }
 

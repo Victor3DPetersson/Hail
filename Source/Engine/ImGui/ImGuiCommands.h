@@ -84,6 +84,7 @@ namespace Hail
 			BUTTON,
 			TEXT_INPUT,
 			FILE_BROWSER,
+			//TODO: remove this type as the game code should not handle assets in this way
 			MATERIAL_EDITOR,
 			COUNT
 		};

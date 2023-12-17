@@ -4,6 +4,10 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include "Utility/StringUtility.h"
+
+//TODO: namespace Hail this file
+
 class String64
 {
 public:
@@ -186,6 +190,14 @@ public:
 		return m_data;
 	}
 	const uint32_t Length() const { return wcslen(m_data); }
+
+	String64 CharString() const 
+	{ 
+		String64 returnString;
+		Hail::FromWCharToConstChar(m_data, returnString.Data(), 64u);
+		return returnString;
+	}
+
 private:
 	wchar_t m_data[64];
 };

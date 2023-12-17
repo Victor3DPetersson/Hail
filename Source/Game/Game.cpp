@@ -36,7 +36,6 @@ namespace Hail
 		sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
 
-
 		sprites[1].transform.SetPosition({ 0.25f, 0.25f });
 		sprites[2].transform.SetPosition({ 0.75f, 0.25f });
 		sprites[3].transform.SetPosition({ 0.25f, 0.75f });

@@ -11,6 +11,8 @@
 #include "Utility\FilePath.hpp"
 #include <chrono>
 
+#include "ImGuiDirectoryPanel.h"
+
 #ifdef PLATFORM_WINDOWS
 #include <windows.h>
 #endif
@@ -50,16 +52,19 @@ void Hail::ImGuiFileBrowser::RenderImGuiCommands(bool& unlockApplicationThread)
         ImGui::Separator();
 
         {
-            DirectoryPanelLogic();
+            ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
+            ImGui::BeginChild("ChildL", ImVec2(ImGui::GetContentRegionAvail().x * 0.2f, ImGui::GetContentRegionAvail().y * 0.9f), false, window_flags);
+
+            if (ImGuiHelpers::DirectoryPanelLogic(&m_fileSystem, 0))
+            {
+                CopyPath();
+            }
+
+            ImGui::EndChild();
 
             ImGui::SameLine();
 
-            ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
-            ImGui::BeginChild("ChildR", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.9f), true, window_flags);
             FileSystemLogic();
-            ImGui::EndChild();
-            ImGui::PopStyleVar();
         }
 
         ImGui::Separator();
@@ -89,6 +94,10 @@ void Hail::ImGuiFileBrowser::RenderImGuiCommands(bool& unlockApplicationThread)
 
 void Hail::ImGuiFileBrowser::FileSystemLogic()
 {
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+    ImGui::BeginChild("ChildR", ImVec2(0, ImGui::GetContentRegionAvail().y * 0.9f), true, window_flags);
+
     const char* topLabels[] = { "Name", "Type", "Size", "DateModified" };
     ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
     tableFlags &= ImGuiTableFlags_BordersOuterV;
@@ -172,45 +181,10 @@ void Hail::ImGuiFileBrowser::FileSystemLogic()
             CopyPath();
         }
     }
-}
-
-void Hail::ImGuiFileBrowser::DirectoryPanelLogic()
-{
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
-    ImGui::BeginChild("ChildL", ImVec2(ImGui::GetContentRegionAvail().x * 0.2f, ImGui::GetContentRegionAvail().y * 0.9f), false, window_flags);
-    uint16_t depthWeReached = 0;
-    uint16_t selectedDepth = 0;
-    bool jumpToADepth = false;
-    for (uint16_t i = 0; i < m_fileSystem.GetMaxDepth() + 1; i++)
-    {
-        const auto& folder = m_fileSystem.GetDirectoryAtDepth(i);
-        String64 folderName;
-        wcstombs(folderName, folder.m_fileObject.Name(), folder.m_fileObject.Length() + 1);
-        if (i == m_fileSystem.GetCurrentDepth())
-        {
-            folderName = "-> " + folderName;
-        }
-        if (ImGui::Selectable(folderName.Data(), folder.m_selected) && i != m_fileSystem.GetCurrentDepth())
-        {
-            jumpToADepth = true;
-            selectedDepth = folder.m_fileObject.GetDirectoryLevel();
-        }
-        depthWeReached++;
-        ImGui::Indent();
-    }
-    for (uint32_t i = 0; i < depthWeReached; i++)
-    {
-        ImGui::Unindent();
-    }
-
     ImGui::EndChild();
-
-    if (jumpToADepth)
-    {
-        m_fileSystem.JumpToDepth(selectedDepth);
-        CopyPath();
-    }
+    ImGui::PopStyleVar();
 }
+
 
 void Hail::ImGuiFileBrowser::CopyPath()
 {

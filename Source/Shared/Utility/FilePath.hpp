@@ -36,6 +36,8 @@ namespace Hail
 		FileObject& operator=(const FileObject&& moveableObject) noexcept;
 		const FileObject& operator=(FileObject& object);
 		const FileObject& operator=(FileObject&& moveableObject) noexcept;
+		bool operator==(const FileObject& a) const;
+		bool operator!=(const FileObject& a) const;
 
 		const WString64& Name() const { return m_name; }
 		const WString64& ParentName() const { return m_parentName; }
@@ -149,7 +151,7 @@ namespace Hail
 		}
 
 		FilePath operator+(const FilePath& otherPath);
-		FilePath operator+(const FileObject& object);
+		FilePath operator+(const FileObject& object) const;
 		FilePath operator+(const wchar_t* const string);
 		FilePath Parent() const;
 		//Either the file object or the path
@@ -167,6 +169,10 @@ namespace Hail
 		void AddWildcard();
 		//Creates a directory if none exist, otherwise this function does nothing 
 		bool CreateFileDirectory() const;
+
+		// If the filepath is a directory this will clear the final separator if one is present
+		void DeleteEndSeperator();
+
 	protected:
 		FilePath(const FilePath& path, uint32_t lengthOfPath);
 		void FindExtension();

@@ -134,7 +134,6 @@ void VlkRenderer::InitImGui()
 
 	VkCommandBuffer cmd = BeginSingleTimeCommands(device, device.GetCommandPool());
 
-
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
 	////execute a gpu command to upload imgui font textures
 	//immediate_submit([&](VkCommandBuffer cmd) {
@@ -143,6 +142,7 @@ void VlkRenderer::InitImGui()
 	EndSingleTimeCommands(device, cmd, device.GetGraphicsQueue(), device.GetCommandPool());
 	////clear font textures from cpu data
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
+
 
 	////add the destroy the imgui created structures
 	//_mainDeletionQueue.push_function([=]() {
@@ -153,7 +153,6 @@ void VlkRenderer::InitImGui()
 
 
 }
-
 
 void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 {
@@ -166,6 +165,7 @@ void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 	m_framebufferResized = false;
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplVulkan_NewFrame();
+
 	ImGui::NewFrame();
 	//g_camera = renderPool.renderCamera;
 }

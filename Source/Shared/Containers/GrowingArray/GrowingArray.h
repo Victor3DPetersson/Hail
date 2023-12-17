@@ -425,6 +425,8 @@ void GrowingArray<typename T, typename CountType>::DeleteAll()
 	assert(m_imInitialized == true, "Growing Array is not initialized");
 	delete[] m_arrayPointer;
 	m_arrayPointer = nullptr;
+	m_elementCount = 0;
+	m_sizeActual = 0;
 	//for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
 	//{
  //		delete m_arrayPointer[iSlot];

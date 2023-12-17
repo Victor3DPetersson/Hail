@@ -68,7 +68,7 @@ VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType> &  VectorOnStack<Type,
 {
 	if (UseSafeModeFlag == true)
 	{
-		for (size_t iSlot = 0; iSlot <= m_size; ++iSlot)
+		for (size_t iSlot = 0; iSlot <= vectorOnStack.m_end; ++iSlot)
 		{
 			m_data[iSlot] = vectorOnStack.m_data[iSlot];
 		}
@@ -174,6 +174,7 @@ Type VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::RemoveLast()
 	{
 		return m_data[--m_end];
 	}
+	return {};
 }
 
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>

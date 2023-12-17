@@ -3,6 +3,13 @@
 #include "Windows\VulkanInternal\VlkDevice.h"
 #include "Windows\VulkanInternal\VlkBufferCreationFunctions.h"
 #include "Utility\StringUtility.h"
+#include "Windows\VulkanInternal\VlkResourceManager.h"
+
+#include "Utility\FilePath.hpp"
+
+
+#include "Windows/imgui_impl_vulkan.h"
+
 
 using namespace Hail;
 
@@ -120,4 +127,69 @@ FrameBufferTexture* VlkTextureResourceManager::FrameBufferTexture_Create(String6
 	frameBuffer->SetName(name);
 	frameBuffer->CreateFrameBufferTextureObjects(m_device);
 	return frameBuffer;
+}
+
+ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager)
+{
+	const FileObject& object = filepath.Object();
+	TextureResource textureToFill;
+	//if it is an internal texture for mat or not
+	if (StringCompare(object.Extension(), L"txr"))
+	{
+		LoadTextureInternal(object.Name().CharString().Data(), textureToFill, false);
+	}
+	else
+	{
+		//TODO: import external texture 
+	}
+
+	VlkDevice& device = *m_device;
+	if (textureToFill.m_compiledTextureData.loadState != TEXTURE_LOADSTATE::LOADED_TO_RAM)
+	{
+		return false;
+	}
+
+
+	ImGuiVlkTextureResource returnResource;
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	const uint32_t imageSize = GetTextureByteSize(textureToFill.m_compiledTextureData.header);
+
+	CreateBuffer(device, imageSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer, stagingBufferMemory);
+
+	void* data;
+	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, imageSize, 0, &data);
+	memcpy(data, textureToFill.m_compiledTextureData.compiledColorValues, static_cast<size_t>(imageSize));
+	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
+	DeleteCompiledTexture(textureToFill.m_compiledTextureData);
+
+	VkFormat textureFormat = ToVkFormat(TextureTypeToTextureFormat(static_cast<TEXTURE_TYPE>(textureToFill.m_compiledTextureData.header.textureType)));
+
+
+	CreateImage(device, textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height,
+		textureFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+		VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		returnResource.m_image, returnResource.m_uploadBufferMemory);
+
+	TransitionImageLayout(device, returnResource.m_image, textureFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
+	CopyBufferToImage(device, stagingBuffer, returnResource.m_image, textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, device.GetCommandPool(), device.GetGraphicsQueue());
+	TransitionImageLayout(device, returnResource.m_image, textureFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
+
+	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
+
+	returnResource.m_imageView = CreateImageView(device, returnResource.m_image, textureFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	returnResource.m_height = textureToFill.m_compiledTextureData.header.height;
+	returnResource.m_width = textureToFill.m_compiledTextureData.header.width;
+
+	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)renderingResourceManager->GetRenderingResources();
+	// Create Descriptor Set using ImGUI's implementation
+	returnResource.m_ImGuiResource = ImGui_ImplVulkan_AddTexture(vlkRenderingResources->m_linearTextureSampler, returnResource.m_imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+	return &returnResource;
 }

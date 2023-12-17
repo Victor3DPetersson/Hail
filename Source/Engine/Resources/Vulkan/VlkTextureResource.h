@@ -18,4 +18,22 @@ namespace Hail
 		VlkTextureData m_unloadingTextureData;
 		ResourceValidator m_validator = ResourceValidator();
 	};
+
+
+
+	class ImGuiVlkTextureResource : public ImGuiTextureResource
+	{
+	public:
+
+		void* GetImguiTextureResource() final { return &m_ImGuiResource; }
+
+	private:
+		friend class VlkTextureResourceManager;
+
+		VkDescriptorSet m_ImGuiResource;
+		VkImageView     m_imageView;
+		VkImage         m_image;
+		VkBuffer        m_uploadBuffer;
+		VkDeviceMemory  m_uploadBufferMemory;
+	};
 }
