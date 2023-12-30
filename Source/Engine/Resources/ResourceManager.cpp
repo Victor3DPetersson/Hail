@@ -67,6 +67,14 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 		{
 			return false;
 		}
+		if (!m_materialManager->InitMaterial(MATERIAL_TYPE::DEBUG_LINES2D, m_mainPassFrameBufferTexture, false, i))
+		{
+			return false;
+		}
+		if (!m_materialManager->InitMaterial(MATERIAL_TYPE::DEBUG_LINES3D, m_mainPassFrameBufferTexture, false, i))
+		{
+			return false;
+		}
 	}
 	MaterialInstance instance1;
 	instance1.m_textureHandles[0] = 1;
@@ -166,24 +174,65 @@ void Hail::ResourceManager::LoadTextureResource(String256 name)
 void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer)
 {
 	const GrowingArray<TextureResource>& textures = m_textureManager->GetTexturesCommonData();
+
+	//Sprites___
+
 	const uint32_t numberOfSprites = renderPool.spriteCommands.Size();
+	const glm::vec2 renderResolution = m_swapChain->GetRenderTargetResolution();
 	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
 	{
 		const RenderCommand_Sprite& spriteCommand = renderPool.spriteCommands[sprite];
-		const glm::vec2 spriteScale = spriteCommand.transform.GetScale();
-		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
-		SpriteInstanceData spriteInstance{};
-		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
-		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
-		spriteInstance.color = spriteCommand.color;
-		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotation() * Math::DegToRadf + Math::PIf * -0.5f, 0.0f };
 		//Get sprite texture size and sort with material and everything here to the correct place. 
 		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID);
 		const TextureResource& texture = textures[materialInstance.m_textureHandles[0]];
-		spriteInstance.textureSize_effectData_padding = { texture.m_compiledTextureData.header.width, texture.m_compiledTextureData.header.height, static_cast<uint32_t>(spriteCommand.sizeRelativeToRenderTarget), 0 };
+		const float textureAspectRatio = (float)texture.m_compiledTextureData.header.width / (float)texture.m_compiledTextureData.header.height;
+		
+
+		glm::vec2 spriteScale = spriteCommand.transform.GetScale();
+		const glm::vec2 spriteSizeMultiplier = spriteCommand.sizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : spriteCommand.transform.GetScale();
+		if (spriteCommand.sizeRelativeToRenderTarget)
+		{
+			spriteScale.x *= textureAspectRatio;
+		}
+		else
+		{
+			const glm::vec2 scaleMultiplier = glm::vec2(texture.m_compiledTextureData.header.width, texture.m_compiledTextureData.header.height) / renderResolution.y;
+			spriteScale = (spriteScale * 2.0f) * scaleMultiplier;
+		}
+		
+		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
+		SpriteInstanceData spriteInstance{};
+		
+		
+
+		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
+		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
+		spriteInstance.color = spriteCommand.color;
+		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotationRad(), 0.0f };
+		spriteInstance.sizeMultiplier_effectData_padding = { spriteSizeMultiplier.x, spriteSizeMultiplier.y, 0, 0 };
 		m_spriteInstanceData.Add(spriteInstance);
 	}
 	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	
+	//Debug Lines___
+	//TODO: Add proper support for 3D lines and sort this list
+	m_numberOf2DDebugLines = renderPool.debugLineCommands.Size();
+	for (size_t iDebugLine = 0; iDebugLine < m_numberOf2DDebugLines; iDebugLine++)
+	{
+		const RenderCommand_DebugLine& debugLine = renderPool.debugLineCommands[iDebugLine];
+
+		DebugLineData line; 
+		line.posAndIs2D = glm::vec4(debugLine.pos1.x, debugLine.pos1.y, debugLine.pos1.z, debugLine.is2D ? 0.0f : 1.0f);
+		line.color = debugLine.color1;
+		m_debugLineData.Add(line);
+
+		line.posAndIs2D = glm::vec4(debugLine.pos2.x, debugLine.pos2.y, debugLine.pos2.z, debugLine.is2D ? 0.0f : 1.0f);
+		line.color = debugLine.color2;
+		m_debugLineData.Add(line);
+	}
+	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
+
+	
 	const float deltaTime = timer->GetDeltaTime();
 	const float totalTime = timer->GetTotalTime();
 
@@ -203,17 +252,16 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	ubo.proj[1][1] *= -1;
 	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::TUTORIAL, &ubo, sizeof(ubo));
 
-	if (!m_spriteInstanceData.Empty())
-	{
-		m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
-	}
-
-
+	PerCameraUniformBuffer perCameraData{};
+	perCameraData.proj = ubo.proj;
+	perCameraData.view = ubo.view;
+	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::PER_CAMERA_DATA, &perCameraData, sizeof(perCameraData));
 }
 
 void Hail::ResourceManager::ClearFrameData()
 {
 	m_spriteInstanceData.Clear();
+	m_debugLineData.Clear();
 }
 
 void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolution)

@@ -30,6 +30,8 @@ namespace Hail
 		const GrowingArray<TextureResource>& GetTexturesCommonData() const { return m_textureCommonData; }
 		const TextureResource& GetDefaultTextureCommonData() const { return m_defaultTexture; }
 
+		//Editor / non game functionality
+		void ImportTextureResource(const FilePath& filepath) const;
 		virtual ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager) = 0;
 
 	protected:

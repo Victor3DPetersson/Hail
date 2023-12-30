@@ -30,8 +30,10 @@ bool Hail::ImGuiFileBrowser::Init(ImGuiFileBrowserData* dataToBrowseFor)
 
 void Hail::ImGuiFileBrowser::RenderImGuiCommands(bool& unlockApplicationThread)
 {
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
 	ImGui::OpenPopup("File Browser");
-	if (ImGui::BeginPopupModal("File Browser"))
+	if (ImGui::BeginPopupModal("File Browser", 0, window_flags))
 	{
 
         if (ImGui::InputText("Adress", m_editedFilePath, IM_ARRAYSIZE(m_currentDisplayPath), ImGuiInputTextFlags_EnterReturnsTrue))
@@ -90,6 +92,7 @@ void Hail::ImGuiFileBrowser::RenderImGuiCommands(bool& unlockApplicationThread)
 		}
 		ImGui::EndPopup();
 	}
+    ImGui::PopStyleVar();
 }
 
 void Hail::ImGuiFileBrowser::FileSystemLogic()

@@ -100,6 +100,8 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 		return true;
 	}
 
+	//TODO: make a wireframe toggle for materials
+	const bool isWireFrame = material.m_type == MATERIAL_TYPE::DEBUG_LINES2D || material.m_type == MATERIAL_TYPE::DEBUG_LINES3D;
 
 	//Code below is creating Graphics Pipeline
 	//TODO: Break out in to its own function
@@ -108,11 +110,11 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
 	switch (material.m_type)
 	{
-	case Hail::MATERIAL_TYPE::SPRITE:
+	case MATERIAL_TYPE::SPRITE:
 		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
 		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
 		break;
-	case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+	case MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
 		vertexAttributeDescriptions.Init(1);
 		{
 			VkVertexInputAttributeDescription attributeDescription{};
@@ -126,10 +128,15 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 		vertexBindingDescription.stride = sizeof(uint32_t);
 		vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		break;
-	case Hail::MATERIAL_TYPE::MODEL3D:
+	case MATERIAL_TYPE::MODEL3D:
 		renderDepth = true;
 		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
 		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
+		break;
+	case MATERIAL_TYPE::DEBUG_LINES2D:
+	case MATERIAL_TYPE::DEBUG_LINES3D:
+		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
+		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
 		break;
 	default:
 		break;
@@ -171,7 +178,7 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.topology = isWireFrame ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssembly.primitiveRestartEnable = VK_FALSE;
 
 	VkViewport viewport{};
@@ -197,7 +204,7 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
 	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizer.polygonMode = isWireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.depthBiasEnable = VK_FALSE;
 	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
@@ -404,8 +411,7 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	uint32_t bufferSize = 0;
 	m_descriptorImageInfo.imageView = VK_NULL_HANDLE;
 	m_descriptorImageInfo.sampler = VK_NULL_HANDLE;
-	m_descriptorBufferInfo.buffer = VK_NULL_HANDLE;
-	m_descriptorBufferInfo.range = 0;
+	GrowingArray<VkDescriptorBufferInfo> bufferDescriptors;
 	switch (type)
 	{
 	case Hail::MATERIAL_TYPE::SPRITE:
@@ -413,14 +419,16 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 		setWrites.Init(1);
 
 		bufferSize = GetUniformBufferSize(BUFFERS::SPRITE_INSTANCE_BUFFER);
-		m_descriptorBufferInfo.buffer = vlkRenderingResources->m_buffers[static_cast<uint32_t>(BUFFERS::SPRITE_INSTANCE_BUFFER)].m_buffer[frameInFlight];
-		m_descriptorBufferInfo.offset = 0;
-		m_descriptorBufferInfo.range = bufferSize;
-		if (!ValidateDescriptorBufferWrite(m_descriptorBufferInfo))
+
+		bufferDescriptors.InitAndFill(1);
+		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::SPRITE_INSTANCE_BUFFER].m_buffer[frameInFlight];
+		bufferDescriptors[0].offset = 0;
+		bufferDescriptors[0].range = bufferSize;
+		if (!ValidateDescriptorBufferWrite(bufferDescriptors[0]))
 		{
 			return false;
 		}
-		VkWriteDescriptorSet spriteInstanceBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, passData.m_passDescriptors[frameInFlight], m_descriptorBufferInfo, 1);
+		VkWriteDescriptorSet spriteInstanceBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[0], 1);
 		setWrites.Add(spriteInstanceBuffer);
 	}
 	break;
@@ -445,14 +453,15 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 		setWrites.Init(2);
 
 		bufferSize = GetUniformBufferSize(BUFFERS::TUTORIAL);
-		m_descriptorBufferInfo.buffer = vlkRenderingResources->m_buffers[static_cast<uint32_t>(BUFFERS::TUTORIAL)].m_buffer[frameInFlight];
-		m_descriptorBufferInfo.offset = 0;
-		m_descriptorBufferInfo.range = bufferSize;
-		if (!ValidateDescriptorBufferWrite(m_descriptorBufferInfo))
+		bufferDescriptors.InitAndFill(1);
+		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::TUTORIAL].m_buffer[frameInFlight];
+		bufferDescriptors[0].offset = 0;
+		bufferDescriptors[0].range = bufferSize;
+		if (!ValidateDescriptorBufferWrite(bufferDescriptors[0]))
 		{
 			return false;
 		}
-		VkWriteDescriptorSet tutorialBufferSet = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, passData.m_passDescriptors[frameInFlight], m_descriptorBufferInfo, GetUniformBufferIndex(Hail::BUFFERS::TUTORIAL));
+		VkWriteDescriptorSet tutorialBufferSet = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[0], GetUniformBufferIndex(Hail::BUFFERS::TUTORIAL));
 		setWrites.Add(tutorialBufferSet);
 
 		m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -467,6 +476,37 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 
 	}
 	break;
+
+	case MATERIAL_TYPE::DEBUG_LINES2D:
+	case MATERIAL_TYPE::DEBUG_LINES3D:
+		setWrites.Init(2);
+
+		bufferDescriptors.InitAndFill(2);
+
+		bufferSize = GetUniformBufferSize(BUFFERS::PER_CAMERA_DATA);
+		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::PER_CAMERA_DATA].m_buffer[frameInFlight];
+		bufferDescriptors[0].offset = 0;
+		bufferDescriptors[0].range = bufferSize;
+		if (!ValidateDescriptorBufferWrite(bufferDescriptors[0]))
+		{
+			return false;
+		}
+		VkWriteDescriptorSet perCameraBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[0], GetUniformBufferIndex(BUFFERS::PER_CAMERA_DATA));
+		setWrites.Add(perCameraBuffer);
+
+		bufferSize = GetUniformBufferSize(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER);
+		bufferDescriptors[1].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::DEBUG_LINE_INSTANCE_BUFFER].m_buffer[frameInFlight];
+		bufferDescriptors[1].offset = 0;
+		bufferDescriptors[1].range = bufferSize;
+		if (!ValidateDescriptorBufferWrite(bufferDescriptors[1]))
+		{
+			return false;
+		}
+		VkWriteDescriptorSet debugLineBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[1], GetUniformBufferIndex(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER));
+		setWrites.Add(debugLineBuffer);
+
+		break;
+
 	default:
 		break;
 	}
@@ -524,6 +564,19 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 			return false;
 		}
 		break;
+
+	case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
+	case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
+		if (!CreateSetLayoutDescriptor(
+			{
+				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(BUFFERS::PER_CAMERA_DATA), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER },
+				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER }
+			}, passData.m_passSetLayout, device))
+		{
+			return false;
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -579,75 +632,142 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 	VkAttachmentReference depthAttachmentRef{};
 	switch (type)
 	{
-	case Hail::MATERIAL_TYPE::SPRITE:
-	{
-		attachmentDescriptors.Init(2);
-		VkAttachmentDescription colorAttachment{};
-		VkAttachmentDescription depthAttachment{};
+		case Hail::MATERIAL_TYPE::SPRITE:
+		{
+			attachmentDescriptors.Init(2);
+			VkAttachmentDescription colorAttachment{};
+			VkAttachmentDescription depthAttachment{};
 
-		colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
-		depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		attachmentDescriptors.Add(colorAttachment);
+			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
+			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(colorAttachment);
 
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			colorAttachmentRef.attachment = 0;
+			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		attachmentDescriptors.Add(depthAttachment);
+			depthAttachmentRef.attachment = 1;
+			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(depthAttachment);
+		}
+		break;
 
-	}
+		case Hail::MATERIAL_TYPE::MODEL3D:
+		{
+			attachmentDescriptors.Init(2);
+			VkAttachmentDescription colorAttachment{};
+			VkAttachmentDescription depthAttachment{};
+			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
+			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(colorAttachment);
 
-	break;
-	case Hail::MATERIAL_TYPE::MODEL3D:
-	{
-		attachmentDescriptors.Init(2);
-		VkAttachmentDescription colorAttachment{};
-		VkAttachmentDescription depthAttachment{};
-		colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-		attachmentDescriptors.Add(colorAttachment);
+			colorAttachmentRef.attachment = 0;
+			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
-		depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthAttachmentRef.attachment = 1;
+			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(depthAttachment);
+		}
+		break;
 
-		depthAttachmentRef.attachment = 1;
-		depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		attachmentDescriptors.Add(depthAttachment);
-	}
+		case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
+		{
+			attachmentDescriptors.Init(2);
+			VkAttachmentDescription colorAttachment{};
+			VkAttachmentDescription depthAttachment{};
 
-	break;
-	default:
+			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
+			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			attachmentDescriptors.Add(colorAttachment);
+
+			colorAttachmentRef.attachment = 0;
+			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+			depthAttachmentRef.attachment = 1;
+			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(depthAttachment);
+		}
+		break;
+
+		case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
+		{
+			attachmentDescriptors.Init(2);
+			VkAttachmentDescription colorAttachment{};
+			VkAttachmentDescription depthAttachment{};
+
+			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
+			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(colorAttachment);
+
+			colorAttachmentRef.attachment = 0;
+			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+			depthAttachmentRef.attachment = 1;
+			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			attachmentDescriptors.Add(depthAttachment);
+		}
+		break;
+
+		default:
 		break;
 	}
 	//Todo set up dependencies depending on pass

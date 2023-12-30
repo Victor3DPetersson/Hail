@@ -20,6 +20,8 @@ namespace Hail
 		void InitCommonData();
 
 		void InitFolder(const FileObject& fileObject);
+		void ImportTextureLogic();
+
 
 		bool m_fileBrowsersAreInited = false;
 		bool m_openAssetBrowser = false;

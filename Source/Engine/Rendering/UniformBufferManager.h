@@ -9,9 +9,11 @@ namespace Hail
 {
 	enum class BUFFERS : uint32
 	{
-		PER_FRAME_DATA,
-		SPRITE_INSTANCE_BUFFER,
-		TUTORIAL,
+		PER_FRAME_DATA = 0u,
+		SPRITE_INSTANCE_BUFFER = 1u,
+		TUTORIAL = 2u,
+		DEBUG_LINE_INSTANCE_BUFFER = 3u,
+		PER_CAMERA_DATA = 4u,
 		COUNT
 	};
 
@@ -28,13 +30,24 @@ namespace Hail
 		glm::vec2 totalTime_horizonLevel;
 	};
 
+	struct PerCameraUniformBuffer {
+		glm::mat4 view;
+		glm::mat4 proj;
+	};
+
 	struct SpriteInstanceData
 	{
 		glm::vec4 position_scale;
 		glm::vec4 uvTR_BL;
 		glm::vec4 color;
 		glm::vec4 pivot_rotation_padding; //vec2, float, float
-		glm::uvec4 textureSize_effectData_padding;
+		glm::vec4 sizeMultiplier_effectData_padding;
+	};
+
+	struct DebugLineData
+	{
+		glm::vec4 posAndIs2D;
+		glm::vec4 color;
 	};
 
 	enum class SHADER_STORAGE_BUFFER_USAGE : uint32

@@ -499,7 +499,6 @@ namespace Hail
             {
                 m_basePath = m_directoriesToIterateOver.Pop();
                 InitPath(m_basePath);
-                Debug_PrintConsoleConstChar("\n\nNew Path");
                 IterateOverFolderRecursively();
             }
             else

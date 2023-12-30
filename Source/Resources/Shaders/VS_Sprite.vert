@@ -20,7 +20,7 @@ struct UIData
 	vec4 uvTL_BR;
 	vec4 color;
 	vec4 pivot_rotation_padding; //vec2 float padd
-	uvec4 textureSize_effectData_padding;
+	vec4 scaleMultiplier_effectData_padding;
 };
 
 layout(std140, set = 1, binding = 1) buffer UIDataBuffer 
@@ -33,6 +33,7 @@ uint BR = 3;
 uint TL = 1;
 uint TR = 2;
 
+//TODO: set these on the vertices instead
 const vec2 offsets[4] =
 {
 	{-1.0, -1.0}, //BL
@@ -48,75 +49,69 @@ layout(location = 1) out vec4 outColor;
 void main() 
 {
 	UIData instanceData = uiInstanceData[PushConstants.instanceID_padding.x];
-	//outInstanceIDEffectID.x = gl_InstanceIndex;
-	//outInstanceIDEffectID.y = (instanceData.textureSize_effectData_padding.z >> 1)  & 1;
-	bool scaleAfterRenderTargetSize = bool(instanceData.textureSize_effectData_padding.z & 1);
-	vec2 renderRes = vec2(constantVariables.renderResolution);
-	vec2 textureSize = vec2(instanceData.textureSize_effectData_padding.xy);
-	vec2 finalScale = vec2(0);
-	if(scaleAfterRenderTargetSize)
-	{
-		finalScale = instanceData.position_scale.zw;
-	}
-	else
-	{
-		vec2 relativeSizeToRes = (textureSize) / renderRes;
-		finalScale = relativeSizeToRes * vec2(instanceData.position_scale.zw);
-	}
 
+	vec2 renderRes = vec2(constantVariables.renderResolution);
+	vec2 finalScale = vec2(instanceData.position_scale.zw);
+
+	float ratio = renderRes.y / renderRes.x;
+	
 	vec2 uvTL = instanceData.uvTL_BR.xy;
 	vec2 uvBR = instanceData.uvTL_BR.zw;
 	vec2 pivotPoint = instanceData.pivot_rotation_padding.xy * 2.0 - 1.0;
 	vec2 finalUV = vec2(0);
-	vec2 finalPosition = instanceData.position_scale.xy * 2.0 - 1.0;
-
 	float rotation = instanceData.pivot_rotation_padding.z;
 	float cs = cos(rotation);
 	float sn = sin(rotation);
-	vec2 offsetPos = vec2(0);
-	vec2 rotatedPosition = vec2(0);
-
+	//TODO: set these on the vertices instead
+	vec4 vertexPos = vec4(0.0 ,0.0, 0.0, 1.0);
 	if(inIndex == 0)
 	{
-	 	offsetPos = offsets[BL];
+	 	vertexPos.xy = offsets[BL];
 		finalUV.x = uvTL.x;
 		finalUV.y = uvBR.y;
 	}
 	else if(inIndex == 1)
 	{
-		offsetPos = offsets[BR];
+		vertexPos.xy = offsets[BR];
 		finalUV.x = uvBR.x;
 		finalUV.y = uvBR.y;
 	}
 	else if(inIndex == 2)
 	{
-		offsetPos = offsets[TL];
+		vertexPos.xy = offsets[TL];
 		finalUV.x = uvTL.x;
 		finalUV.y = uvTL.y;
 	}
 	else if(inIndex == 3)
 	{
-		offsetPos = offsets[TL];
+		vertexPos.xy = offsets[TL];
 		finalUV.x = uvTL.x;
 		finalUV.y = uvTL.y;
 	}
 	else if(inIndex == 4)
 	{
-		offsetPos = offsets[BR];
+		vertexPos.xy = offsets[BR];
 		finalUV.x = uvBR.x;
 		finalUV.y = uvBR.y;
 	}
 	else
 	{
-		offsetPos = offsets[TR];
+		vertexPos.xy = offsets[TR];
 		finalUV.x = uvBR.x;
 		finalUV.y = uvTL.y;
 	}
-	rotatedPosition.x = ((offsetPos.x + pivotPoint.x) * cs - (offsetPos.y + pivotPoint.y) * sn);
-	rotatedPosition.y = ((offsetPos.x + pivotPoint.x) * sn + (offsetPos.y + pivotPoint.y) * cs);
-	finalPosition.xy += rotatedPosition * finalScale;
 
-	gl_Position = vec4(finalPosition, 0.01, 1.0);
+	vertexPos.x -= pivotPoint.x;
+	vertexPos.y += pivotPoint.y;
+	
+	vertexPos.xy *= finalScale;
+	
+	mat2 theRotation = mat2(cs, -sn, sn, cs);
+	vertexPos.xy = vertexPos.xy * theRotation;
+	vertexPos.x *= ratio;
+	vertexPos.xy += instanceData.position_scale.xy * 2.0 - 1.0; // add input position
+
+	gl_Position = vec4(vertexPos.xy, 0.01, 1.0);
 	outTexCoord = vec2(finalUV.x, finalUV.y);
 	outColor = instanceData.color;
 }

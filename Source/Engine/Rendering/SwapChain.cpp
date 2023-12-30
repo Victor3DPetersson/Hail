@@ -21,6 +21,15 @@ namespace Hail
 		}
 		Debug_PrintConsoleString256(String256::Format("Window Res X: %i Window Res y: %i\nRender Target Res X: %i Render Target Res y: %i", m_windowResolution.x, m_windowResolution.y, m_renderTargetResolution.x, m_renderTargetResolution.y));
 	}
+	SwapChain::SwapChain()
+	{
+		// start with a 16/9 Aspect ratio, TODO: make configurable
+		m_horizontalAspectRatio = 16.0f / 9.0f;
+		m_resizeSwapChain = false;
+		m_windowResolution = { 0, 0 };
+		m_renderTargetResolution = { 0, 0 };
+		m_targetResolution = { 720, 480 };
+	}
 	void SwapChain::SetTargetResolution(glm::uvec2 targetResolution)
 	{
 		if (targetResolution != m_targetResolution)

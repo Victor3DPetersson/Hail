@@ -2,7 +2,7 @@
 #include "glm\vec3.hpp"
 #include "glm\vec2.hpp"
 #include "glm\ext\quaternion_float.hpp"
-
+#include "MathUtils.h"
 
 
 namespace Hail
@@ -22,23 +22,20 @@ namespace Hail
 		const Transform3D& operator=(const Transform3D& transform);
 		const Transform3D& operator=(const glm::highp_mat4& matrix);
 
-		__forceinline const glm::vec3 GetPosition() const { return m_pos; };
-		__forceinline const glm::vec3 GetRotation() const { return m_rot; };
-		__forceinline const glm::qua<float, glm::packed_highp> GetRotationQ() const { return m_quat; };
-		__forceinline const glm::vec3 GetScale()	const { return m_scl; };
-		__forceinline glm::vec3 GetPosition() { return m_pos; };
-		__forceinline glm::vec3 GetRotation() { return m_rot; };
-		__forceinline glm::qua<float, glm::packed_highp> GetRotationQ() { return m_quat; };
-		__forceinline glm::vec3 GetScale() { return m_scl; };
+		__forceinline glm::vec3 GetPosition() const { return m_pos; };
+		__forceinline glm::vec3 GetRotation() const { return m_rot; };
+		__forceinline glm::qua<float, glm::packed_highp> GetRotationQ() const { return m_quat; };
+		__forceinline glm::vec3 GetScale()	const { return m_scl; };
+
 
 
 		void LookAt(const glm::vec3 worldPositionToLookAt, const glm::vec3 fromPos);
-		static const glm::highp_mat4 LerpTransforms_mat(const Transform3D& tr1, const Transform3D& tr2, const float t);
-		static const Transform3D LerpTransforms_t(const Transform3D& tr1, const Transform3D& tr2, const float t);
-		static const glm::highp_mat4 GetMatrix(const Transform3D& transform);
-		const glm::vec3 GetForward();
-		const glm::vec3 GetRight();
-		const glm::vec3 GetUp();
+		static glm::highp_mat4 LerpTransforms_mat(const Transform3D& tr1, const Transform3D& tr2, const float t);
+		static Transform3D LerpTransforms_t(const Transform3D& tr1, const Transform3D& tr2, const float t);
+		static glm::highp_mat4 GetMatrix(const Transform3D& transform);
+		glm::vec3 GetForward() const;
+		glm::vec3 GetRight() const;
+		glm::vec3 GetUp() const;
 
 		void SetPosition(const glm::vec3& pos);
 		void AddToPosition(const glm::vec3& pos);
@@ -61,17 +58,15 @@ namespace Hail
 		Transform2D() {
 			m_pos = glm::vec2();
 			m_scl = glm::vec2(1, 1);
-			m_rot = 90.0f;
+			m_rot = -90.0f;
 		}
 		const Transform2D& operator=(const Transform2D& transform);
 
-		__forceinline const glm::vec2 GetPosition() const { return m_pos; };
 		//Returns rotation in EulerAngles
-		__forceinline const float GetRotation() const { return m_rot; };
-		__forceinline const glm::vec2 GetScale()	const { return m_scl; };
-		__forceinline glm::vec2 GetPosition() { return m_pos; };
-		__forceinline float GetRotation() { return m_rot; };
-		__forceinline glm::vec2 GetScale() { return m_scl; };
+		__forceinline float GetRotation() const { return m_rot; };
+		__forceinline float GetRotationRad() const { return m_rot * Math::DegToRadf + Math::PIf * 0.5f; };
+		__forceinline glm::vec2 GetScale()	const { return m_scl; };
+		__forceinline glm::vec2 GetPosition() const { return m_pos; };
 
 		static const Transform2D LerpTransforms(const Transform2D& tr1, const Transform2D& tr2, const float t);
 

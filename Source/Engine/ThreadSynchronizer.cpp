@@ -2,6 +2,8 @@
 #include "ThreadSynchronizer.h"
 #include "InputHandler.h"
 #include "glm\common.hpp"
+#include "Resources\ResourceManager.h"
+#include "Rendering\SwapChain.h"
 
 void Hail::ThreadSyncronizer::Init(float tickTimer)
 {
@@ -12,13 +14,15 @@ void Hail::ThreadSyncronizer::Init(float tickTimer)
 	m_appData.renderPool = &m_renderCommandPools[m_currentActiveRenderPoolWrite];
 }
 
-void Hail::ThreadSyncronizer::SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder)
+void Hail::ThreadSyncronizer::SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager)
 {
 	SwapBuffersInternal();
 	ClearApplicationBuffers();
 	m_appData.inputData = inputHandler.GetInputMap();
 	m_appData.imguiCommandRecorder = &imguiCommandRecorder;
 	m_currentRenderTimer = 0.0f;
+	m_appData.renderPool->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();
+	m_appData.renderPool->inverseHorizontalAspectRatio = 1.0 / m_appData.renderPool->horizontalAspectRatio;
 }
 
 void Hail::ThreadSyncronizer::SynchronizeRenderData(float frameDeltaTime)
@@ -50,6 +54,7 @@ void Hail::ThreadSyncronizer::TransferBufferSizes()
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	m_rendererCommandPool.spriteCommands.TransferSize(readPool.spriteCommands);
 	m_rendererCommandPool.meshCommands.TransferSize(readPool.meshCommands);
+	m_rendererCommandPool.debugLineCommands.TransferSize(readPool.debugLineCommands);
 }
 
 void Hail::ThreadSyncronizer::LerpRenderBuffers()
@@ -62,11 +67,13 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	
 	LerpSprites(tValue);
 	Lerp3DModels(tValue);
+	LerpDebugLines(tValue);
 }
 namespace Hail
 {
 	void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t);
 	void LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t);
+	void LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCommand_DebugLine& lastReadLine, RenderCommand_DebugLine& writeLine, float t);
 }
 
 void Hail::ThreadSyncronizer::LerpSprites(float tValue)
@@ -173,6 +180,45 @@ void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
 	}
 }
 
+void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
+{
+	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
+	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
+	//TODO: Add proper support for 3D lines and sort these lists
+	const uint32_t numberOfLines = readPool.debugLineCommands.Size();
+	const uint32_t lastReadNumberOfLines = lastReadPool.debugLineCommands.Size();
+	for (uint16_t iLine = 0; iLine < numberOfLines; iLine++)
+	{
+		const RenderCommand_DebugLine& readLine = readPool.debugLineCommands[iLine];
+		RenderCommand_DebugLine& writeLine = m_rendererCommandPool.debugLineCommands[iLine];
+
+		if (iLine >= lastReadNumberOfLines)
+		{
+			writeLine = readLine;
+			continue;
+		}
+
+		const RenderCommand_DebugLine& lastReadLine = lastReadPool.debugLineCommands[iLine];
+		if (lastReadLine.lerpCommand)
+		{
+			LerpDebugLine(readLine, lastReadLine, writeLine, tValue);
+		}
+		else
+		{
+			writeLine = readLine;
+		}
+	}
+}
+
+void Hail::LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCommand_DebugLine& lastReadLine, RenderCommand_DebugLine& writeLine, float t)
+{
+	writeLine.color1 = glm::mix(readLine.color1, lastReadLine.color1, t);
+	writeLine.color2 = glm::mix(readLine.color2, lastReadLine.color2, t);
+	writeLine.pos1 = glm::mix(readLine.pos1, lastReadLine.pos1, t);
+	writeLine.pos2 = glm::mix(readLine.pos2, lastReadLine.pos2, t);
+	writeLine.is2D = readLine.is2D;
+	writeLine.lerpCommand = readLine.lerpCommand;
+}
 
 void Hail::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
 {

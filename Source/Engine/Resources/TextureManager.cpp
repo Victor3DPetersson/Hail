@@ -219,6 +219,7 @@ bool TextureManager::CompileTexture(const char* textureName)
 	String256 filenameStr;
 	while (fileIterator.IterateOverFolderRecursively())
 	{
+		currentPath = fileIterator.GetCurrentPath();
 		if (currentPath.IsFile())
 		{
 			currentPath = fileIterator.GetCurrentPath();
@@ -241,6 +242,14 @@ bool TextureManager::CompileTexture(const char* textureName)
 	}
 
 	return TextureCompiler::CompileSpecificTGATexture(currentPath);
+}
+
+void Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
+{
+
+
+
+
 }
 
 void Hail::TextureManager::CreateDefaultTexture()
@@ -281,24 +290,16 @@ void Hail::TextureManager::CreateDefaultTexture()
 			if (xIndexValue == 0 || xIndexValue == 1)
 			{
 				if ((yIndexValue == 0 || yIndexValue == 16))
-				{
 					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
-				}
 				else
-				{
 					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
-				}
 			}
 			else
 			{
 				if ((yIndexValue == 32 || yIndexValue == 48))
-				{
 					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
-				}
 				else
-				{
 					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
-				}
 			}
 
 		}

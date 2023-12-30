@@ -14,19 +14,21 @@ namespace Hail
 	class VlkRenderer : public Renderer
 	{
 	public:
-		bool InitDevice(RESOLUTIONS startupResolution, Timer* timer) override;
-		bool InitGraphicsEngine(ResourceManager* resourceManager) override;
+		bool InitDevice(RESOLUTIONS startupResolution, Timer* timer) final;
+		bool InitGraphicsEngine(ResourceManager* resourceManager) final;
 		void StartFrame(RenderCommandPool& renderPool) final;
 		void Render() final;
 		void EndFrame() final;
 		void Cleanup() final;
 		void InitImGui() final;
 
-		void BindMaterial(Material& materialToBind) override;
-		void EndMaterialPass() override;
-		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) override;
-		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) override;
-		void RenderLetterBoxPass() override;
+		void BindMaterial(Material& materialToBind) final;
+		void EndMaterialPass() final;
+		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) final;
+		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) final;
+		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) final;
+		void RenderDebugLines3D(uint32 numberOfLinesToRender) final;
+		void RenderLetterBoxPass() final;
 
 	private:
 
@@ -37,6 +39,7 @@ namespace Hail
 		void CreateFullscreenVertexBuffer();
 		void CreateSpriteVertexBuffer();
 		void CreateIndexBuffer();
+		void CreateDebugLineVertexBuffer();
 
 	
 		VlkSwapChain* m_swapChain = nullptr;
@@ -56,6 +59,9 @@ namespace Hail
 		VkBuffer m_indexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_indexBufferMemory = VK_NULL_HANDLE;
 
+		//Debug line buffers
+		VkBuffer m_debugLineVertexBuffer = VK_NULL_HANDLE;
+		VkDeviceMemory m_debugLineVertexBufferMemory = VK_NULL_HANDLE;
 
 		MATERIAL_TYPE m_boundMaterialType = MATERIAL_TYPE::COUNT;
 		bool m_commandBufferBound = false;

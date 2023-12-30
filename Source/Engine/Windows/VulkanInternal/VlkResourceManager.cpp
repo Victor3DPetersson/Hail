@@ -25,6 +25,7 @@ namespace Hail
 		m_resources.m_pointTextureSampler = CreateTextureSampler(device, pointSamplerData);
 
 		//initialize buffers
+		//TODO: Clean up this code and make it be more systematic
 		for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 		{
 			volatile uint32_t index = 0;
@@ -42,12 +43,26 @@ namespace Hail
 			}
 			vkMapMemory(device.GetDevice(), m_resources.m_buffers[index].m_bufferMemory[i], 0, GetUniformBufferSize(BUFFERS::SPRITE_INSTANCE_BUFFER), 0, &m_resources.m_buffers[index].m_bufferMapped[i]);
 
+			index = static_cast<uint32_t>(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER);
+			if (!CreateBuffer(device, GetUniformBufferSize(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_resources.m_buffers[index].m_buffer[i], m_resources.m_buffers[index].m_bufferMemory[i]))
+			{
+				return false;
+			}
+			vkMapMemory(device.GetDevice(), m_resources.m_buffers[index].m_bufferMemory[i], 0, GetUniformBufferSize(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER), 0, &m_resources.m_buffers[index].m_bufferMapped[i]);
+
 			index = static_cast<uint32_t>(BUFFERS::PER_FRAME_DATA);
 			if (!CreateBuffer(device, GetUniformBufferSize(BUFFERS::PER_FRAME_DATA), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_resources.m_buffers[index].m_buffer[i], m_resources.m_buffers[index].m_bufferMemory[i]))
 			{
 				return false;
 			}
 			vkMapMemory(device.GetDevice(), m_resources.m_buffers[index].m_bufferMemory[i], 0, GetUniformBufferSize(BUFFERS::PER_FRAME_DATA), 0, &m_resources.m_buffers[index].m_bufferMapped[i]);
+
+			index = static_cast<uint32_t>(BUFFERS::PER_CAMERA_DATA);
+			if (!CreateBuffer(device, GetUniformBufferSize(BUFFERS::PER_CAMERA_DATA), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, m_resources.m_buffers[index].m_buffer[i], m_resources.m_buffers[index].m_bufferMemory[i]))
+			{
+				return false;
+			}
+			vkMapMemory(device.GetDevice(), m_resources.m_buffers[index].m_bufferMemory[i], 0, GetUniformBufferSize(BUFFERS::PER_CAMERA_DATA), 0, &m_resources.m_buffers[index].m_bufferMapped[i]);
 		}
 
 		if (!SetUpCommonLayouts())

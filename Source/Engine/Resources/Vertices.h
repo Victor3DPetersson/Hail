@@ -11,7 +11,7 @@ namespace Hail
 		SPRITE,
 		MODEL,
 		ANIMATION,
-		PARTICLE
+		PARTICLE,
 	};
 
 	struct VertexSprite

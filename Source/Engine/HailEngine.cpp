@@ -102,7 +102,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
 	g_engineData->applicationTickRate = static_cast<float>(startupData.applicationTickRate);
 
-	g_engineData->threadSynchronizer.SynchronizeAppData(*g_engineData->inputHandler, g_engineData->imguiCommandRecorder.FetchImguiResults());
+	g_engineData->threadSynchronizer.SynchronizeAppData(*g_engineData->inputHandler, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
 	return true;
 }
 
@@ -162,7 +162,7 @@ void Hail::MainLoop()
 		if (engineData.applicationLoopDone)
 		{
 			engineData.imguiCommandRecorder.SwitchCommandBuffers(lockApplicationThread);
-			engineData.threadSynchronizer.SynchronizeAppData(*engineData.inputHandler, engineData.imguiCommandRecorder.FetchImguiResults());
+			engineData.threadSynchronizer.SynchronizeAppData(*engineData.inputHandler, engineData.imguiCommandRecorder.FetchImguiResults(), *engineData.resourceManager);
 
 			if (lockApplicationThread)
 			{

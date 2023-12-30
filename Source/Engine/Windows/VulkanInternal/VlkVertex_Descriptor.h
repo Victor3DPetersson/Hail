@@ -13,16 +13,16 @@ namespace Hail
 		bindingDescription.binding = 0;
 		switch (vertexType)
 		{
-		case Hail::VERTEX_TYPES::SPRITE:
+		case VERTEX_TYPES::SPRITE:
 			bindingDescription.stride = sizeof(VertexSprite);
 			break;
-		case Hail::VERTEX_TYPES::MODEL:
+		case VERTEX_TYPES::MODEL:
 			bindingDescription.stride = sizeof(VertexModel);
 			break;
-		case Hail::VERTEX_TYPES::ANIMATION:
+		case VERTEX_TYPES::ANIMATION:
 			bindingDescription.stride = sizeof(VertexAnimation);
 			break;
-		case Hail::VERTEX_TYPES::PARTICLE:
+		case VERTEX_TYPES::PARTICLE:
 			break;
 		default:
 			break;
@@ -35,7 +35,7 @@ namespace Hail
 	{
 		switch (vertexType)
 		{
-		case Hail::VERTEX_TYPES::SPRITE:
+		case VERTEX_TYPES::SPRITE:
 		{
 			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
 			attributeDescriptions.InitAndFill(1);
@@ -47,7 +47,7 @@ namespace Hail
 		}
 
 		break;
-		case Hail::VERTEX_TYPES::MODEL:
+		case VERTEX_TYPES::MODEL:
 		{
 			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
 			attributeDescriptions.InitAndFill(7);
@@ -82,7 +82,7 @@ namespace Hail
 			return attributeDescriptions;
 		}
 		break;
-		case Hail::VERTEX_TYPES::ANIMATION:
+		case VERTEX_TYPES::ANIMATION:
 		{
 			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
 			attributeDescriptions.InitAndFill(9);
@@ -126,15 +126,16 @@ namespace Hail
 		}
 
 		break;
-		case Hail::VERTEX_TYPES::PARTICLE:
+		case VERTEX_TYPES::PARTICLE:
 		{
 			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
 			attributeDescriptions.InitAndFill(0);
 
 			return attributeDescriptions;
 		}
-
 		break;
+
+
 		default:
 			break;
 		}

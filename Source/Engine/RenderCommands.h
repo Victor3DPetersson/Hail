@@ -25,9 +25,10 @@ namespace Hail
 	{
 		glm::vec3 pos1;
 		glm::vec3 pos2;
-		glm::vec3 color; 
-		uint16_t index;
+		glm::vec4 color1; 
+		glm::vec4 color2;
 		bool lerpCommand;
+		bool is2D = false;
 	};
 
 	struct RenderCommand_Sprite
@@ -39,7 +40,10 @@ namespace Hail
 		uint32_t materialInstanceID;
 		uint16_t index;
 		bool lerpCommand = true;
-		bool sizeRelativeToRenderTarget = false;
+		// true the scale will be in normalized size, so a size of 0.1 will always stay 0.1 of the screen percentage
+		// false the scale will be of the texture size on the render target, so the texture will be scaled by the scale, 
+		// false best used with UI or elements that should not scale with screen resolution
+		bool sizeRelativeToRenderTarget = true;
 	};
 
 	struct RenderCommand_Text
@@ -65,8 +69,10 @@ namespace Hail
 
 	struct RenderCommandPool
 	{
+		float horizontalAspectRatio{}; // if this is 16 / 9 = 1.77
+		float inverseHorizontalAspectRatio{};
 		Camera renderCamera;
-		VectorOnStack<RenderCommand_DebugLine, 1024, false> debugLineCommands;
+		VectorOnStack<RenderCommand_DebugLine, MAX_NUMBER_OF_DEBUG_LINES / 2, false> debugLineCommands;
 		VectorOnStack<RenderCommand_Sprite, MAX_NUMBER_OF_SPRITES, false> spriteCommands;
 		VectorOnStack<RenderCommand_Text, 1024, false> textCommands;
 		VectorOnStack<RenderCommand_Mesh, 1024, false> meshCommands;

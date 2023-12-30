@@ -7,13 +7,12 @@
 #include "InputMappings.h"
 
 class InputHandler;
-class Renderer;
-class ApplicationWindow;
-class Timer;
 
 namespace Hail
 {
 	class ImGuiCommandRecorder;
+	class ResourceManager;
+
 	struct ApplicationFrameData
 	{
 		InputMap inputData;
@@ -26,7 +25,7 @@ namespace Hail
 	public:
 		ThreadSyncronizer() = default;
 		void Init(float tickTimer);
-		void SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder);
+		void SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager);
 		void SynchronizeRenderData(float frameDeltaTime);
 		ApplicationFrameData& GetAppFrameData() { return m_appData; }
 		RenderCommandPool& GetRenderPool() { return m_rendererCommandPool; }
@@ -37,6 +36,7 @@ namespace Hail
 		void LerpRenderBuffers();
 		void LerpSprites(float tValue);
 		void Lerp3DModels(float tValue);
+		void LerpDebugLines(float tValue);
 
 		
 

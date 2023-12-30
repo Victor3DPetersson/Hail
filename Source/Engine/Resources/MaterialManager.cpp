@@ -28,19 +28,24 @@ namespace Hail
 			//Get this Data from a data file
 			switch (type)
 			{
-			case Hail::MATERIAL_TYPE::SPRITE:
+			case MATERIAL_TYPE::SPRITE:
 				material.m_vertexShader = LoadShader("VS_Sprite", SHADERTYPE::VERTEX, reloadShader);
 				material.m_fragmentShader = LoadShader("FS_Sprite", SHADERTYPE::FRAGMENT, reloadShader);
 				break;
-			case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+			case MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
 				material.m_vertexShader = LoadShader("VS_fullscreenPass", SHADERTYPE::VERTEX, reloadShader);
 				material.m_fragmentShader = LoadShader("FS_fullscreenPass", SHADERTYPE::FRAGMENT, reloadShader);
 				break;
-			case Hail::MATERIAL_TYPE::MODEL3D:
+			case MATERIAL_TYPE::MODEL3D:
 				material.m_vertexShader = LoadShader("VS_triangle", SHADERTYPE::VERTEX, reloadShader);
 				material.m_fragmentShader = LoadShader("FS_triangle", SHADERTYPE::FRAGMENT, reloadShader);
 				break;
-			case Hail::MATERIAL_TYPE::COUNT:
+			case MATERIAL_TYPE::DEBUG_LINES2D:
+			case MATERIAL_TYPE::DEBUG_LINES3D:
+				material.m_vertexShader = LoadShader("VS_DebugLines", SHADERTYPE::VERTEX, reloadShader);
+				material.m_fragmentShader = LoadShader("FS_DebugLines", SHADERTYPE::FRAGMENT, reloadShader);
+				break;
+			case MATERIAL_TYPE::COUNT:
 				break;
 			default:
 				break;

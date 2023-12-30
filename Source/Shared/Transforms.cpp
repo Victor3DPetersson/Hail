@@ -48,7 +48,7 @@ namespace Hail
 		return *this;
 	}
 
-	inline void Transform3D::LookAt(const glm::vec3 worldPositionToLookAt, const glm::vec3 fromPos)
+	void Transform3D::LookAt(const glm::vec3 worldPositionToLookAt, const glm::vec3 fromPos)
 	{
 		glm::mat4 matrix = glm::lookAt(fromPos, worldPositionToLookAt, glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::vec3 skew;
@@ -57,7 +57,7 @@ namespace Hail
 		m_rot = glm::axis(m_quat);
 	}
 
-	inline const glm::highp_mat4 Transform3D::LerpTransforms_mat(const Transform3D& tr1, const Transform3D& tr2, const float t)
+	glm::highp_mat4 Transform3D::LerpTransforms_mat(const Transform3D& tr1, const Transform3D& tr2, const float t)
 	{
 		glm::highp_mat4 outMatrix;
 
@@ -73,7 +73,7 @@ namespace Hail
 		return outMatrix;
 	}
 
-	const Transform3D Transform3D::LerpTransforms_t(const Transform3D& tr1, const Transform3D& tr2, const float t)
+	Transform3D Transform3D::LerpTransforms_t(const Transform3D& tr1, const Transform3D& tr2, const float t)
 	{
 		Transform3D outTransform;
 		outTransform.m_pos = glm::mix(tr1.m_pos, tr2.m_pos, t);
@@ -83,7 +83,7 @@ namespace Hail
 		return outTransform;
 	}
 
-	const glm::highp_mat4 Transform3D::GetMatrix(const Transform3D& transform)
+	glm::highp_mat4 Transform3D::GetMatrix(const Transform3D& transform)
 	{
 		glm::highp_mat4 outMatrix = glm::identity<glm::highp_mat4>();
 		outMatrix = glm::mat4_cast(transform.m_quat);
@@ -92,17 +92,17 @@ namespace Hail
 		return outMatrix;
 	}
 
-	const glm::vec3 Transform3D::GetForward()
+	glm::vec3 Transform3D::GetForward() const
 	{
 		return 	m_quat * glm::vec3(0.0, 0.0, 1.0);
 	}
 
-	const glm::vec3  Transform3D::GetRight()
+	glm::vec3  Transform3D::GetRight() const
 	{
 		return m_quat * glm::vec3(1.0, 0.0, 0.0);
 	}
 
-	const glm::vec3  Transform3D::GetUp()
+	glm::vec3  Transform3D::GetUp() const
 	{
 		return m_quat * glm::vec3(0.0, 1.0, 0.0);
 	}

@@ -46,6 +46,8 @@ namespace Hail
 		virtual void EndMaterialPass() = 0;
 		virtual void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) = 0;
 		virtual void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
+		virtual void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) = 0;
+		virtual void RenderDebugLines3D(uint32 numberOfLinesToRender) = 0;
 		virtual void RenderLetterBoxPass() = 0;
 
 		RenderingDevice* GetRenderingDevice() { return m_renderDevice; }

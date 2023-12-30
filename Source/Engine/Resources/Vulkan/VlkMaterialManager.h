@@ -35,7 +35,6 @@ namespace Hail
 
 		//This is here so the local variables does not get optimized away in release
 		VkDescriptorImageInfo m_descriptorImageInfo;
-		VkDescriptorBufferInfo m_descriptorBufferInfo;
 	};
 
 }

@@ -63,6 +63,7 @@ bool Hail::VlkRenderer::InitGraphicsEngine(ResourceManager* resourceManager)
 	CreateFullscreenVertexBuffer();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
+	CreateDebugLineVertexBuffer();
 	CreateCommandBuffers();
 	CreateSyncObjects();
 	InitImGui();
@@ -242,7 +243,7 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 	if (materialToBind.m_type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		renderPassInfo.renderPass = passData.m_renderPass;
-		renderPassInfo.framebuffer = passData.m_frameBuffer[m_swapChain->GetFrameInFlight()];
+		renderPassInfo.framebuffer = passData.m_frameBuffer[frameInFlightIndex];
 	}
 	else
 	{
@@ -330,6 +331,32 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManager->m_unitCube.indices.Size()), 1, 0, 0, 0);
 }
 
+void Hail::VlkRenderer::RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines)
+{
+	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
+	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
+	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::DEBUG_LINES2D);
+
+	//binding pass data first round
+	if (m_boundMaterialType != MATERIAL_TYPE::DEBUG_LINES2D)
+	{
+		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 0, 2, sets, 0, nullptr);
+		m_boundMaterialType = MATERIAL_TYPE::DEBUG_LINES2D;
+	}
+
+	VkBuffer mainVertexBuffers[] = { m_debugLineVertexBuffer };
+	VkDeviceSize mainOffsets[] = { 0 };
+	vkCmdBindVertexBuffers(commandBuffer, 0, 1, mainVertexBuffers, mainOffsets);
+
+	vkCmdDraw(commandBuffer, numberOfLinesToRender, 1, offsetFrom3DLines, 0);
+}
+
+void Hail::VlkRenderer::RenderDebugLines3D(uint32 numberOfLinesToRender)
+{
+	//TODO:
+}
+
 void Hail::VlkRenderer::RenderLetterBoxPass()
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
@@ -363,9 +390,6 @@ void Hail::VlkRenderer::RenderLetterBoxPass()
 }
 
 
-
-
-
 void VlkRenderer::Cleanup()
 {
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
@@ -379,8 +403,12 @@ void VlkRenderer::Cleanup()
 
 	vkDestroyBuffer(device.GetDevice(), m_fullscreenVertexBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), m_fullscreenVertexBufferMemory, nullptr);
+
 	vkDestroyBuffer(device.GetDevice(), m_spriteVertexBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), m_spriteVertexBufferMemory, nullptr);
+
+	vkDestroyBuffer(device.GetDevice(), m_debugLineVertexBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), m_debugLineVertexBufferMemory, nullptr);
 
 	vkDestroyBuffer(device.GetDevice(), m_indexBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), m_indexBufferMemory, nullptr);
@@ -460,7 +488,6 @@ void VlkRenderer::CreateVertexBuffer()
 	CopyBuffer(device, stagingBuffer, m_vertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
 	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
-
 }
 
 void Hail::VlkRenderer::CreateFullscreenVertexBuffer()
@@ -535,6 +562,37 @@ void VlkRenderer::CreateIndexBuffer()
 
 	CopyBuffer(device, stagingBuffer, m_indexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
 
+	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
+	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
+}
+
+void Hail::VlkRenderer::CreateDebugLineVertexBuffer()
+{
+	GrowingArray<uint32> debugLineVertices;
+	debugLineVertices.InitAndFill(MAX_NUMBER_OF_DEBUG_LINES);
+	for (uint32 i = 0; i < MAX_NUMBER_OF_DEBUG_LINES; i++)
+	{
+		debugLineVertices[i] = i;
+	}
+
+	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	const VkDeviceSize bufferSize = sizeof(uint32_t) * MAX_NUMBER_OF_DEBUG_LINES;
+
+	VkBuffer stagingBuffer;
+	VkDeviceMemory stagingBufferMemory;
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		stagingBuffer, stagingBufferMemory);
+	void* data;
+	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
+	memcpy(data, debugLineVertices.Data(), (size_t)bufferSize);
+	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
+
+	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		m_debugLineVertexBuffer, m_debugLineVertexBufferMemory);
+
+	CopyBuffer(device, stagingBuffer, m_debugLineVertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
 	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
 	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
 }

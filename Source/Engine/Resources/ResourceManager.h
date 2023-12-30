@@ -67,6 +67,10 @@ namespace Hail
 
 		VectorOnStack<SpriteInstanceData, MAX_NUMBER_OF_SPRITES, false> m_spriteInstanceData;
 
+		uint32 m_numberOf2DDebugLines;
+		uint32 m_numberOf3DDebugLines;
+		VectorOnStack<DebugLineData, MAX_NUMBER_OF_DEBUG_LINES, false> m_debugLineData;
+
 
 		//Reloading
 		

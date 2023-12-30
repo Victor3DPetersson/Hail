@@ -1,4 +1,7 @@
 #pragma once
+#include "glm\vec2.hpp"
+#include "glm\vec3.hpp"
+#include "glm\vec4.hpp"
 
 namespace Hail
 {
@@ -24,4 +27,13 @@ namespace Hail
         unsigned short Data3{};
         unsigned char  Data4[8]{};
     };
+
+    static glm::vec2 Vec2Zero = glm::vec2(0.0, 0.0);
+    static glm::vec2 Vec2One = glm::vec2(1.0, 1.0);
+
+    static glm::vec3 Vec3Zero = glm::vec3(0.0, 0.0, 0.0);
+    static glm::vec3 Vec3One = glm::vec3(1.0, 1.0, 1.0);
+
+    static glm::vec4 Vec4Zero = glm::vec4(0.0, 0.0, 0.0, 0.0);
+    static glm::vec4 Vec4One = glm::vec4(1.0, 1.0, 1.0, 1.0);
 }

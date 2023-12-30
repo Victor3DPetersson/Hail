@@ -12,6 +12,7 @@
 #include "../Engine/ImGui/ImGuiFileBrowser.h"
 
 #include "../Reflection/Serialization.hpp"
+#include "Utility\DebugLineHelpers.h"
 
 namespace
 {
@@ -32,9 +33,12 @@ namespace Hail
 		g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 		player.transform.SetPosition({ 0.5f, 0.5f });
+		player.sizeRelativeToRenderTarget = true;
+		player.transform.SetScale({ 0.085f, 0.085f });
 		player.materialInstanceID = 1;
 		sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
+		
 
 		sprites[1].transform.SetPosition({ 0.25f, 0.25f });
 		sprites[2].transform.SetPosition({ 0.75f, 0.25f });
@@ -139,12 +143,12 @@ namespace Hail
 		}
 		if (frameData.inputData.keyMap[m_inputMapping.W] == Hail::KEY_PRESSED)
 		{
-			direction += (glm::vec2{ 0.0, 1.0 } *g_spriteMovementSpeed);
+			direction += (glm::vec2{ 0.0, -1.0 } *g_spriteMovementSpeed);
 			moved = true;
 		}
 		if (frameData.inputData.keyMap[m_inputMapping.S] == Hail::KEY_PRESSED)
 		{
-			direction += glm::vec2{ 0.0, -1.0 } *g_spriteMovementSpeed;
+			direction += glm::vec2{ 0.0, 1.0 } *g_spriteMovementSpeed;
 			moved = true;
 		}
 		player.transform.AddToPosition(direction);
@@ -162,7 +166,8 @@ namespace Hail
 
 		for (uint32_t i = 1; i < 5; i++)
 		{
-			sprites[i].transform.AddToRotation({ 0.025f * (i + 1) });
+			sprites[i].transform.AddToRotation({ 0.15f * (i + 1) });
+			DrawLine2D(*frameData.renderPool, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 0.05f * (i + 1));
 		}
 
 		FillFrameData(*frameData.renderPool);
@@ -184,9 +189,16 @@ namespace Hail
 		if (renderPlayer)
 		{
 			renderCommandPoolToFill.spriteCommands.Add(player);
+
+			DrawLine2D(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0);
+			DrawCircle2D(renderCommandPoolToFill, player.transform.GetPosition(), 0.05);
+			DrawBox2D(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(0.05, 0.05), glm::vec4(1.0, 0.0, 0.0, 1.0f));
+			const glm::vec2 halfDimensions = glm::vec2(0.05, 0.05);
+			DrawBox2DMinMax(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, glm::vec4(1.0, 0.6, 0.0, 1.0f));
 		}
 
 		renderCommandPoolToFill.meshCommands.Add(Hail::RenderCommand_Mesh());
+
 	}
 
 }

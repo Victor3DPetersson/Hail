@@ -75,6 +75,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 			m_openedFileBrowser = false;
 		}
 	}
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
 	ImGui::Begin("Asset Browser", nullptr, ImGuiWindowFlags_MenuBar);
 
 	// Menu Bar
@@ -140,7 +141,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 
 
 	ImGui::End();
-
+	ImGui::PopStyleVar();
 }
 
 void Hail::ImGuiAssetBrowser::InitFileBrowser()
@@ -218,6 +219,10 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 
 void Hail::ImGuiAssetBrowser::ImportTextureLogic()
 {
-
+	for (size_t i = 0; i < m_textureFileBrowserData.objectsToSelect.Size(); i++)
+	{
+		m_resourceManager->GetTextureManager()->ImportTextureResource(m_textureFileBrowserData.objectsToSelect[i]);
+	}
+	m_textureFileBrowserData.objectsToSelect.DeleteAll(); 
 }
 
