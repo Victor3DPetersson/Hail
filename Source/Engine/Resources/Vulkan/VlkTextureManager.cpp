@@ -9,6 +9,7 @@
 
 
 #include "Windows/imgui_impl_vulkan.h"
+#include "Resources\MetaResource.h"
 
 
 using namespace Hail;
@@ -133,10 +134,12 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 {
 	const FileObject& object = filepath.Object();
 	TextureResource textureToFill;
+	ImGuiVlkTextureResource returnResource;
 	//if it is an internal texture for mat or not
 	if (StringCompare(object.Extension(), L"txr"))
 	{
-		LoadTextureInternal(object.Name().CharString().Data(), textureToFill, false);
+		//TODO: fetch meta resource through function call
+		LoadTextureInternal(object.Name().CharString().Data(), textureToFill, returnResource.metaDataOfResource, false);
 	}
 	else
 	{
@@ -149,8 +152,6 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 		return false;
 	}
 
-
-	ImGuiVlkTextureResource returnResource;
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
@@ -192,4 +193,25 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 	returnResource.m_ImGuiResource = ImGui_ImplVulkan_AddTexture(vlkRenderingResources->m_linearTextureSampler, returnResource.m_imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	return &returnResource;
+}
+
+void Hail::VlkTextureResourceManager::DeleteImGuiTextureResource(ImGuiTextureResource* textureToDelete)
+{
+	VlkDevice& device = *m_device;
+	ImGuiVlkTextureResource* textureData = (ImGuiVlkTextureResource*)textureToDelete;
+	if (textureData->m_imageView != VK_NULL_HANDLE)
+	{
+		vkDestroyImageView(device.GetDevice(), textureData->m_imageView, nullptr);
+	}
+	if (textureData->m_image != VK_NULL_HANDLE)
+	{
+		vkDestroyImage(device.GetDevice(), textureData->m_image, nullptr);
+	}
+	if (textureData->m_uploadBufferMemory != VK_NULL_HANDLE)
+	{
+		vkFreeMemory(device.GetDevice(), textureData->m_uploadBufferMemory, nullptr);
+	}
+	textureData->m_imageView = VK_NULL_HANDLE;
+	textureData->m_image = VK_NULL_HANDLE;
+	textureData->m_uploadBufferMemory = VK_NULL_HANDLE;
 }

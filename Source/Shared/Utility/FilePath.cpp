@@ -1,9 +1,9 @@
 #include "Shared_PCH.h"
 #include "FilePath.hpp"
 
-#include <string>
-#include <iostream>
 #include "DebugMacros.h"
+#include "MathUtils.h"
+#include "InOutStream.h"
 
 #ifdef PLATFORM_WINDOWS
 
@@ -13,6 +13,15 @@
 #endif
 
 #include "Utility\StringUtility.h"
+
+#include "Reflection\Reflection.h"
+//Reflection code inserted below, do not add or modify code in the namespace Reflection
+namespace Hail::Reflection
+{
+    DEFINE_TYPE_CUSTOM_SERIALIZER(RelativeFilePath)
+}
+
+using namespace Hail;
 
 namespace
 {
@@ -46,12 +55,37 @@ namespace
     }
 }
 
-void Hail::FilePath::CreateFileObject()
+FilePath FilePath::ProjectCurrentWorkingDirectory("");
+
+void FilePath::CreateFileObject()
 {
     m_object = FileObject(*this);
 }
 
-void Hail::FilePath::AddWildcard()
+FilePath FilePath::GetDirectoryAtLevel(uint16 levelToGet) const
+{
+    if (levelToGet >= m_directoryLevel)
+        return *this;
+
+    wchar_t data[MAX_FILE_LENGTH];
+    uint16 levelCounter = 0xffff;
+    for (size_t i = 0; i < m_length; i++)
+    {
+        if (m_data[i] == g_SourceSeparator)
+        {
+            levelCounter++;
+        }
+        data[i] = m_data[i];
+        if (levelCounter == levelToGet)
+        {
+            data[i + 1] = g_End;
+            break;
+        }
+    }
+    return FilePath(data);
+}
+
+void FilePath::AddWildcard()
 {
     if (m_isDirectory && m_data[m_length - 1] != g_Wildcard)
     {
@@ -109,6 +143,48 @@ bool Hail::FilePath::CreateFileDirectory() const
 
     return true;
 }
+
+const FilePath& FilePath::GetCurrentWorkingDirectory()
+{
+    if (ProjectCurrentWorkingDirectory.Length() != 0)
+        return ProjectCurrentWorkingDirectory;
+
+    wchar_t buffer[MAX_FILE_LENGTH];
+#ifdef PLATFORM_WINDOWS
+   if (GetCurrentDirectory(MAX_FILE_LENGTH, buffer) != NULL) 
+   {
+   } 
+   else 
+   {
+       //TODO: add assert
+       perror("getcwd() error");
+   }
+#endif
+   ProjectCurrentWorkingDirectory = FilePath(buffer);
+   return ProjectCurrentWorkingDirectory;
+}
+
+int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB)
+{
+    if (!pathA.IsValid() || !pathB.IsValid())
+        return -1;
+
+    int16 commonLowestDirectory = -1;
+    for (size_t i = 0; i < pathA.m_length; i++)
+    {
+        if (pathA.m_data[i] != pathB.m_data[i])
+        {
+            break;
+        }
+        if (pathA.m_data[i] == g_SourceSeparator)
+        {
+            commonLowestDirectory++;
+        }
+    }
+    return commonLowestDirectory;
+}
+
+
 
 void Hail::FilePath::DeleteEndSeperator()
 {
@@ -593,4 +669,132 @@ bool Hail::FileObject::FindExtension()
     }
     m_extension = L"folder\0";
     return false;
+}
+
+RelativeFilePath::RelativeFilePath()
+{
+    m_stepsFromFileToCommonSharedDir = -1;
+    m_isInsideWorkingDirectory = false;
+    m_directoryLevel = 0;
+    m_pathLength = 0;
+    m_pathFromWorkingDir[0] = g_End;
+}
+
+RelativeFilePath::RelativeFilePath(const FilePath& longFilePath)
+{
+    if (!longFilePath.IsValid())
+    {
+        m_stepsFromFileToCommonSharedDir = -1;
+        m_isInsideWorkingDirectory = false;
+        m_directoryLevel = 0;
+        m_pathLength = 0;
+        m_pathFromWorkingDir[0] = g_End;
+        return;
+    }
+    const FilePath& currentWorkingDirectory = FilePath::GetCurrentWorkingDirectory();
+    const uint16 currentWorkingDirectoryLevel = currentWorkingDirectory.m_directoryLevel;
+    bool isDirectoryInsideOfWorkingDirectory = false;
+
+    m_directoryLevel = longFilePath.GetDirectoryLevel();
+
+    //if file is in a higher level we could be inside of the working directory
+    if (currentWorkingDirectoryLevel < longFilePath.GetDirectoryLevel())
+    {
+        FilePath filePathAtDirectoryLevel = longFilePath.GetDirectoryAtLevel(currentWorkingDirectoryLevel);
+
+        if (StringCompare(filePathAtDirectoryLevel.m_data, currentWorkingDirectory.m_data))
+        {
+            isDirectoryInsideOfWorkingDirectory = true;
+        }
+
+        if (isDirectoryInsideOfWorkingDirectory)
+        {
+            m_stepsFromFileToCommonSharedDir = longFilePath.GetDirectoryLevel() - currentWorkingDirectoryLevel;
+
+            const uint16 nameLengthToDirectory = StringLength(filePathAtDirectoryLevel.m_data);
+            m_pathLength = longFilePath.Length() - nameLengthToDirectory;
+            memcpy(m_pathFromWorkingDir, &longFilePath.m_data[nameLengthToDirectory], m_pathLength * sizeof(wchar_t));
+            m_pathFromWorkingDir[m_pathLength] = g_End;
+            m_isInsideWorkingDirectory = true;
+            return;
+        }
+    }
+
+    m_isInsideWorkingDirectory = false;
+    // find common lowest directory and set the data
+    const int16 lowestCommonDirectoryLevel = FilePath::FindCommonLowestDirectoryLevel(longFilePath, currentWorkingDirectory);
+
+    if (lowestCommonDirectoryLevel == -1)
+    {
+        m_stepsFromFileToCommonSharedDir = -1;
+        m_pathLength = longFilePath.Length();
+        memcpy(m_pathFromWorkingDir, &longFilePath.m_data, m_pathLength * sizeof(wchar_t));
+    }
+    else
+    {
+        m_stepsFromFileToCommonSharedDir = longFilePath.GetDirectoryLevel() - lowestCommonDirectoryLevel;
+        FilePath filePathAtCommonDirectoryLevel = longFilePath.GetDirectoryAtLevel(lowestCommonDirectoryLevel);
+        const uint16 nameLengthToDirectory = StringLength(filePathAtCommonDirectoryLevel.m_data);
+        m_pathLength = longFilePath.Length() - nameLengthToDirectory;
+        memcpy(m_pathFromWorkingDir, &longFilePath.m_data[nameLengthToDirectory], m_pathLength * sizeof(wchar_t));
+        m_pathFromWorkingDir[m_pathLength] = g_End;
+    }
+}
+
+FilePath RelativeFilePath::GetFilePath() const
+{
+    FilePath returnPath;
+
+    //If not an invalid filepath or a path on a different disk from working directory
+    if (m_stepsFromFileToCommonSharedDir != -1)
+    {
+        const uint16 currentWorkingDirectoryLevel = FilePath::GetCurrentWorkingDirectory().m_directoryLevel;
+        if (m_isInsideWorkingDirectory)
+        {
+            //using the char buffer from the return path as a temporary storage
+            memcpy(returnPath.m_data, FilePath::GetCurrentWorkingDirectory().m_data, FilePath::GetCurrentWorkingDirectory().Length() * sizeof(wchar_t));
+            memcpy(&returnPath.m_data[FilePath::GetCurrentWorkingDirectory().Length()], m_pathFromWorkingDir, m_pathLength * sizeof(wchar_t));
+            returnPath.m_data[FilePath::GetCurrentWorkingDirectory().Length() + m_pathLength] = g_End;
+            returnPath = FilePath(returnPath.m_data);
+        }
+        else
+        {
+            const uint16 sharedDirectoryLevel = m_stepsFromFileToCommonSharedDir - Math::Abs(m_stepsFromFileToCommonSharedDir - FilePath::GetCurrentWorkingDirectory().GetDirectoryLevel());
+            const FilePath sharedDirectory = FilePath::GetCurrentWorkingDirectory().GetDirectoryAtLevel(sharedDirectoryLevel);
+
+            memcpy(returnPath.m_data, sharedDirectory.m_data, sharedDirectory.Length() * sizeof(wchar_t));
+            memcpy(&returnPath.m_data[sharedDirectory.Length()], m_pathFromWorkingDir, m_pathLength * sizeof(wchar_t));
+            returnPath.m_data[sharedDirectory.Length() + m_pathLength] = g_End;
+            returnPath = FilePath(returnPath.m_data);
+        }
+    }
+    else
+    {
+        returnPath = FilePath(m_pathFromWorkingDir);
+    }
+
+    return returnPath;
+}
+
+void RelativeFilePath::Serialize(InOutStream& outObject)
+{
+    if (outObject.IsReading())
+        return; //TODO: Add assert here
+    outObject.Write(&m_pathLength, sizeof(uint16));
+    outObject.Write(m_pathFromWorkingDir, sizeof(wchar_t), m_pathLength);
+    outObject.Write(&m_stepsFromFileToCommonSharedDir, sizeof(int16));
+    outObject.Write(&m_directoryLevel, sizeof(uint16));
+    outObject.Write(&m_isInsideWorkingDirectory, sizeof(bool));
+}
+
+void RelativeFilePath::Deserialize(InOutStream& inObject)
+{
+    if (inObject.IsWriting())
+        return; //TODO: Add assert here
+    inObject.Read(&m_pathLength, sizeof(uint16));
+    inObject.Read(m_pathFromWorkingDir, sizeof(wchar_t), m_pathLength);
+    m_pathFromWorkingDir[m_pathLength] = 0;
+    inObject.Read(&m_stepsFromFileToCommonSharedDir, sizeof(int16));
+    inObject.Read(&m_directoryLevel, sizeof(uint16));
+    inObject.Read(&m_isInsideWorkingDirectory, sizeof(bool));
 }

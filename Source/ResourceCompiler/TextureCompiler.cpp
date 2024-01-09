@@ -7,6 +7,8 @@
 #include "Utility\StringUtility.h"
 #include "Utility\InOutStream.h"
 
+#include "MetaResource.h"
+
 using namespace Hail;
 using namespace TextureCompiler;
 
@@ -63,9 +65,9 @@ void TextureCompiler::CompileAllTextures()
 
 }
 
-bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors);
-bool ExportCompiled16BitTexture(FileObject textureName, uint16_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors) { return false; };
-bool ExportCompiled32BitTexture(FileObject textureName, uint32_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors){ return false; };
+FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors);
+FilePath ExportCompiled16BitTexture(const FilePath& originalTexturePath, uint16_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors) { return FilePath(); };
+FilePath ExportCompiled32BitTexture(const FilePath& originalTexturePath, uint32_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors){ return FilePath(); };
 
 bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32 numberOfRequiredTextures)
 {
@@ -165,7 +167,7 @@ bool TextureCompiler::CompileInternalTexture(TextureHeader header, const char* t
 	return false;
 }
 
-bool TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
+FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 {
 	TGAHEADER tgaHeader;
 
@@ -177,7 +179,7 @@ bool TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 	if (!tgaFile.OpenFile(filePath, FILE_OPEN_TYPE::READ, true))
 	{
 		//Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
-		return false;
+		return FilePath();
 	}
 
 	// Go to end of file to check TGA version
@@ -254,7 +256,7 @@ bool TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 		FromWCharToConstChar(filePath.Object().Name(), textureName, 64);
 		Debug_PrintConsoleConstChar("TGA Format UnSupported in file: ");
 		Debug_PrintConsoleConstChar(textureName);
-		return false;
+		return FilePath();
 	}
 	char* skip = "";
 	tgaFile.Read(skip, tgaHeader.idLength);
@@ -344,18 +346,6 @@ bool TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 		delete[] tempPixelData;
 	}
 	tgaFile.CloseFile();
-	//Flipping texture in Y Coord for Vulkan Renderdoc became annoying, but better to work from correct space
-	//unsigned char* tempPixelData = new unsigned char[imageDataSize];
-	//memcpy(tempPixelData, pixelData, imageDataSize);
-	//const uint8_t bytesPerPixel = (tgaHeader.bitsPerPixel / 8);
-	//const uint32_t bytesPerRow = tgaHeader.width * bytesPerPixel;
-	//for (uint32_t row = 0; row < tgaHeader.height; row++)
-	//{
-	//	const uint32_t readFromLocation = ((tgaHeader.height - 1) - row) * bytesPerRow;
-	//	const uint32_t writeToLocation = row * bytesPerRow;
-	//	memcpy(pixelData + writeToLocation, tempPixelData + readFromLocation, bytesPerRow);
-	//}
-	//delete[] tempPixelData;
 
 	TextureHeader compileHeader;
 	uint32_t numberOfColors = 0;
@@ -372,7 +362,7 @@ bool TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 	compileHeader.height = tgaHeader.height;
 	compileHeader.width = tgaHeader.width;
 
-	return ExportCompiled8BitTexture(filePath.Object(), pixelData, compileHeader, numberOfColors);
+	return ExportCompiled8BitTexture(filePath, pixelData, compileHeader, numberOfColors);
 }
 
 
@@ -388,8 +378,9 @@ void TextureCompiler::Init()
 }
 
 
-bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureData, TextureHeader textureHeader, uint32_t numberOfColors)
+FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureHeader textureHeader, uint32_t numberOfColors)
 {
+	FileObject textureName = originalTexturePath.Object();
 	InOutStream textureExporter;
 	textureName.SetExtension(L"txr");
 	FilePath finalPath = FilePath(TEXTURES_DIR_OUT) + textureName;
@@ -397,7 +388,7 @@ bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureD
 	if (!textureExporter.OpenFile(finalPath, FILE_OPEN_TYPE::WRITE, true))
 	{
 		//Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
-		return false;
+		return FilePath();
 	}
 	String64 nameCString;
 	FromWCharToConstChar(textureName.Name(), nameCString, 64);
@@ -433,8 +424,13 @@ bool ExportCompiled8BitTexture(FileObject textureName, uint8_t* compiledTextureD
 		}
 	}
 	//outStream.write((char*)&compiledTextureData, textureHeader.width * textureHeader.height * sizeOfColor * numberOfColors);
+
+	// TODO: check if resource exist if we overwrite it, and get its GUID
+	MetaResource textureMetaResource;
+	textureMetaResource.ConstructResourceAndID(originalTexturePath, finalPath);
+	textureMetaResource.Serialize(textureExporter);
 	textureExporter.CloseFile();
-	return true;
+	return finalPath;
 }
 
 

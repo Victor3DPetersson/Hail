@@ -1,7 +1,7 @@
 #include "Engine_PCH.h"
 #include "ImGuiAssetBrowser.h"
 
-
+#include "Reflection/SerializationOverride.h"
 #include "imgui.h"
 
 #include "MathUtils.h"
@@ -10,7 +10,7 @@
 
 #include "Resources\TextureManager.h"
 #include "Resources\ResourceManager.h"
-#include "ImGuiDirectoryPanel.h"
+#include "ImGuiHelpers.h"
 #ifdef PLATFORM_WINDOWS
 #include "Resources\Vulkan\VlkTextureResource.h"
 #endif
@@ -22,7 +22,7 @@ namespace
 	//StaticArray<String64, (uint32_t)MATERIAL_TYPE::COUNT> g_materialTypeStrings;
 	constexpr uint32 ASSET_SIZE = 100;
 
-	void RenderAssetPreview(FileObject& fileObject, void* imageResource)
+	void RenderAssetPreview(FileObject& fileObject, ImGuiTextureResource* imageResource)
 	{
 		ImGuiIO& io = ImGui::GetIO();
 		ImGui::BeginChild(fileObject.Name().CharString().Data(), { ASSET_SIZE, ASSET_SIZE * 1.3 });
@@ -37,15 +37,19 @@ namespace
 			&& windowPos.y + ASSET_SIZE * 1.3 > io.MousePos.y;
 
 		if (hovered)
+		{
 			ImGui::BeginChildFrame(id, { ASSET_SIZE, ASSET_SIZE * 1.3 });
+			ImGuiHelpers::MetaResourcePanel(&imageResource->metaDataOfResource);
+		}
 		else
 			ImGui::BeginChildFrame(id, { ASSET_SIZE, ASSET_SIZE * 1.3 }, ImGuiWindowFlags_NoBackground);
 		
+
 		ImVec2 uv_min = ImVec2(0.0f, 1.0f);                 // Top-left
 		ImVec2 uv_max = ImVec2(1.0f, 0.0f);                 // Lower-right
 		ImVec4 tint_col = ImGui::GetStyleColorVec4(ImGuiCol_Text);   // No tint
 		ImVec4 border_col = ImVec4(1.0, 1.0, 1.0, 0.10);
-		ImGui::Image(*(VkDescriptorSet*)imageResource, ImVec2(ASSET_SIZE * 0.9, ASSET_SIZE * 0.9), uv_min, uv_max, tint_col, border_col);
+		ImGui::Image(*(VkDescriptorSet*)imageResource->GetImguiTextureResource(), ImVec2(ASSET_SIZE * 0.9, ASSET_SIZE * 0.9), uv_min, uv_max, tint_col, border_col);
 
 		ImGui::TextWrapped(fileObject.Name().CharString().Data());
 		ImGui::EndChildFrame();
@@ -53,7 +57,6 @@ namespace
 	}
 
 }
-
 
 Hail::ImGuiAssetBrowser::ImGuiAssetBrowser()
 {
@@ -87,10 +90,8 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 				fileBrowser->Init(&m_textureFileBrowserData);
 			ImGui::EndMenu();
 		}
-
 		ImGui::EndMenuBar();
 	}
-
 
 	{
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_HorizontalScrollbar;
@@ -110,7 +111,6 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 	ImGui::EndChild();
 	ImGui::SameLine();
 
-
 	{
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_None;
 		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
@@ -125,7 +125,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 		{
 			for (size_t iTexture = 0; iTexture < folder.folderTextures.Size(); iTexture++)
 			{
-				RenderAssetPreview(folder.folderTextures[iTexture].fileObject, folder.folderTextures[iTexture].texture->GetImguiTextureResource());
+				RenderAssetPreview(folder.folderTextures[iTexture].fileObject, folder.folderTextures[iTexture].texture);
 				if (iTexture + 1 % 6 != 0 && iTexture != folder.folderTextures.Size() - 1)
 				{
 					ImGui::SameLine();
@@ -137,7 +137,6 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
-
 
 
 	ImGui::End();
@@ -179,8 +178,10 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 
 	const uint16 directoryLevel = fileObject.GetDirectoryLevel() - m_fileSystem.GetBaseDepth();
 
-
 	GrowingArray<TextureFolder>& foldersAtLevel = m_ImGuiTextureResources[directoryLevel];
+
+	RelativeFilePath path = RelativeFilePath(m_fileSystem.GetCurrentFilePath());
+	FilePath path2 = m_fileSystem.GetCurrentFilePath();
 
 	if (!foldersAtLevel.IsInitialized())
 	{
@@ -188,11 +189,19 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 	}
 	else
 	{
-		//check if folder already has been initialized and created
+		//check if folder already has been initialized and created, if it has, clear it
 		for (size_t i = 0; i < foldersAtLevel.Size(); i++)
 		{
 			if (foldersAtLevel[i].owningFileObject == fileObject)
-				return;
+			{
+				for (size_t j = 0; j < foldersAtLevel[i].folderTextures.Size(); j++)
+				{
+					m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(foldersAtLevel[i].folderTextures[j].texture);
+					delete foldersAtLevel[i].folderTextures[j].texture;
+				}
+				foldersAtLevel[i].folderTextures.RemoveAll();
+				foldersAtLevel.RemoveCyclicAtIndex(i);
+			}
 		}
 	}
 
@@ -205,12 +214,10 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 
 		if (fileObject.m_fileObject.IsFile() && StringCompare(fileObject.m_fileObject.Extension(), L"txr"))
 		{
-			ImGuiTextureResource* texture = new ImGuiVlkTextureResource();
-			memcpy(texture, m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager()), sizeof(ImGuiVlkTextureResource));
 			TextureAsset textureAsset;
-			textureAsset.texture = texture;
+			textureAsset.texture = new ImGuiVlkTextureResource();
+			memcpy(textureAsset.texture, m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager()), sizeof(ImGuiVlkTextureResource));
 			textureAsset.fileObject = fileObject.m_fileObject;
-
 			textureFolder.folderTextures.Add(textureAsset);
 		}
 	}
@@ -221,8 +228,9 @@ void Hail::ImGuiAssetBrowser::ImportTextureLogic()
 {
 	for (size_t i = 0; i < m_textureFileBrowserData.objectsToSelect.Size(); i++)
 	{
-		m_resourceManager->GetTextureManager()->ImportTextureResource(m_textureFileBrowserData.objectsToSelect[i]);
+		m_fileSystem.ReloadFolder(m_resourceManager->GetTextureManager()->ImportTextureResource(m_textureFileBrowserData.objectsToSelect[i]));
 	}
-	m_textureFileBrowserData.objectsToSelect.DeleteAll(); 
+	m_textureFileBrowserData.objectsToSelect.RemoveAll(); 
+	InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
 }
 

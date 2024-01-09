@@ -2,8 +2,6 @@
 #pragma once
 #include "StartupAttributes.h"
 #include "InputMappings.h"
-#include "../Reflection/Reflection.h"
-
 namespace Hail
 {
 	struct ApplicationFrameData;

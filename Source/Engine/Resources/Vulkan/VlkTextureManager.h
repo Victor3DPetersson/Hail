@@ -22,6 +22,7 @@ namespace Hail
 		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) final;
 
 		ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager) final;
+		void DeleteImGuiTextureResource(ImGuiTextureResource* textureToDelete) final;
 
 	private:
 		bool CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture) final;

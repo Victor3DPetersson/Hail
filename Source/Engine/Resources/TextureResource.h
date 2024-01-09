@@ -2,6 +2,8 @@
 #include "../EngineConstants.h"
 #include "TextureCommons.h"
 
+#include "MetaResource.h"
+
 namespace Hail
 {
 	class RenderingDevice;
@@ -16,7 +18,7 @@ namespace Hail
 		CompiledTexture m_compiledTextureData;
 	};
 
-
+	// Only use for ImGui data
 	class ImGuiTextureResource
 	{
 	public:
@@ -27,7 +29,7 @@ namespace Hail
 		uint32 m_width = 0;
 		uint32 m_height = 0;
 		String64 textureName;
-
+		MetaResource metaDataOfResource;
 	};
 
 }

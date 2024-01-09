@@ -8,6 +8,8 @@
 #include "Utility\StringUtility.h"
 #include "Utility\InOutStream.h"
 
+#include "MetaResource.h"
+
 namespace
 {
 	const char* REQUIRED_TEXTURES[REQUIRED_TEXTURE_COUNT] =
@@ -79,7 +81,9 @@ void TextureManager::Update()
 bool Hail::TextureManager::LoadTexture(const char* textureName)
 {
 	TextureResource textureResource;
-	if (LoadTextureInternal(textureName, textureResource, false))
+	MetaResource metaData;
+	//TODO: hook up meta data to engine handling of resource
+	if (LoadTextureInternal(textureName, textureResource, metaData, false))
 	{
 		textureResource.index = m_textureCommonData.Size();
 		m_textureCommonData.Add(textureResource);
@@ -115,7 +119,9 @@ bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameI
 	ClearTextureInternalForReload(textureIndex, frameInFlight);
 	if (m_textureCommonDataValidators[textureIndex].IsAllFrameResourcesDirty())
 	{
-		if (!LoadTextureInternal(m_textureCommonData[textureIndex].textureName, m_textureCommonData[textureIndex], true))
+		//TODO: hook up meta data to engine handling of resource
+		MetaResource metaData;
+		if (!LoadTextureInternal(m_textureCommonData[textureIndex].textureName, m_textureCommonData[textureIndex], metaData, true))
 		{
 			return false;
 		}
@@ -125,7 +131,7 @@ bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameI
 	return true;
 }
 
-bool TextureManager::LoadTextureInternal(const char* textureName, TextureResource& textureToFill, bool reloadTexture)
+bool TextureManager::LoadTextureInternal(const char* textureName, TextureResource& textureToFill, MetaResource& metaResourceToFill, bool reloadTexture)
 {
 	String256 inPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
 
@@ -203,6 +209,13 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 		return false;
 		break;
 	}
+
+	const uint64 sizeLeft = inStream.GetFileSize() - inStream.GetFileSeekPosition();
+	if (sizeLeft != 0)
+	{
+		metaResourceToFill.Deserialize(inStream);
+	}
+
 	inStream.CloseFile();
 
 	textureToFill.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
@@ -240,16 +253,12 @@ bool TextureManager::CompileTexture(const char* textureName)
 		Debug_PrintConsoleConstChar(String256::Format("Could not find texture : %s", textureName));
 		return false;
 	}
-
-	return TextureCompiler::CompileSpecificTGATexture(currentPath);
+	return TextureCompiler::CompileSpecificTGATexture(currentPath).IsValid();
 }
 
-void Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
+FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
-
-
-
-
+	return TextureCompiler::CompileSpecificTGATexture(filepath);
 }
 
 void Hail::TextureManager::CreateDefaultTexture()

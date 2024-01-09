@@ -1,6 +1,5 @@
 group ("Core")
 	include ("Engine")
-	include ("Reflection")
 group ("")
 
 group ("Game")

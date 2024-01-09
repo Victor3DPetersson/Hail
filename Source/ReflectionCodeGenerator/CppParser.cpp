@@ -1,6 +1,6 @@
 #include "ReflectionCodeGenerator_PCH.h"
 #include "CppParser.h"
-#include "ReflectionDefines.h"
+#include "Reflection/ReflectionDefines.h"
 #include <iostream>
 
 #include "Utility\FileSystem.h"
@@ -13,7 +13,7 @@
 
 namespace
 {
-	StaticArray<const char*, 13> BASIC_TYPE_NAMES{
+	StaticArray<const char*, 11> BASIC_TYPE_NAMES{
 	"bool",
 	"uint8",
 	"uint16",
@@ -25,14 +25,12 @@ namespace
 	"int64",
 	"float32",
 	"float64",
-	"String64",
-	"String256"
 	};
-
 
 	constexpr const char* REFLECTABLE_CLASS_TO_LOOK_FOR = "REFLECTABLE_CLASS()";
 	constexpr const char* REFLECTABLE_MEMBER_TO_LOOK_FOR = "REFLECTABLE_MEMBER()";
 	constexpr const char* REFLECTION_COMMENT = "//Reflection code inserted below, do not add or modify code in the namespace Reflection";
+
 	enum class HPPTokens
 	{
 		OPENING_BRACKET = '{',
@@ -503,10 +501,8 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 			const FilePath currentPath = iterator->GetCurrentPath();
 			const FileObject currentObject = currentPath.Object();
 
-			String64 extension;
-			wcstombs(extension, currentObject.Extension(), currentObject.Extension().Length() + 1);
-
-			if (extension[0] != 'h')
+			String64 extension = currentObject.Extension().CharString();
+			if (!StringContains("h", extension.Data()) || !StringContains("hpp", extension.Data()))
 			{
 				continue;
 			}
@@ -529,11 +525,23 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 			{
 				if (readData[i] != '\n')
 				{
-					currentLine[i - newLineStart] = readData[i];
+					const int characterIndex = i - newLineStart;
+					if (characterIndex > 254)
+					{
+						break;
+					}
+					//TODO: Assert if larger than 254
+					currentLine[characterIndex] = readData[i];
 				}
 				else
 				{
-					currentLine[i - newLineStart] = '\0';
+					const int characterIndex = i - newLineStart;
+					//TODO: Add string support longer than 256 and implement it in this file
+					if (characterIndex > 254)
+					{
+						break;
+					}
+					currentLine[characterIndex] = '\0';
 					lines.Add(currentLine);
 					newLineStart = i + 1;
 					currentLine[0] = '\0';

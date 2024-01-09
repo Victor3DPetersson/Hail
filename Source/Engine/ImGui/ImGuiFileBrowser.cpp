@@ -11,14 +11,13 @@
 #include "Utility\FilePath.hpp"
 #include <chrono>
 
-#include "ImGuiDirectoryPanel.h"
+#include "ImGuiHelpers.h"
 
-#ifdef PLATFORM_WINDOWS
-#include <windows.h>
-#endif
+
 
 bool Hail::ImGuiFileBrowser::Init(ImGuiFileBrowserData* dataToBrowseFor)
 {
+    m_fileSystem.Reset();
     if (m_fileSystem.SetFilePathAndInit(dataToBrowseFor->pathToBeginSearchingIn, dataToBrowseFor->extensionsToSearchFor))
     {
         m_dataToSearchFor = dataToBrowseFor;
@@ -117,7 +116,7 @@ void Hail::ImGuiFileBrowser::FileSystemLogic()
         ImGui::TableSetupColumn(topLabels[3]);
         ImGui::TableHeadersRow();
 
-        GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtDepth(m_fileSystem.GetCurrentDepth());
+        GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
         const uint32_t numberOfFiles = files.Size();
         bool hasUpdatedHierarchy = false;
         SelecteableFileObject selectedFileObject;
@@ -163,16 +162,7 @@ void Hail::ImGuiFileBrowser::FileSystemLogic()
                 ImGui::Text("%f mb", (float)((double)fileData.m_filesizeInBytes) / 1000000.f);
             }
 
-            String64 timePreview;
-#ifdef PLATFORM_WINDOWS
-                FILETIME time;
-                time.dwLowDateTime = fileData.m_lastWriteTime.m_lowDateTime;
-                time.dwHighDateTime = fileData.m_lastWriteTime.m_highDateTime;
-                SYSTEMTIME SystemTime{};
-                FileTimeToSystemTime(&time, &SystemTime);
-                timePreview = String64::Format("%u/%u/%u  %u:%u:%u", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond);
-#endif
-
+            String64 timePreview = ImGuiHelpers::FormattedTimeFromFileData(fileData.m_lastWriteTime);
             ImGui::TableNextColumn();
             ImGui::Text(timePreview.Data());
         }
@@ -200,7 +190,7 @@ void Hail::ImGuiFileBrowser::CopyPath()
 
 void Hail::ImGuiFileBrowser::DeselectFiles()
 {
-    GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtDepth(m_fileSystem.GetCurrentDepth());
+    GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
     const uint32_t numberOfFiles = files.Size();
     for (int object = 0; object < numberOfFiles; object++)
     {
@@ -210,7 +200,7 @@ void Hail::ImGuiFileBrowser::DeselectFiles()
 
 bool Hail::ImGuiFileBrowser::ValidReturnSelection()
 {
-    const GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtDepth(m_fileSystem.GetCurrentDepth());
+    const GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
     if (files.Size())
     {
         for (uint32_t i = 0; i < files.Size(); i++)
@@ -226,7 +216,7 @@ bool Hail::ImGuiFileBrowser::ValidReturnSelection()
 
 void Hail::ImGuiFileBrowser::AddSelectionToOutput()
 {
-    const GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtDepth(m_fileSystem.GetCurrentDepth());
+    const GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
     if (files.Size())
     {
         for (uint32_t i = 0; i < files.Size(); i++)

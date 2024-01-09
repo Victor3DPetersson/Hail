@@ -1,4 +1,4 @@
-#include "Reflection_PCH.h"
+#include "Shared_PCH.h"
 #include "Reflection.h"
 
 namespace Hail
@@ -17,8 +17,6 @@ namespace Hail
 		DEFINE_TYPE(uint64)
 		DEFINE_TYPE(float32)
 		DEFINE_TYPE(float64)
-		DEFINE_TYPE(String64)
-		DEFINE_TYPE(String256)
 		//If adding more types, add them too the CppParser.cpp file as well in the BASIC_TYPES
 	}
 }

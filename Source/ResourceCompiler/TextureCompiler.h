@@ -1,19 +1,18 @@
-//Interface for the entire engine
 #pragma once
 
 #include "TextureCommons.h"
-
+#include "Utility\FilePath.hpp"
 
 namespace Hail
 {
-	class FilePath;
 
 	namespace TextureCompiler
 	{
 		void CompileAllTextures();
 		bool CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32 numberOfRequiredTextures);
 		bool CompileInternalTexture(TextureHeader header, const char* textureName);
-		bool CompileSpecificTGATexture(const FilePath& filePath);
+		// returns the out texture path from the compiled resource
+		FilePath CompileSpecificTGATexture(const FilePath& filePath);
 		bool IsTextureCompiled(const char* relativePath, const char* textureName);
 		void Init();
 	};

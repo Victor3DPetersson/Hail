@@ -34,6 +34,7 @@ filter { "platforms:OSX" }
   defines { "PLATFORM_OSX" }
 
 dirs = {}
+dirs.projectdir = os.realpath("")
 dirs.outdir = os.realpath("Generated/bin")
 dirs.resourcesoutdir = os.realpath("Generated/bin/resources")
 dirs.resourcesindir = os.realpath("Source/Resources")

@@ -1,9 +1,16 @@
 #include "Engine_PCH.h"
-#include "ImGuiDirectoryPanel.h"
+#include "ImGuiHelpers.h"
 
 
 #include "imgui.h"
 #include "Utility\FileSystem.h"
+#include "Utility\StringUtility.h"
+#include "ImGuiHelpers.h"
+#include "Resources\MetaResource.h"
+
+#ifdef PLATFORM_WINDOWS
+#include <windows.h>
+#endif
 
 using namespace Hail;
 
@@ -78,4 +85,49 @@ bool ImGuiHelpers::DirectoryPanelLogic(FileSystem* fileSystem, uint32 minimumDep
         fileSystemUpdated = true;
     }
     return fileSystemUpdated;
+}
+
+void Hail::ImGuiHelpers::MetaResourcePanel(MetaResource* metaResource)
+{
+    
+    ImGui::BeginTooltip();
+
+    if (metaResource->GetGUID() == GUID())
+    {
+        ImGui::Text("No meta resource associated with this resource, reload / reimport the resource.");
+    }
+    else
+    {
+        const GUID& metaID = metaResource->GetGUID();
+        char pathString[MAX_FILE_LENGTH];
+        FromWCharToConstChar(metaResource->GetProjectFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
+        ImGui::Text("Project Path : ..%s", pathString);
+        ImGui::Text("GUID: %xll %xh %xh %c%c%c%c%c%c%c%c", metaID.m_data1, metaID.m_data2, metaID.m_data3,
+            metaID.m_data4[0], metaID.m_data4[1], metaID.m_data4[2], metaID.m_data4[3], 
+            metaID.m_data4[4], metaID.m_data4[5], metaID.m_data4[6], metaID.m_data4[7]);
+        ImGui::Separator();
+        ImGui::Text("Base resource information");
+        FromWCharToConstChar(metaResource->GetSourceFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
+        ImGui::Text("Source Path : ..%s", pathString);
+        ImGui::Text("Creation Time: %s", FormattedTimeFromFileData(metaResource->GetFileData().m_creationTime));
+        ImGui::Text("Last Edited Time: %s", FormattedTimeFromFileData(metaResource->GetFileData().m_lastWriteTime));
+        ImGui::Text("File size: %f mb", (float)((double)metaResource->GetFileData().m_filesizeInBytes) / 1000000.f);
+    }
+    //static float arr[] = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
+    //ImGui::PlotLines("Curve", arr, IM_ARRAYSIZE(arr));
+    ImGui::EndTooltip();
+}
+
+String64 Hail::ImGuiHelpers::FormattedTimeFromFileData(const FileTime& fileTime)
+{
+    String64 timePreview;
+#ifdef PLATFORM_WINDOWS
+    FILETIME time;
+    time.dwLowDateTime = fileTime.m_lowDateTime;
+    time.dwHighDateTime = fileTime.m_highDateTime;
+    SYSTEMTIME SystemTime{};
+    FileTimeToSystemTime(&time, &SystemTime);
+    timePreview = String64::Format("%u/%u/%u  %u:%u:%u", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond);
+#endif
+    return timePreview;
 }

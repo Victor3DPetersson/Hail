@@ -42,7 +42,7 @@ namespace Hail
             const FilePath iteratedPath = iterator.GetCurrentPath();
             const FileObject baseObject = iteratedPath.Object();
             const uint16 baseDepth = baseObject.GetDirectoryLevel() - m_baseDepth;
-            currentDirectory.directory = baseObject;
+            currentDirectory.directoryObject = baseObject;
             // assert if baseDepth != 0
 
             m_fileDirectories[baseDepth].Init(1);
@@ -54,7 +54,7 @@ namespace Hail
         {
 
             const FilePath iteratedPath = iterator.GetCurrentPath();
-            const FileObject currentObject = iteratedPath.Object();
+            const FileObject& currentObject = iteratedPath.Object();
 
             const uint16 currentDepth = iteratedPath.GetDirectoryLevel() - m_baseDepth;
 
@@ -66,10 +66,10 @@ namespace Hail
 
             if (currentObject.IsDirectory())
             {
-                if (currentObject != currentDirectory.directory)
+                if (currentObject != currentDirectory.directoryObject)
                 {
                     currentDirectory.files.RemoveAll();
-                    currentDirectory.directory = currentObject;
+                    currentDirectory.directoryObject = currentObject;
                 }
                 if (!m_fileDirectories[currentDepth].IsInitialized())
                 {
@@ -80,9 +80,31 @@ namespace Hail
 
             for (size_t i = 0; i < m_fileDirectories[currentDirectoryDepth].Size(); i++)
             {
-                if (m_fileDirectories[currentDirectoryDepth][i].directory.Name() == currentObject.ParentName())
+                if (m_fileDirectories[currentDirectoryDepth][i].directoryObject.Name() == currentObject.ParentName())
                 {
                     m_fileDirectories[currentDirectoryDepth][i].files.Add(currentObject);
+                    break;
+                }
+            }
+        }
+    }
+
+    void FileSystem::IterateOverFolderAndFillData(const FilePath& pathToUpdate)
+    {
+        FileIterator iterator = FileIterator(pathToUpdate);
+
+        GrowingArray<FileDirectoryWithFiles>& directoryAtLevel = m_fileDirectories[pathToUpdate.GetDirectoryLevel() - m_baseDepth];
+
+        while (iterator.IterateOverFolder())
+        {
+            const FilePath iteratedPath = iterator.GetCurrentPath();
+            const FileObject& currentObject = iteratedPath.Object();
+
+            for (size_t i = 0; i < directoryAtLevel.Size(); i++)
+            {
+                if (directoryAtLevel[i].directoryObject.Name() == currentObject.ParentName())
+                {
+                    directoryAtLevel[i].files.Add(currentObject);
                     break;
                 }
             }
@@ -154,6 +176,47 @@ namespace Hail
             }
         }
     }
+
+    void FileSystem::ReloadFolder(const FilePath& folderToReload)
+    {
+        if (!folderToReload.IsValid())
+            return;
+
+        const uint16 folderLevel = folderToReload.IsDirectory() ? folderToReload.GetDirectoryLevel() : folderToReload.GetDirectoryLevel() - 1;
+        if (!m_isInitialized || folderLevel < m_baseDepth || folderLevel > m_maxDepth)
+            return;
+
+        const FileObject directoryObject = folderToReload.IsDirectory() ? folderToReload.Object() : folderToReload.Parent().Object();
+
+        GrowingArray<FileDirectoryWithFiles>& directoryAtLevel = m_fileDirectories[folderLevel - m_baseDepth];
+        bool folderAlreadyExists = false;
+        uint16 indexOfFolder = 0;
+        for (size_t i = 0; i < directoryAtLevel.Size(); i++)
+        {
+            const FileObject directoryObjectAtLevel = directoryAtLevel[i].directoryObject;
+            if (directoryObjectAtLevel.Name() == directoryObject.Name())
+            {
+                folderAlreadyExists = true;
+                indexOfFolder = i;
+                break;
+            }
+        }
+
+        if (folderAlreadyExists)
+        {
+            directoryAtLevel[indexOfFolder].files.RemoveAll();
+            directoryAtLevel[indexOfFolder].directoryObject = directoryObject; //updating the fileData of the object to latest
+            IterateOverFolderAndFillData(folderToReload.IsDirectory() ? folderToReload : folderToReload.Parent());
+            return;
+        }
+        FileDirectoryWithFiles directory;
+        directory.directoryObject = directoryObject;
+        directory.files.Init(8);
+        directoryAtLevel.Add(directory);
+        IterateOverFolderAndFillData(folderToReload.IsDirectory() ? folderToReload : folderToReload.Parent());
+    }
+
+
     const GrowingArray<FileDirectoryWithFiles>* FileSystem::GetFileDirectoriesAtDepth(uint16 directoryDepth)
     {
         if (!m_isInitialized || directoryDepth < m_baseDepth || directoryDepth > m_maxDepth)
@@ -168,7 +231,7 @@ namespace Hail
 
         for (size_t i = 0; i < m_fileDirectories[m_currentDepth - m_baseDepth].Size(); i++)
         {
-            if (m_fileDirectories[m_currentDepth - m_baseDepth][i].directory.Name() == m_currentFileDirectory.Name())
+            if (m_fileDirectories[m_currentDepth - m_baseDepth][i].directoryObject.Name() == m_currentFileDirectory.Name())
             {
                 return &m_fileDirectories[m_currentDepth - m_baseDepth][i].files;
             }
@@ -183,7 +246,7 @@ namespace Hail
             return nullptr;
         for (size_t i = 0; i < m_fileDirectories[fileDirectory.GetDirectoryLevel() - m_baseDepth].Size(); i++)
         {
-            if (m_fileDirectories[fileDirectory.GetDirectoryLevel() - m_baseDepth][i].directory.Name() == fileDirectory.Name())
+            if (m_fileDirectories[fileDirectory.GetDirectoryLevel() - m_baseDepth][i].directoryObject.Name() == fileDirectory.Name())
             {
                 return &m_fileDirectories[fileDirectory.GetDirectoryLevel() - m_baseDepth][i].files;
             }
@@ -208,7 +271,7 @@ namespace Hail
         {
             for (size_t i = 0; i < m_fileDirectories[directoryLevel].Size(); i++)
             {
-                if (m_fileDirectories[directoryLevel][i].directory.Name() == directory.Name())
+                if (m_fileDirectories[directoryLevel][i].directoryObject.Name() == directory.Name())
                 {
                     m_currentFileDirectory = directory;
                     m_currentDepth = directoryLevel + m_baseDepth;
@@ -249,7 +312,7 @@ namespace Hail
     {
         if (currentPath.IsValid())
         {
-            m_files[currentPath.GetDirectoryLevel()].RemoveAll();
+            m_currentDirectoryFiles.RemoveAll();
             FileIterator iterator = FileIterator(currentPath);
             while (iterator.IterateOverFolder())
             {
@@ -257,24 +320,20 @@ namespace Hail
                 const FileObject currentObject = iteratedPath.Object();
                 if (currentObject.IsDirectory())
                 {
-                    m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
+                    m_currentDirectoryFiles.Add(currentObject);
                 }
                 else
                 {
                     if (m_extensionsToSearchFor.Empty())
                     {
-                        m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
+                        m_currentDirectoryFiles.Add(currentObject);
                     }
                     else
                     {
                         bool isObjectInList = false;
                         for (uint32_t i = 0; i < m_extensionsToSearchFor.Size(); i++)
                         {
-                            String64 extension;
-                            WString64 wExtension = currentObject.Extension();
-                            wcstombs(extension.Data(), wExtension, wExtension.Length());
-                            extension[wExtension.Length()] = '\0';
-                            if (m_extensionsToSearchFor[i] == extension)
+                            if (m_extensionsToSearchFor[i] == currentObject.Extension().CharString())
                             {
                                 isObjectInList = true;
                                 break;
@@ -282,7 +341,7 @@ namespace Hail
                         }
                         if (isObjectInList)
                         {
-                            m_files[currentPath.GetDirectoryLevel()].Add(currentObject);
+                            m_currentDirectoryFiles.Add(currentObject);
                         }
                     }
                 }
@@ -307,14 +366,32 @@ namespace Hail
 
     void FileSystem::Initialize()
     {
-        if (!m_isInitialized)
+        if (!m_currentDirectoryFiles.IsInitialized())
         {
-            for (uint32_t i = 0; i < MAX_FILE_DEPTH; i++)
-            {
-                m_files[i].Init(32);
-            }
+            m_currentDirectoryFiles.Init(32);
             m_isInitialized = true;
         }
+    }
+
+    void FileSystem::Reset()
+    {
+        m_basePath = {};
+        m_isInitialized = {};
+        for (size_t i = 0; i < MAX_FILE_DEPTH; i++)
+        {
+            if (m_fileDirectories[i].IsInitialized())
+                m_fileDirectories[i].DeleteAllAndDeinit();
+
+            m_directories[i] = SelecteableFileObject();
+        }
+        if (m_currentDirectoryFiles.IsInitialized())
+            m_currentDirectoryFiles.DeleteAllAndDeinit();
+        m_currentFileDirectory = FileObject();
+        m_currentDepth = {};
+        m_basePath = {};
+        m_extensionsToSearchFor.Clear();
+        m_baseDepth = {};
+        m_maxDepth = {};
     }
 
     bool FileSystem::SetFilePath(const FilePath& basePath)
@@ -352,15 +429,9 @@ namespace Hail
         return false;
     }
 
-
-    GrowingArray<SelecteableFileObject>& FileSystem::GetFilesAtDepth(uint16_t requestedDepth)
-    {
-        return m_files[requestedDepth];
-    }
-
     GrowingArray<SelecteableFileObject>& FileSystem::GetFilesAtCurrentDepth()
     {
-        return GetFilesAtDepth(m_currentDepth);
+        return m_currentDirectoryFiles;
     }
 
     const SelecteableFileObject& FileSystem::GetDirectoryAtDepth(uint16_t requestedDepth)

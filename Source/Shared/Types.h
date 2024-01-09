@@ -22,11 +22,23 @@ namespace Hail
     constexpr uint16 MAX_UINT16 = 0xFFFF;
 
     struct GUID {
-        unsigned long  Data1{};
-        unsigned short Data2{};
-        unsigned short Data3{};
-        unsigned char  Data4[8]{};
+        bool operator ==(const GUID& other) const
+        {
+            return m_data1 == other.m_data1 && m_data2 == other.m_data2 && m_data2 == other.m_data2 && m_data3 == other.m_data3
+                && m_data4[0] == other.m_data4[0] && m_data4[1] == other.m_data4[1] && m_data4[2] == other.m_data4[2] && m_data4[3] == other.m_data4[3]
+                && m_data4[4] == other.m_data4[4] && m_data4[5] == other.m_data4[5] && m_data4[6] == other.m_data4[6] && m_data4[7] == other.m_data4[7];
+        }
+        bool operator !=(const GUID& other) const
+        {
+            return !((*this) == other);
+        }
+        unsigned long  m_data1{};
+        unsigned short m_data2{};
+        unsigned short m_data3{};
+        unsigned char  m_data4[8]{};
     };
+
+    static GUID guidZero = GUID();
 
     static glm::vec2 Vec2Zero = glm::vec2(0.0, 0.0);
     static glm::vec2 Vec2One = glm::vec2(1.0, 1.0);

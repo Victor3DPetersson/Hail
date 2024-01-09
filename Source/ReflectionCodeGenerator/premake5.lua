@@ -23,13 +23,11 @@ project "ReflectionCodeGenerator"
 	includedirs {
 		".",
 		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/Reflection/",
 	}
 
 	libdirs { "%{dirs.libdir}" }	
 	links { 
 		"Shared",
-		"Reflection"
 		 }
 	
 	defines {

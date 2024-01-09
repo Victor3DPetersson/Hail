@@ -10,8 +10,6 @@ namespace Hail
 	class FrameBufferTexture;
 
 	class FilePath;
-	class ImGuiTextureResource;
-
 
 	class TextureManager
 	{
@@ -31,16 +29,16 @@ namespace Hail
 		const TextureResource& GetDefaultTextureCommonData() const { return m_defaultTexture; }
 
 		//Editor / non game functionality
-		void ImportTextureResource(const FilePath& filepath) const;
+		FilePath ImportTextureResource(const FilePath& filepath) const;
 		virtual ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager) = 0;
-
+		virtual void DeleteImGuiTextureResource(ImGuiTextureResource*) = 0;
 	protected:
 		void CreateDefaultTexture();
 		virtual bool CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture) = 0;
 		virtual void ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight);
 		//Reloading will always call ClearTextureInternal
 		virtual bool ReloadTextureInternal(int textureIndex, uint32 frameInFlight);
-		bool LoadTextureInternal(const char* textureName, TextureResource& textureToFill, bool reloadTexture);
+		bool LoadTextureInternal(const char* textureName, TextureResource& textureToFill, MetaResource& metaResourceToFill, bool reloadTexture);
 		bool CompileTexture(const char* textureName);
 
 		TextureResource m_defaultTexture;

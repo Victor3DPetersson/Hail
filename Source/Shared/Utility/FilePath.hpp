@@ -1,16 +1,18 @@
 #pragma once
-#include <string.h>
-#include <string>
 #include <assert.h>
 #include <stdarg.h>
 #include <clocale>
 #include "String.hpp"
 #include "FileData.h"
+#include "Reflection\SerializationOverride.h"
+#include "Reflection\ReflectionDefines.h"
 
 namespace Hail
 {
-	constexpr uint32_t MAX_FILE_LENGTH = 1024;
+	constexpr uint32_t MAX_FILE_LENGTH = 260;
 	class FilePath;
+	class MetaResource;
+	class InOutStream;
 
 #ifdef PLATFORM_WINDOWS
 
@@ -62,6 +64,8 @@ namespace Hail
 		uint16_t m_directoryLevel;
 	};
 
+
+
 	class FilePath
 	{
 	public:
@@ -69,6 +73,7 @@ namespace Hail
 		{
 			Reset();
 		}
+
 		FilePath(const char* const string)
 		{
 			Reset();
@@ -144,9 +149,11 @@ namespace Hail
 		FilePath& operator=(const wchar_t* const string)
 		{
 			Reset();
-			wcscpy_s(m_data, string);
-			m_length = wcslen(string);
-			FindExtension();
+			if (string)
+				wcscpy_s(m_data, string);
+			m_length = wcslen(m_data);
+			if (string)
+				FindExtension();
 			return *this;
 		}
 
@@ -166,19 +173,26 @@ namespace Hail
 		bool IsEmpty() const { return m_length == 0; }
 		uint32_t Length() const { return m_length; }
 		uint16_t GetDirectoryLevel() const { return m_directoryLevel; }
+		FilePath GetDirectoryAtLevel(uint16 levelToGet) const;
 		void AddWildcard();
 		//Creates a directory if none exist, otherwise this function does nothing 
 		bool CreateFileDirectory() const;
 
-		// If the filepath is a directory this will clear the final separator if one is present
-		void DeleteEndSeperator();
+		static const FilePath& GetCurrentWorkingDirectory();
+
+		//returns -1 if no common directory is found
+		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
 
 	protected:
 		FilePath(const FilePath& path, uint32_t lengthOfPath);
 		void FindExtension();
 		void CreateFileObject();
+		// If the filepath is a directory this will clear the final separator if one is present
+		void DeleteEndSeperator();
 
 	private:
+		static FilePath ProjectCurrentWorkingDirectory;
+		friend class RelativeFilePath;
 		void Reset();
 		wchar_t m_data[MAX_FILE_LENGTH];
 		FileObject m_object;
@@ -186,10 +200,7 @@ namespace Hail
 		bool m_isDirectory = false;
 		uint16_t m_directoryLevel = 0;
 	};
-}
 
-namespace Hail
-{
 	static bool operator<(const FilePath& path1, const FilePath& path2)
 	{
 		return path1.Length() < path2.Length();
@@ -216,23 +227,25 @@ namespace Hail
 		}
 		return true;
 	}
-	//static FilePath operator+(const FilePath& string1, const FilePath& string2)
-	//{
-	//	FilePath path = string1;
-	//	if (string1.IsDirectory())
-	//	{
-	//		if (path.Data()[path.Length() - 1] == L'*')
-	//		{
-	//			path.DataRef()[path.Length() - 1] = L'\0';
-	//			wcscat_s(path, MAX_FILE_LENGTH - string1.Length(), string2.Data());
-	//		}
-	//		else
-	//		{
-	//			//wcscat_s(path, MAX_FILE_LENGTH - string1.Length(), string2.Data());
-	//			memcpy(path.DataRef() + string1.Length(), string2.Data(), string2.Length());
-	//		}
-	//	}
-	//	path.FindExtension();
-	//	return path;
-	//}
+
+	// Filepath object that is always relative to the working directory / bin folder
+	class RelativeFilePath : public SerializeableObjectCustom
+	{
+	public:
+		RelativeFilePath();
+		explicit RelativeFilePath(const FilePath& longFilePath);
+		//Constructs a FilePath object from the known Data
+		FilePath GetFilePath() const;
+		const wchar_t* GetRelativePathData() const { return m_pathFromWorkingDir; }
+
+		void Serialize(InOutStream& outObject) final;
+		void Deserialize(InOutStream& inObject) final;
+	private:
+		int16 m_stepsFromFileToCommonSharedDir;
+		uint16 m_directoryLevel;
+		bool m_isInsideWorkingDirectory;
+
+		wchar_t m_pathFromWorkingDir[MAX_FILE_LENGTH];
+		uint16 m_pathLength;
+	};
 }

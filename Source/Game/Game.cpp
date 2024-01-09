@@ -11,8 +11,8 @@
 #include "../Engine/ImGui/ImGuiCommands.h"
 #include "../Engine/ImGui/ImGuiFileBrowser.h"
 
-#include "../Reflection/Serialization.hpp"
 #include "Utility\DebugLineHelpers.h"
+#include "Reflection\Reflection.h"
 
 namespace
 {
