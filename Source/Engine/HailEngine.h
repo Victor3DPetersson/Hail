@@ -5,16 +5,16 @@
 #include "StartupAttributes.h"
 
 class InputHandler;
-class Renderer;
 class ApplicationWindow;
-class Timer;
 
 namespace Hail
 {
+	class ResourceRegistry;
 	bool InitEngine(StartupAttributes startupData);
 	void StartEngine();
 	void ShutDownEngine();
 	InputHandler& GetInputHandler();
+	ResourceRegistry& GetResourceRegistry();
 	bool IsRunning();
 	void HandleApplicationMessage(ApplicationMessage message);
 	ApplicationWindow* GetApplicationWIndow();

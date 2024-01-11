@@ -5,6 +5,7 @@
 #include "ApplicationWindow.h"
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
+#include "Resources\ResourceRegistry.h"
 #include "ThreadSynchronizer.h"
 
 #include <iostream>
@@ -28,10 +29,10 @@ namespace Hail
 		ApplicationWindow* appWindow = nullptr;
 		Renderer* renderer = nullptr;
 		ResourceManager* resourceManager = nullptr;
+		ResourceRegistry resourceRegistry;
 		ThreadSyncronizer threadSynchronizer;
 		ImGuiCommandManager imguiCommandRecorder;
 		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
-		//callback_function_dt m_renderFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
 
 
@@ -81,6 +82,9 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	{
 		return false;
 	}
+
+	g_engineData->resourceRegistry.Init();
+
 	g_engineData->resourceManager = new ResourceManager();
 	g_engineData->resourceManager->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
 	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice()))
@@ -124,6 +128,11 @@ void Hail::ShutDownEngine()
 InputHandler& Hail::GetInputHandler()
 {
 	return *g_engineData->inputHandler;
+}
+
+Hail::ResourceRegistry& Hail::GetResourceRegistry()
+{
+	return g_engineData->resourceRegistry;
 }
 
 bool Hail::IsRunning()

@@ -32,6 +32,9 @@ namespace Hail
 		FilePath ImportTextureResource(const FilePath& filepath) const;
 		virtual ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager) = 0;
 		virtual void DeleteImGuiTextureResource(ImGuiTextureResource*) = 0;
+
+		static void LoadTextureMetaData(const FilePath& filePath, MetaResource& metaResourceToFill);
+
 	protected:
 		void CreateDefaultTexture();
 		virtual bool CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture) = 0;

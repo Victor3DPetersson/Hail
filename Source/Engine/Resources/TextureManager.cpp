@@ -9,6 +9,8 @@
 #include "Utility\InOutStream.h"
 
 #include "MetaResource.h"
+#include "HailEngine.h"
+#include "ResourceRegistry.h"
 
 namespace
 {
@@ -87,7 +89,13 @@ bool Hail::TextureManager::LoadTexture(const char* textureName)
 	{
 		textureResource.index = m_textureCommonData.Size();
 		m_textureCommonData.Add(textureResource);
-		return CreateTextureInternal(m_textureCommonData.GetLast(), false);
+		const bool creationResult = CreateTextureInternal(m_textureCommonData.GetLast(), false);
+		if (creationResult)
+			GetResourceRegistry().SetResourceLoaded(ResourceType::Texture, metaData.GetGUID());
+		else
+			GetResourceRegistry().SetResourceUnloaded(ResourceType::Texture, metaData.GetGUID());
+
+		return creationResult;
 	}
 	return false;
 }
@@ -127,7 +135,6 @@ bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameI
 		}
 	}
 	m_textureCommonDataValidators[textureIndex].ClearFrameData(frameInFlight);
-
 	return true;
 }
 
@@ -253,12 +260,40 @@ bool TextureManager::CompileTexture(const char* textureName)
 		Debug_PrintConsoleConstChar(String256::Format("Could not find texture : %s", textureName));
 		return false;
 	}
-	return TextureCompiler::CompileSpecificTGATexture(currentPath).IsValid();
+	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(currentPath);
+	if (TextureCompiler::CompileSpecificTGATexture(currentPath).IsValid())
+	{
+		GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
+		return true;
+	}
+	return false;
 }
 
 FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
-	return TextureCompiler::CompileSpecificTGATexture(filepath);
+	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(filepath);
+	GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
+	return projectPath;
+}
+
+void Hail::TextureManager::LoadTextureMetaData(const FilePath& filePath, MetaResource& metaResourceToFill)
+{
+	if (!StringCompare(filePath.Object().Extension(), L"txr"))
+		return;
+
+	InOutStream inStream;
+	if (!inStream.OpenFile(filePath.Data(), FILE_OPEN_TYPE::READ, true))
+		return;
+
+	TextureResource textureToFill;
+	inStream.Read((char*)&textureToFill.m_compiledTextureData.header, sizeof(TextureHeader));
+	inStream.Seek(GetTextureByteSize(textureToFill.m_compiledTextureData.header), 1);
+
+	const uint64 sizeLeft = inStream.GetFileSize() - inStream.GetFileSeekPosition();
+	if (sizeLeft != 0)
+	{
+		metaResourceToFill.Deserialize(inStream);
+	}
 }
 
 void Hail::TextureManager::CreateDefaultTexture()
