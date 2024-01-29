@@ -9,7 +9,7 @@
 
 namespace Hail
 {
-	enum class MATERIAL_TYPE : uint32
+	enum class MATERIAL_TYPE : uint8
 	{
 		SPRITE,
 		//FULLSCREEN_POSTEFFECTS,
@@ -19,7 +19,7 @@ namespace Hail
 		DEBUG_LINES3D,
 		COUNT
 	};
-	enum class BLEND_MODE : uint32
+	enum class BLEND_MODE : uint8
 	{
 		NORMAL,
 		ALPHABLEND,
@@ -27,10 +27,24 @@ namespace Hail
 		ADDITIVE,
 		COUNT
 	};
-	constexpr uint8 MAX_TEXTURE_HANDLES = 8;
+	constexpr uint8 MAX_TEXTURE_HANDLES = 16;
+
+
+	constexpr uint8 MATERIAL_VERSION = 1;
+
+	struct SerializeableMaterialInstance
+	{
+		MATERIAL_TYPE m_baseMaterialType{};
+		BLEND_MODE m_blendMode{};
+		uint16 m_extraData{};
+		StaticArray<GUID, MAX_TEXTURE_HANDLES> m_textureHandles;
+		glm::vec4 m_instanceFloatParameters;
+	};
+
 	class MaterialInstance
 	{
 	public:
+		GUID m_id;
 		uint32 m_materialIdentifier = 0;
 		uint32 m_instanceIdentifier = 0;
 		uint32 m_gpuResourceInstance = 0;
@@ -43,7 +57,6 @@ namespace Hail
 	class Material
 	{
 	public:
-		GUID m_uuid;
 
 		CompiledShader m_vertexShader;
 		CompiledShader m_fragmentShader;

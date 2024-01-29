@@ -129,10 +129,6 @@ bool TextureCompiler::CompileInternalTexture(TextureHeader header, const char* t
 		sizeOfColor = 1;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R8_SRGB:
-		sizeOfColor = 1;
-		numberOfColors = 1;
-		break;
 	case TEXTURE_TYPE::R16G16B16A16:
 		sizeOfColor = 2;
 		numberOfColors = 4;
@@ -351,12 +347,12 @@ FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 	uint32_t numberOfColors = 0;
 	if (tgaHeader.bitsPerPixel / 8 == 3)
 	{
-		compileHeader.textureType = static_cast<uint16>(Hail::TEXTURE_TYPE::R8G8B8_SRGB);
+		compileHeader.textureType = (uint16)(Hail::TEXTURE_TYPE::R8G8B8);
 		numberOfColors = 3;
 	}
 	else if (tgaHeader.bitsPerPixel / 8 == 4)
 	{
-		compileHeader.textureType = static_cast<uint16>(Hail::TEXTURE_TYPE::R8G8B8A8_SRGB);
+		compileHeader.textureType = (uint16)(Hail::TEXTURE_TYPE::R8G8B8A8);
 		numberOfColors = 4;
 	}
 	compileHeader.height = tgaHeader.height;

@@ -45,10 +45,10 @@ namespace Hail
 		Stack<FilePath> m_directoriesToIterateOver;
 	};
 
-	struct SelecteableFileObject
+	struct SelectAbleFileObject
 	{
-		SelecteableFileObject() = default;
-		SelecteableFileObject(const FileObject& fileObject);
+		SelectAbleFileObject() = default;
+		SelectAbleFileObject(const FileObject& fileObject);
 		FileObject m_fileObject;
 		bool m_selected;
 	};
@@ -56,7 +56,7 @@ namespace Hail
 	struct FileDirectoryWithFiles
 	{
 		FileObject directoryObject;
-		GrowingArray<SelecteableFileObject> files;
+		GrowingArray<SelectAbleFileObject> files;
 	};
 
 	class FileSystem
@@ -67,15 +67,16 @@ namespace Hail
 		// Gets the file directory at the selected depth (depth is relative to the base depth, so a depth of 6 and an index of 6 gives an directory at 0
 		const GrowingArray<FileDirectoryWithFiles>* GetFileDirectoriesAtDepth(uint16 directoryDepth);
 		// Gets the directory of the current file object on the current depth
-		const GrowingArray<SelecteableFileObject>* GetCurrentFileDirectory();
-		const GrowingArray<SelecteableFileObject>* GetFileDirectory(const FileObject& fileDirectory);
-		const FileObject& GetCurrentFileDirectoryObject() const { return m_currentFileDirectory; }
+		GrowingArray<SelectAbleFileObject>* GetCurrentFileDirectory();
+
+		const GrowingArray<SelectAbleFileObject>* GetFileDirectory(const FileObject& fileDirectory);
+		const FileObject& GetCurrentFileDirectoryObject() const { return m_currentFileDirectoryObject; }
 		bool SetCurrentFileDirectory(const FileObject&);
 
-		GrowingArray<SelecteableFileObject>& GetFilesAtCurrentDepth();
-		const SelecteableFileObject& GetDirectoryAtDepth(uint16_t requestedDepth);
-		const SelecteableFileObject& GetDirectoryAtCurrentDepth();
-		void JumpUpOneDirectory(const SelecteableFileObject& directoryToJumpTo);
+		GrowingArray<SelectAbleFileObject>& GetFilesAtCurrentDepth();
+		const SelectAbleFileObject& GetDirectoryAtDepth(uint16_t requestedDepth);
+		const SelectAbleFileObject& GetDirectoryAtCurrentDepth();
+		void JumpUpOneDirectory(const SelectAbleFileObject& directoryToJumpTo);
 		void JumpToParent();
 		void JumpToDepth(uint16_t depthToGoTo);
 		void ReloadFolder(const FilePath& folderTeReload);
@@ -103,15 +104,15 @@ namespace Hail
 		bool m_isInitialized = false;
 		// Goes from 0 and up based on the initial baseDepth
 		StaticArray<GrowingArray<FileDirectoryWithFiles>, MAX_FILE_DEPTH> m_fileDirectories;
-		FileObject m_currentFileDirectory;
+		FileObject m_currentFileDirectoryObject;
 		uint16 m_currentDepth{};
 		// The files of the current selected directory, TODO: maybe remove this one, but it is fine
-		GrowingArray<SelecteableFileObject> m_currentDirectoryFiles;
+		GrowingArray<SelectAbleFileObject> m_currentDirectoryFiles;
 		// Always at 0 is the drive
-		StaticArray<SelecteableFileObject, MAX_FILE_DEPTH> m_directories;
+		StaticArray<SelectAbleFileObject, MAX_FILE_DEPTH> m_directories;
 		VectorOnStack<String64, 8> m_extensionsToSearchFor;
-		uint16_t m_baseDepth = 0;
-		uint16_t m_maxDepth = 0;
+		uint16_t m_baseDepth; //The depth with which we initialize the filesystem with
+		uint16_t m_maxDepth;
 	};
 
 }

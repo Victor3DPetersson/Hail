@@ -37,7 +37,7 @@ namespace Hail
 		glm::vec4 uvTR_BL = { 0.0, 0.0, 1.0, 1.0 };
 		glm::vec4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 		glm::vec2 pivot = { 0.5f, 0.5f };
-		uint32_t materialInstanceID;
+		uint32_t materialInstanceID = MAX_UINT;
 		uint16_t index;
 		bool lerpCommand = true;
 		// true the scale will be in normalized size, so a size of 0.1 will always stay 0.1 of the screen percentage

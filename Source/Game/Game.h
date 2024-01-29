@@ -13,6 +13,7 @@ namespace Hail
 	{
 	public:
 		void Init(void* initData);
+		void PostInit();
 		void Update(double totalTime, float deltaTime, Hail::ApplicationFrameData& recievedFrameData);
 		void Shutdown();
 

@@ -55,6 +55,7 @@ namespace Hail
 	private:
 		void Reset();
 		bool FindExtension();
+		friend class FilePath;
 
 		WString64 m_name;
 		WString64 m_parentName;
@@ -175,9 +176,11 @@ namespace Hail
 		uint16_t GetDirectoryLevel() const { return m_directoryLevel; }
 		FilePath GetDirectoryAtLevel(uint16 levelToGet) const;
 		void AddWildcard();
-		//Creates a directory if none exist, otherwise this function does nothing 
+		//Creates a directory if none exist, otherwise this function does nothing.
 		bool CreateFileDirectory() const;
 
+		//Fetches the file data from the path, the size and creation time.
+		void LoadCommonFileData();
 		static const FilePath& GetCurrentWorkingDirectory();
 
 		//returns -1 if no common directory is found

@@ -134,6 +134,10 @@ namespace Hail
 
 		ImGuiCommandRecorder m_commandRecorder[2];
 		ResourceManager* m_resourceManager = nullptr;
+
+		bool m_openAssetBrowser = true;
+		bool m_openPropertyWindow = true;
+		bool m_openMaterialWindow = false;
 	};
 
 	template<typename Type>

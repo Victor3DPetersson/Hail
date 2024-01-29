@@ -28,7 +28,7 @@ namespace Hail
         void* m_hFind;
     };
 
-    SelecteableFileObject::SelecteableFileObject(const FileObject& fileObject) : m_fileObject(fileObject)
+    SelectAbleFileObject::SelectAbleFileObject(const FileObject& fileObject) : m_fileObject(fileObject)
     {
         m_selected = false;
     }
@@ -111,7 +111,7 @@ namespace Hail
         }
     }
 
-    void FileSystem::JumpUpOneDirectory(const SelecteableFileObject& directoryToJumpTo)
+    void FileSystem::JumpUpOneDirectory(const SelectAbleFileObject& directoryToJumpTo)
     {
         if (directoryToJumpTo.m_fileObject.IsDirectory())
         {
@@ -125,7 +125,7 @@ namespace Hail
             {
                 m_basePath = newPath;
                 m_currentDepth = m_basePath.GetDirectoryLevel();
-                m_currentFileDirectory = directoryToJumpTo.m_fileObject;
+                m_currentFileDirectoryObject = directoryToJumpTo.m_fileObject;
                 IterateOverFolder(m_basePath);
                 SetDirectories(m_basePath);
             }
@@ -169,7 +169,7 @@ namespace Hail
             if (newPath.IsValid())
             {
                 m_basePath = newPath;
-                m_currentFileDirectory = m_basePath.Object();
+                m_currentFileDirectoryObject = m_basePath.Object();
                 m_currentDepth = m_basePath.GetDirectoryLevel();
                 IterateOverFolder(m_basePath);
                 SetDirectories(m_basePath);
@@ -224,21 +224,21 @@ namespace Hail
         return &m_fileDirectories[directoryDepth - m_baseDepth];
     }
 
-    const GrowingArray<SelecteableFileObject>* FileSystem::GetCurrentFileDirectory()
+    GrowingArray<SelectAbleFileObject>* FileSystem::GetCurrentFileDirectory()
     {
         if (!m_isInitialized || m_currentDepth < m_baseDepth)
             return nullptr;
 
         for (size_t i = 0; i < m_fileDirectories[m_currentDepth - m_baseDepth].Size(); i++)
         {
-            if (m_fileDirectories[m_currentDepth - m_baseDepth][i].directoryObject.Name() == m_currentFileDirectory.Name())
+            if (m_fileDirectories[m_currentDepth - m_baseDepth][i].directoryObject.Name() == m_currentFileDirectoryObject.Name())
             {
                 return &m_fileDirectories[m_currentDepth - m_baseDepth][i].files;
             }
         }
     }
 
-    const GrowingArray<SelecteableFileObject>* FileSystem::GetFileDirectory(const FileObject& fileDirectory)
+    const GrowingArray<SelectAbleFileObject>* FileSystem::GetFileDirectory(const FileObject& fileDirectory)
     {
         if (!m_isInitialized)
             return nullptr;
@@ -273,7 +273,7 @@ namespace Hail
             {
                 if (m_fileDirectories[directoryLevel][i].directoryObject.Name() == directory.Name())
                 {
-                    m_currentFileDirectory = directory;
+                    m_currentFileDirectoryObject = directory;
                     m_currentDepth = directoryLevel + m_baseDepth;
                     foundDirectory = true;
                     break;
@@ -284,7 +284,7 @@ namespace Hail
         {
             if (m_directories[directory.GetDirectoryLevel()].m_fileObject.Name() == directory.Name())
             {
-                m_currentFileDirectory = directory;
+                m_currentFileDirectoryObject = directory;
                 m_currentDepth = directoryLevel + m_baseDepth;
                 foundDirectory = true;
             }
@@ -382,11 +382,11 @@ namespace Hail
             if (m_fileDirectories[i].IsInitialized())
                 m_fileDirectories[i].DeleteAllAndDeinit();
 
-            m_directories[i] = SelecteableFileObject();
+            m_directories[i] = SelectAbleFileObject();
         }
         if (m_currentDirectoryFiles.IsInitialized())
             m_currentDirectoryFiles.DeleteAllAndDeinit();
-        m_currentFileDirectory = FileObject();
+        m_currentFileDirectoryObject = FileObject();
         m_currentDepth = {};
         m_basePath = {};
         m_extensionsToSearchFor.Clear();
@@ -429,17 +429,17 @@ namespace Hail
         return false;
     }
 
-    GrowingArray<SelecteableFileObject>& FileSystem::GetFilesAtCurrentDepth()
+    GrowingArray<SelectAbleFileObject>& FileSystem::GetFilesAtCurrentDepth()
     {
         return m_currentDirectoryFiles;
     }
 
-    const SelecteableFileObject& FileSystem::GetDirectoryAtDepth(uint16_t requestedDepth)
+    const SelectAbleFileObject& FileSystem::GetDirectoryAtDepth(uint16_t requestedDepth)
     {
         return m_directories[requestedDepth];
     }
 
-    const SelecteableFileObject& FileSystem::GetDirectoryAtCurrentDepth()
+    const SelectAbleFileObject& FileSystem::GetDirectoryAtCurrentDepth()
     {
         return GetDirectoryAtDepth(m_currentDepth);
     }
@@ -502,12 +502,12 @@ namespace Hail
 
     bool FileIterator::IterateOverFolder()
     {
-        FilePath currentPath = m_basePath + m_currentFileObject;
-        currentPath.AddWildcard();
 
-        FindFileData& currentFileData = *((FindFileData*)m_currentFileFindData);
         if (m_osHandleIsOpen)
         {
+            FilePath currentPath = m_basePath + m_currentFileObject;
+            currentPath.AddWildcard();
+            FindFileData& currentFileData = *((FindFileData*)m_currentFileFindData);
             do 
             {
                 if ((currentFileData.m_findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0

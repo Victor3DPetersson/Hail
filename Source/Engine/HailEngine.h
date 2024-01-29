@@ -13,8 +13,10 @@ namespace Hail
 	bool InitEngine(StartupAttributes startupData);
 	void StartEngine();
 	void ShutDownEngine();
+	//TODO: make thread safe for the getters
 	InputHandler& GetInputHandler();
 	ResourceRegistry& GetResourceRegistry();
+
 	bool IsRunning();
 	void HandleApplicationMessage(ApplicationMessage message);
 	ApplicationWindow* GetApplicationWIndow();

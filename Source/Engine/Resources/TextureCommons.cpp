@@ -35,7 +35,19 @@ namespace Hail
 			numberOfColors = 3;
 		}
 		break;
-		case TEXTURE_TYPE::R8_SRGB:
+		case TEXTURE_TYPE::R8G8B8A8:
+		{
+			byteSizePixel = 1;
+			numberOfColors = 4;
+		}
+		break;
+		case TEXTURE_TYPE::R8G8B8:
+		{
+			byteSizePixel = 1;
+			numberOfColors = 3;
+		}
+		break;
+		case TEXTURE_TYPE::R8:
 		{
 			byteSizePixel = 1;
 			numberOfColors = 1;
@@ -113,18 +125,51 @@ namespace Hail
 		case Hail::TEXTURE_TYPE::R16:
 			return TEXTURE_FORMAT::R16_UINT;
 			break;
+		case Hail::TEXTURE_TYPE::R8G8B8A8:
+			return TEXTURE_FORMAT::R8G8B8A8_UNORM;
+			break;
+		case Hail::TEXTURE_TYPE::R8G8B8:
+			return TEXTURE_FORMAT::R8G8B8A8_UNORM;
+			break;
+		case Hail::TEXTURE_TYPE::R8:
+			return TEXTURE_FORMAT::R8_UNORM;
+			break;
 		case Hail::TEXTURE_TYPE::R8G8B8A8_SRGB:
 			return TEXTURE_FORMAT::R8G8B8A8_SRGB;
 			break;
 		case Hail::TEXTURE_TYPE::R8G8B8_SRGB:
 			return TEXTURE_FORMAT::R8G8B8A8_SRGB;
 			break;
-		case Hail::TEXTURE_TYPE::R8_SRGB:
-			return TEXTURE_FORMAT::R8_UNORM;
 			break;
 		default:
 			return TEXTURE_FORMAT::UNDEFINED;
 			break;
 		}
+	}
+
+	const char* GetTextureTypeAsText(TEXTURE_TYPE type)
+	{
+		switch (type)
+		{
+		case Hail::TEXTURE_TYPE::R32G32B32A32F:
+		case Hail::TEXTURE_TYPE::R32G32B32F:
+		case Hail::TEXTURE_TYPE::R32F:
+		case Hail::TEXTURE_TYPE::R32G32B32A32:
+		case Hail::TEXTURE_TYPE::R32G32B32:
+		case Hail::TEXTURE_TYPE::R32:
+		case Hail::TEXTURE_TYPE::R16G16B16A16:
+		case Hail::TEXTURE_TYPE::R16G16B16:
+		case Hail::TEXTURE_TYPE::R16:
+		case Hail::TEXTURE_TYPE::R8G8B8A8:
+		case Hail::TEXTURE_TYPE::R8G8B8:
+			return "Linear";
+		case Hail::TEXTURE_TYPE::R8G8B8A8_SRGB:
+		case Hail::TEXTURE_TYPE::R8G8B8_SRGB:
+			return "SRGB";
+		default:
+			return "";
+			break;
+		}
+		return "";
 	}
 }

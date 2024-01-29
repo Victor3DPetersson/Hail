@@ -9,16 +9,15 @@ namespace Hail
 	//TODO: Add more once more resources get added to engine
 	enum class ResourceType
 	{
-		Texture
+		Texture,
+		Material
 	};
 
 	class ResourceRegistry
 	{
 	public:
-
-
 		void Init();
-		void AddToRegistry(const FilePath& projectPath, ResourceType type);
+		void AddToRegistry(const FilePath& resourcePath, ResourceType type);
 
 		FilePath GetProjectPath(ResourceType type, GUID resourceGuid) const;
 		bool GetIsResourceImported(ResourceType type, GUID resourceGuid) const;
@@ -33,10 +32,15 @@ namespace Hail
 			RelativeFilePath projectPath;
 			bool bIsLoaded;
 		};
-
+		FilePath GetFilePathInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const;
+		bool GetIsResourceImportedInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const;
+		bool GetIsResourceLoadedInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const;
+		void SetIsResourceLoadedInternal(GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid);
+		void SetIsResourceUnloadedInternal(GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid);
 		//TODO: use a red black tree structure or hash these values later
 		//TODO: add more types of resources here
 		GrowingArray<MetaDataWithKey> m_textureResources;
+		GrowingArray<MetaDataWithKey> m_materialResources;
 
 
 

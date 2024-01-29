@@ -11,6 +11,11 @@
 #include "../Engine/ImGui/ImGuiCommands.h"
 #include "../Engine/ImGui/ImGuiFileBrowser.h"
 
+#include "../Engine/HailEngine.h"
+#include "../Engine/ImGui/ImGuiFileBrowser.h"
+
+#include "ResourceInterface.h"
+
 #include "Utility\DebugLineHelpers.h"
 #include "Reflection\Reflection.h"
 
@@ -23,22 +28,72 @@ namespace
 	Hail::RenderCommand_Sprite sprites[5];
 	bool renderPlayer = false;
 	Hail::ImGuiFileBrowserData g_fileBrowserData;
+
+	Hail::GUID spaceShipGuid;
+	Hail::GUID backgroundGuid;
+	Hail::GUID debugGridGuid;
+
+
 }
 
 namespace Hail
 {
+	void GameApplication::PostInit()
+	{
+		sprites[0].materialInstanceID = Hail::ResourceInterface::GetMaterialInstanceResourceHandle(backgroundGuid);
+		player.materialInstanceID = Hail::ResourceInterface::GetMaterialInstanceResourceHandle(spaceShipGuid);
+		for (size_t i = 1; i < 5; i++)
+		{
+			sprites[i].materialInstanceID = Hail::ResourceInterface::GetMaterialInstanceResourceHandle(debugGridGuid);
+		}
+	}
 
 	void GameApplication::Init(void* initData)
 	{
+		spaceShipGuid.m_data1 = 217501042;
+		spaceShipGuid.m_data2 = 62551;
+		spaceShipGuid.m_data3 = 17719;
+		spaceShipGuid.m_data4[0] = 158;
+		spaceShipGuid.m_data4[1] = 133;
+		spaceShipGuid.m_data4[2] = 106;
+		spaceShipGuid.m_data4[3] = 192;
+		spaceShipGuid.m_data4[4] = 197;
+		spaceShipGuid.m_data4[5] = 0;
+		spaceShipGuid.m_data4[6] = 17;
+		spaceShipGuid.m_data4[7] = 61;
+		Hail::ResourceInterface::LoadMaterialInstanceResource(spaceShipGuid);
+		backgroundGuid.m_data1 = 2552708824;
+		backgroundGuid.m_data2 = 38327;
+		backgroundGuid.m_data3 = 17069;
+		backgroundGuid.m_data4[0] = 165;
+		backgroundGuid.m_data4[1] = 33;
+		backgroundGuid.m_data4[2] = 142;
+		backgroundGuid.m_data4[3] = 48;
+		backgroundGuid.m_data4[4] = 122;
+		backgroundGuid.m_data4[5] = 219;
+		backgroundGuid.m_data4[6] = 156;
+		backgroundGuid.m_data4[7] = 161;
+		Hail::ResourceInterface::LoadMaterialInstanceResource(backgroundGuid);
+		debugGridGuid.m_data1 = 2671171390;
+		debugGridGuid.m_data2 = 34019;
+		debugGridGuid.m_data3 = 18305;
+		debugGridGuid.m_data4[0] = 133;
+		debugGridGuid.m_data4[1] = 20;
+		debugGridGuid.m_data4[2] = 248;
+		debugGridGuid.m_data4[3] = 102;
+		debugGridGuid.m_data4[4] = 102;
+		debugGridGuid.m_data4[5] = 1;
+		debugGridGuid.m_data4[6] = 161;
+		debugGridGuid.m_data4[7] = 37;
+		Hail::ResourceInterface::LoadMaterialInstanceResource(debugGridGuid);
+
 		g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 		player.transform.SetPosition({ 0.5f, 0.5f });
 		player.sizeRelativeToRenderTarget = true;
 		player.transform.SetScale({ 0.085f, 0.085f });
-		player.materialInstanceID = 1;
 		sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
-		
 
 		sprites[1].transform.SetPosition({ 0.25f, 0.25f });
 		sprites[2].transform.SetPosition({ 0.75f, 0.25f });
@@ -133,28 +188,30 @@ namespace Hail
 		bool moved = false;
 		if (frameData.inputData.keyMap[m_inputMapping.A] == Hail::KEY_PRESSED)
 		{
-			direction += (glm::vec2{ -1.0, 0.0 } *g_spriteMovementSpeed);
+			direction += (glm::vec2{ -1.0, 0.0 });
 			moved = true;
 		}
 		if (frameData.inputData.keyMap[m_inputMapping.D] == Hail::KEY_PRESSED)
 		{
-			direction += (glm::vec2{ 1.0, 0.0 } *g_spriteMovementSpeed);
+			direction += (glm::vec2{ 1.0, 0.0 });
 			moved = true;
 		}
 		if (frameData.inputData.keyMap[m_inputMapping.W] == Hail::KEY_PRESSED)
 		{
-			direction += (glm::vec2{ 0.0, -1.0 } *g_spriteMovementSpeed);
+			direction += (glm::vec2{ 0.0, -1.0 });
 			moved = true;
 		}
 		if (frameData.inputData.keyMap[m_inputMapping.S] == Hail::KEY_PRESSED)
 		{
-			direction += glm::vec2{ 0.0, 1.0 } *g_spriteMovementSpeed;
+			direction += glm::vec2{ 0.0, 1.0 };
 			moved = true;
 		}
-		player.transform.AddToPosition(direction);
+
 		if (moved)
 		{
-			player.transform.LookAt(glm::normalize(direction));
+			direction = glm::normalize(direction);
+			player.transform.AddToPosition(direction * g_spriteMovementSpeed);
+			player.transform.LookAt(direction);
 		}
 		if (frameData.inputData.keyMap[m_inputMapping.SPACE] == Hail::KEY_RELEASED)
 

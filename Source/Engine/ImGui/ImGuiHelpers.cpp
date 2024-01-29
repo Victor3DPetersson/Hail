@@ -49,11 +49,11 @@ bool ImGuiHelpers::DirectoryPanelLogic(FileSystem* fileSystem, uint32 minimumDep
         ImGui::Indent();
         if (i == fileSystem->GetCurrentDepth())
         {
-            GrowingArray<SelecteableFileObject>& filesAtDepth = fileSystem->GetFilesAtCurrentDepth();
+            GrowingArray<SelectAbleFileObject>& filesAtDepth = fileSystem->GetFilesAtCurrentDepth();
 
             for (size_t iFileObject = 0; iFileObject < filesAtDepth.Size(); iFileObject++)
             {
-                const SelecteableFileObject& fileObject = filesAtDepth[iFileObject];
+                const SelectAbleFileObject& fileObject = filesAtDepth[iFileObject];
                 if (!fileObject.m_fileObject.IsDirectory())
                     continue;
                 if (ImGui::Selectable(fileObject.m_fileObject.Name().CharString().Data(), fileObject.m_selected))
@@ -89,8 +89,8 @@ bool ImGuiHelpers::DirectoryPanelLogic(FileSystem* fileSystem, uint32 minimumDep
 
 void Hail::ImGuiHelpers::MetaResourcePanel(MetaResource* metaResource)
 {
-    
-    ImGui::BeginTooltip();
+    if (!metaResource)
+        return;
 
     if (metaResource->GetGUID() == GUID())
     {
@@ -115,6 +115,14 @@ void Hail::ImGuiHelpers::MetaResourcePanel(MetaResource* metaResource)
     }
     //static float arr[] = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
     //ImGui::PlotLines("Curve", arr, IM_ARRAYSIZE(arr));
+}
+
+void Hail::ImGuiHelpers::MetaResourceTooltipPanel(MetaResource* metaResource)
+{
+    if (!metaResource)
+        return;
+    ImGui::BeginTooltip();
+    MetaResourcePanel(metaResource);
     ImGui::EndTooltip();
 }
 
@@ -130,4 +138,41 @@ String64 Hail::ImGuiHelpers::FormattedTimeFromFileData(const FileTime& fileTime)
     timePreview = String64::Format("%u/%u/%u  %u:%u:%u", SystemTime.wYear, SystemTime.wMonth, SystemTime.wDay, SystemTime.wHour, SystemTime.wMinute, SystemTime.wSecond);
 #endif
     return timePreview;
+}
+
+const char* Hail::ImGuiHelpers::GetMaterialTypeStringFromEnum(MATERIAL_TYPE type)
+{
+    switch (type)
+    {
+    case Hail::MATERIAL_TYPE::SPRITE:
+        return "Sprite";
+    case Hail::MATERIAL_TYPE::MODEL3D:
+        return "3D Model";
+    case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+    case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
+    case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
+    case Hail::MATERIAL_TYPE::COUNT:
+    default:
+        break;
+    }
+    return nullptr;
+}
+
+const char* Hail::ImGuiHelpers::GetMaterialBlendModeFromEnum(BLEND_MODE mode)
+{
+    switch (mode)
+    {
+    case Hail::BLEND_MODE::NORMAL:
+        return "Normal";
+    case Hail::BLEND_MODE::ALPHABLEND:
+        return "Alpha Blend";
+    case Hail::BLEND_MODE::CUTOUT:
+        return "Cut out";
+    case Hail::BLEND_MODE::ADDITIVE:
+        return "Additive";
+    case Hail::BLEND_MODE::COUNT:
+    default:
+        break;
+    }
+    return nullptr;
 }

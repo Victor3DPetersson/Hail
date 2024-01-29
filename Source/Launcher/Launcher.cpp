@@ -17,6 +17,7 @@ int main()
 
 
 	startData.initFunctionToCall = [game](void* initData) { game->Init(initData); };
+	startData.postInitFunctionToCall = [game]() { game->PostInit(); };
 	startData.shutdownFunctionToCall = [game]() { game->Shutdown(); };
 	startData.updateFunctionToCall = [game](double totalTime, float dt, Hail::ApplicationFrameData& frameData) { game->Update(totalTime, dt, frameData); };
 

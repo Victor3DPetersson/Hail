@@ -6,12 +6,12 @@
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
 #include "Resources\ResourceRegistry.h"
+#include "Interface\ResourceInterface.h"
 #include "ThreadSynchronizer.h"
 
 #include <iostream>
 #include "imgui.h"
 #include "ImGui\ImGuiCommands.h"
-
 #ifdef PLATFORM_WINDOWS
 
 #include "Windows/Windows_ApplicationWindow.h"
@@ -97,7 +97,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-
+	ResourceInterface::InitializeResourceInterface(*g_engineData->resourceManager);
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
 	g_engineData->threadSynchronizer.Init(tickTime);
 	g_engineData->imguiCommandRecorder.Init(g_engineData->resourceManager);
@@ -107,6 +107,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	g_engineData->applicationTickRate = static_cast<float>(startupData.applicationTickRate);
 
 	g_engineData->threadSynchronizer.SynchronizeAppData(*g_engineData->inputHandler, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
+	startupData.postInitFunctionToCall();
 	return true;
 }
 

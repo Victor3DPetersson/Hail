@@ -20,7 +20,7 @@ namespace Hail
 	private:
 
 		bool InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial, uint32 frameInFlight) final;
-		bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight) final;
+		bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance) final;
 		void ClearMaterialInternal(MATERIAL_TYPE materialType, uint32 frameInFlight) final;
 		bool CreateMaterialPipeline(Material& material, uint32 frameInFlight);
 		bool SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);

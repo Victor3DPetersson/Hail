@@ -1,6 +1,6 @@
 #pragma once
-#include "../EngineConstants.h"
 #include "ImGuiFileBrowser.h"
+#include "ImGuiContext.h"
 
 namespace Hail
 {
@@ -13,7 +13,7 @@ namespace Hail
 	{
 	public:
 		ImGuiAssetBrowser();
-		void RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager);
+		void RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject);
 
 	private:
 		void InitFileBrowser();
@@ -29,22 +29,26 @@ namespace Hail
 		ImGuiFileBrowserData m_textureFileBrowserData;
 		FileSystem m_fileSystem;
 
-		struct TextureAsset
-		{
-			ImGuiTextureResource* texture;
-			FileObject fileObject;
-		};
 		FileObject m_currentFileDirectoryOpened;
 
 		struct TextureFolder
 		{
-			GrowingArray<TextureAsset> folderTextures;
+			GrowingArray<TextureContextAsset> folderTextures;
 			FileObject owningFileObject;
 		};
+
+		GrowingArray<TextureContextAsset> m_selectedTextureAssets;
+		MaterialResourceContextObject m_currentlySelectedMaterialResource;
+
+
+		TextureContextAsset m_folderTexture;
+		TextureContextAsset m_materialIconTexture;
 
 		StaticArray<GrowingArray<TextureFolder>, MAX_RESOURCE_FOLDER_DEPTH> m_ImGuiTextureResources;
 		ResourceManager* m_resourceManager;
 		bool m_openedFileBrowser;
+		bool m_creatingMaterial;
+		String256 m_createResourceName;
 	};
 
 

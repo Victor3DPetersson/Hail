@@ -18,9 +18,10 @@
 bool Hail::ImGuiFileBrowser::Init(ImGuiFileBrowserData* dataToBrowseFor)
 {
     m_fileSystem.Reset();
-    if (m_fileSystem.SetFilePathAndInit(dataToBrowseFor->pathToBeginSearchingIn, dataToBrowseFor->extensionsToSearchFor))
+    if (dataToBrowseFor && m_fileSystem.SetFilePathAndInit(dataToBrowseFor->pathToBeginSearchingIn, dataToBrowseFor->extensionsToSearchFor))
     {
         m_dataToSearchFor = dataToBrowseFor;
+        dataToBrowseFor->objectsToSelect.RemoveAll();
         CopyPath();
         return true;
     }
@@ -116,16 +117,16 @@ void Hail::ImGuiFileBrowser::FileSystemLogic()
         ImGui::TableSetupColumn(topLabels[3]);
         ImGui::TableHeadersRow();
 
-        GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
+        GrowingArray<SelectAbleFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
         const uint32_t numberOfFiles = files.Size();
         bool hasUpdatedHierarchy = false;
-        SelecteableFileObject selectedFileObject;
+        SelectAbleFileObject selectedFileObject;
         for (int row = 0; row < numberOfFiles; row++)
         {
             ImGui::TableNextRow(row);
             bool iteratingOverFiles = false;
             uint32_t currentObject = row;
-            SelecteableFileObject& fileObject = files[currentObject];
+            SelectAbleFileObject& fileObject = files[currentObject];
             const CommonFileData& fileData = fileObject.m_fileObject.GetFileData();
             ImGui::TableNextColumn();
             String64 fileName;
@@ -190,7 +191,7 @@ void Hail::ImGuiFileBrowser::CopyPath()
 
 void Hail::ImGuiFileBrowser::DeselectFiles()
 {
-    GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
+    GrowingArray<SelectAbleFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
     const uint32_t numberOfFiles = files.Size();
     for (int object = 0; object < numberOfFiles; object++)
     {
@@ -200,7 +201,7 @@ void Hail::ImGuiFileBrowser::DeselectFiles()
 
 bool Hail::ImGuiFileBrowser::ValidReturnSelection()
 {
-    const GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
+    const GrowingArray<SelectAbleFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
     if (files.Size())
     {
         for (uint32_t i = 0; i < files.Size(); i++)
@@ -216,7 +217,7 @@ bool Hail::ImGuiFileBrowser::ValidReturnSelection()
 
 void Hail::ImGuiFileBrowser::AddSelectionToOutput()
 {
-    const GrowingArray<SelecteableFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
+    const GrowingArray<SelectAbleFileObject>& files = m_fileSystem.GetFilesAtCurrentDepth();
     if (files.Size())
     {
         for (uint32_t i = 0; i < files.Size(); i++)

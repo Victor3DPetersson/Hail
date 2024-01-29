@@ -5,17 +5,18 @@
 #include "imgui.h"
 
 #include "Resources\MaterialResources.h"
+#include "ImGuiHelpers.h"
+
+#include "HailEngine.h"
+#include "Resources\ResourceRegistry.h"
+#include "Resources\ResourceManager.h"
+#include "Resources\MaterialManager.h"
+#include "Resources\TextureManager.h"
 
 namespace Hail
 {
-	Material g_material;
-	bool g_fileBrowserIsInited = false;
-	bool g_openMaterialBrowser = false;
 	bool g_inited = false;
-	ImGuiFileBrowserData g_materialFileBrowserData;
-	uint32_t g_selectedMaterialType = 0;
-
-	StaticArray<String64, static_cast<uint32_t>(MATERIAL_TYPE::COUNT)> g_materialTypeStrings;
+	ImGuiFileBrowserData g_textureFileBrowserData;
 
 	void InitCommonData()
 	{
@@ -25,77 +26,126 @@ namespace Hail
 		}
 		g_inited = true;
 
-		g_materialTypeStrings[(uint32)MATERIAL_TYPE::SPRITE] = "Sprite";
-		g_materialTypeStrings[(uint32)MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX] = "Fullscreen Effect";
-		g_materialTypeStrings[(uint32)MATERIAL_TYPE::MODEL3D] = "Model";
+		g_textureFileBrowserData.allowMultipleSelection = false;
+		g_textureFileBrowserData.objectsToSelect.Init(1);
+		g_textureFileBrowserData.extensionsToSearchFor = { "txr" };
+		g_textureFileBrowserData.pathToBeginSearchingIn = FilePath::GetCurrentWorkingDirectory();
 	}
-
-	void InitFileBrowser()
-	{
-		if (g_fileBrowserIsInited)
-		{
-			return;
-		}
-		g_fileBrowserIsInited = true;
-		g_materialFileBrowserData.allowMultipleSelection = false;
-		g_materialFileBrowserData.objectsToSelect.Init(16);
-		g_materialFileBrowserData.extensionsToSearchFor = { "mat" };
-		g_materialFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
-	}
-
-
-
 }
 
 
-void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser)
+Hail::ImGuiMaterialEditor::ImGuiMaterialEditor()
+{
+	m_openTextureBrowser = false;
+	m_selectedTextureSlot = 0;
+}
+
+void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager& resourceManager, ImGuiContext* contextObject, bool* closeButton)
 {
 	InitCommonData();
-	if (g_openMaterialBrowser)
-	{
+	ImGui::Begin("Material Editor", closeButton);
+	ImGui::Text("Material Name: %s", m_materialToEdit.m_fileObject->m_fileObject.Name().CharString());
 
+	if (m_openTextureBrowser)
+	{
 		bool finishedBrowsing = false;
 		fileBrowser->RenderImGuiCommands(finishedBrowsing);
 		if (finishedBrowsing)
 		{
-			g_openMaterialBrowser = false;
+			MetaResource textureMetaData;
+			resourceManager.GetTextureManager()->LoadTextureMetaData(g_textureFileBrowserData.objectsToSelect[0], textureMetaData);
+			m_materialToEdit.m_materialObject.m_textureHandles[m_selectedTextureSlot] = textureMetaData.GetGUID();
+			m_selectedTextureSlot = 0;
+			m_openTextureBrowser = false;
 		}
 	}
-	if (ImGui::Button("Create"))
+
+	if (m_materialToEdit.m_materialObject.m_baseMaterialType == MATERIAL_TYPE::COUNT)
 	{
-		g_material.m_type = MATERIAL_TYPE::SPRITE;
+		ImGui::End();
+		return;
 	}
-	ImGui::SameLine();
-	if (ImGui::Button("Load"))
+	if (ImGui::BeginCombo("Material Base Type", ImGuiHelpers::GetMaterialTypeStringFromEnum(m_materialToEdit.m_materialObject.m_baseMaterialType)))
 	{
-		InitFileBrowser();
-		if (fileBrowser->Init(&g_materialFileBrowserData))
+		bool is_selected = (MATERIAL_TYPE::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType);
+		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(MATERIAL_TYPE::SPRITE), is_selected))
 		{
-			g_openMaterialBrowser = true;
+			m_materialToEdit.m_materialObject.m_baseMaterialType = MATERIAL_TYPE::SPRITE;
 		}
+		if (is_selected)
+			ImGui::SetItemDefaultFocus();
+		//
+		is_selected = (MATERIAL_TYPE::MODEL3D == m_materialToEdit.m_materialObject.m_baseMaterialType);
+		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(MATERIAL_TYPE::MODEL3D), is_selected))
+		{
+			m_materialToEdit.m_materialObject.m_baseMaterialType = MATERIAL_TYPE::MODEL3D;
+		}
+		if (is_selected)
+			ImGui::SetItemDefaultFocus();
+
+		ImGui::EndCombo();
 	}
-	if (g_material.m_type != MATERIAL_TYPE::COUNT)
+
+	if (ImGui::BeginCombo("Blend Mode", ImGuiHelpers::GetMaterialBlendModeFromEnum(m_materialToEdit.m_materialObject.m_blendMode)))
 	{
 
-		if (ImGui::BeginCombo("Render Style", g_materialTypeStrings[g_selectedMaterialType]))
+		for (uint8 i = 0; i < (uint8)BLEND_MODE::COUNT; i++)
 		{
-			for (int n = 0; n < static_cast<uint32_t>(MATERIAL_TYPE::COUNT); n++)
+			bool is_selected = (BLEND_MODE)i == m_materialToEdit.m_materialObject.m_blendMode;
+			if (ImGui::Selectable(ImGuiHelpers::GetMaterialBlendModeFromEnum((BLEND_MODE)i), is_selected))
 			{
-				const bool is_selected = (g_selectedMaterialType == n);
-				if (ImGui::Selectable(g_materialTypeStrings[n], is_selected))
-				{
-					g_selectedMaterialType = n;
-				}
-				if (is_selected)
-				{
-					ImGui::SetItemDefaultFocus();
-				}
+				m_materialToEdit.m_materialObject.m_blendMode = (BLEND_MODE)i;
+				is_selected = true;
 			}
-			ImGui::EndCombo();
+			if (is_selected)
+				ImGui::SetItemDefaultFocus();
 		}
 
-		//if()
-
+		ImGui::EndCombo();
 	}
+
+	if (MATERIAL_TYPE::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType)
+	{
+		ImGui::Text("Sprite Texture: ");
+		ImGui::SameLine();
+		if (m_materialToEdit.m_materialObject.m_textureHandles[0] == guidZero)
+			ImGui::Text("None");
+		else
+			ImGui::Text(GetResourceRegistry().GetProjectPath(ResourceType::Texture, m_materialToEdit.m_materialObject.m_textureHandles[0]).Object().Name().CharString());
+		ImGui::SameLine();
+		if (ImGui::Button("Search") && fileBrowser->Init(&g_textureFileBrowserData))
+		{
+			m_openTextureBrowser = true;
+			m_selectedTextureSlot = 0;
+		}
+	}
+
+	if (ImGui::Button("Save Material"))
+	{
+		resourceManager.GetMaterialManager()->ExportMaterial(m_materialToEdit);
+		if (contextObject->GetCurrentContextObject() && contextObject->GetCurrentContextType() == ImGuiContextsType::Material)
+		{
+			MaterialResourceContextObject& material = *(MaterialResourceContextObject*)contextObject->GetCurrentContextObject();
+			if (material.m_metaResource.GetGUID() == m_materialToEdit.m_metaResource.GetGUID())
+				contextObject->SetCurrentContextObject(ImGuiContextsType::Material,&m_materialToEdit);
+		}
+	}
+	//TODO: reload to original state
+	//ImGui::SameLine();
+	//if (ImGui::Button("Reload Material"))
+	//{
+	//
+	//}
+
+	ImGui::End();
+}
+
+void Hail::ImGuiMaterialEditor::SetMaterialAsset(ImGuiContext* context)
+{
+	if (context->GetCurrentContextType() != ImGuiContextsType::Material || !context->GetCurrentContextObject())
+		return;
+
+	m_materialToEdit = *(MaterialResourceContextObject*)context->GetCurrentContextObject();
+
 }
 

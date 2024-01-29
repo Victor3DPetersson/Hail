@@ -838,14 +838,16 @@ bool VlkMaterialManager::CreateFramebuffers(VlkPassData& passData, MATERIAL_TYPE
 	return true;
 }
 
-bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight)
+
+bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance)
 {
 	const Material& material = m_materials[instance.m_materialIdentifier];
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
 	VlkPassData& passData = m_passData[(uint32)material.m_type];
-
-	if (m_materialsInstanceValidationData[instance.m_instanceIdentifier].GetFrameThatMarkedFrameDirty() == frameInFlight)
+	ResourceValidator& validator = isDefaultMaterialInstance ? GetDefaultMaterialValidator(material.m_type) : m_materialsInstanceValidationData[instance.m_instanceIdentifier];
+	
+	if (validator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
 		VlkPassData::VkInternalMaterialDescriptorSet setAllocLayouts{};
 		setAllocLayouts.descriptors[0] = VK_NULL_HANDLE;

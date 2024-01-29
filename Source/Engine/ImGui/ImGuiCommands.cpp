@@ -5,11 +5,15 @@
 #include "ImGuiMaterialEditor.h"
 #include "ImGuiAssetBrowser.h"
 #include "Resources\ResourceManager.h"
+#include "ImGuiPropertyWindow.h"
+#include "ImGuiContext.h"
 
 namespace Hail
 {
 	ImGuiMaterialEditor g_materialEditor;
 	ImGuiAssetBrowser g_assetBrowser;
+	ImGuiPropertyWindow g_propertyWindow;
+	ImGuiContext g_contextObject;
 }
 
 
@@ -322,7 +326,8 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 			//else error handling
 			break;
 		case ImGuiCommandRecorder::IMGUI_TYPES::MATERIAL_EDITOR:
-			g_materialEditor.RenderImGuiCommands(&m_fileBrowser);
+			//TODO: remove
+			//g_materialEditor.RenderImGuiCommands(&m_fileBrowser, &m_openMaterialWindow);
 			break;
 
 		default:
@@ -467,21 +472,48 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 
 void Hail::ImGuiCommandManager::RenderEngineImgui()
 {
-	if (ImGui::Begin("Engine Window"))
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
+	if (ImGui::Begin("Engine Window", nullptr, ImGuiWindowFlags_MenuBar))
 	{
-		if (ImGui::Button("Reload All Resources"))
+		if (ImGui::BeginMenuBar())
 		{
-			m_resourceManager->SetReloadOfAllResources();
+			if (ImGui::BeginMenu("Windows"))
+			{
+				ImGui::MenuItem("AssetBrowser", NULL, &m_openAssetBrowser);
+				ImGui::MenuItem("PropertyWindow", NULL, &m_openPropertyWindow);
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Reload"))
+			{
+				if (ImGui::MenuItem("Reload All Resources"))
+					m_resourceManager->SetReloadOfAllResources();
+				if (ImGui::MenuItem("Reload All Texures"))
+					m_resourceManager->SetReloadOfAllTextures();
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenuBar();
 		}
-		if (ImGui::Button("Reload All Texures"))
+		if (m_openAssetBrowser)
+			g_assetBrowser.RenderImGuiCommands(&m_fileBrowser, m_resourceManager, &g_contextObject);
+		if (m_openPropertyWindow)
 		{
-			m_resourceManager->SetReloadOfAllTextures();
+			ImGui::SameLine();
+			ImGuiPropertyWindowReturnValue propertyReturnValue = g_propertyWindow.RenderImGuiCommands(&m_fileBrowser, &g_contextObject);
+			if (propertyReturnValue == ImGuiPropertyWindowReturnValue::OpenMaterialWindow)
+			{
+				m_openMaterialWindow = true;
+				g_materialEditor.SetMaterialAsset(&g_contextObject);
+			}
 		}
-
-		g_assetBrowser.RenderImGuiCommands(&m_fileBrowser, m_resourceManager);
-
-		ImGui::End();
 	}
+	ImGui::End();
+
+	if (m_openMaterialWindow)
+	{
+		g_materialEditor.RenderImGuiCommands(&m_fileBrowser, *m_resourceManager, &g_contextObject, &m_openMaterialWindow);
+	}
+
+	ImGui::PopStyleVar();
 }
 
 void Hail::ImGuiCommandManager::PopStackType(ImGuiCommandRecorder::IMGUI_TYPES referenceTypeToPop)

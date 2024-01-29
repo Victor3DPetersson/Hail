@@ -32,13 +32,9 @@ namespace Hail
 		void SetReloadOfAllTextures();
 		void ReloadResources();
 
-		void LoadMaterial(GUID guid);
-		void LoadMaterial(String256 name);
 
-		void LoadTextureResource(GUID guid);
-		void LoadTextureResource(String256 name);
 		void LoadMaterialResource(GUID guid);
-		void LoadMaterialResource(String256 name);
+		uint32 GetMaterialInstanceHandle(GUID guid) const;
 
 		void UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer);
 		void ClearFrameData();

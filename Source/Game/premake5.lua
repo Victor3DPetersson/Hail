@@ -25,7 +25,8 @@ project "Game"
 	includedirs {
 		".",
 		"./**",
-		"%{dirs.srcdir}/Shared/"
+		"%{dirs.srcdir}/Shared/",
+		"%{dirs.srcdir}/Engine/Interface/"
 	}
 
 	dependson { "ReflectionCodeGenerator" }

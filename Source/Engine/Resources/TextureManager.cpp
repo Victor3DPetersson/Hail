@@ -14,12 +14,7 @@
 
 namespace
 {
-	const char* REQUIRED_TEXTURES[REQUIRED_TEXTURE_COUNT] =
-	{
-		"cloud shapes test",
-		"Debug_Grid",
-		"spaceShip"
-	};
+
 	//TODO: Move the memory that is used here to a temporary memory buffer
 	void Read8BitStream(Hail::InOutStream& stream, void** outData, const uint32_t numberOfBytesToRead)
 	{
@@ -100,18 +95,29 @@ bool Hail::TextureManager::LoadTexture(const char* textureName)
 	return false;
 }
 
-bool TextureManager::LoadAllRequiredTextures()
+uint32 Hail::TextureManager::LoadTexture(GUID textureID)
 {
-	for (uint32 i = 0; i < REQUIRED_TEXTURE_COUNT; i++)
+	TextureResource textureResource;
+	MetaResource metaData;
+
+	if (LoadTextureInternalPath(GetResourceRegistry().GetProjectPath(ResourceType::Texture, textureID), textureResource, metaData))
 	{
-		if (!LoadTexture(REQUIRED_TEXTURES[i]))
+		textureResource.index = m_textureCommonData.Size();
+		m_textureCommonData.Add(textureResource);
+		const bool creationResult = CreateTextureInternal(m_textureCommonData.GetLast(), false);
+		if (creationResult)
 		{
-			return false;
+			GetResourceRegistry().SetResourceLoaded(ResourceType::Texture, metaData.GetGUID());
+			m_textureCommonDataValidators.Add(ResourceValidator());
 		}
-		m_textureCommonDataValidators.Add(ResourceValidator());
+		else
+			GetResourceRegistry().SetResourceUnloaded(ResourceType::Texture, metaData.GetGUID());
+
+		return textureResource.index;
 	}
-	return true;
+	return INVALID_TEXTURE_HANDLE;
 }
+
 
 void Hail::TextureManager::ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight)
 {
@@ -153,8 +159,35 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 	}
 	inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
-	//Debug_PrintConsoleString256(String256::Format("\nImporting Texture:\n%s:", textureName));
+	if (!ReadStreamInternal(textureToFill, inStream, metaResourceToFill))
+		return false;
 
+	inStream.CloseFile();
+
+	textureToFill.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+	textureToFill.textureName = textureName;
+	return true;
+}
+
+bool Hail::TextureManager::LoadTextureInternalPath(const FilePath& path, TextureResource& textureToFill, MetaResource& metaResourceToFill)
+{
+	InOutStream inStream;
+
+	if (!inStream.OpenFile(path, FILE_OPEN_TYPE::READ, true))
+		return false;
+
+	if (!ReadStreamInternal(textureToFill, inStream, metaResourceToFill))
+		return false;
+
+	inStream.CloseFile();
+
+	textureToFill.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+	textureToFill.textureName = path.Object().Name().CharString();
+	return true;
+}
+
+bool Hail::TextureManager::ReadStreamInternal(TextureResource& textureToFill, InOutStream& inStream, MetaResource& metaResourceToFill) const
+{
 	inStream.Read((char*)&textureToFill.m_compiledTextureData.header, sizeof(TextureHeader));
 	//Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, "\n"));
 	switch (ToEnum<TEXTURE_TYPE>(textureToFill.m_compiledTextureData.header.textureType))
@@ -189,11 +222,38 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 		}
 		delete[] tempData;
 	}
-
 	break;
-	case TEXTURE_TYPE::R8_SRGB:
+	case TEXTURE_TYPE::R8G8B8A8:
 		Read8BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
 		break;
+	case TEXTURE_TYPE::R8G8B8:
+	{
+		void* tempData = nullptr;
+		Read8BitStream(inStream, &tempData, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		textureToFill.m_compiledTextureData.header.textureType = static_cast<uint32_t>(TEXTURE_TYPE::R8G8B8A8);
+		textureToFill.m_compiledTextureData.compiledColorValues = new uint8_t[1 * 4 * textureToFill.m_compiledTextureData.header.width * textureToFill.m_compiledTextureData.header.height];
+		uint32_t rgbIterator = 0;
+		for (size_t i = 0; i < 4 * textureToFill.m_compiledTextureData.header.width * textureToFill.m_compiledTextureData.header.height; i++)
+		{
+			switch (i % 4)
+			{
+			case 0:
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				break;
+			case 1:
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				break;
+			case 2:
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				break;
+			case 3:
+				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = 255;
+				break;
+			}
+		}
+		delete[] tempData;
+	}
+	break;
 	case TEXTURE_TYPE::R16G16B16A16:
 		Read16BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
 		break;
@@ -216,17 +276,11 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 		return false;
 		break;
 	}
-
 	const uint64 sizeLeft = inStream.GetFileSize() - inStream.GetFileSeekPosition();
 	if (sizeLeft != 0)
 	{
 		metaResourceToFill.Deserialize(inStream);
 	}
-
-	inStream.CloseFile();
-
-	textureToFill.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
-	textureToFill.textureName = textureName;
 	return true;
 }
 

@@ -5,6 +5,10 @@
 
 #include "DebugMacros.h"
 #include "Utility\InOutStream.h"
+#include "HailEngine.h"
+#include "ResourceRegistry.h"
+
+#include "ImGui\ImGuiContext.h"
 
 namespace Hail
 {
@@ -74,8 +78,16 @@ namespace Hail
 		return m_materials[(uint32)materialType];
 	}
 
-	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID)
+	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID, MATERIAL_TYPE materialType)
 	{
+		if (instanceID >= m_materialsInstanceData.Size())
+		{
+			if (materialType == MATERIAL_TYPE::SPRITE)
+				return m_defaultSpriteMaterialInstance;
+			if (materialType == MATERIAL_TYPE::MODEL3D)
+				return m_default3DMaterialInstance;
+		}
+
 		return m_materialsInstanceData[instanceID];
 	}
 
@@ -90,9 +102,23 @@ namespace Hail
 		return instanceData.m_instanceIdentifier;
 	}
 
+	Hail::uint32 MaterialManager::GetMaterialInstanceHandle(GUID guid) const
+	{
+		if (guid == guidZero)
+			return MAX_UINT;
+
+		for (uint32 i = 0; i < m_materialsInstanceData.Size(); i++)
+		{
+			if (guid == m_materialsInstanceData[i].m_id)
+				return m_materialsInstanceData[i].m_instanceIdentifier;
+		}
+
+		return MAX_UINT;
+	}
+
 	bool MaterialManager::InitMaterialInstance(uint32 instanceID, uint32 frameInFlight)
 	{
-		if (InitMaterialInstanceInternal(m_materialsInstanceData[instanceID], frameInFlight))
+		if (InitMaterialInstanceInternal(m_materialsInstanceData[instanceID], frameInFlight, false))
 		{
 			m_materialsInstanceValidationData[instanceID].ClearFrameData(frameInFlight); 
 			return true;
@@ -120,7 +146,7 @@ namespace Hail
 		for (uint32 i = 0; i < m_materialsInstanceData.Size(); i++)
 		{
 			m_materialsInstanceValidationData[i].MarkResourceAsDirty(frameInFlight);
-			if (InitMaterialInstanceInternal(m_materialsInstanceData[i], frameInFlight))
+			if (InitMaterialInstanceInternal(m_materialsInstanceData[i], frameInFlight, false))
 			{
 				m_materialsInstanceValidationData[i].ClearFrameData(frameInFlight);
 				result = false;
@@ -138,7 +164,7 @@ namespace Hail
 		{
 			if (m_materialsInstanceValidationData[i].GetIsFrameDataDirty(frameInFlight))
 			{
-				if (InitMaterialInstanceInternal(m_materialsInstanceData[i], frameInFlight))
+				if (InitMaterialInstanceInternal(m_materialsInstanceData[i], frameInFlight, false))
 				{
 					m_materialsInstanceValidationData[i].ClearFrameData(frameInFlight);
 					result = false;
@@ -184,6 +210,29 @@ namespace Hail
 				}
 			}
 		}
+	}
+
+	void MaterialManager::InitDefaultMaterialInstances()
+	{
+		m_defaultSpriteMaterialInstance.m_instanceIdentifier = MAX_UINT;
+		m_defaultSpriteMaterialInstance.m_materialIdentifier = (uint32)MATERIAL_TYPE::SPRITE;
+		m_defaultSpriteMaterialsInstanceValidationData.MarkResourceAsDirty(0);
+
+		m_default3DMaterialInstance.m_instanceIdentifier = MAX_UINT;
+		m_default3DMaterialInstance.m_materialIdentifier = (uint32)MATERIAL_TYPE::MODEL3D;
+		m_default3DMaterialsInstanceValidationData.MarkResourceAsDirty(0);
+		for (size_t frameInFlight = 0; frameInFlight < MAX_FRAMESINFLIGHT; frameInFlight++)
+		{
+			if (!InitMaterialInstanceInternal(m_defaultSpriteMaterialInstance, frameInFlight, true))
+			{
+				//Assert here
+			}
+			if (!InitMaterialInstanceInternal(m_default3DMaterialInstance, frameInFlight, true))
+			{
+				//Assert here
+			}
+		}
+
 	}
 
 	//TODO: Add relative path support in the shader output
@@ -240,7 +289,80 @@ namespace Hail
 		SAFEDELETE(m_compiler)
 	}
 
+	ResourceValidator& MaterialManager::GetDefaultMaterialValidator(MATERIAL_TYPE type)
+	{
+		if (type == MATERIAL_TYPE::SPRITE)
+			return m_defaultSpriteMaterialsInstanceValidationData;
+		if (type == MATERIAL_TYPE::MODEL3D)
+			return m_default3DMaterialsInstanceValidationData;
+	}
+
 	void MaterialManager::ClearAllResources()
 	{
+	}
+
+	FilePath MaterialManager::CreateMaterial(const FilePath& outPath, const String256& name) const
+	{
+		FilePath finalPath = outPath + FileObject(name.Data(), "mat", outPath);
+		InOutStream outStream;
+		outStream.OpenFile(finalPath, FILE_OPEN_TYPE::WRITE, true);
+
+		SerializeableMaterialInstance resource{};
+		outStream.Write(&resource, sizeof(SerializeableMaterialInstance));
+		outStream.CloseFile();
+		outStream.OpenFile(finalPath, FILE_OPEN_TYPE::APPENDS, true);
+		finalPath.LoadCommonFileData();
+		
+		MetaResource textureMetaResource;
+		textureMetaResource.ConstructResourceAndID(finalPath, finalPath);
+		textureMetaResource.Serialize(outStream);
+		GetResourceRegistry().AddToRegistry(finalPath, ResourceType::Material);
+
+		return finalPath;
+	}
+
+	void MaterialManager::ExportMaterial(MaterialResourceContextObject& materialToExport)
+	{
+		FilePath finalPath = materialToExport.m_metaResource.GetProjectFilePath().GetFilePath();
+		InOutStream outStream;
+		outStream.OpenFile(finalPath, FILE_OPEN_TYPE::WRITE, true);
+
+		outStream.Write(&materialToExport.m_materialObject, sizeof(SerializeableMaterialInstance));
+		outStream.CloseFile();
+		outStream.OpenFile(finalPath, FILE_OPEN_TYPE::APPENDS, true);
+		finalPath.LoadCommonFileData();
+		materialToExport.m_metaResource.Serialize(outStream);
+	}
+
+	void MaterialManager::LoadMaterialMetaData(const FilePath& materialPath, MetaResource& resourceToFill)
+	{
+		if (!StringCompare(materialPath.Object().Extension(), L"mat"))
+			return;
+
+		InOutStream inStream;
+		if (!inStream.OpenFile(materialPath.Data(), FILE_OPEN_TYPE::READ, true))
+			return;
+
+		TextureResource textureToFill;
+		inStream.Seek(sizeof(SerializeableMaterialInstance), 1);
+
+		const uint64 sizeLeft = inStream.GetFileSize() - inStream.GetFileSeekPosition();
+		if (sizeLeft != 0)
+		{
+			resourceToFill.Deserialize(inStream);
+		}
+	}
+	SerializeableMaterialInstance MaterialManager::LoadMaterialSerializeableInstance(const FilePath& materialPath)
+	{
+		SerializeableMaterialInstance returnResource;
+		if (!StringCompare(materialPath.Object().Extension(), L"mat"))
+			return returnResource;
+
+		InOutStream inStream;
+		if (!inStream.OpenFile(materialPath.Data(), FILE_OPEN_TYPE::READ, true))
+			return returnResource;
+
+		inStream.Read(&returnResource, sizeof(SerializeableMaterialInstance));
+		return returnResource;
 	}
 }

@@ -143,6 +143,10 @@ bool Hail::FilePath::CreateFileDirectory() const
 
     return true;
 }
+void FilePath::LoadCommonFileData()
+{
+    m_object.m_fileData = ConstructFileDataFromPath(*this);
+}
 
 const FilePath& FilePath::GetCurrentWorkingDirectory()
 {
@@ -293,6 +297,7 @@ Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
             wcscat_s(m_data, MAX_FILE_LENGTH - m_length, string);
         }
         m_length += length;
+        Slashify();
         FindExtension();
     }
     return *this;
@@ -529,7 +534,6 @@ Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& pare
     m_fileData(fileData)
 {
     Reset();
-    m_fileData = fileData;
     m_name = string;
     m_parentName = parentObject.Name();
     m_directoryLevel = parentObject.GetDirectoryLevel() + 1;
@@ -658,6 +662,8 @@ bool Hail::FileObject::FindExtension()
         }
         currentCharacter = m_name[seperator--];
     }
+    if (currentCharacter == L'.')
+        m_isDirectory = false;
     if (m_isDirectory == false)
     {
         seperator++;

@@ -7,7 +7,6 @@ constexpr uint32_t INVALID_UINT = 0xffffffff;
 
 namespace Hail
 {
-	struct RenderCommandPool;
 	struct ApplicationFrameData;
 }
 
@@ -44,6 +43,7 @@ namespace Hail
 struct StartupAttributes
 {
 	callback_function_init initFunctionToCall = nullptr;
+	callback_function postInitFunctionToCall = nullptr;
 	callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 	callback_function shutdownFunctionToCall = nullptr;
 

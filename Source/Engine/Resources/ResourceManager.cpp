@@ -6,6 +6,9 @@
 #include "RenderCommands.h"
 #include "Timer.h"
 
+#include "ResourceRegistry.h"
+#include "HailEngine.h"
+
 #ifdef PLATFORM_WINDOWS
 #include "windows\VulkanInternal\VlkResourceManager.h"
 #include "windows\VulkanInternal\VlkSwapChain.h"
@@ -47,12 +50,8 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 	m_renderingResourceManager->Init(m_renderDevice, m_swapChain);
 	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain );
 	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
-	if (!m_textureManager->LoadAllRequiredTextures())
-	{
-		return false;
-	}
 
-	//Temp for now
+	//Temp, needs to be more data driven
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
 		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::SPRITE, m_mainPassFrameBufferTexture, false, i))
@@ -76,23 +75,8 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 			return false;
 		}
 	}
-	MaterialInstance instance1;
-	instance1.m_textureHandles[0] = 1;
-	const uint32 instance1ID = m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance1);
-	MaterialInstance instance2;
-	instance2.m_textureHandles[0] = 2;
-	const uint32 instance2ID = m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance2);
-	MaterialInstance instance3;
-	instance3.m_textureHandles[0] = 0;
-	const uint32 instance3ID = m_materialManager->CreateInstance(MATERIAL_TYPE::SPRITE, instance3);
+	m_materialManager->InitDefaultMaterialInstances();
 
-	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
-	{
-		m_materialManager->InitMaterialInstance(instance1ID, i);
-		m_materialManager->InitMaterialInstance(instance2ID, i);
-		m_materialManager->InitMaterialInstance(instance3ID, i);
-	}
-	//TODO: TEMP above with the instances, will be more data driven laters
 	return true;
 }
 
@@ -156,19 +140,43 @@ void Hail::ResourceManager::ReloadResources()
 
 }
 
-void Hail::ResourceManager::LoadMaterial(String256 name)
+void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 {
-	//Load from file and get the correct data, now will be hardcoded from the shader name
+	if (guid == guidZero)
+		return;
 
+	ResourceRegistry& reg = GetResourceRegistry();
+	if (!reg.GetIsResourceImported(ResourceType::Material, guid))
+		return;
 
+	SerializeableMaterialInstance matData = m_materialManager->LoadMaterialSerializeableInstance(reg.GetProjectPath(ResourceType::Material, guid));
+
+	//TODO: make this more data driven
+
+	MaterialInstance instance;
+	instance.m_id = guid;
+	instance.m_textureHandles[0] = INVALID_TEXTURE_HANDLE;
+
+	if (matData.m_textureHandles[0] != guidZero)
+		instance.m_textureHandles[0] = m_textureManager->LoadTexture(matData.m_textureHandles[0]);
+
+	uint32 instanceID = m_materialManager->CreateInstance(matData.m_baseMaterialType, instance);
+	bool result = true;
+	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+	{
+		result &= m_materialManager->InitMaterialInstance(instanceID, i);
+	}
+
+	if (!result)
+	{
+		// TODO:: assert / make it in to an invalid material
+		result = true; // for debugging atm
+	}
 }
 
-void Hail::ResourceManager::LoadTextureResource(String256 name)
+Hail::uint32 Hail::ResourceManager::GetMaterialInstanceHandle(GUID guid) const
 {
-	if (m_textureManager->LoadTexture(name))
-	{
-		//connect UUID through some system
-	}
+	return m_materialManager->GetMaterialInstanceHandle(guid);
 }
 
 void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer)
@@ -183,8 +191,8 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	{
 		const RenderCommand_Sprite& spriteCommand = renderPool.spriteCommands[sprite];
 		//Get sprite texture size and sort with material and everything here to the correct place. 
-		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID);
-		const TextureResource& texture = textures[materialInstance.m_textureHandles[0]];
+		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID, MATERIAL_TYPE::SPRITE);
+		const TextureResource& texture = materialInstance.m_textureHandles[0] != INVALID_TEXTURE_HANDLE ? textures[materialInstance.m_textureHandles[0]] : m_textureManager->GetDefaultTextureCommonData();
 		const float textureAspectRatio = (float)texture.m_compiledTextureData.header.width / (float)texture.m_compiledTextureData.header.height;
 		
 
@@ -202,8 +210,6 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		
 		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
 		SpriteInstanceData spriteInstance{};
-		
-		
 
 		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
 		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
@@ -232,7 +238,8 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	}
 	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
 
-	
+	//Common GPU buffers___
+
 	const float deltaTime = timer->GetDeltaTime();
 	const float totalTime = timer->GetTotalTime();
 

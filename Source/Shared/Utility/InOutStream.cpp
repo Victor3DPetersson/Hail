@@ -82,7 +82,7 @@ bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpe
     }
     m_fileAction = wayToOpenFile;
     m_fileSize = 0;
-    if (IsReading())
+    if (IsReading() || m_fileAction == FILE_OPEN_TYPE::APPENDS)
     {
         if (binaryMode)
         {
@@ -112,7 +112,7 @@ bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpe
         //fseek(openedFile, 0, SEEK_SET);
 
     }
-    m_currentPosition = 0;
+    m_currentPosition = m_fileAction == FILE_OPEN_TYPE::APPENDS ? m_fileSize : 0;
     m_fileHandle = openedFile;
     return true;
 }
