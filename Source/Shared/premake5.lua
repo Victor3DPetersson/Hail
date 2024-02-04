@@ -1,5 +1,5 @@
 project "Shared"
-	location "%{dirs.localdir}"
+	location "%{dirs.srcdir}/Shared"
 	
 	print ("Building Shared...")
 		

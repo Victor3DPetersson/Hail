@@ -1,5 +1,5 @@
 project "Engine"
-	location "%{dirs.localdir}"
+	location "%{dirs.srcdir}/Engine"
 	
 	print ("Building Engine...")
 		

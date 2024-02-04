@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Launchers", "Launchers", "{F1ABF109-5D37-5FCE-6648-E2C2D252BBCE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Launcher", "Generated\local\Launcher.vcxproj", "{57ACF9E2-4379-54EE-6C92-429658BE897C}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Launcher", "Source\Launcher\Launcher.vcxproj", "{57ACF9E2-4379-54EE-6C92-429658BE897C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{15A0C35D-0158-05AB-6A5F-DE065636A09B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Engine", "Generated\local\Engine.vcxproj", "{DBC7D3B0-C769-FE86-B024-12DB9C6585D7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Engine", "Source\Engine\Engine.vcxproj", "{DBC7D3B0-C769-FE86-B024-12DB9C6585D7}"
 	ProjectSection(ProjectDependencies) = postProject
 		{32DFA3DE-9E16-EC75-A720-509913D7126F} = {32DFA3DE-9E16-EC75-A720-509913D7126F}
 	EndProjectSection
@@ -18,7 +18,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dearimgui", "Generated\loca
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Game", "Game", "{6695C55D-524D-07AB-BB54-E006A72BA29B}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Game", "Generated\local\Game.vcxproj", "{7FA9857C-6BE0-860D-14CD-6C1000E3020F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Game", "Source\Game\Game.vcxproj", "{7FA9857C-6BE0-860D-14CD-6C1000E3020F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{32DFA3DE-9E16-EC75-A720-509913D7126F} = {32DFA3DE-9E16-EC75-A720-509913D7126F}
 	EndProjectSection
@@ -27,11 +27,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Utilities", "Utilities", "{
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ResourceCompilation", "ResourceCompilation", "{7E5653D9-EA0F-BE83-736F-D85DDF2774F3}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReflectionCodeGenerator", "Generated\local\ReflectionCodeGenerator.vcxproj", "{32DFA3DE-9E16-EC75-A720-509913D7126F}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ReflectionCodeGenerator", "Source\ReflectionCodeGenerator\ReflectionCodeGenerator.vcxproj", "{32DFA3DE-9E16-EC75-A720-509913D7126F}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ResourceCompiler", "Generated\local\ResourceCompiler.vcxproj", "{288AE39D-1483-02F0-3DB5-E774290DE2FB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ResourceCompiler", "Source\ResourceCompiler\ResourceCompiler.vcxproj", "{288AE39D-1483-02F0-3DB5-E774290DE2FB}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shared", "Generated\local\Shared.vcxproj", "{7C480CD1-68EA-36A7-51A5-4AFB3DE6BDF7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Shared", "Source\Shared\Shared.vcxproj", "{7C480CD1-68EA-36A7-51A5-4AFB3DE6BDF7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

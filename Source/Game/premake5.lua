@@ -1,5 +1,5 @@
 project "Game"
-	location "%{dirs.localdir}"
+	location "%{dirs.srcdir}/Game"
 
 	print ("Building Game...")
 		

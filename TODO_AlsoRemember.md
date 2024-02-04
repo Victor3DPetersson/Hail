@@ -18,7 +18,7 @@
 # TODO: unspecified order
 
 [] Improve growing array
-[] Memory allocators
+[] Memory allocators & memory pool
 [] Red-black tree and hashmap
 [] Long string class
 [] Make asserts and error Handling
@@ -28,7 +28,7 @@
 [] Profiling and a profiler window
 [] Imgui Dockable
 [] Use material system to take control over render styles and add blending
-[] Implement Mip-Mapping from Vulkan tutorial
+[] Implement Mip-Mapping
 [] Implement a File watcher
 [] Make resource registry thread safe, could be done by looking it on write operations and waiting on read
 [] Font rendering

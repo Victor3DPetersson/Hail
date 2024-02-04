@@ -1,5 +1,5 @@
 project "Launcher"
-	location "%{dirs.localdir}"
+	location "%{dirs.srcdir}/Launcher"
 
 	print ("Building Launcher...")
 	

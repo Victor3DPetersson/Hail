@@ -1,5 +1,5 @@
 project "ReflectionCodeGenerator"
-	location "%{dirs.localdir}"
+	location "%{dirs.srcdir}/ReflectionCodeGenerator"
 	
 	print ("Building ReflectionCodeGenerator...")
 		

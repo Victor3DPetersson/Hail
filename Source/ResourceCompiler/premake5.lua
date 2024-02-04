@@ -1,5 +1,5 @@
 project "ResourceCompiler"
-	location "%{dirs.localdir}"
+	location "%{dirs.srcdir}/ResourceCompiler"
 
 	print ("Building ResourceCompiler...")
 	print (dirs.srcdir)
