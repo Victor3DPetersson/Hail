@@ -6,10 +6,6 @@ group ("Game")
 	include ("Game")
 group ("")
 
-group ("GameSystem")
-	include ("GameSystem")
-group ("")
-
 group ("Launchers")
 	include ("Launcher")
 group ("")

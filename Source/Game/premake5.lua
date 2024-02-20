@@ -25,8 +25,7 @@ project "Game"
 	includedirs {
 		".",
 		"./**",
-		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/GameSystem/"
+		"%{dirs.srcdir}/Shared/"
 	}
 
 	dependson { "ReflectionCodeGenerator" }
@@ -35,8 +34,7 @@ project "Game"
 	links { 
 		"Engine",
 		"Reflection",
-		"Shared",
-		"GameSystem"
+		"Shared"
 		 }
 
 		 	defines {
