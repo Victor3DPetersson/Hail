@@ -82,10 +82,6 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	}
 
 	passData.m_frameBufferTextures = m_passesFrameBufferTextures[(uint32)material.m_type];
-	if(!passData.m_materialDescriptors.IsInitialized())
-	{
-		passData.m_materialDescriptors.Init(10);
-	}
 	if (!SetUpMaterialLayouts(passData, material.m_type, frameInFlight))
 	{
 		return false;
@@ -107,7 +103,7 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	//TODO: Break out in to its own function
 	bool renderDepth = false;
 	VkVertexInputBindingDescription vertexBindingDescription = VkVertexInputBindingDescription();
-	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
+	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions(1);
 	switch (material.m_type)
 	{
 	case MATERIAL_TYPE::SPRITE:
@@ -115,7 +111,6 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
 		break;
 	case MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-		vertexAttributeDescriptions.Init(1);
 		{
 			VkVertexInputAttributeDescription attributeDescription{};
 			attributeDescription.binding = 0;
@@ -299,8 +294,8 @@ struct VlkLayoutDescriptor
 
 bool CreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors, VkDescriptorSetLayout& returnDescriptorLayoput, VlkDevice& device)
 {
-	GrowingArray<VkDescriptorSetLayoutBinding>bindings;
-	bindings.InitAndFill(descriptors.Size());
+	GrowingArray<VkDescriptorSetLayoutBinding>bindings(descriptors.Size());
+	bindings.Fill();
 
 	for (uint32_t i = 0; i < descriptors.Size(); i++)
 	{
@@ -385,7 +380,7 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 			return false;
 		}
 
-		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, passData.m_passSetLayout, false);
+		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, passData.m_passSetLayout);
 		VkDescriptorSetAllocateInfo passAllocInfo{};
 		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		passAllocInfo.descriptorPool = vlkRenderingResources->m_globalDescriptorPool;
@@ -407,20 +402,19 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 		return false;
 	}
 
-	GrowingArray< VkWriteDescriptorSet> setWrites;
+	GrowingArray< VkWriteDescriptorSet> setWrites(2);
 	uint32_t bufferSize = 0;
 	m_descriptorImageInfo.imageView = VK_NULL_HANDLE;
 	m_descriptorImageInfo.sampler = VK_NULL_HANDLE;
-	GrowingArray<VkDescriptorBufferInfo> bufferDescriptors;
+	GrowingArray<VkDescriptorBufferInfo> bufferDescriptors(2);
 	switch (type)
 	{
 	case Hail::MATERIAL_TYPE::SPRITE:
 	{
-		setWrites.Init(1);
 
 		bufferSize = GetUniformBufferSize(BUFFERS::SPRITE_INSTANCE_BUFFER);
 
-		bufferDescriptors.InitAndFill(1);
+		bufferDescriptors.Fill();
 		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::SPRITE_INSTANCE_BUFFER].m_buffer[frameInFlight];
 		bufferDescriptors[0].offset = 0;
 		bufferDescriptors[0].range = bufferSize;
@@ -434,8 +428,6 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	break;
 	case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
 	{
-		setWrites.Init(1);
-
 		m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		m_descriptorImageInfo.imageView = m_passesFrameBufferTextures[(uint32)(MATERIAL_TYPE::SPRITE)]->GetTextureImage(frameInFlight).imageView;
 		m_descriptorImageInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
@@ -450,10 +442,8 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	break;
 	case Hail::MATERIAL_TYPE::MODEL3D:
 	{
-		setWrites.Init(2);
-
 		bufferSize = GetUniformBufferSize(BUFFERS::TUTORIAL);
-		bufferDescriptors.InitAndFill(1);
+		bufferDescriptors.Fill();
 		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::TUTORIAL].m_buffer[frameInFlight];
 		bufferDescriptors[0].offset = 0;
 		bufferDescriptors[0].range = bufferSize;
@@ -479,9 +469,7 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 
 	case MATERIAL_TYPE::DEBUG_LINES2D:
 	case MATERIAL_TYPE::DEBUG_LINES3D:
-		setWrites.Init(2);
-
-		bufferDescriptors.InitAndFill(2);
+		bufferDescriptors.Fill();
 
 		bufferSize = GetUniformBufferSize(BUFFERS::PER_CAMERA_DATA);
 		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::PER_CAMERA_DATA].m_buffer[frameInFlight];
@@ -591,8 +579,7 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 	push_constant.size = sizeof(uint32_t) * 4;
 	//this push constant range is accessible only in the vertex shader
 	push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	GrowingArray<VkDescriptorSetLayout> layouts;
-	layouts.Init(3);
+	GrowingArray<VkDescriptorSetLayout> layouts(3);
 	layouts.Add(vlkRenderingResources->m_globalPerFrameSetLayout);
 	if (passData.m_passSetLayout != VK_NULL_HANDLE)
 	{
@@ -627,14 +614,13 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 	}
 
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-	GrowingArray<VkAttachmentDescription> attachmentDescriptors;
+	GrowingArray<VkAttachmentDescription> attachmentDescriptors(2);
 	VkAttachmentReference colorAttachmentRef{};
 	VkAttachmentReference depthAttachmentRef{};
 	switch (type)
 	{
 		case Hail::MATERIAL_TYPE::SPRITE:
 		{
-			attachmentDescriptors.Init(2);
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 
@@ -668,7 +654,6 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 
 		case Hail::MATERIAL_TYPE::MODEL3D:
 		{
-			attachmentDescriptors.Init(2);
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
@@ -701,7 +686,6 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 
 		case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
 		{
-			attachmentDescriptors.Init(2);
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 
@@ -735,7 +719,6 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 
 		case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
 		{
-			attachmentDescriptors.Init(2);
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 
@@ -852,7 +835,7 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 		VlkPassData::VkInternalMaterialDescriptorSet setAllocLayouts{};
 		setAllocLayouts.descriptors[0] = VK_NULL_HANDLE;
 		setAllocLayouts.descriptors[1] = VK_NULL_HANDLE;
-		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, passData.m_materialSetLayout, false);
+		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, passData.m_materialSetLayout);
 		VkDescriptorSetAllocateInfo passAllocInfo{};
 		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		passAllocInfo.descriptorPool = vlkRenderingResources->m_globalDescriptorPool;
@@ -869,12 +852,11 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 
 
 
-	GrowingArray<VkWriteDescriptorSet> descriptorWrites{};
+	GrowingArray<VkWriteDescriptorSet> descriptorWrites(1);
 	switch (material.m_type)
 	{
 	case Hail::MATERIAL_TYPE::SPRITE:
 	{
-		descriptorWrites.Init(1);
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		imageInfo.imageView = ((VlkTextureResourceManager*)m_textureManager)->GetTextureData(instance.m_textureHandles[0]).textureImageView;

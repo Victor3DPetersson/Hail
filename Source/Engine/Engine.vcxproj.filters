@@ -4,6 +4,9 @@
     <Filter Include="ImGui">
       <UniqueIdentifier>{C0FF640D-2C14-8DBE-F595-301E616989EF}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{953A660D-014F-8EBE-CAD0-311E36A48AEF}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Interface">
       <UniqueIdentifier>{764D2783-E2B7-DBF9-2BF6-8C9F979FB94E}</UniqueIdentifier>
     </Filter>
@@ -49,7 +52,9 @@
     <ClInclude Include="ImGui\ImGuiPropertyWindow.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="InputHandler.h" />
+    <ClInclude Include="Input\InputHandler.h">
+      <Filter>Input</Filter>
+    </ClInclude>
     <ClInclude Include="Interface\ResourceInterface.h">
       <Filter>Interface</Filter>
     </ClInclude>
@@ -158,6 +163,12 @@
     <ClInclude Include="Windows\imgui_impl_win32.h">
       <Filter>Windows</Filter>
     </ClInclude>
+    <ClInclude Include="Input\InputActionMap.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputActionList.h">
+      <Filter>Input</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ApplicationWindow.cpp" />
@@ -184,7 +195,9 @@
     <ClCompile Include="ImGui\ImGuiPropertyWindow.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="InputHandler.cpp" />
+    <ClCompile Include="Input\InputHandler.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
     <ClCompile Include="Interface\ResourceInterface.cpp">
       <Filter>Interface</Filter>
     </ClCompile>
@@ -276,6 +289,9 @@
     </ClCompile>
     <ClCompile Include="Windows\Windows_Renderer.cpp">
       <Filter>Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputActionMap.cpp">
+      <Filter>Input</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

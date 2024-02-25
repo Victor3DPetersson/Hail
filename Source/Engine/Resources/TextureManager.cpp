@@ -54,8 +54,6 @@ using namespace Hail;
 
 void TextureManager::Init(RenderingDevice* device)
 {
-	m_textureCommonData.Init(10);
-	m_textureCommonDataValidators.Init(10);
 	CreateDefaultTexture();
 }
 

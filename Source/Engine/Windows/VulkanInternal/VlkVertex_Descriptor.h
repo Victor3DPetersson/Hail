@@ -37,8 +37,8 @@ namespace Hail
 		{
 		case VERTEX_TYPES::SPRITE:
 		{
-			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
-			attributeDescriptions.InitAndFill(1);
+			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions(1);
+			attributeDescriptions.Fill();
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
 			attributeDescriptions[0].format = VK_FORMAT_R32_UINT;
@@ -49,8 +49,8 @@ namespace Hail
 		break;
 		case VERTEX_TYPES::MODEL:
 		{
-			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
-			attributeDescriptions.InitAndFill(7);
+			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions(7);
+			attributeDescriptions.Fill();
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
 			attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -84,8 +84,8 @@ namespace Hail
 		break;
 		case VERTEX_TYPES::ANIMATION:
 		{
-			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
-			attributeDescriptions.InitAndFill(9);
+			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions(9);
+			attributeDescriptions.Fill();
 			attributeDescriptions[0].binding = 0;
 			attributeDescriptions[0].location = 0;
 			attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -129,7 +129,6 @@ namespace Hail
 		case VERTEX_TYPES::PARTICLE:
 		{
 			GrowingArray<VkVertexInputAttributeDescription> attributeDescriptions{};
-			attributeDescriptions.InitAndFill(0);
 
 			return attributeDescriptions;
 		}

@@ -8,6 +8,10 @@
 #ifdef PLATFORM_WINDOWS
 
 #include <windows.h>
+#include <shlobj.h>
+
+#pragma comment(lib, "shell32.lib")
+
 //#elif PLATFORM_OSX//.... more to be added
 
 #endif
@@ -56,6 +60,7 @@ namespace
 }
 
 FilePath FilePath::ProjectCurrentWorkingDirectory("");
+FilePath FilePath::UserProjectDirectory("");
 
 void FilePath::CreateFileObject()
 {
@@ -155,10 +160,7 @@ const FilePath& FilePath::GetCurrentWorkingDirectory()
 
     wchar_t buffer[MAX_FILE_LENGTH];
 #ifdef PLATFORM_WINDOWS
-   if (GetCurrentDirectory(MAX_FILE_LENGTH, buffer) != NULL) 
-   {
-   } 
-   else 
+   if (GetCurrentDirectory(MAX_FILE_LENGTH, buffer) == NULL) 
    {
        //TODO: add assert
        perror("getcwd() error");
@@ -166,6 +168,37 @@ const FilePath& FilePath::GetCurrentWorkingDirectory()
 #endif
    ProjectCurrentWorkingDirectory = FilePath(buffer);
    return ProjectCurrentWorkingDirectory;
+}
+
+const FilePath& Hail::FilePath::GetUserProjectDirectory()
+{
+    if (UserProjectDirectory.Length() != 0)
+        return UserProjectDirectory;
+
+    WString64 applicationName = L"Hail"; // TODO: exchange with our own chosen name
+    wchar_t data[MAX_FILE_LENGTH];
+    bool foundPath = false;
+
+#ifdef PLATFORM_WINDOWS
+    PWSTR   ppszPath;    // variable to receive the path memory block pointer.
+
+    HRESULT hr = SHGetKnownFolderPath(FOLDERID_Documents, 0, NULL, &ppszPath);
+
+    if (SUCCEEDED(hr)) 
+    {
+        memcpy(data, ppszPath, StringLength(ppszPath) * sizeof(wchar_t));
+        data[StringLength(ppszPath)] = g_End;
+        foundPath = true;
+    }
+
+    CoTaskMemFree(ppszPath);
+#endif
+    if (foundPath)
+    {
+        UserProjectDirectory = FilePath(data) + applicationName.Data();
+    }
+
+    return UserProjectDirectory;
 }
 
 int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB)

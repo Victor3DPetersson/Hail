@@ -278,14 +278,15 @@ void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolu
 
 Hail::Mesh Hail::CreateUnitCube()
 {
-	Mesh mesh;
+	Mesh mesh{};
 	float w = 50;
 	float h = 50;
 	float d = 50;
 
 	//Create Vertices
 	const int amountOfVertices = 24;
-	mesh.vertices.InitAndFill(24);
+	mesh.vertices.Prepare(24);
+	mesh.vertices.Fill();
 	VertexModel v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17, v18, v19, v20, v21, v22, v23, v24;
 
 	glm::vec3 toBinormal;
@@ -562,7 +563,7 @@ Hail::Mesh Hail::CreateUnitSphere()
 	float thetaStep = 2.0f * Math::PIf / sliceCount;
 
 	mesh.vertices;
-	mesh.vertices.Init(40);
+	mesh.vertices.Prepare(40);
 	VertexModel topVertex;
 	topVertex.pos = { 0, radius, 0 };
 	topVertex.color = { 1.0, 1.0,1.0,1.0 };
@@ -617,7 +618,7 @@ Hail::Mesh Hail::CreateUnitSphere()
 	mesh.vertices.Add(botVertex);
 
 	
-	mesh.indices.Init(mesh.vertices.Size() * 3);
+	mesh.indices.Prepare(mesh.vertices.Size() * 3);
 
 	for (uint32_t i = 1; i <= sliceCount; i++) {
 		mesh.indices.Add(0);
@@ -665,7 +666,7 @@ Hail::Mesh Hail::CreateUnitCylinder()
 
 	//Vertices
 	GrowingArray<VertexModel>& vertices = mesh.vertices;
-	vertices.Init(40);
+	vertices.Prepare(40);
 	for (uint32_t i = 0; i < ringCount + 1; i++)
 	{
 		float y = -0.5f * height + i * stackHeight;
@@ -698,7 +699,7 @@ Hail::Mesh Hail::CreateUnitCylinder()
 
 	//Indices
 	GrowingArray<uint32_t>& vertexIndices = mesh.indices;
-	vertexIndices.Init(vertices.Size() * 3);
+	vertexIndices.Prepare(vertices.Size() * 3);
 	uint32_t ringVertexCount = sliceCount + 1;
 	for (uint32_t i = 0; i < stackCount; i++)
 	{

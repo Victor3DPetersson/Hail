@@ -185,8 +185,8 @@ void Hail::ImGuiCommandRecorder::ClearAndTransferResponses(ImGuiCommandRecorder&
 void Hail::ImGuiCommandManager::Init(ResourceManager* resourceManager)
 {
 	m_resourceManager = resourceManager;
-	m_commandRecorder[0].m_commands.Init(100);
-	m_commandRecorder[1].m_commands.Init(100);
+	m_commandRecorder[0].m_commands.Prepare(100);
+	m_commandRecorder[1].m_commands.Prepare(100);
 }
 
 void Hail::ImGuiCommandManager::RenderImguiCommands()

@@ -6,16 +6,18 @@
 #include <atomic>
 #include "InputMappings.h"
 
-class InputHandler;
 
 namespace Hail
 {
 	class ImGuiCommandRecorder;
+	class InputHandler;
 	class ResourceManager;
+	class InputActionMap;
 
 	struct ApplicationFrameData
 	{
-		InputMap inputData;
+		InputMap rawInputData;
+		InputActionMap* inputActionMap;
 		RenderCommandPool* renderPool;
 		ImGuiCommandRecorder* imguiCommandRecorder;
 	};
@@ -25,7 +27,7 @@ namespace Hail
 	public:
 		ThreadSyncronizer() = default;
 		void Init(float tickTimer);
-		void SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager);
+		void SynchronizeAppData(InputActionMap& inputActionMap, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager);
 		void SynchronizeRenderData(float frameDeltaTime);
 		ApplicationFrameData& GetAppFrameData() { return m_appData; }
 		RenderCommandPool& GetRenderPool() { return m_rendererCommandPool; }
@@ -43,9 +45,9 @@ namespace Hail
 		RenderCommandPool m_renderCommandPools[3]{};
 		RenderCommandPool m_rendererCommandPool{};
 		ApplicationFrameData m_appData{};
-		uint32_t m_currentActiveRenderPoolWrite = 0;
-		uint32_t m_currentActiveRenderPoolRead = 0;
-		uint32_t m_currentActiveRenderPoolLastRead = 0;
+		uint32 m_currentActiveRenderPoolWrite = 0;
+		uint32 m_currentActiveRenderPoolRead = 0;
+		uint32 m_currentActiveRenderPoolLastRead = 0;
 		float m_renderBlendValue = 0.0f;
 		float m_engineTickRate = 0.0f;
 		float m_currentRenderTimer = 0.0f;

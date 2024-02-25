@@ -19,8 +19,6 @@ namespace Hail
 		m_textureManager = textureResourceManager;
 		m_swapChain = swapChain;
 		m_renderingResourceManager = renderingResourceManager;
-		m_materialsInstanceData.Init(10);
-		m_materialsInstanceValidationData.Init(10);
 	}
 
 	bool MaterialManager::InitMaterial(MATERIAL_TYPE type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight)

@@ -1,13 +1,16 @@
 #pragma once
 #include "StartupAttributes.h"
 
-class InputHandler;
+namespace Hail
+{
+	class InputHandler;
+}
 
 class ApplicationWindow
 {
 public:
 
-	virtual bool Init(StartupAttributes startupData, InputHandler* inputHandler) = 0;
+	virtual bool Init(StartupAttributes startupData, Hail::InputHandler* inputHandler) = 0;
 
 	virtual void SetApplicationSettings(Hail::ApplicationMessage message) = 0;
 

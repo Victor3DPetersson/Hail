@@ -31,7 +31,10 @@ size_t StaticArray<Type, size>::Getsize()
 template <typename Type, size_t size>
 StaticArray<Type, size>::StaticArray(const Type initialArrayValue)
 {
-	memset(m_data, initialArrayValue, sizeof(Type) * size);
+	for (size_t i = 0; i < size; i++)
+	{
+		m_data[i] = initialArrayValue;
+	}
 }
 
 template <typename Type, size_t size>

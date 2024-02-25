@@ -1,6 +1,7 @@
 #include "Shared_PCH.h"
 #include "StringUtility.h"
 #include <cstdlib>
+#include <stdlib.h>
 
 namespace Hail
 {
@@ -194,4 +195,10 @@ namespace Hail
 		}
 	}
 
+	int32 Hail::StringUtility::IntFromConstChar(const char* charToRead, uint32 startPosition)
+	{
+		return strtol(charToRead + startPosition, nullptr, 10);
+	}
 }
+
+

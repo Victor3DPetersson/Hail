@@ -12,8 +12,6 @@ namespace
 
 void ResourceRegistry::Init()
 {
-	m_textureResources.Init(16);
-	m_materialResources.Init(16);
 	RecursiveFileIterator fileIterator(FilePath::GetCurrentWorkingDirectory());
 
 	

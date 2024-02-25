@@ -6,7 +6,7 @@
 
 
 #include "Windows_InputHandler.h"
-#include "InputHandler.h"
+#include "Input/InputHandler.h"
 #include "HailEngine.h"
 
 #include "imgui.h"
@@ -113,7 +113,7 @@ LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM
 }
 
 
-bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler* inputHandler)
+bool Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::InputHandler* inputHandler)
 {
 	m_defaultWindowPosition = { startupData.startPositionX, startupData.startPositionY };
 
@@ -125,14 +125,14 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 	windowClass.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
 	windowClass.lpfnWndProc = Windows_ApplicationWindow::WinProc;
 	windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	windowClass.lpszClassName = L"Slask";
+	windowClass.lpszClassName = L"Hail"; // TODO, replace with actual name from startup message
 	//windowClass.hIcon = ::LoadIcon(nullptr, MAKEINTRESOURCE(IDI_ICON)); // for when we create an icon for the window
 	RegisterClass(&windowClass);
 	DWORD windowStyle = 0;
 	//windowStyle = WS_POPUP | WS_VISIBLE;
 	windowStyle = WS_OVERLAPPEDWINDOW | WS_POPUP | WS_VISIBLE;
-	m_windowHandle = CreateWindowW(L"Slask",
-		_T("Slask"), //title of the window
+	m_windowHandle = CreateWindowW(L"Hail",
+		_T("Hail"), //title of the window
 		windowStyle, // window style
 		m_defaultWindowPosition.x, m_defaultWindowPosition.y, //Position of Window
 		resolution.x, resolution.y, //Size Of Window
@@ -160,7 +160,7 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, InputHandler
 	}
 
 	m_inputHandler = inputHandler;
-	m_windowsInputHandler = reinterpret_cast<Windows_InputHandler*>(m_inputHandler);
+	m_windowsInputHandler = reinterpret_cast<Hail::Windows_InputHandler*>(m_inputHandler);
 	m_windowsInputHandler->SetWindowHandle(m_windowHandle);
 
 	return true;
@@ -271,7 +271,8 @@ void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage 
 	}
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::RESTORE_FOCUS))
 	{
-
+		if (m_inputHandler)
+			m_inputHandler->ResetKeyStates();
 	}
 }
 

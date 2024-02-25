@@ -466,7 +466,8 @@ SwapChainSupportDetails VlkDevice::QuerySwapChainSupport(VkPhysicalDevice device
 
 	if (formatCount != 0)
 	{
-		details.formats.InitAndFill(formatCount);
+		details.formats.Prepare(formatCount);
+		details.formats.Fill();
 		vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_surface, &formatCount, details.formats.Data());
 	}
 
@@ -475,7 +476,8 @@ SwapChainSupportDetails VlkDevice::QuerySwapChainSupport(VkPhysicalDevice device
 
 	if (presentModeCount != 0)
 	{
-		details.presentModes.InitAndFill(presentModeCount);
+		details.presentModes.Prepare(presentModeCount);
+		details.presentModes.Fill();
 		vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_surface, &presentModeCount, details.presentModes.Data());
 	}
 

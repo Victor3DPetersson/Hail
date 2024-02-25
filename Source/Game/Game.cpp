@@ -7,6 +7,7 @@
 #include "../Engine/RenderCommands.h"
 
 #include "Camera.h"
+#include "../Engine/Input/InputActionMap.h"
 
 #include "../Engine/ImGui/ImGuiCommands.h"
 #include "../Engine/ImGui/ImGuiFileBrowser.h"
@@ -105,7 +106,6 @@ namespace Hail
 			sprites[i].index = i + 1;
 			sprites[i].transform.SetScale({ 0.25, 0.25 });
 		}
-		g_fileBrowserData.objectsToSelect.Init(16);
 		g_fileBrowserData.extensionsToSearchFor = { "tga", "frag", "vert" };
 		g_fileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 
@@ -176,32 +176,38 @@ namespace Hail
 
 
 
-		if (frameData.inputData.keyMap[m_inputMapping.Q] == Hail::KEY_PRESSED)
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerAction1) == Hail::eInputState::Pressed)
 		{
 			g_camera.GetTransform().AddToPosition(glm::vec3{ 0.0, 0.0, 1.0 } *g_movementSpeed);
 		}
-		if (frameData.inputData.keyMap[m_inputMapping.E] == Hail::KEY_PRESSED)
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerAction2) == Hail::eInputState::Pressed)
 		{
 			g_camera.GetTransform().AddToPosition(glm::vec3{ 0.0, 0.0, -1.0 } *g_movementSpeed);
 		}
-		glm::vec2 direction = { 0.0, 0.0 };
+		glm::vec2 direction = frameData.inputActionMap->GetDirectionInput(eInputAction::PlayerMoveJoystick);
+		direction.y *= (-1.0f);
 		bool moved = false;
-		if (frameData.inputData.keyMap[m_inputMapping.A] == Hail::KEY_PRESSED)
+
+
+		if (direction.x != 0.0 || direction.y != 0.0f)
+			moved = true;
+
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerMoveLeft) == Hail::eInputState::Down)
 		{
 			direction += (glm::vec2{ -1.0, 0.0 });
 			moved = true;
 		}
-		if (frameData.inputData.keyMap[m_inputMapping.D] == Hail::KEY_PRESSED)
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerMoveRight) == Hail::eInputState::Down)
 		{
 			direction += (glm::vec2{ 1.0, 0.0 });
 			moved = true;
 		}
-		if (frameData.inputData.keyMap[m_inputMapping.W] == Hail::KEY_PRESSED)
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerMoveUp) == Hail::eInputState::Down)
 		{
 			direction += (glm::vec2{ 0.0, -1.0 });
 			moved = true;
 		}
-		if (frameData.inputData.keyMap[m_inputMapping.S] == Hail::KEY_PRESSED)
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerMoveDown) == Hail::eInputState::Down)
 		{
 			direction += glm::vec2{ 0.0, 1.0 };
 			moved = true;
@@ -213,7 +219,7 @@ namespace Hail
 			player.transform.AddToPosition(direction * g_spriteMovementSpeed);
 			player.transform.LookAt(direction);
 		}
-		if (frameData.inputData.keyMap[m_inputMapping.SPACE] == Hail::KEY_RELEASED)
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerPause) == Hail::eInputState::Released)
 
 		{
 			renderPlayer = !renderPlayer;

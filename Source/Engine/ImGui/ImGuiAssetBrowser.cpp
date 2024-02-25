@@ -269,7 +269,6 @@ void Hail::ImGuiAssetBrowser::InitFileBrowser()
 	}
 	m_fileBrowsersAreInited = true;
 	m_textureFileBrowserData.allowMultipleSelection = true;
-	m_textureFileBrowserData.objectsToSelect.Init(16);
 	m_textureFileBrowserData.extensionsToSearchFor = { "tga" };
 	m_textureFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 }
@@ -291,7 +290,6 @@ void Hail::ImGuiAssetBrowser::InitCommonData()
 	m_currentFileDirectoryOpened = m_fileSystem.GetCurrentFileDirectoryObject();
 	InitFileBrowser();
 	InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
-	m_selectedTextureAssets.Init(8);
 }
 
 void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
@@ -305,8 +303,6 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 	RelativeFilePath path = RelativeFilePath(m_fileSystem.GetCurrentFilePath());
 	FilePath path2 = m_fileSystem.GetCurrentFilePath();
 
-	if (!foldersAtLevel.IsInitialized())
-		foldersAtLevel.Init(4);
 	//check if folder already has been initialized and created, if it has, clear it
 	for (size_t i = 0; i < foldersAtLevel.Size(); i++)
 	{
@@ -324,7 +320,6 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 
 	TextureFolder textureFolder;
 	textureFolder.owningFileObject = fileObject;
-	textureFolder.folderTextures.Init(directory[0].Size());
 	for (size_t fileI = 0; fileI < directory[0].Size(); fileI++)
 	{
 		const SelectAbleFileObject& fileObject = directory[0][fileI];

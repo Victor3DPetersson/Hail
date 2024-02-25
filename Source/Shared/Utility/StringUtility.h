@@ -26,5 +26,10 @@ namespace Hail
 	void FromWCharToConstChar(const wchar_t* inWChar, char* outChar, uint32 outCharMaxlength);
 	void FromConstCharToWChar(const char* inChar, wchar_t* outChar, size_t outCharMaxlength);
 
+	namespace StringUtility
+	{
+		int32 IntFromConstChar(const char* charToRead, uint32 startPosition);
+	}
+
 
 }

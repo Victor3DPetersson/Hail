@@ -1,7 +1,9 @@
 #include "Engine_PCH.h"
 #include "HailEngine.h"
 
-#include "InputHandler.h"
+#include "Input\InputHandler.h"
+#include "Input\InputActionMap.h"
+
 #include "ApplicationWindow.h"
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
@@ -26,6 +28,7 @@ namespace Hail
 	{
 		Timer* timer = nullptr;
 		InputHandler* inputHandler = nullptr;
+		InputActionMap inputActionMap;
 		ApplicationWindow* appWindow = nullptr;
 		Renderer* renderer = nullptr;
 		ResourceManager* resourceManager = nullptr;
@@ -106,8 +109,12 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
 	g_engineData->applicationTickRate = static_cast<float>(startupData.applicationTickRate);
 
-	g_engineData->threadSynchronizer.SynchronizeAppData(*g_engineData->inputHandler, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
+	g_engineData->inputActionMap.Init(g_engineData->inputHandler);
+
+	g_engineData->threadSynchronizer.SynchronizeAppData(g_engineData->inputActionMap, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
 	startupData.postInitFunctionToCall();
+
+
 	return true;
 }
 
@@ -126,7 +133,7 @@ void Hail::ShutDownEngine()
 	g_engineData->terminateApplication = true;
 }
 
-InputHandler& Hail::GetInputHandler()
+Hail::InputHandler& Hail::GetInputHandler()
 {
 	return *g_engineData->inputHandler;
 }
@@ -158,8 +165,10 @@ void Hail::MainLoop()
 	while (engineData.runMainThread)
 	{
 		engineData.timer->FrameStart();
+		// Updates window state and checks for input messages from OS
 		engineData.appWindow->ApplicationUpdateLoop();
-		glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
+		const glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
+
 		if (resolution.x != 0.0f && resolution.y != 0.0f)
 		{
 			ProcessRendering(lockApplicationThread);
@@ -171,8 +180,10 @@ void Hail::MainLoop()
 		//SwapData
 		if (engineData.applicationLoopDone)
 		{
+			engineData.inputHandler->UpdateGamepads();
+			g_engineData->inputActionMap.UpdateInputActions();
 			engineData.imguiCommandRecorder.SwitchCommandBuffers(lockApplicationThread);
-			engineData.threadSynchronizer.SynchronizeAppData(*engineData.inputHandler, engineData.imguiCommandRecorder.FetchImguiResults(), *engineData.resourceManager);
+			engineData.threadSynchronizer.SynchronizeAppData(engineData.inputActionMap, engineData.imguiCommandRecorder.FetchImguiResults(), *engineData.resourceManager);
 
 			if (lockApplicationThread)
 			{
@@ -183,7 +194,7 @@ void Hail::MainLoop()
 			}
 
 			engineData.applicationLoopDone = false;
-			engineData.inputHandler->ResetKeyStates();
+			engineData.inputHandler->UpdateKeyStates();
 		}
 		if (engineData.pauseApplication == false)
 		{
@@ -209,7 +220,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 			engineData.pauseApplication = false;
 			engineData.runApplication = true;
 			engineData.applicationThread = std::thread(&ProcessApplication);
-			engineData.inputHandler->ResetKeyStates();
+			engineData.inputHandler->UpdateKeyStates();
 		}
 	}
 	else

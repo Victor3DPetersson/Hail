@@ -128,8 +128,8 @@ namespace Hail
 
 	bool CreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors, VkDescriptorSetLayout& returnDescriptorLayoput, VlkDevice& device)
 	{
-		GrowingArray<VkDescriptorSetLayoutBinding>bindings;
-		bindings.InitAndFill(descriptors.Size());
+		GrowingArray<VkDescriptorSetLayoutBinding>bindings(descriptors.Size());
+		bindings.Fill();
 
 		for (uint32_t i = 0; i < descriptors.Size(); i++)
 		{
@@ -188,7 +188,7 @@ namespace Hail
 		{
 			return false;
 		}
-		GrowingArray<VkDescriptorSetLayout> layouts(MAX_FRAMESINFLIGHT, m_resources.m_globalPerFrameSetLayout, false);
+		GrowingArray<VkDescriptorSetLayout> layouts(MAX_FRAMESINFLIGHT, m_resources.m_globalPerFrameSetLayout);
 		VkDescriptorSetAllocateInfo passAllocInfo{};
 		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		passAllocInfo.descriptorPool = m_resources.m_globalDescriptorPool;

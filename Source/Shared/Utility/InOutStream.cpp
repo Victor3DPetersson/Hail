@@ -17,17 +17,17 @@ namespace
         switch (openType)
         {
         case Hail::FILE_OPEN_TYPE::READ:
-            return binaryMode ? "rb" : "r";
+            return binaryMode ? "rb" : "rt";
         case Hail::FILE_OPEN_TYPE::WRITE:
-            return binaryMode ? "wb" : "w";
+            return binaryMode ? "wb" : "wt";
         case Hail::FILE_OPEN_TYPE::APPENDS:
-            return binaryMode ? "ab" : "a";
+            return binaryMode ? "ab" : "at";
         case Hail::FILE_OPEN_TYPE::READ_WRITE:
-            return binaryMode ? "r+b" : "r+";
+            return binaryMode ? "r+b" : "r+t";
         case Hail::FILE_OPEN_TYPE::CLEAR_READ_WRITE:
-            return binaryMode ? "w+b" : "w+";
+            return binaryMode ? "w+b" : "w+t";
         case Hail::FILE_OPEN_TYPE::READ_APPEND:
-            return binaryMode ? "a+b" : "a+";
+            return binaryMode ? "a+b" : "a+t";
         }
     }
     FILE* Open(const char* szPath, const char* type)
@@ -151,8 +151,7 @@ bool Hail::InOutStream::Write(const void* writeOutData, size_t sizeOfData, size_
         return false;
     }
     m_currentPosition += sizeOfData * numberOfElements;
-    fwrite(writeOutData, sizeOfData, numberOfElements, (FILE*)m_fileHandle);
-    return true;
+    return fwrite(writeOutData, sizeOfData, numberOfElements, (FILE*)m_fileHandle);
 }
 
 bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)

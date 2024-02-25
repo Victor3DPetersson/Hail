@@ -1,25 +1,26 @@
 #pragma once
 #include "glm\vec2.hpp"
-
+#include "Types.h"
 namespace Hail
 {
-	enum KeyState
+	enum class eInputState
 	{
-		KEY_NONE = 0x0,
-		KEY_PRESSED = 0xF,
-		KEY_RELEASED = 0xF0
+		None,
+		Pressed,
+		Down,
+		Released,
 	};
-	enum MouseMapping
+	enum class eMouseMapping
 	{
 		LMB,
 		RMB,
 		MMB,
-		MOUSE_KEY_COUNT
+		Count
 	};
 
 	struct MouseMap
 	{
-		unsigned char keys[MouseMapping::MOUSE_KEY_COUNT];
+		unsigned char keys[(uint32)eMouseMapping::Count];
 		glm::uvec2 mousePos;
 		glm::vec2 normalizedPos;
 		glm::vec2 mouseDelta;
@@ -31,6 +32,48 @@ namespace Hail
 		unsigned char keyMap[0xff];
 		MouseMap mouse;
 	};
+
+	enum class eGamepadInputMapping : uint8
+	{
+		A,
+		B,
+		X,
+		Y,
+		DPadUp,
+		DPadDown,
+		DPadLeft,
+		DPadRight,
+		L_Bumper,
+		R_Bumper,
+		L_Thumstick,
+		R_Thumbstick,
+		Start,
+		Back,
+		L_Trigger,
+		R_Trigger,
+		Count
+	};
+
+	//struct GamepadInputMapping
+	//{
+	//	uint16 A{};
+	//	uint16 B{};
+	//	uint16 X{};
+	//	uint16 Y{};
+
+	//	uint16 DPad_Up{};
+	//	uint16 DPad_Down{};
+	//	uint16 DPad_Left{};
+	//	uint16 DPad_Right{};
+
+	//	uint16 L_Bumper{};
+	//	uint16	R_Bumber{};
+	//	uint16 L_Thumbstick{};
+	//	uint16 R_Thumbstick;
+
+	//	uint16 Start{};
+	//	uint16 Back{};
+	//};
 
 	struct InputMapping
 	{

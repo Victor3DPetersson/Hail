@@ -1,9 +1,6 @@
 #pragma once
-#include <cstring>
-#include <assert.h>
-
-#include <functional>
-
+#include <initializer_list>
+		
 template<typename T, typename CountType = size_t>
 class GrowingArray
 {
@@ -12,8 +9,8 @@ public:
 
 	GrowingArray(const std::initializer_list<T>& initList);
 
-	GrowingArray(CountType nrOfRecommendedItems, bool useSafeModeFlag = true);
-	GrowingArray(CountType nrOfRecommendedItems,const T& objectToFillWith, bool useSafeModeFlag = true);
+	GrowingArray(CountType nrOfRecommendedItems);
+	GrowingArray(CountType nrOfRecommendedItems,const T& objectToFillWith);
 	GrowingArray(const GrowingArray& growingArray);
 	GrowingArray(GrowingArray&& growingArray);
 
@@ -22,18 +19,18 @@ public:
 	GrowingArray& operator=(const GrowingArray& growingArray);
 	GrowingArray& operator=(GrowingArray&& growingArray);
 
-	void Init(CountType nrOfRecomendedItems, bool useSafeModeFlag = true);
-	void InitAndFill(CountType nrOfRecomendedItems, bool useSafeModeFlag = true);
-	void ReInit(CountType nrOfRecomendedItems, bool useSafeModeFlag = true);
+	//Increments the counter to match the capacity of the internal array.
 	void Fill();
+
+	// Creates the memory on the heap for X amount of items, if it already has that capacity nothing happens.
+	void Prepare(CountType numberOfItemsToInit);
 
 	inline T &operator[](const CountType& index);
 	inline const T &operator[](const CountType& index) const;
 
 	inline void Add(const T & object);
 	inline void Insert(CountType index, const T & object);
-	inline void DeleteCyclic(const T & object);
-	inline void DeleteCyclicAtIndex(CountType itemNumber);
+
 	inline void RemoveCyclic(const T & object);
 	inline void RemoveCyclicAtIndex(CountType itemNumber);
 	inline void RemoveAtIndex(CountType itemNumber);
@@ -43,22 +40,16 @@ public:
 	inline T & GetLast();
 	inline const T & GetLast() const;
 
-	static const CountType FoundNone = static_cast<CountType>(-1);
-
+	// Resets the counter but does not free the memory.
 	inline void RemoveAll();
+	// Deletes the memory and resets the GrowingArray.
 	inline void DeleteAll();
-	inline void DeleteAllAndDeinit();
 
-	void Optimize();
 	__forceinline CountType Size() const;
-	inline bool Empty() { return m_elementCount == 0; }
+	__forceinline CountType Capacity() const { return m_capacity; };
+	inline bool Empty() const { return m_elementCount == 0; }
 	inline void Resize(CountType newSize);
 
-	inline bool IsInitialized() const;
-
-	inline void CallFunctionOnAllMembers(std::function<void(T&)> function);
-
-	inline void CallFunctionOnAllMembers(std::function<void(const T&)> function) const;
 	inline T* Data() { return m_arrayPointer; }
 
 
@@ -69,10 +60,7 @@ private:
 
 	T *m_arrayPointer;
 	CountType m_elementCount;
-	CountType m_sizeActual;
-
-	bool m_useSafeMode;
-	bool m_imInitialized;
+	CountType m_capacity;
 
 };
 
@@ -80,140 +68,119 @@ template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::GrowingArray()
 {
 	m_arrayPointer = nullptr;
-	m_sizeActual = 0;
+	m_capacity = 0;
 	m_elementCount = 0;
-	m_useSafeMode = true;
-	m_imInitialized = false;
 }
 
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::~GrowingArray()
 {
-	//assert(m_imInitialized == true && "Growing Array is not initialized");
-
 	DumpAll();
 }
 
 template <typename T, typename CountType>
-GrowingArray<typename T, typename CountType>::GrowingArray(const std::initializer_list<T>& initList) :m_imInitialized(false), m_sizeActual(static_cast<CountType>(initList.size())), m_elementCount(0)
+GrowingArray<typename T, typename CountType>::GrowingArray(const std::initializer_list<T>& initList) :
+	m_capacity(0),
+	m_elementCount(0),
+	m_arrayPointer(nullptr)
 {
-	Init(m_sizeActual);
-	int counter{};
+	Prepare((CountType)initList.size());
+
 	for (T object : initList)
-	{
-		m_elementCount++;
-		m_arrayPointer[counter] = object;
-		counter++;
-	}
+		m_arrayPointer[m_elementCount++] = object;
 }
 
 template <typename T, typename CountType>
-GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecommendedItems, bool useSafeModeFlag)
+GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecommendedItems) :
+	m_capacity(nrOfRecommendedItems),
+	m_elementCount(0),
+	m_arrayPointer(nullptr)
 {
-	m_arrayPointer = nullptr;
-	m_sizeActual = 0;
-	m_elementCount = 0;
-	m_useSafeMode = true;
-	m_imInitialized = false;
-	Init(nrOfRecommendedItems, useSafeModeFlag);
+	Prepare(m_capacity);
 }
 
 template <typename T, typename CountType>
-GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecommendedItems, const T& objectToFillWith, bool useSafeModeFlag)
+GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecommendedItems, const T& objectToFillWith) :
+	m_capacity(nrOfRecommendedItems),
+	m_elementCount(0),
+	m_arrayPointer(nullptr)
 {
-	m_arrayPointer = nullptr;
-	m_sizeActual = 0;
-	m_elementCount = 0;
-	m_useSafeMode = true;
-	m_imInitialized = false;
-	Init(nrOfRecommendedItems, useSafeModeFlag);
-	m_elementCount = m_sizeActual;
-	for (CountType i = 0; i < m_elementCount; i++)
+	Prepare(m_capacity);
+	for (m_elementCount = 0; m_elementCount < m_capacity; m_elementCount++)
 	{
-		m_arrayPointer[i] = objectToFillWith;
+		m_arrayPointer[m_elementCount] = objectToFillWith;
 	}
-
 }
 
 
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::GrowingArray(const GrowingArray& growingArray)
 {
+	DumpAll();
 	m_arrayPointer = nullptr;
-	m_sizeActual = 0;
+	m_capacity = 0;
 	m_elementCount = 0;
-	m_useSafeMode = true;
-	m_imInitialized = false;
 	(*this) = growingArray;
 }
 
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::GrowingArray(GrowingArray&& growingArray)
 {
-	m_sizeActual = growingArray.m_sizeActual;
-	m_useSafeMode = growingArray.m_useSafeMode;
+	m_capacity = growingArray.m_capacity;
 	m_arrayPointer = growingArray.m_arrayPointer;
 	m_elementCount = growingArray.m_elementCount;
-	m_imInitialized = growingArray.m_imInitialized;
 	m_arrayPointer = growingArray.m_arrayPointer;
 
 	growingArray.m_arrayPointer = nullptr;
+	growingArray.m_elementCount = 0;
+	growingArray.m_capacity = 0;
 }
 
 template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::Init(CountType nrOfRecomendedItems, bool useSafeModeFlag)
+void GrowingArray<typename T, typename CountType>::Prepare(CountType numberOfItemsToInit)
 {
-	assert(m_imInitialized == false, "Growing Array should not be initialized twice");
-	m_sizeActual = nrOfRecomendedItems;
-	m_useSafeMode = useSafeModeFlag;
-	m_imInitialized = true;
+	if (m_arrayPointer && numberOfItemsToInit <= m_capacity)
+		return;
 
-	m_arrayPointer = new T[m_sizeActual];
-}
+	if (!m_arrayPointer)
+	{
+		m_elementCount = 0;
+		m_capacity = numberOfItemsToInit;
+		m_arrayPointer = new T[m_capacity];
+		return;
+	}
 
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::InitAndFill(CountType nrOfRecomendedItems, bool useSafeModeFlag)
-{
-	assert(m_imInitialized == false, "Growing Array should not be initialized twice");
-	m_sizeActual = nrOfRecomendedItems;
-	m_useSafeMode = useSafeModeFlag;
-	m_imInitialized = true;
-	m_arrayPointer = new T[m_sizeActual];
-	m_elementCount = m_sizeActual;
-}
+	T* oldPointer = m_arrayPointer;
 
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::ReInit(CountType nrOfRecomendedItems, bool useSafeModeFlag)
-{
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	DumpAll();
+	m_capacity = numberOfItemsToInit;
+	m_arrayPointer = new T[m_capacity];
 
-	Init(nrOfRecomendedItems, useSafeModeFlag);
+	for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
+	{
+		m_arrayPointer[iSlot] = oldPointer[iSlot];
+	}
+
+	delete[] oldPointer;
 }
 
 template<typename T, typename CountType>
 inline void GrowingArray<T, CountType>::Fill()
 {
-	m_elementCount = m_sizeActual;
+	m_elementCount = m_capacity;
 }
 
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>& GrowingArray<typename T, typename CountType>::operator=(const GrowingArray& growingArray)
 {
-	if (m_imInitialized != false)
-	{
-		DumpAll();
-	}
+	DumpAll();
+	if (growingArray.m_capacity)
+		Prepare(growingArray.m_capacity);
 
-	Init(growingArray.m_sizeActual, growingArray.m_useSafeMode);
-
-	for (CountType iSlot = 0; iSlot < m_sizeActual; ++iSlot)
+	m_elementCount = growingArray.m_elementCount;
+	for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
 	{
 		m_arrayPointer[iSlot] = growingArray.m_arrayPointer[iSlot];
 	}
-
-	m_elementCount = growingArray.m_elementCount;
-	m_imInitialized = growingArray.m_imInitialized;
 		
 	return (*this);
 }
@@ -221,23 +188,21 @@ GrowingArray<typename T, typename CountType>& GrowingArray<typename T, typename 
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType> & GrowingArray<typename T, typename CountType>::operator=(GrowingArray&& growingArray)
 {
-	m_sizeActual = growingArray.m_sizeActual;
-	m_useSafeMode = growingArray.m_useSafeMode;
-	m_arrayPointer = growingArray.m_arrayPointer;
+	m_capacity = growingArray.m_capacity;
 	m_elementCount = growingArray.m_elementCount;
-	m_imInitialized = growingArray.m_imInitialized;
 	m_arrayPointer = growingArray.m_arrayPointer;
-
 	growingArray.m_arrayPointer = nullptr;
+	growingArray.m_elementCount = 0;
+	growingArray.m_capacity = 0;
+
 	return (*this);
 }
 
 template <typename T, typename CountType>
 T & GrowingArray<typename T, typename CountType>::operator[](const CountType& index)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(index < m_elementCount, "Index is out of range");
-	assert(index >= 0, "Index can not be a negative number");
+	//assert(index < m_elementCount, "Index is out of range");
+	//assert(index >= 0, "Index can not be a negative number");
 
 	return m_arrayPointer[index];
 }
@@ -245,9 +210,8 @@ T & GrowingArray<typename T, typename CountType>::operator[](const CountType& in
 template <typename T, typename CountType>
 const T & GrowingArray<typename T, typename CountType>::operator[](const CountType& index) const
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(index < m_elementCount, "Index is out of range");
-	assert(index >= 0, "Index can not be a negative number");
+	//assert(index < m_elementCount, "Index is out of range");
+	//assert(index >= 0, "Index can not be a negative number");
 
 	return m_arrayPointer[index];
 }
@@ -255,12 +219,11 @@ const T & GrowingArray<typename T, typename CountType>::operator[](const CountTy
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::Add(const T & object)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
+	if (!m_arrayPointer)
+		Prepare(m_capacity != 0 ? m_capacity : 8 );
 
-	if (m_elementCount + 1 > (m_sizeActual))
-	{
+	if (m_elementCount + 1 > (m_capacity))
 		GrowArray();
-	}
 
 	m_arrayPointer[m_elementCount] = object;
 	++m_elementCount;
@@ -269,9 +232,8 @@ void GrowingArray<typename T, typename CountType>::Add(const T & object)
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::Insert(CountType index, const T & object)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(index <= m_elementCount, "Index is out of range");
-	assert(index >= 0, "Index can not be a negative number");
+	if (!m_arrayPointer)
+		Prepare(8);
 
 	T tempObject = m_arrayPointer[m_elementCount - 1];
 
@@ -286,55 +248,15 @@ void GrowingArray<typename T, typename CountType>::Insert(CountType index, const
 	Add(tempObject);
 }
 
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::DeleteCyclic(const T & object)
-{
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-
-	const CountType ItemSlot = Find(object);
-	if (ItemSlot != FoundNone)
-	{
-		DeleteCyclicAtIndex(ItemSlot);
-	}	
-}
-
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::DeleteCyclicAtIndex(CountType itemNumber)
-{
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(itemNumber < m_elementCount, "Index is out of range");
-	assert(itemNumber >= 0, "Index can not be a negative number");
-
-	if (m_elementCount != 1)
-	{
-		if (itemNumber == m_elementCount - 1)
-		{
-			delete m_arrayPointer[itemNumber];
-			m_arrayPointer[itemNumber] = nullptr;
-		}
-		else
-		{
-			delete m_arrayPointer[itemNumber];
-			m_arrayPointer[itemNumber] = m_arrayPointer[m_elementCount - 1];
-
-		}
-		--m_elementCount;
-	}
-	else
-	{
-		delete m_arrayPointer[0];
-		m_arrayPointer[0] = nullptr;
-		RemoveAll();
-	}
-}
 
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::RemoveCyclic(const T & object)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
+	if (!m_arrayPointer)
+		return;
 
 	const CountType ItemSlot = Find(object);
-	if (ItemSlot != FoundNone)
+	if (ItemSlot != -1)
 	{
 		RemoveCyclicAtIndex(ItemSlot);
 	}
@@ -343,9 +265,8 @@ void GrowingArray<typename T, typename CountType>::RemoveCyclic(const T & object
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::RemoveCyclicAtIndex(CountType itemNumber)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(itemNumber < m_elementCount,"Index is out of range");
-	assert(itemNumber >= 0, "Index can not be a negative number");
+	if (!m_arrayPointer)
+		return;
 
 	if (m_elementCount != 1)
 	{
@@ -361,7 +282,8 @@ void GrowingArray<typename T, typename CountType>::RemoveCyclicAtIndex(CountType
 template <typename T, typename CountType>
 void GrowingArray<T, CountType>::RemoveAtIndex(CountType itemNumber)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
+	if (!m_arrayPointer)
+		return;
 	--m_elementCount;
 	for (unsigned int i = itemNumber; i < m_elementCount; ++i)
 	{
@@ -372,7 +294,8 @@ void GrowingArray<T, CountType>::RemoveAtIndex(CountType itemNumber)
 template<typename T, typename CountType>
 inline void GrowingArray<T, CountType>::RemoveLast()
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
+	if (!m_arrayPointer)
+		return;
 	if (m_elementCount > 0)
 	{
 		m_elementCount--;
@@ -382,7 +305,8 @@ inline void GrowingArray<T, CountType>::RemoveLast()
 template <typename T, typename CountType>
 CountType GrowingArray<typename T, typename CountType>::Find(const T & object)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
+	if (!m_arrayPointer)
+		return -1;
 
 	for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
 	{
@@ -392,24 +316,21 @@ CountType GrowingArray<typename T, typename CountType>::Find(const T & object)
 		}
 	}
 
-	return FoundNone;
+	return -1;
 
 }
 
 template <typename T, typename CountType>
 T & GrowingArray<typename T, typename CountType>::GetLast()
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(m_elementCount > 0, "Growing Array is empty");
-
+	//assert(m_arrayPointer, "Growing Array is not initialized");
 	return m_arrayPointer[m_elementCount - 1];
 }
 
 template <typename T, typename CountType>
 const T & GrowingArray<typename T, typename CountType>::GetLast() const
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	assert(m_elementCount > 0, "Growing Array is empty");
+	//assert(m_arrayPointer, "Growing Array is not initialized");
 	return m_arrayPointer[m_elementCount - 1];
 }
 
@@ -422,34 +343,7 @@ void GrowingArray<typename T, typename CountType>::RemoveAll()
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::DeleteAll()
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	delete[] m_arrayPointer;
-	m_arrayPointer = nullptr;
-	m_elementCount = 0;
-	m_sizeActual = 0;
-	//for (CountType iSlot = 0; iSlot < m_elementCount; ++iSlot)
-	//{
- //		delete m_arrayPointer[iSlot];
-	//	m_arrayPointer[iSlot] = nullptr;
-	//}
-	RemoveAll();
-}
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::DeleteAllAndDeinit()
-{
-	DeleteAll();
-	*this = GrowingArray();
-	m_imInitialized = false;
-}
-
-template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::Optimize()
-{
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	if (m_sizeActual > m_elementCount)
-	{
-		GrowArray(m_elementCount);
-	}
+	DumpAll();
 }
 
 template <typename T, typename CountType>
@@ -461,88 +355,50 @@ CountType GrowingArray<typename T, typename CountType>::Size() const
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::Resize(CountType aNewSize)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	while (aNewSize > m_sizeActual)
-	{
-		GrowArray();
-	}
-
-	m_elementCount = aNewSize;
+	if (!m_arrayPointer)
+		return;
+	GrowArray(aNewSize);
 }
 
 
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::GrowArray()
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	GrowArray(m_sizeActual * 2);
+	if (!m_arrayPointer)
+		return;
+	GrowArray(m_capacity * 2);
 }
 
 template <typename T, typename CountType>
-void GrowingArray<typename T, typename CountType>::GrowArray(const CountType aGrowSize)
+void GrowingArray<typename T, typename CountType>::GrowArray(const CountType newSize)
 {
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	T* TempPointer = m_arrayPointer;
-	const CountType TempCount = m_elementCount;
+	if (!m_arrayPointer)
+		return;
+	T* tempPointer = m_arrayPointer;
+	const CountType tempCount = m_elementCount;
+	m_arrayPointer = nullptr;
+	m_elementCount = 0;
+	Prepare(newSize);
 
-	m_imInitialized = false;
-	Init(aGrowSize);
-
-	if (m_useSafeMode == true)
+	for (; m_elementCount < tempCount; m_elementCount++)
 	{
-		for (CountType iSlot = 0; iSlot < TempCount; ++iSlot)
-		{
-			m_arrayPointer[iSlot] = TempPointer[iSlot];
-		}
-	}
-	else
-	{
-		memcpy(m_arrayPointer, TempPointer, (sizeof(T) * TempCount));
+		m_arrayPointer[m_elementCount] = tempPointer[m_elementCount];
 	}
 
-	delete[] TempPointer;
-	TempPointer = nullptr;
+
+	delete[] tempPointer;
+	tempPointer = nullptr;
 }
 
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::DumpAll()
 {
-	if (m_imInitialized == true)
+	if (m_arrayPointer)
 	{
 		delete[] m_arrayPointer; 
 		m_arrayPointer = nullptr;
-		m_sizeActual = 0;
 	}
-	m_imInitialized = false;
+	m_capacity = 0;
 	RemoveAll();
 }
 
-template <typename T, typename CountType>
-bool GrowingArray<typename T, typename CountType>::IsInitialized() const
-{
-	return m_imInitialized;
-}
-
-
-/*
-	TODO ADD explanation on how to use.
-*/
-template<typename T, typename CountType /*= unsigned short*/>
-void GrowingArray<T, CountType>::CallFunctionOnAllMembers(std::function<void(T&)> aFunction)
-{
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	for (CountType iElement = 0; iElement < m_elementCount; ++iElement)
-	{
-		aFunction((*this)[iElement]);
-	}
-}
-
-template<typename T, typename CountType /*= unsigned short*/>
-void GrowingArray<T, CountType>::CallFunctionOnAllMembers(std::function<void(const T&)> aFunction) const
-{
-	assert(m_imInitialized == true, "Growing Array is not initialized");
-	for (CountType iElement = 0; iElement < m_elementCount; ++iElement)
-	{
-		aFunction((*this)[iElement]);
-	}
-}

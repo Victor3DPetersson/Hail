@@ -568,8 +568,7 @@ void VlkRenderer::CreateIndexBuffer()
 
 void Hail::VlkRenderer::CreateDebugLineVertexBuffer()
 {
-	GrowingArray<uint32> debugLineVertices;
-	debugLineVertices.InitAndFill(MAX_NUMBER_OF_DEBUG_LINES);
+	GrowingArray<uint32> debugLineVertices(MAX_NUMBER_OF_DEBUG_LINES, 0);
 	for (uint32 i = 0; i < MAX_NUMBER_OF_DEBUG_LINES; i++)
 	{
 		debugLineVertices[i] = i;

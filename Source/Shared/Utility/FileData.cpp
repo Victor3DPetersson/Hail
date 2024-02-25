@@ -15,7 +15,7 @@ bool Hail::IsValidFilePathInternal(const FilePath* pathToCheck)
     //TODO: Make sure that this function does not create a copy as that feels wasteful
     FilePath pathWithWildcard = *pathToCheck;
     pathWithWildcard.AddWildcard();
-    //IfDef Windows here
+#ifdef PLATFORM_WINDOWS
     WIN32_FIND_DATA FindFileData;
     HANDLE hFind = FindFirstFile(pathWithWildcard.Data(), &FindFileData);
     if (hFind == INVALID_HANDLE_VALUE)
@@ -24,6 +24,10 @@ bool Hail::IsValidFilePathInternal(const FilePath* pathToCheck)
         return false;
     }
     FindClose(hFind);
+    //#elif PLATFORM_OSX//....
+
+
+#endif
     return true;
 }
 

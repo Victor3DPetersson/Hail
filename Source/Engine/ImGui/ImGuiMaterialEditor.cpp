@@ -27,7 +27,7 @@ namespace Hail
 		g_inited = true;
 
 		g_textureFileBrowserData.allowMultipleSelection = false;
-		g_textureFileBrowserData.objectsToSelect.Init(1);
+		g_textureFileBrowserData.objectsToSelect.Prepare(4);
 		g_textureFileBrowserData.extensionsToSearchFor = { "txr" };
 		g_textureFileBrowserData.pathToBeginSearchingIn = FilePath::GetCurrentWorkingDirectory();
 	}

@@ -300,7 +300,9 @@
     <ClInclude Include="ImGui\ImGuiHelpers.h" />
     <ClInclude Include="ImGui\ImGuiMaterialEditor.h" />
     <ClInclude Include="ImGui\ImGuiPropertyWindow.h" />
-    <ClInclude Include="InputHandler.h" />
+    <ClInclude Include="Input\InputActionList.h" />
+    <ClInclude Include="Input\InputActionMap.h" />
+    <ClInclude Include="Input\InputHandler.h" />
     <ClInclude Include="Interface\ResourceInterface.h" />
     <ClInclude Include="RenderCommands.h" />
     <ClInclude Include="Renderer.h" />
@@ -353,7 +355,8 @@
     <ClCompile Include="ImGui\ImGuiHelpers.cpp" />
     <ClCompile Include="ImGui\ImGuiMaterialEditor.cpp" />
     <ClCompile Include="ImGui\ImGuiPropertyWindow.cpp" />
-    <ClCompile Include="InputHandler.cpp" />
+    <ClCompile Include="Input\InputActionMap.cpp" />
+    <ClCompile Include="Input\InputHandler.cpp" />
     <ClCompile Include="Interface\ResourceInterface.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Rendering\FrameBufferTexture.cpp" />

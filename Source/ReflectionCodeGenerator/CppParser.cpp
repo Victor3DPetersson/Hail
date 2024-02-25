@@ -159,7 +159,7 @@ namespace
 	}
 	GrowingArray<const char*> CPLUSPLUS_TOKENS{
 		"const",
-		"explicit"
+		"explicit",
 		"inline",
 		"volatile"
 	};
@@ -272,7 +272,6 @@ namespace
 		wcstombs(fileName, currentPath.Object().Name(), currentPath.Object().Name().Length() + 1);
 
 		FileReflectableStructures reflectableStructuresInFile;
-		reflectableStructuresInFile.structuresInFile.Init(10);
 		reflectableStructuresInFile.file = currentPath;
 
 		size_t lineWhereClassTokenWillBeFound = 0;
@@ -383,10 +382,6 @@ namespace
 						Debug_PrintConsoleConstChar("Member name:");
 
 						Debug_PrintConsoleString64(member.name);
-						if (!structureToManipulate.members.IsInitialized())
-						{
-							structureToManipulate.members.Init(12);
-						}
 						structureToManipulate.members.Add(member);
 					}
 					else
@@ -489,8 +484,7 @@ namespace
 
 void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 {
-	GrowingArray<FileReflectableStructures> filesWithStructures;
-	filesWithStructures.Init(6);
+	GrowingArray<FileReflectableStructures> filesWithStructures(6);
 	Debug_PrintConsoleConstChar("Searching for reflection defines in header files");
 	{
 		String256 projectDirectory = SOURCE_DIR;
@@ -512,13 +506,11 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 				Debug_PrintConsoleConstChar("Failed to open cpp file for reading.");
 				continue;
 			}
-			GrowingArray<char> readData;
+			GrowingArray<char> readData(stream.GetFileSize(), 0);
 			char character = 1;
 			uint32_t sizeofchar = sizeof(char);
-			readData.InitAndFill(stream.GetFileSize());
 			stream.Read(readData.Data(), stream.GetFileSize(), 1);
-			GrowingArray<String256> lines;
-			lines.Init(128);
+			GrowingArray<String256> lines(128);
 			String256 currentLine;
 			size_t newLineStart = 0;
 			for (size_t i = 0; i < stream.GetFileSize(); i++)
@@ -563,7 +555,7 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 		//Move to new function
 		if (filesWithStructures[i].structuresInFile.Size() > 0)
 		{
-			GrowingArray<String256> lines;
+			GrowingArray<String256> lines(64);
 			const FileObject fileObjectsHeader = filesWithStructures[i].file.Object(); 
 			FileIterator iterator = FileIterator(filesWithStructures[i].file.Parent());
 			unsigned int lineWhereIncludesStop = 0;
@@ -590,11 +582,9 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 					Debug_PrintConsoleConstChar("Failed to open cpp file for reading.");
 				}
 
-				GrowingArray<char> readData;
+				GrowingArray<char> readData(stream.GetFileSize(), 0);
 
-				readData.InitAndFill(stream.GetFileSize());
 				stream.Read(readData.Data(), stream.GetFileSize(), 1);
-				lines.Init(128);
 				String256 currentLine;
 				size_t newLineStart = 0;
 				uint32 lineWhereReflectionNamespaceWasFound = 0xffffffff;

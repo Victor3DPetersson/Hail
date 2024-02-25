@@ -18,7 +18,7 @@ private:
 template <typename T>
 T Stack<T>::Pop()
 {
-	assert(m_data.Size() > 0 && "Trying to pop top element on empty stack!");
+	//assert(m_data.Size() > 0 && "Trying to pop top element on empty stack!");
 	T temp{};
 	if (m_data.Size() > 0)
 	{
@@ -31,14 +31,14 @@ T Stack<T>::Pop()
 template <typename T>
 const T & Stack<T>::Top() const
 {
-	assert(m_data.Size() > 0 && "Trying to access top element on empty stack!");
+	//assert(m_data.Size() > 0 && "Trying to access top element on empty stack!");
 	return m_data.GetLast();
 }
 
 template <typename T>
 T& Stack<T>::Top()
 {
-	assert(m_data.Size() > 0 && "Trying to access top element on empty stack!");
+	//assert(m_data.Size() > 0 && "Trying to access top element on empty stack!");
 	return m_data.GetLast();
 }
 
@@ -51,7 +51,7 @@ void Stack<T>::Push(const T& value)
 template <typename T>
 Stack<T>::Stack()
 {
-	m_data.Init(10);
+	m_data.Prepare(16);
 }
 
 template <typename T>

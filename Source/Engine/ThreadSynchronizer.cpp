@@ -1,9 +1,10 @@
 #include "Engine_PCH.h"
 #include "ThreadSynchronizer.h"
-#include "InputHandler.h"
+#include "Input\InputHandler.h"
 #include "glm\common.hpp"
 #include "Resources\ResourceManager.h"
 #include "Rendering\SwapChain.h"
+#include "Input\InputActionMap.h"
 
 void Hail::ThreadSyncronizer::Init(float tickTimer)
 {
@@ -14,11 +15,12 @@ void Hail::ThreadSyncronizer::Init(float tickTimer)
 	m_appData.renderPool = &m_renderCommandPools[m_currentActiveRenderPoolWrite];
 }
 
-void Hail::ThreadSyncronizer::SynchronizeAppData(InputHandler& inputHandler, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager)
+void Hail::ThreadSyncronizer::SynchronizeAppData(InputActionMap& inputActionMap, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager)
 {
 	SwapBuffersInternal();
 	ClearApplicationBuffers();
-	m_appData.inputData = inputHandler.GetInputMap();
+	m_appData.rawInputData = inputActionMap.GetRawInputMap();
+	m_appData.inputActionMap = &inputActionMap;
 	m_appData.imguiCommandRecorder = &imguiCommandRecorder;
 	m_currentRenderTimer = 0.0f;
 	m_appData.renderPool->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();

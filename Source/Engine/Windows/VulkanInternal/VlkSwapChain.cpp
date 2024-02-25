@@ -107,7 +107,7 @@ void VlkSwapChain::CleanupSwapchain(VlkDevice& device)
 		vkDestroyFramebuffer(device.GetDevice(), m_swapChainFramebuffers[i], nullptr);
 	}
 	vkDestroySwapchainKHR(device.GetDevice(), m_swapChain, nullptr);
-	m_swapChainFramebuffers.DeleteAllAndDeinit();
+	m_swapChainFramebuffers.DeleteAll();
 	m_frameBufferTexture.ClearResources(&device, true);
 }
 
@@ -263,7 +263,8 @@ void VlkSwapChain::CreateImageViews(VlkDevice& device)
 
 void VlkSwapChain::CreateFramebuffers(VlkDevice& device)
 {
-	m_swapChainFramebuffers.InitAndFill(m_imageCount);
+	m_swapChainFramebuffers.Prepare(m_imageCount);
+	m_swapChainFramebuffers.Fill();
 	for (size_t i = 0; i < m_imageCount; i++)
 	{
 		VkImageView attachments[1] = { m_frameBufferTexture.m_textureView[i] };

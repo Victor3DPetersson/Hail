@@ -68,8 +68,7 @@ namespace Hail
 			{
 				continue;
 			}
-			GrowingArray<char> readShader;
-			readShader.InitAndFill(stream.GetFileSize());
+			GrowingArray<char> readShader(stream.GetFileSize(), 0);
 			stream.Read(readShader.Data(), stream.GetFileSize());
 			String64 shaderName;
 			FromWCharToConstChar(shadersToCompile[i].Object().Name(), shaderName, 64);
@@ -147,8 +146,7 @@ namespace Hail
 		{
 			return false;
 		}
-		GrowingArray<char> readShader;
-		readShader.InitAndFill(stream.GetFileSize());
+		GrowingArray<char> readShader(stream.GetFileSize(), 0);
 		stream.Read(readShader.Data(), stream.GetFileSize());
 		//readShader[memblockSize] = '\0';//null terminating the string
 		//DEBUG_PRINT_CONSOLE_CONSTCHAR(readShader.Data());

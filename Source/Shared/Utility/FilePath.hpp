@@ -169,7 +169,7 @@ namespace Hail
 		void Slashify();
 
 		bool IsDirectory() const { return m_isDirectory; }
-		bool IsValid() const;
+		bool IsValid() const; 
 		bool IsFile() const	{ return !m_isDirectory; }
 		bool IsEmpty() const { return m_length == 0; }
 		uint32_t Length() const { return m_length; }
@@ -181,7 +181,10 @@ namespace Hail
 
 		//Fetches the file data from the path, the size and creation time.
 		void LoadCommonFileData();
+		// Folder of the exe
 		static const FilePath& GetCurrentWorkingDirectory();
+		// Will be User / ProjectName for save files and the like
+		static const FilePath& GetUserProjectDirectory();
 
 		//returns -1 if no common directory is found
 		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
@@ -195,6 +198,7 @@ namespace Hail
 
 	private:
 		static FilePath ProjectCurrentWorkingDirectory;
+		static FilePath UserProjectDirectory;
 		friend class RelativeFilePath;
 		void Reset();
 		wchar_t m_data[MAX_FILE_LENGTH];

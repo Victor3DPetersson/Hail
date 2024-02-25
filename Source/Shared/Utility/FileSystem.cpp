@@ -36,7 +36,6 @@ namespace Hail
     void FileSystem::IterateOverFilesAndFillDataRecursively(const FilePath& currentPath)
     {
         FileDirectoryWithFiles currentDirectory;
-        currentDirectory.files.Init(8);
         RecursiveFileIterator iterator = RecursiveFileIterator(currentPath);
         {
             const FilePath iteratedPath = iterator.GetCurrentPath();
@@ -45,7 +44,6 @@ namespace Hail
             currentDirectory.directoryObject = baseObject;
             // assert if baseDepth != 0
 
-            m_fileDirectories[baseDepth].Init(1);
             m_fileDirectories[baseDepth].Add(currentDirectory);
 
         }
@@ -71,10 +69,6 @@ namespace Hail
                     currentDirectory.files.RemoveAll();
                     currentDirectory.directoryObject = currentObject;
                 }
-                if (!m_fileDirectories[currentDepth].IsInitialized())
-                {
-                    m_fileDirectories[currentDepth].Init(4);
-                }
                 m_fileDirectories[currentDepth].Add(currentDirectory);
             }
 
@@ -82,7 +76,8 @@ namespace Hail
             {
                 if (m_fileDirectories[currentDirectoryDepth][i].directoryObject.Name() == currentObject.ParentName())
                 {
-                    m_fileDirectories[currentDirectoryDepth][i].files.Add(currentObject);
+                    GrowingArray<SelectAbleFileObject>& files = m_fileDirectories[currentDirectoryDepth][i].files;
+                    files.Add(currentObject);
                     break;
                 }
             }
@@ -211,7 +206,6 @@ namespace Hail
         }
         FileDirectoryWithFiles directory;
         directory.directoryObject = directoryObject;
-        directory.files.Init(8);
         directoryAtLevel.Add(directory);
         IterateOverFolderAndFillData(folderToReload.IsDirectory() ? folderToReload : folderToReload.Parent());
     }
@@ -366,11 +360,7 @@ namespace Hail
 
     void FileSystem::Initialize()
     {
-        if (!m_currentDirectoryFiles.IsInitialized())
-        {
-            m_currentDirectoryFiles.Init(32);
-            m_isInitialized = true;
-        }
+        m_isInitialized = true;
     }
 
     void FileSystem::Reset()
@@ -379,13 +369,10 @@ namespace Hail
         m_isInitialized = {};
         for (size_t i = 0; i < MAX_FILE_DEPTH; i++)
         {
-            if (m_fileDirectories[i].IsInitialized())
-                m_fileDirectories[i].DeleteAllAndDeinit();
-
+            m_fileDirectories[i].DeleteAll();
             m_directories[i] = SelectAbleFileObject();
         }
-        if (m_currentDirectoryFiles.IsInitialized())
-            m_currentDirectoryFiles.DeleteAllAndDeinit();
+        m_currentDirectoryFiles.DeleteAll();
         m_currentFileDirectoryObject = FileObject();
         m_currentDepth = {};
         m_basePath = {};

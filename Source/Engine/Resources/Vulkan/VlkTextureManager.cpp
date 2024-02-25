@@ -17,7 +17,6 @@ using namespace Hail;
 void VlkTextureResourceManager::Init(RenderingDevice* device)
 {
 	m_device = reinterpret_cast<VlkDevice*>(device);
-	m_textures.Init(10);
 	TextureManager::Init(device);
 }
 
