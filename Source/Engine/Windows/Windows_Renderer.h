@@ -14,7 +14,7 @@ namespace Hail
 	class VlkRenderer : public Renderer
 	{
 	public:
-		bool InitDevice(RESOLUTIONS startupResolution, Timer* timer) final;
+		bool InitDevice(Timer* timer) final;
 		bool InitGraphicsEngine(ResourceManager* resourceManager) final;
 		void StartFrame(RenderCommandPool& renderPool) final;
 		void Render() final;

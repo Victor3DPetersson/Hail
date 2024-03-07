@@ -3,21 +3,16 @@
 #include <string>
 #include "Utilities.h"
 
-constexpr uint32_t INVALID_UINT = 0xffffffff;
-
 namespace Hail
 {
 	struct ApplicationFrameData;
-}
-
-using callback_function = std::function<void()>;
-using callback_function_init = std::function<void(void*)>;
-using callback_function_totalTime_dt_frmData = std::function<void(double, float, Hail::ApplicationFrameData&)>;
 
 
-namespace Hail
-{
-	enum APPLICATION_COMMAND : uint32_t
+	using callback_function = std::function<void()>;
+	using callback_function_init = std::function<void(void*)>;
+	using callback_function_totalTime_dt_frmData = std::function<void(double, float, Hail::ApplicationFrameData&)>;
+
+	enum APPLICATION_COMMAND : uint16
 	{
 		NONE = 1 << 0,
 		TOGGLE_FULLSCREEN = 1 << 1, //Will toggle fullscreen
@@ -33,28 +28,30 @@ namespace Hail
 
 	struct ApplicationMessage
 	{
-		uint32_t command = 0;
-		RESOLUTIONS renderResolution = RESOLUTIONS::COUNT;
-		RESOLUTIONS windowResolution = RESOLUTIONS::COUNT;
+		uint32 command = 0;
+		eResolutions renderResolution = eResolutions::Count;
+		eResolutions windowResolution = eResolutions::Count;
+	};
+
+
+	struct StartupAttributes
+	{
+		callback_function_init initFunctionToCall = nullptr;
+		callback_function postInitFunctionToCall = nullptr;
+		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
+		callback_function shutdownFunctionToCall = nullptr;
+
+		eResolutions startupWindowResolution = eResolutions::res720;
+		eResolutions renderTargetResolution = eResolutions::res720;
+
+		uint16_t startPositionX = 400;
+		uint16_t startPositionY = 400;
+
+		uint8_t applicationTickRate = 60;
+
+		//WString64 applicationName;
+
+		bool startInFullScreen = false;
 	};
 }
 
-
-struct StartupAttributes
-{
-	callback_function_init initFunctionToCall = nullptr;
-	callback_function postInitFunctionToCall = nullptr;
-	callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
-	callback_function shutdownFunctionToCall = nullptr;
-
-	RESOLUTIONS startupResolution = RESOLUTIONS::RES720;
-
-	uint16_t startPositionX = 400;
-	uint16_t startPositionY = 400;
-
-	uint8_t applicationTickRate = 60;
-
-	//std::wstring applicationName;
-
-	bool startInFullScreen = false;
-};

@@ -13,7 +13,7 @@ int main()
 
 	Hail::GameApplication* game = new Hail::GameApplication();
 
-	StartupAttributes startData;
+	Hail::StartupAttributes startData;
 
 
 	startData.initFunctionToCall = [game](void* initData) { game->Init(initData); };

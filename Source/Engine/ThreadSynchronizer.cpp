@@ -25,12 +25,36 @@ void Hail::ThreadSyncronizer::SynchronizeAppData(InputActionMap& inputActionMap,
 	m_currentRenderTimer = 0.0f;
 	m_appData.renderPool->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();
 	m_appData.renderPool->inverseHorizontalAspectRatio = 1.0 / m_appData.renderPool->horizontalAspectRatio;
+	m_currentResolution = ResolutionFromEnum(resourceManager.GetTargetResolution());
 }
 
 void Hail::ThreadSyncronizer::SynchronizeRenderData(float frameDeltaTime)
 {
 	m_currentRenderTimer += frameDeltaTime;
 	LerpRenderBuffers();
+}
+
+void Hail::ThreadSyncronizer::PrepareApplicationData()
+{
+	RenderCommandPool* pPool = m_appData.renderPool;
+	Camera2D& camera = pPool->camera2D;
+	camera.SetResolution(m_currentResolution);
+	for (size_t i = 0; i < pPool->spriteCommands.Size(); i++)
+	{
+		RenderCommand_Sprite& sprite = pPool->spriteCommands[i];
+		if (sprite.bIsAffectedBy2DCamera)
+		{
+			camera.TransformToCameraSpace(sprite.transform);
+		}
+	}
+	for (size_t i = 0; i < pPool->debugLineCommands.Size(); i++)
+	{
+		RenderCommand_DebugLine& line = pPool->debugLineCommands[i];
+		if (line.bIs2D && line.bIsAffectedBy2DCamera)
+		{
+			camera.TransformLineToCameraSpace(line.pos1, line.pos2);
+		}
+	}
 }
 
 void Hail::ThreadSyncronizer::SwapBuffersInternal()
@@ -65,7 +89,7 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	float tValue = m_currentRenderTimer / m_engineTickRate;
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
-	m_rendererCommandPool.renderCamera = Camera::LerpCamera(readPool.renderCamera, lastReadPool.renderCamera, tValue);
+	m_rendererCommandPool.camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
 	
 	LerpSprites(tValue);
 	Lerp3DModels(tValue);
@@ -97,7 +121,7 @@ void Hail::ThreadSyncronizer::LerpSprites(float tValue)
 		}
 
 		const RenderCommand_Sprite& lastReadSprite = lastReadPool.spriteCommands[sprite];
-		if (readSprite.lerpCommand)
+		if (readSprite.bLerpCommand)
 		{
 			if (readSprite.index == lastReadSprite.index)
 			{
@@ -201,7 +225,7 @@ void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
 		}
 
 		const RenderCommand_DebugLine& lastReadLine = lastReadPool.debugLineCommands[iLine];
-		if (lastReadLine.lerpCommand)
+		if (lastReadLine.bLerpCommand)
 		{
 			LerpDebugLine(readLine, lastReadLine, writeLine, tValue);
 		}
@@ -218,8 +242,8 @@ void Hail::LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCo
 	writeLine.color2 = glm::mix(readLine.color2, lastReadLine.color2, t);
 	writeLine.pos1 = glm::mix(readLine.pos1, lastReadLine.pos1, t);
 	writeLine.pos2 = glm::mix(readLine.pos2, lastReadLine.pos2, t);
-	writeLine.is2D = readLine.is2D;
-	writeLine.lerpCommand = readLine.lerpCommand;
+	writeLine.bIs2D = readLine.bIs2D;
+	writeLine.bLerpCommand = readLine.bLerpCommand;
 }
 
 void Hail::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
@@ -230,7 +254,9 @@ void Hail::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const Rende
 	writeSprite.pivot = glm::mix(readSprite.pivot, lastReadSprite.pivot, t);
 	writeSprite.index = readSprite.index;
 	writeSprite.materialInstanceID = readSprite.materialInstanceID;
-	writeSprite.lerpCommand = readSprite.lerpCommand;
+	writeSprite.bLerpCommand = readSprite.bLerpCommand;
+	writeSprite.bIsAffectedBy2DCamera = readSprite.bIsAffectedBy2DCamera;
+	writeSprite.bSizeRelativeToRenderTarget = readSprite.bSizeRelativeToRenderTarget;
 }
 
 void Hail::LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t)

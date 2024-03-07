@@ -6,10 +6,10 @@ namespace Hail
 {
 	void SwapChain::CalculateRenderResolution()
 	{
-		const float aspectRatio16x9 = 16.0f / 9.0f;
+		const float aspectRatio16x9 = (float)m_targetResolution.x / (float)m_targetResolution.y;
 
-		const float ratioX = float(m_windowResolution.x) / float(m_windowResolution.y);
-		if (ratioX > aspectRatio16x9)
+		m_horizontalAspectRatio = float(m_windowResolution.x) / float(m_windowResolution.y);
+		if (m_horizontalAspectRatio >= aspectRatio16x9)
 		{
 			m_renderTargetResolution.x = m_windowResolution.y * aspectRatio16x9;
 			m_renderTargetResolution.y = m_windowResolution.y;
@@ -25,17 +25,26 @@ namespace Hail
 	{
 		// start with a 16/9 Aspect ratio, TODO: make configurable
 		m_horizontalAspectRatio = 16.0f / 9.0f;
-		m_resizeSwapChain = false;
+		m_bResizeSwapChain = false;
 		m_windowResolution = { 0, 0 };
 		m_renderTargetResolution = { 0, 0 };
 		m_targetResolution = { 720, 480 };
 	}
+
 	void SwapChain::SetTargetResolution(glm::uvec2 targetResolution)
 	{
 		if (targetResolution != m_targetResolution)
 		{
 			m_targetResolution = targetResolution;
-			m_resizeSwapChain = true;
+			m_bResizeSwapChain = true;
+		}
+	}
+	void SwapChain::SetWindowResolution(glm::uvec2 targetResolution)
+	{
+		if (targetResolution != m_windowResolution)
+		{
+			m_windowResolution = targetResolution;
+			m_bResizeSwapChain = true;
 		}
 	}
 }

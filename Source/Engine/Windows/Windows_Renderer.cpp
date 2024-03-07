@@ -42,7 +42,7 @@
 using namespace Hail;
 
 
-bool VlkRenderer::InitDevice(RESOLUTIONS startupResolution, Timer* timer)
+bool VlkRenderer::InitDevice(Timer* timer)
 {
 	m_timer = timer;
 	m_renderDevice = new VlkDevice();

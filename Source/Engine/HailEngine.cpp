@@ -81,7 +81,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->InitDevice(startupData.startupResolution,g_engineData->timer))
+	if (!g_engineData->renderer->InitDevice(g_engineData->timer))
 	{
 		return false;
 	}
@@ -89,7 +89,8 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	g_engineData->resourceRegistry.Init();
 
 	g_engineData->resourceManager = new ResourceManager();
-	g_engineData->resourceManager->SetTargetResolution(ResolutionFromEnum(startupData.startupResolution));
+	g_engineData->resourceManager->SetTargetResolution(startupData.renderTargetResolution);
+	g_engineData->resourceManager->SetWindowResolution(startupData.startupWindowResolution);
 	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice()))
 	{
 		Cleanup();
@@ -153,7 +154,7 @@ void Hail::HandleApplicationMessage(ApplicationMessage message)
 	g_engineData->appWindow->SetApplicationSettings(message);
 }
 
-ApplicationWindow* Hail::GetApplicationWIndow()
+Hail::ApplicationWindow* Hail::GetApplicationWIndow()
 {
 	return g_engineData->appWindow;
 }
@@ -245,8 +246,9 @@ void Hail::ProcessApplication()
 		if (applicationTime >= tickTime && !engineData.applicationLoopDone)
 		{
 			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, engineData.threadSynchronizer.GetAppFrameData());
-			engineData.applicationLoopDone = true;
+			engineData.threadSynchronizer.PrepareApplicationData();
 			applicationTime = 0.0;
+			engineData.applicationLoopDone = true;
 		}
 		if(engineData.terminateApplication)
 		{

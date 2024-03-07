@@ -27,7 +27,9 @@ namespace Hail
 		MaterialManager* GetMaterialManager() { return m_materialManager; }
 		TextureManager* GetTextureManager() { return m_textureManager; }
 		RenderingResourceManager* GetRenderingResourceManager() { return m_renderingResourceManager; }
-		void SetTargetResolution(glm::uvec2 targetResolution);
+		void SetTargetResolution(eResolutions targetResolution);
+		void SetWindowResolution(eResolutions targetResolution);
+		eResolutions GetTargetResolution() const { return m_targetResolution; }
 		void SetReloadOfAllResources();
 		void SetReloadOfAllTextures();
 		void ReloadResources();
@@ -47,6 +49,8 @@ namespace Hail
 		Mesh m_unitCylinder;
 
 	private:
+
+		eResolutions m_targetResolution;
 
 		//Dependency
 		RenderingDevice* m_renderDevice = nullptr;

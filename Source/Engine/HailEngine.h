@@ -4,11 +4,11 @@
 #include <atomic>
 #include "StartupAttributes.h"
 
-class ApplicationWindow;
 
 namespace Hail
 {
 	class InputHandler;
+	class ApplicationWindow;
 
 	class ResourceRegistry;
 	bool InitEngine(StartupAttributes startupData);

@@ -8,7 +8,8 @@ namespace Hail
 		PlayerMoveRight,
 		PlayerMoveLeft,
 		PlayerMoveDown,
-		PlayerMoveJoystick,
+		PlayerMoveJoystickL,
+		PlayerMoveJoystickR,
 		PlayerAction1,
 		PlayerAction2,
 		PlayerPause, // This action must be the last action of the player actions and must always be present

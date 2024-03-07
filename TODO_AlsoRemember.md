@@ -17,12 +17,12 @@
 
 # TODO: unspecified order
 
-[] Improve growing array
+[x] Improve growing array
 [] Memory allocators & memory pool
 [] Red-black tree and hashmap
 [] Long string class
 [] Make asserts and error Handling
-[] Update the input handler and create an input to action map
+[x] Update the input handler and create an input to action map
 [] Threaded loading, make it safe to load from game thread
 [] Animation system for 2D animations
 [] Profiling and a profiler window
@@ -32,6 +32,7 @@
 [] Implement a File watcher
 [] Make resource registry thread safe, could be done by looking it on write operations and waiting on read
 [] Font rendering
+[] 2D camera for the 2D rendering
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.

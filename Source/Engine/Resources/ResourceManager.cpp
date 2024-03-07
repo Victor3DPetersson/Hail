@@ -88,9 +88,15 @@ void Hail::ResourceManager::ClearAllResources()
 	m_mainPassFrameBufferTexture->ClearResources(m_renderDevice);
 }
 
-void Hail::ResourceManager::SetTargetResolution(glm::uvec2 targetResolution)
+void Hail::ResourceManager::SetTargetResolution(eResolutions targetResolution)
 {
-	m_swapChain->SetTargetResolution(targetResolution);
+	m_swapChain->SetTargetResolution(ResolutionFromEnum(targetResolution));
+	m_targetResolution = targetResolution;
+}
+
+void Hail::ResourceManager::SetWindowResolution(eResolutions targetResolution)
+{
+	m_swapChain->SetWindowResolution(ResolutionFromEnum(targetResolution));
 }
 
 void Hail::ResourceManager::SetReloadOfAllResources()
@@ -197,8 +203,8 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		
 
 		glm::vec2 spriteScale = spriteCommand.transform.GetScale();
-		const glm::vec2 spriteSizeMultiplier = spriteCommand.sizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : spriteCommand.transform.GetScale();
-		if (spriteCommand.sizeRelativeToRenderTarget)
+		const glm::vec2 spriteSizeMultiplier = spriteCommand.bSizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : spriteCommand.transform.GetScale();
+		if (spriteCommand.bSizeRelativeToRenderTarget)
 		{
 			spriteScale.x *= textureAspectRatio;
 		}
@@ -228,11 +234,11 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		const RenderCommand_DebugLine& debugLine = renderPool.debugLineCommands[iDebugLine];
 
 		DebugLineData line; 
-		line.posAndIs2D = glm::vec4(debugLine.pos1.x, debugLine.pos1.y, debugLine.pos1.z, debugLine.is2D ? 0.0f : 1.0f);
+		line.posAndIs2D = glm::vec4(debugLine.pos1.x, debugLine.pos1.y, debugLine.pos1.z, debugLine.bIs2D ? 0.0f : 1.0f);
 		line.color = debugLine.color1;
 		m_debugLineData.Add(line);
 
-		line.posAndIs2D = glm::vec4(debugLine.pos2.x, debugLine.pos2.y, debugLine.pos2.z, debugLine.is2D ? 0.0f : 1.0f);
+		line.posAndIs2D = glm::vec4(debugLine.pos2.x, debugLine.pos2.y, debugLine.pos2.z, debugLine.bIs2D ? 0.0f : 1.0f);
 		line.color = debugLine.color2;
 		m_debugLineData.Add(line);
 	}
@@ -254,8 +260,10 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	TutorialUniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = Transform3D::GetMatrix(renderPool.renderCamera.GetTransform());
-	ubo.proj = glm::perspective(glm::radians(renderPool.renderCamera.GetFov()), static_cast<float>(perFrameData.mainRenderResolution.x) / static_cast<float>(perFrameData.mainRenderResolution.y), renderPool.renderCamera.GetNear(), renderPool.renderCamera.GetFar());
+	ubo.view = Transform3D::GetMatrix(renderPool.camera3D.GetTransform());
+	ubo.proj = glm::perspective(glm::radians(renderPool.camera3D.GetFov()),
+		(float)(perFrameData.mainRenderResolution.x) / (float)(perFrameData.mainRenderResolution.y), 
+		renderPool.camera3D.GetNear(), renderPool.camera3D.GetFar());
 	ubo.proj[1][1] *= -1;
 	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::TUTORIAL, &ubo, sizeof(ubo));
 

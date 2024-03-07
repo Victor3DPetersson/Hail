@@ -48,4 +48,18 @@ namespace Hail
 
     static glm::vec4 Vec4Zero = glm::vec4(0.0, 0.0, 0.0, 0.0);
     static glm::vec4 Vec4One = glm::vec4(1.0, 1.0, 1.0, 1.0);
+
+    constexpr uint32_t INVALID_UINT = 0xffffffff;
+
+    enum class eResolutions : uint8
+    {
+        res2160,
+        res1440,
+        res1080,
+        res720,
+        res480,
+        res360,
+        Count
+    };
+
 }

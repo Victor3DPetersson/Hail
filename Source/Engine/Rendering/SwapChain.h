@@ -20,6 +20,8 @@ namespace Hail
 		glm::uvec2 GetRenderTargetResolution() const { return m_renderTargetResolution; }
 		float GetHorizontalAspectRatio() const { return m_horizontalAspectRatio; }
 		void SetTargetResolution(glm::uvec2 targetResolution);
+		void SetWindowResolution(glm::uvec2 targetResolution);
+
 	protected:
 		void CalculateRenderResolution();
 
@@ -28,7 +30,7 @@ namespace Hail
 		glm::uvec2 m_targetResolution;
 
 		float m_horizontalAspectRatio;
-		bool m_resizeSwapChain;
+		bool m_bResizeSwapChain;
 	};
 }
 

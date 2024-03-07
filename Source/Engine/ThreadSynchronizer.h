@@ -29,6 +29,8 @@ namespace Hail
 		void Init(float tickTimer);
 		void SynchronizeAppData(InputActionMap& inputActionMap, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager);
 		void SynchronizeRenderData(float frameDeltaTime);
+		// Moves sprites and the like to the correct position with the camera. Called on the application thread. 
+		void PrepareApplicationData();
 		ApplicationFrameData& GetAppFrameData() { return m_appData; }
 		RenderCommandPool& GetRenderPool() { return m_rendererCommandPool; }
 	private:
@@ -51,6 +53,8 @@ namespace Hail
 		float m_renderBlendValue = 0.0f;
 		float m_engineTickRate = 0.0f;
 		float m_currentRenderTimer = 0.0f;
+		glm::uvec2 m_currentResolution;
+		eResolutions m_renderResolution;
 	};
 }
 

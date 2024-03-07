@@ -286,7 +286,7 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 		case ImGuiCommandRecorder::IMGUI_TYPES::SLIDERF:
 			if (m_numberOfOpenWindows != 0)
 			{
-				ImGui::DragFloat(command.name.Data(), &recorder.m_floats[command.responseIndex].GetRequestValueRef());
+				ImGui::DragFloat(command.name.Data(), &recorder.m_floats[command.responseIndex].GetRequestValueRef(), 0.01);
 			}
 			//else error handling
 			break;

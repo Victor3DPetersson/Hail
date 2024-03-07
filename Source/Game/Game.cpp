@@ -23,8 +23,9 @@
 namespace
 {
 	Hail::Camera g_camera;
+	Hail::Camera2D g_2DCamera;
 	float g_movementSpeed = 10.0f;
-	float g_spriteMovementSpeed = 0.005f;
+	float g_spriteMovementSpeed = 5.0f;
 	Hail::RenderCommand_Sprite player;
 	Hail::RenderCommand_Sprite sprites[5];
 	bool renderPlayer = false;
@@ -91,15 +92,15 @@ namespace Hail
 		g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 		player.transform.SetPosition({ 0.5f, 0.5f });
-		player.sizeRelativeToRenderTarget = true;
+		player.bSizeRelativeToRenderTarget = true;
 		player.transform.SetScale({ 0.085f, 0.085f });
 		sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
 
-		sprites[1].transform.SetPosition({ 0.25f, 0.25f });
-		sprites[2].transform.SetPosition({ 0.75f, 0.25f });
-		sprites[3].transform.SetPosition({ 0.25f, 0.75f });
-		sprites[4].transform.SetPosition({ 0.75f, 0.75f });
+		sprites[1].transform.SetPosition({ -200, -200 });
+		sprites[2].transform.SetPosition({ 200, 200 });
+		sprites[3].transform.SetPosition({ -200, 200 });
+		sprites[4].transform.SetPosition({ 200, -200 });
 		for (uint32_t i = 1; i < 5; i++)
 		{
 			sprites[i].transform.SetRotation({ i * Math::PIf * 0.25f });
@@ -170,6 +171,9 @@ namespace Hail
 			{
 				recievedFrameData.imguiCommandRecorder->AddTreeNodeEnd();
 			}
+			const float cameraZoomResponse = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(11);
+			g_2DCamera.SetZoom(cameraZoomResponse != 0.f ? cameraZoomResponse : g_2DCamera.GetZoom());
+			recievedFrameData.imguiCommandRecorder->AddFloatSlider("2D Camera zoom", 11, g_2DCamera.GetZoom());
 
 		}
 		recievedFrameData.imguiCommandRecorder->AddCloseCommand();
@@ -184,13 +188,19 @@ namespace Hail
 		{
 			g_camera.GetTransform().AddToPosition(glm::vec3{ 0.0, 0.0, -1.0 } *g_movementSpeed);
 		}
-		glm::vec2 direction = frameData.inputActionMap->GetDirectionInput(eInputAction::PlayerMoveJoystick);
+		glm::vec2 direction = frameData.inputActionMap->GetDirectionInput(eInputAction::PlayerMoveJoystickL);
 		direction.y *= (-1.0f);
 		bool moved = false;
 
 
 		if (direction.x != 0.0 || direction.y != 0.0f)
 			moved = true;
+
+		{
+			const glm::vec2 oldCameraPos = g_2DCamera.GetPosition();
+			const glm::vec2 directionRStick = frameData.inputActionMap->GetDirectionInput(eInputAction::PlayerMoveJoystickR);
+			g_2DCamera.SetPosition(oldCameraPos + glm::vec2(directionRStick.x, directionRStick.y * -1.0f) * 10.f);
+		}
 
 		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerMoveLeft) == Hail::eInputState::Down)
 		{
@@ -230,7 +240,7 @@ namespace Hail
 		for (uint32_t i = 1; i < 5; i++)
 		{
 			sprites[i].transform.AddToRotation({ 0.15f * (i + 1) });
-			DrawLine2D(*frameData.renderPool, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 0.05f * (i + 1));
+			DrawLine2DPixelSpace(*frameData.renderPool, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f));
 		}
 
 		FillFrameData(*frameData.renderPool);
@@ -244,7 +254,7 @@ namespace Hail
 
 	void GameApplication::FillFrameData(Hail::RenderCommandPool& renderCommandPoolToFill)
 	{
-		renderCommandPoolToFill.renderCamera = g_camera;
+		renderCommandPoolToFill.camera3D = g_camera;
 		for (uint32_t i = 0; i < 5; i++)
 		{
 			renderCommandPoolToFill.spriteCommands.Add(sprites[i]);
@@ -253,13 +263,13 @@ namespace Hail
 		{
 			renderCommandPoolToFill.spriteCommands.Add(player);
 
-			DrawLine2D(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0);
-			DrawCircle2D(renderCommandPoolToFill, player.transform.GetPosition(), 0.05);
-			DrawBox2D(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(0.05, 0.05), glm::vec4(1.0, 0.0, 0.0, 1.0f));
-			const glm::vec2 halfDimensions = glm::vec2(0.05, 0.05);
-			DrawBox2DMinMax(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, glm::vec4(1.0, 0.6, 0.0, 1.0f));
+			DrawLine2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0);
+			DrawCircle2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), 10.0f);
+			DrawBox2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(40.0f, 40.0f), glm::vec4(1.0, 0.0, 0.0, 1.0f));
+			const glm::vec2 halfDimensions = glm::vec2(10.0, 10.0);
+			DrawBox2DMinMaxPixelSpace(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, glm::vec4(1.0, 0.6, 0.0, 1.0f));
 		}
-
+		renderCommandPoolToFill.camera2D = g_2DCamera;
 		renderCommandPoolToFill.meshCommands.Add(Hail::RenderCommand_Mesh());
 
 	}

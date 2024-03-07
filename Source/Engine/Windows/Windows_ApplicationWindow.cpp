@@ -11,12 +11,14 @@
 
 #include "imgui.h"
 
+using namespace Hail;
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK Hail::Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	
-	static Windows_ApplicationWindow* windowHandler = nullptr;
+	static Hail::Windows_ApplicationWindow* windowHandler = nullptr;
 	if (ImGui_ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam))
 		return true;
 	if (uMsg == WM_DESTROY || uMsg == WM_CLOSE)
@@ -27,7 +29,7 @@ LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM
 	else if (uMsg == WM_CREATE)
 	{
 		CREATESTRUCT* createstruct = reinterpret_cast<CREATESTRUCT*>(lParam);
-		windowHandler = reinterpret_cast<Windows_ApplicationWindow*>(createstruct->lpCreateParams);
+		windowHandler = reinterpret_cast<Hail::Windows_ApplicationWindow*>(createstruct->lpCreateParams);
 	}
 	// For drag and drop this window message is needed
 	// else if (uMsg == WM_DROPFILES) { 
@@ -113,12 +115,12 @@ LRESULT CALLBACK Windows_ApplicationWindow::WinProc(HWND hwnd, UINT uMsg, WPARAM
 }
 
 
-bool Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::InputHandler* inputHandler)
+bool Hail::Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::InputHandler* inputHandler)
 {
 	m_defaultWindowPosition = { startupData.startPositionX, startupData.startPositionY };
 
 	m_windowModule = (HINSTANCE)GetModuleHandle(NULL);
-	glm::uvec2 resolution = ResolutionFromEnum(startupData.startupResolution);
+	glm::uvec2 resolution = ResolutionFromEnum(startupData.startupWindowResolution);
 	m_previousSize = resolution;
 
 	WNDCLASS windowClass = {};
@@ -166,7 +168,7 @@ bool Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::InputH
 	return true;
 }			
 
-void Windows_ApplicationWindow::ApplicationUpdateLoop()
+void Hail::Windows_ApplicationWindow::ApplicationUpdateLoop()
 {
 
 	//Recieve window messages
@@ -183,7 +185,7 @@ void Windows_ApplicationWindow::ApplicationUpdateLoop()
 	}
 }
 
-void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage message)
+void Hail::Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage message)
 {
 	uint32_t messageCommand = static_cast<uint32_t>(message.command);
 	if (messageCommand & static_cast<uint32_t>(Hail::APPLICATION_COMMAND::TOGGLE_FULLSCREEN))
@@ -277,7 +279,7 @@ void Windows_ApplicationWindow::SetApplicationSettings(Hail::ApplicationMessage 
 }
 
 
-glm::uvec2 Windows_ApplicationWindow::GetWindowResolution()
+glm::uvec2 Hail::Windows_ApplicationWindow::GetWindowResolution()
 {
 	if (m_hasBorder)
 	{
@@ -289,17 +291,17 @@ glm::uvec2 Windows_ApplicationWindow::GetWindowResolution()
 	}
 }
 
-glm::uvec2 Windows_ApplicationWindow::GetWindowPosition()
+glm::uvec2 Hail::Windows_ApplicationWindow::GetWindowPosition()
 {
 	return glm::uvec2();
 }
 
-glm::uvec2 Windows_ApplicationWindow::GetMonitorResolution()
+glm::uvec2 Hail::Windows_ApplicationWindow::GetMonitorResolution()
 {
 	return glm::uvec2();
 }
 
-void Windows_ApplicationWindow::InternalSetWindowPos()
+void Hail::Windows_ApplicationWindow::InternalSetWindowPos()
 {
 	if (m_isFullScreen)
 	{

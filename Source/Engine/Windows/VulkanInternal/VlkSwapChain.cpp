@@ -28,18 +28,18 @@ void Hail::VlkSwapChain::Init(RenderingDevice* renderDevice)
 
 bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores)
 {
-	bool resizedSwapChain = m_resizeSwapChain;
+	bool resizedSwapChain = m_bResizeSwapChain;
 	vkWaitForFences(device.GetDevice(), 1, &inFrameFences[m_currentFrame], VK_TRUE, UINT64_MAX);
 	VkResult result = VK_SUCCESS;
-	if (!m_resizeSwapChain)
+	if (!m_bResizeSwapChain)
 	{
 		result = vkAcquireNextImageKHR(device.GetDevice(), m_swapChain, 10000, imageAvailableSemaphores[m_currentFrame], VK_NULL_HANDLE, &m_currentImageIndex);
 	}
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_resizeSwapChain)
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_bResizeSwapChain)
 	{
 		RecreateSwapchain(device, inFrameFences, imageAvailableSemaphores);
 		resizedSwapChain = true;
-		m_resizeSwapChain = false;
+		m_bResizeSwapChain = false;
 		result = VK_SUCCESS;
 	}
 	else if (result != VK_SUCCESS)
