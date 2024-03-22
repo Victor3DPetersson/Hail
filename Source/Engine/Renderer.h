@@ -42,7 +42,7 @@ namespace Hail
 		//virtual void FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;
 		//virtual void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) = 0;
 
-		virtual void BindMaterial(Material& materialToBind) = 0;
+		virtual void BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame) = 0;
 		virtual void EndMaterialPass() = 0;
 		virtual void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) = 0;
 		virtual void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
@@ -62,5 +62,6 @@ namespace Hail
 
 		RenderingDevice* m_renderDevice = nullptr;
 		RenderCommandPool* m_commandPoolToRender;
+		uint64 m_currentlyBoundMaterial{};
 	};
 }

@@ -189,6 +189,11 @@ void Hail::ImGuiCommandManager::Init(ResourceManager* resourceManager)
 	m_commandRecorder[1].m_commands.Prepare(100);
 }
 
+void Hail::ImGuiCommandManager::DeInit()
+{
+	g_assetBrowser.DeInit();
+}
+
 void Hail::ImGuiCommandManager::RenderImguiCommands()
 {
 

@@ -140,37 +140,37 @@ String64 Hail::ImGuiHelpers::FormattedTimeFromFileData(const FileTime& fileTime)
     return timePreview;
 }
 
-const char* Hail::ImGuiHelpers::GetMaterialTypeStringFromEnum(MATERIAL_TYPE type)
+const char* Hail::ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType type)
 {
     switch (type)
     {
-    case Hail::MATERIAL_TYPE::SPRITE:
+    case Hail::eMaterialType::SPRITE:
         return "Sprite";
-    case Hail::MATERIAL_TYPE::MODEL3D:
+    case Hail::eMaterialType::MODEL3D:
         return "3D Model";
-    case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-    case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
-    case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
-    case Hail::MATERIAL_TYPE::COUNT:
+    case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
+    case Hail::eMaterialType::DEBUG_LINES2D:
+    case Hail::eMaterialType::DEBUG_LINES3D:
+    case Hail::eMaterialType::COUNT:
     default:
         break;
     }
     return nullptr;
 }
 
-const char* Hail::ImGuiHelpers::GetMaterialBlendModeFromEnum(BLEND_MODE mode)
+const char* Hail::ImGuiHelpers::GetMaterialBlendModeFromEnum(eBlendMode mode)
 {
     switch (mode)
     {
-    case Hail::BLEND_MODE::NORMAL:
-        return "Normal";
-    case Hail::BLEND_MODE::ALPHABLEND:
-        return "Alpha Blend";
-    case Hail::BLEND_MODE::CUTOUT:
+    case Hail::eBlendMode::None:
+        return "None";
+    case Hail::eBlendMode::Cutout:
         return "Cut out";
-    case Hail::BLEND_MODE::ADDITIVE:
+    case Hail::eBlendMode::Translucent:
+        return "Translucent";
+    case Hail::eBlendMode::Additive:
         return "Additive";
-    case Hail::BLEND_MODE::COUNT:
+    case Hail::eBlendMode::COUNT:
     default:
         break;
     }

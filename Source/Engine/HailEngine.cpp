@@ -264,6 +264,7 @@ void Hail::ProcessApplication()
 
 void Hail::Cleanup()
 {
+	g_engineData->imguiCommandRecorder.DeInit();
 	g_engineData->renderer->Cleanup();
 	SAFEDELETE(g_engineData->appWindow);
 	SAFEDELETE(g_engineData->inputHandler);

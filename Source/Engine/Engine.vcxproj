@@ -323,6 +323,7 @@
     <ClInclude Include="Resources\TextureManager.h" />
     <ClInclude Include="Resources\TextureResource.h" />
     <ClInclude Include="Resources\Vertices.h" />
+    <ClInclude Include="Resources\Vulkan\VlkMaterial.h" />
     <ClInclude Include="Resources\Vulkan\VlkMaterialManager.h" />
     <ClInclude Include="Resources\Vulkan\VlkTextureManager.h" />
     <ClInclude Include="Resources\Vulkan\VlkTextureResource.h" />
@@ -330,6 +331,7 @@
     <ClInclude Include="Windows\VulkanInternal\VlkBufferCreationFunctions.h" />
     <ClInclude Include="Windows\VulkanInternal\VlkDevice.h" />
     <ClInclude Include="Windows\VulkanInternal\VlkFrameBufferTexture.h" />
+    <ClInclude Include="Windows\VulkanInternal\VlkMaterialCreationUtils.h" />
     <ClInclude Include="Windows\VulkanInternal\VlkResourceManager.h" />
     <ClInclude Include="Windows\VulkanInternal\VlkResources.h" />
     <ClInclude Include="Windows\VulkanInternal\VlkSingleTimeCommand.h" />
@@ -374,6 +376,7 @@
     <ClCompile Include="Resources\TextureCommons.cpp" />
     <ClCompile Include="Resources\TextureManager.cpp" />
     <ClCompile Include="Resources\TextureResource.cpp" />
+    <ClCompile Include="Resources\Vulkan\VlkMaterial.cpp" />
     <ClCompile Include="Resources\Vulkan\VlkMaterialManager.cpp" />
     <ClCompile Include="Resources\Vulkan\VlkTextureManager.cpp" />
     <ClCompile Include="Resources\Vulkan\VlkTextureResource.cpp" />
@@ -381,6 +384,7 @@
     <ClCompile Include="Windows\VulkanInternal\VlkBufferCreationFunctions.cpp" />
     <ClCompile Include="Windows\VulkanInternal\VlkDevice.cpp" />
     <ClCompile Include="Windows\VulkanInternal\VlkFrameBufferTexture.cpp" />
+    <ClCompile Include="Windows\VulkanInternal\VlkMaterialCreationUtils.cpp" />
     <ClCompile Include="Windows\VulkanInternal\VlkResourceManager.cpp" />
     <ClCompile Include="Windows\VulkanInternal\VlkResources.cpp" />
     <ClCompile Include="Windows\VulkanInternal\VlkSingleTimeCommand.cpp" />

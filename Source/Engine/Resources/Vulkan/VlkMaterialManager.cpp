@@ -7,6 +7,8 @@
 #include "Rendering\UniformBufferManager.h"
 #include "Windows\VulkanInternal\VlkResourceManager.h"
 #include "VlkTextureManager.h"
+#include "Windows\VulkanInternal\VlkMaterialCreationUtils.h"
+#include "VlkMaterial.h"
 
 using namespace Hail;
 
@@ -43,38 +45,55 @@ void Hail::VlkMaterialManager::ClearAllResources()
 	//make sure to cleanup everything
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
 
-	for (uint32 i = 0; i < (uint32)(MATERIAL_TYPE::COUNT); i++)
+	for (uint32 i = 0; i < (uint32)(eMaterialType::COUNT); i++)
 	{
-		m_passData[i].CleanupResource(device);
-		for (uint32 j = 0; j < MAX_FRAMESINFLIGHT; j++)
+
+		for (uint32 iMaterial = 0; iMaterial < m_materials[i].Size(); iMaterial++)
 		{
-			m_passData[i].CleanupResourceFrameData(device, j);
+			for (uint32 j = 0; j < MAX_FRAMESINFLIGHT; j++)
+			{
+				VlkMaterial* pVlkMat = (VlkMaterial*)m_materials[i][iMaterial];
+				pVlkMat->m_passData.CleanupResource(device);
+				pVlkMat->m_passData.CleanupResourceFrameData(device, j);
+			}
 		}
+
+
 	}
 }
 
-VlkPassData& Hail::VlkMaterialManager::GetMaterialData(MATERIAL_TYPE material)
+VlkPassData& Hail::VlkMaterialManager::GetMaterialData(eMaterialType material, uint32 materialIndex)
 {
-	return m_passData[(uint32)material];
+	return ((VlkMaterial*)m_materials[(uint32)material][materialIndex])->m_passData;
 }
 
-bool VlkMaterialManager::InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial, uint32 frameInFlight)
+void Hail::VlkMaterialManager::BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial)
 {
 	if (frameBufferToBindToMaterial)
 	{
 		m_passesFrameBufferTextures[(uint32)materialType] = (VlkFrameBufferTexture*)(frameBufferToBindToMaterial);
 	}
-	return CreateMaterialPipeline(m_materials[(uint32)materialType], frameInFlight);
+	else
+	{
+		m_passesFrameBufferTextures[(uint32)materialType] = nullptr;
+	}
+}
+
+bool VlkMaterialManager::InitMaterialInternal(Material& material, uint32 frameInFlight)
+{
+	return CreateMaterialPipeline(material, frameInFlight);
 }
 
 bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frameInFlight)
 {
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
-	VlkPassData& passData = m_passData[(uint32)material.m_type];
-	ResourceValidator& validator = m_passDataValidators[(uint32)material.m_type];
-	if (validator.GetIsResourceDirty())
+	VlkMaterial* pMat = (VlkMaterial*)&material;
+
+	VlkPassData& passData = pMat->m_passData;
+	ResourceValidator& passDataValidator = pMat->m_passDataValidator;
+	if (passDataValidator.GetIsResourceDirty())
 	{
-		if (!validator.GetIsFrameDataDirty(frameInFlight))
+		if (!passDataValidator.GetIsFrameDataDirty(frameInFlight))
 		{
 			//Add fatal assert here that something have gone wrong
 			return false;
@@ -82,22 +101,22 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	}
 
 	passData.m_frameBufferTextures = m_passesFrameBufferTextures[(uint32)material.m_type];
-	if (!SetUpMaterialLayouts(passData, material.m_type, frameInFlight))
+	if (!SetUpMaterialLayouts(passData, passDataValidator, material.m_type, frameInFlight))
 	{
 		return false;
 	}
 
 	//for debugging, check so that once everyFrameDataIsDirty the validator is set to not dirty
-	validator.ClearFrameData(frameInFlight);
+	passDataValidator.ClearFrameData(frameInFlight);
 
-	if (validator.GetFrameThatMarkedFrameDirty() != frameInFlight)
+	if (passDataValidator.GetFrameThatMarkedFrameDirty() != frameInFlight)
 	{
 		//Early out as below the resources are only created for the first frame in flight
 		return true;
 	}
 
 	//TODO: make a wireframe toggle for materials
-	const bool isWireFrame = material.m_type == MATERIAL_TYPE::DEBUG_LINES2D || material.m_type == MATERIAL_TYPE::DEBUG_LINES3D;
+	const bool isWireFrame = material.m_type == eMaterialType::DEBUG_LINES2D || material.m_type == eMaterialType::DEBUG_LINES3D;
 
 	//Code below is creating Graphics Pipeline
 	//TODO: Break out in to its own function
@@ -106,11 +125,11 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions(1);
 	switch (material.m_type)
 	{
-	case MATERIAL_TYPE::SPRITE:
+	case eMaterialType::SPRITE:
 		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
 		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
 		break;
-	case MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+	case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 		{
 			VkVertexInputAttributeDescription attributeDescription{};
 			attributeDescription.binding = 0;
@@ -123,13 +142,13 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 		vertexBindingDescription.stride = sizeof(uint32_t);
 		vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 		break;
-	case MATERIAL_TYPE::MODEL3D:
+	case eMaterialType::MODEL3D:
 		renderDepth = true;
 		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
 		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
 		break;
-	case MATERIAL_TYPE::DEBUG_LINES2D:
-	case MATERIAL_TYPE::DEBUG_LINES3D:
+	case eMaterialType::DEBUG_LINES2D:
+	case eMaterialType::DEBUG_LINES3D:
 		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
 		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
 		break;
@@ -217,15 +236,7 @@ bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frame
 	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
 	multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
-	VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_FALSE;
-	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-	colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-	colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
-	colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
-	colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
-	colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = CreateColorBlendAttachment(material);
 
 	VkPipelineColorBlendStateCreateInfo colorBlending{};
 	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
@@ -367,12 +378,12 @@ bool ValidateDescriptorBufferWrite(VkDescriptorBufferInfo& descriptorToValidate)
 	return returnValue;
 }
 
-bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight)
+bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, ResourceValidator& passDataValidator, eMaterialType type, uint32 frameInFlight)
 {
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
 
-	if (m_passDataValidators[(uint32)type].GetFrameThatMarkedFrameDirty() == frameInFlight)
+	if (passDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
 		if (!SetUpPipelineLayout(passData, type, frameInFlight))
 		{
@@ -409,7 +420,7 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	GrowingArray<VkDescriptorBufferInfo> bufferDescriptors(2);
 	switch (type)
 	{
-	case Hail::MATERIAL_TYPE::SPRITE:
+	case Hail::eMaterialType::SPRITE:
 	{
 
 		bufferSize = GetUniformBufferSize(BUFFERS::SPRITE_INSTANCE_BUFFER);
@@ -426,10 +437,10 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 		setWrites.Add(spriteInstanceBuffer);
 	}
 	break;
-	case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+	case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 	{
 		m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		m_descriptorImageInfo.imageView = m_passesFrameBufferTextures[(uint32)(MATERIAL_TYPE::SPRITE)]->GetTextureImage(frameInFlight).imageView;
+		m_descriptorImageInfo.imageView = m_passesFrameBufferTextures[(uint32)(eMaterialType::SPRITE)]->GetTextureImage(frameInFlight).imageView;
 		m_descriptorImageInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
 		if (!ValidateDescriptorSamplerWrite(m_descriptorImageInfo))
 		{
@@ -440,7 +451,7 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	}
 
 	break;
-	case Hail::MATERIAL_TYPE::MODEL3D:
+	case Hail::eMaterialType::MODEL3D:
 	{
 		bufferSize = GetUniformBufferSize(BUFFERS::TUTORIAL);
 		bufferDescriptors.Fill();
@@ -467,8 +478,8 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	}
 	break;
 
-	case MATERIAL_TYPE::DEBUG_LINES2D:
-	case MATERIAL_TYPE::DEBUG_LINES3D:
+	case eMaterialType::DEBUG_LINES2D:
+	case eMaterialType::DEBUG_LINES3D:
 		bufferDescriptors.Fill();
 
 		bufferSize = GetUniformBufferSize(BUFFERS::PER_CAMERA_DATA);
@@ -504,13 +515,13 @@ bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TY
 	}
 }
 
-bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight)
+bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, eMaterialType type, uint32 frameInFlight)
 {
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 
 	switch (type)
 	{
-	case Hail::MATERIAL_TYPE::SPRITE:
+	case Hail::eMaterialType::SPRITE:
 		if (!CreateSetLayoutDescriptor(
 			{
 				{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, GetUniformBufferIndex(Hail::BUFFERS::SPRITE_INSTANCE_BUFFER), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
@@ -526,7 +537,7 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 			return false;
 		}
 		break;
-	case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+	case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 		if (!CreateSetLayoutDescriptor(
 			{
 				{ VK_SHADER_STAGE_FRAGMENT_BIT,  1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER }
@@ -535,7 +546,7 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 			return false;
 		}
 		break;
-	case Hail::MATERIAL_TYPE::MODEL3D:
+	case Hail::eMaterialType::MODEL3D:
 		if (!CreateSetLayoutDescriptor(
 			{
 				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(Hail::BUFFERS::TUTORIAL), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER },
@@ -553,8 +564,8 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 		}
 		break;
 
-	case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
-	case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
+	case Hail::eMaterialType::DEBUG_LINES2D:
+	case Hail::eMaterialType::DEBUG_LINES3D:
 		if (!CreateSetLayoutDescriptor(
 			{
 				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(BUFFERS::PER_CAMERA_DATA), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER },
@@ -603,9 +614,9 @@ bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, MATERI
 	}
 }
 
-bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_TYPE type)
+bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterialType type)
 {
-	if (type == MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
+	if (type == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
 		passData.m_ownsRenderpass = false;
@@ -619,7 +630,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 	VkAttachmentReference depthAttachmentRef{};
 	switch (type)
 	{
-		case Hail::MATERIAL_TYPE::SPRITE:
+		case Hail::eMaterialType::SPRITE:
 		{
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
@@ -652,7 +663,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 		}
 		break;
 
-		case Hail::MATERIAL_TYPE::MODEL3D:
+		case Hail::eMaterialType::MODEL3D:
 		{
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
@@ -684,7 +695,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 		}
 		break;
 
-		case Hail::MATERIAL_TYPE::DEBUG_LINES2D:
+		case Hail::eMaterialType::DEBUG_LINES2D:
 		{
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
@@ -717,7 +728,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 		}
 		break;
 
-		case Hail::MATERIAL_TYPE::DEBUG_LINES3D:
+		case Hail::eMaterialType::DEBUG_LINES3D:
 		{
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
@@ -785,9 +796,9 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, MATERIAL_
 	return true;
 }
 
-bool VlkMaterialManager::CreateFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight)
+bool VlkMaterialManager::CreateFramebuffers(VlkPassData& passData, eMaterialType type, uint32 frameInFlight)
 {
-	if (type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
+	if (type != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 		FrameBufferTextureData colorTexture = passData.m_frameBufferTextures->GetTextureImage(frameInFlight);
@@ -824,11 +835,13 @@ bool VlkMaterialManager::CreateFramebuffers(VlkPassData& passData, MATERIAL_TYPE
 
 bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance)
 {
-	const Material& material = m_materials[instance.m_materialIdentifier];
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
-	VlkPassData& passData = m_passData[(uint32)material.m_type];
-	ResourceValidator& validator = isDefaultMaterialInstance ? GetDefaultMaterialValidator(material.m_type) : m_materialsInstanceValidationData[instance.m_instanceIdentifier];
+
+	VlkMaterial* pMat = (VlkMaterial*)m_materials[(uint8)instance.m_materialType][instance.m_materialIndex];
+
+	VlkPassData& passData = pMat->m_passData;
+	ResourceValidator& validator = isDefaultMaterialInstance ? GetDefaultMaterialValidator(instance.m_materialType) : m_materialsInstanceValidationData[instance.m_instanceIdentifier];
 	
 	if (validator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
@@ -853,9 +866,9 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 
 
 	GrowingArray<VkWriteDescriptorSet> descriptorWrites(1);
-	switch (material.m_type)
+	switch (instance.m_materialType)
 	{
-	case Hail::MATERIAL_TYPE::SPRITE:
+	case Hail::eMaterialType::SPRITE:
 	{
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -867,11 +880,11 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 	}
 
 	break;
-	case Hail::MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
+	case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 	{
 	}
 	break;
-	case Hail::MATERIAL_TYPE::MODEL3D:
+	case Hail::eMaterialType::MODEL3D:
 	{
 	}
 	break;
@@ -883,12 +896,18 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 	return true;
 }
 
-void Hail::VlkMaterialManager::ClearMaterialInternal(MATERIAL_TYPE materialType, uint32 frameInFlight)
+void Hail::VlkMaterialManager::ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight)
 {
-	m_passDataValidators[(uint32)materialType].MarkResourceAsDirty(frameInFlight);
-	if (m_passDataValidators[(uint32)materialType].GetFrameThatMarkedFrameDirty() == frameInFlight)
+	VlkMaterial* pVlkMaterial = (VlkMaterial*)pMaterial;
+	pVlkMaterial->m_passDataValidator.MarkResourceAsDirty(frameInFlight);
+	if (pVlkMaterial->m_passDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
-		m_passData[(uint32)materialType].CleanupResource(*(VlkDevice*)m_renderDevice);
+		pVlkMaterial->m_passData.CleanupResource(*(VlkDevice*)m_renderDevice);
 	}
-	m_passData[(uint32)materialType].CleanupResourceFrameData(*(VlkDevice*)m_renderDevice, frameInFlight);
+	pVlkMaterial->m_passData.CleanupResourceFrameData(*(VlkDevice*)m_renderDevice, frameInFlight);
+}
+
+Material* Hail::VlkMaterialManager::CreateUnderlyingMaterial()
+{
+	return new VlkMaterial();
 }

@@ -52,6 +52,12 @@
     <ClInclude Include="ImGui\ImGuiPropertyWindow.h">
       <Filter>ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="Input\InputActionList.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputActionMap.h">
+      <Filter>Input</Filter>
+    </ClInclude>
     <ClInclude Include="Input\InputHandler.h">
       <Filter>Input</Filter>
     </ClInclude>
@@ -111,6 +117,9 @@
     <ClInclude Include="Resources\Vertices.h">
       <Filter>Resources</Filter>
     </ClInclude>
+    <ClInclude Include="Resources\Vulkan\VlkMaterial.h">
+      <Filter>Resources\Vulkan</Filter>
+    </ClInclude>
     <ClInclude Include="Resources\Vulkan\VlkMaterialManager.h">
       <Filter>Resources\Vulkan</Filter>
     </ClInclude>
@@ -128,6 +137,9 @@
       <Filter>Windows\VulkanInternal</Filter>
     </ClInclude>
     <ClInclude Include="Windows\VulkanInternal\VlkFrameBufferTexture.h">
+      <Filter>Windows\VulkanInternal</Filter>
+    </ClInclude>
+    <ClInclude Include="Windows\VulkanInternal\VlkMaterialCreationUtils.h">
       <Filter>Windows\VulkanInternal</Filter>
     </ClInclude>
     <ClInclude Include="Windows\VulkanInternal\VlkResourceManager.h">
@@ -163,12 +175,6 @@
     <ClInclude Include="Windows\imgui_impl_win32.h">
       <Filter>Windows</Filter>
     </ClInclude>
-    <ClInclude Include="Input\InputActionMap.h">
-      <Filter>Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Input\InputActionList.h">
-      <Filter>Input</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ApplicationWindow.cpp" />
@@ -194,6 +200,9 @@
     </ClCompile>
     <ClCompile Include="ImGui\ImGuiPropertyWindow.cpp">
       <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputActionMap.cpp">
+      <Filter>Input</Filter>
     </ClCompile>
     <ClCompile Include="Input\InputHandler.cpp">
       <Filter>Input</Filter>
@@ -247,6 +256,9 @@
     <ClCompile Include="Resources\TextureResource.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
+    <ClCompile Include="Resources\Vulkan\VlkMaterial.cpp">
+      <Filter>Resources\Vulkan</Filter>
+    </ClCompile>
     <ClCompile Include="Resources\Vulkan\VlkMaterialManager.cpp">
       <Filter>Resources\Vulkan</Filter>
     </ClCompile>
@@ -264,6 +276,9 @@
       <Filter>Windows\VulkanInternal</Filter>
     </ClCompile>
     <ClCompile Include="Windows\VulkanInternal\VlkFrameBufferTexture.cpp">
+      <Filter>Windows\VulkanInternal</Filter>
+    </ClCompile>
+    <ClCompile Include="Windows\VulkanInternal\VlkMaterialCreationUtils.cpp">
       <Filter>Windows\VulkanInternal</Filter>
     </ClCompile>
     <ClCompile Include="Windows\VulkanInternal\VlkResourceManager.cpp">
@@ -289,9 +304,6 @@
     </ClCompile>
     <ClCompile Include="Windows\Windows_Renderer.cpp">
       <Filter>Windows</Filter>
-    </ClCompile>
-    <ClCompile Include="Input\InputActionMap.cpp">
-      <Filter>Input</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

@@ -9,22 +9,21 @@
 
 namespace Hail
 {
-	enum class MATERIAL_TYPE : uint8
+	enum class eMaterialType : uint8
 	{
 		SPRITE,
-		//FULLSCREEN_POSTEFFECTS,
-		FULLSCREEN_PRESENT_LETTERBOX,
+		FULLSCREEN_PRESENT_LETTERBOX, 
 		MODEL3D,
 		DEBUG_LINES2D,
 		DEBUG_LINES3D,
 		COUNT
 	};
-	enum class BLEND_MODE : uint8
+	enum class eBlendMode : uint8
 	{
-		NORMAL,
-		ALPHABLEND,
-		CUTOUT,
-		ADDITIVE,
+		None,
+		Cutout,
+		Translucent,
+		Additive,
 		COUNT
 	};
 	constexpr uint8 MAX_TEXTURE_HANDLES = 16;
@@ -34,8 +33,8 @@ namespace Hail
 
 	struct SerializeableMaterialInstance
 	{
-		MATERIAL_TYPE m_baseMaterialType{};
-		BLEND_MODE m_blendMode{};
+		eMaterialType m_baseMaterialType{};
+		eBlendMode m_blendMode{};
 		uint16 m_extraData{};
 		StaticArray<GUID, MAX_TEXTURE_HANDLES> m_textureHandles;
 		glm::vec4 m_instanceFloatParameters;
@@ -45,14 +44,20 @@ namespace Hail
 	{
 	public:
 		GUID m_id;
-		uint32 m_materialIdentifier = 0;
+		uint32 m_materialIndex = 0;
 		uint32 m_instanceIdentifier = 0;
 		uint32 m_gpuResourceInstance = 0;
+		eMaterialType m_materialType;
+		eBlendMode m_blendMode = eBlendMode::None;
+		uint8 m_cutoutThreshold = 0;
 		//Textures
 		StaticArray<uint32, MAX_TEXTURE_HANDLES> m_textureHandles = (MAX_UINT);
 		//Other instanced parameters
 		glm::vec4 m_instanceFloatParameters;
 	};
+
+	// TODO: Add unique shader hashes
+	uint64 GetMaterialSortValue(eMaterialType type, eBlendMode blend, uint32 shaderValues);
 
 	class Material
 	{
@@ -62,11 +67,12 @@ namespace Hail
 		CompiledShader m_fragmentShader;
 		CompiledShader m_tessShader;
 		CompiledShader m_controlShader;
-		BLEND_MODE m_blendMode = BLEND_MODE::NORMAL;
 
-		//Add shader reflection data here
+		eBlendMode m_blendMode = eBlendMode::None;
+		eMaterialType m_type = eMaterialType::COUNT;
+		uint64 m_sortKey = MAX_UINT;
+		ResourceValidator m_validator;
 
-		MATERIAL_TYPE m_type = MATERIAL_TYPE::COUNT;
 	};
 
 

@@ -105,6 +105,7 @@ namespace Hail
 	{
 	public:
 		void Init(ResourceManager* resourceManager);
+		void DeInit();
 		void RenderImguiCommands();
 		void RenderSingleImguiCommand(bool& unlockApplicationThread);
 		void SwitchCommandBuffers(bool& shouldLockApplicationThread);

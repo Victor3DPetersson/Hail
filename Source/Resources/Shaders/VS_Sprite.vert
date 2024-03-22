@@ -20,7 +20,7 @@ struct UIData
 	vec4 uvTL_BR;
 	vec4 color;
 	vec4 pivot_rotation_padding; //vec2 float padd
-	vec4 scaleMultiplier_effectData_padding;
+	vec4 scaleMultiplier_effectData_cutoutThreshold_padding;
 };
 
 layout(std140, set = 1, binding = 1) buffer UIDataBuffer 
@@ -44,6 +44,7 @@ const vec2 offsets[4] =
 
 layout(location = 0) out vec2 outTexCoord;
 layout(location = 1) out vec4 outColor;
+layout(location = 2) out float outCutoutThreshold;
 //layout(location = 2) out uvec2 outInstanceIDEffectID;
 
 void main() 
@@ -60,8 +61,7 @@ void main()
 	vec2 pivotPoint = instanceData.pivot_rotation_padding.xy * 2.0 - 1.0;
 	vec2 finalUV = vec2(0);
 	float rotation = instanceData.pivot_rotation_padding.z;
-	float cs = cos(rotation);
-	float sn = sin(rotation);
+
 	//TODO: set these on the vertices instead
 	vec4 vertexPos = vec4(0.0 ,0.0, 0.0, 1.0);
 	if(inIndex == 0)
@@ -104,14 +104,18 @@ void main()
 	vertexPos.x -= pivotPoint.x;
 	vertexPos.y += pivotPoint.y;
 	
-	vertexPos.xy *= finalScale;
-	
-	mat2 theRotation = mat2(cs, -sn, sn, cs);
-	vertexPos.xy = vertexPos.xy * theRotation;
+	vertexPos.xy *= (finalScale * instanceData.scaleMultiplier_effectData_cutoutThreshold_padding.xy);
+	float cs = cos(rotation);
+	float sn = sin(rotation);
+
+	mat2 rotationMatrix = mat2(cs, -sn, sn, cs);
+	vertexPos.xy = vertexPos.xy * rotationMatrix;
 	vertexPos.x *= ratio;
 	vertexPos.xy += instanceData.position_scale.xy * 2.0 - 1.0; // add input position
 
 	gl_Position = vec4(vertexPos.xy, 0.01, 1.0);
 	outTexCoord = vec2(finalUV.x, finalUV.y);
 	outColor = instanceData.color;
+	outCutoutThreshold = instanceData.scaleMultiplier_effectData_cutoutThreshold_padding.z;
+
 }

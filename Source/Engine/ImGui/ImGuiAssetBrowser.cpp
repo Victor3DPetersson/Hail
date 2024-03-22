@@ -24,7 +24,7 @@ using namespace Hail;
 
 namespace 
 {
-	//StaticArray<String64, (uint32_t)MATERIAL_TYPE::COUNT> g_materialTypeStrings;
+	//StaticArray<String64, (uint32_t)eMaterialType::COUNT> g_materialTypeStrings;
 	constexpr uint32 ASSET_SIZE = 100;
 	// will return true if double clicked
 	bool RenderAssetPreview(SelectAbleFileObject& fileObject, ImGuiTextureResource* imageResource, bool showToolTip)
@@ -99,6 +99,12 @@ Hail::ImGuiAssetBrowser::ImGuiAssetBrowser()
 	m_openedFileBrowser = false;
 	m_creatingMaterial = false;
 	m_resourceManager = nullptr;
+}
+
+void Hail::ImGuiAssetBrowser::DeInit()
+{
+	m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(m_folderTexture.m_texture);
+	m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(m_materialIconTexture.m_texture);
 }
 
 void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject)

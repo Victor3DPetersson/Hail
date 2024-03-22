@@ -9,6 +9,7 @@
 #include "ResourceRegistry.h"
 
 #include "ImGui\ImGuiContext.h"
+#include "Hashing\xxh64_en.hpp"
 
 namespace Hail
 {
@@ -21,78 +22,200 @@ namespace Hail
 		m_renderingResourceManager = renderingResourceManager;
 	}
 
-	bool MaterialManager::InitMaterial(MATERIAL_TYPE type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight)
+	uint32 TempLocalGetShaderHash(eMaterialType type)
 	{
-		if (m_materials[(uint32_t)type].m_fragmentShader.loadState == SHADER_LOADSTATE::UNLOADED
-			&& m_materials[(uint32_t)type].m_vertexShader.loadState == SHADER_LOADSTATE::UNLOADED)
+		uint32 vertexShaderHash = 0;
+		uint32 pixelShaderHash = 0;
+		switch (type)
 		{
-			Material material;
-			//Get this Data from a data file
+		case eMaterialType::SPRITE:
+			vertexShaderHash = xxh64::hash("VS_Sprite", StringLength("VS_Sprite"), 1337);
+			pixelShaderHash = xxh64::hash("FS_Sprite", StringLength("FS_Sprite"), 1337);
+			break;
+		case eMaterialType::MODEL3D:
+			vertexShaderHash = xxh64::hash("VS_triangle", StringLength("VS_triangle"), 1337);
+			pixelShaderHash = xxh64::hash("FS_triangle", StringLength("FS_triangle"), 1337);
+			break;
+		case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
+			vertexShaderHash = xxh64::hash("VS_fullscreenPass", StringLength("VS_fullscreenPass"), 1337);
+			pixelShaderHash = xxh64::hash("FS_fullscreenPass", StringLength("FS_fullscreenPass"), 1337);
+			break;
+		case eMaterialType::DEBUG_LINES2D:
+		case eMaterialType::DEBUG_LINES3D:
+			vertexShaderHash = xxh64::hash("VS_DebugLines", StringLength("VS_DebugLines"), 1337);
+			pixelShaderHash = xxh64::hash("FS_DebugLines", StringLength("FS_DebugLines"), 1337);
+			break;
+		case eMaterialType::COUNT:
+			break;
+		default:
+			break;
+		}
+		return pixelShaderHash + vertexShaderHash;
+	}
+
+	bool MaterialManager::InitDefaultMaterial(eMaterialType type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight)
+	{
+		if (m_materials[(uint32_t)type].Empty())
+		{
+
+			Material* pMaterial = CreateUnderlyingMaterial();
 			switch (type)
 			{
-			case MATERIAL_TYPE::SPRITE:
-				material.m_vertexShader = LoadShader("VS_Sprite", SHADERTYPE::VERTEX, reloadShader);
-				material.m_fragmentShader = LoadShader("FS_Sprite", SHADERTYPE::FRAGMENT, reloadShader);
+			case eMaterialType::SPRITE:
+				pMaterial->m_vertexShader = LoadShader("VS_Sprite", SHADERTYPE::VERTEX, reloadShader);
+				pMaterial->m_fragmentShader = LoadShader("FS_Sprite", SHADERTYPE::FRAGMENT, reloadShader);
+				pMaterial->m_type = eMaterialType::SPRITE;
 				break;
-			case MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX:
-				material.m_vertexShader = LoadShader("VS_fullscreenPass", SHADERTYPE::VERTEX, reloadShader);
-				material.m_fragmentShader = LoadShader("FS_fullscreenPass", SHADERTYPE::FRAGMENT, reloadShader);
+			case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
+				pMaterial->m_vertexShader = LoadShader("VS_fullscreenPass", SHADERTYPE::VERTEX, reloadShader);
+				pMaterial->m_fragmentShader = LoadShader("FS_fullscreenPass", SHADERTYPE::FRAGMENT, reloadShader);
+				pMaterial->m_type = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 				break;
-			case MATERIAL_TYPE::MODEL3D:
-				material.m_vertexShader = LoadShader("VS_triangle", SHADERTYPE::VERTEX, reloadShader);
-				material.m_fragmentShader = LoadShader("FS_triangle", SHADERTYPE::FRAGMENT, reloadShader);
+			case eMaterialType::MODEL3D:
+				pMaterial->m_vertexShader = LoadShader("VS_triangle", SHADERTYPE::VERTEX, reloadShader);
+				pMaterial->m_fragmentShader = LoadShader("FS_triangle", SHADERTYPE::FRAGMENT, reloadShader);
+				pMaterial->m_type = eMaterialType::MODEL3D;
 				break;
-			case MATERIAL_TYPE::DEBUG_LINES2D:
-			case MATERIAL_TYPE::DEBUG_LINES3D:
-				material.m_vertexShader = LoadShader("VS_DebugLines", SHADERTYPE::VERTEX, reloadShader);
-				material.m_fragmentShader = LoadShader("FS_DebugLines", SHADERTYPE::FRAGMENT, reloadShader);
+			case eMaterialType::DEBUG_LINES2D:
+				pMaterial->m_vertexShader = LoadShader("VS_DebugLines", SHADERTYPE::VERTEX, reloadShader);
+				pMaterial->m_fragmentShader = LoadShader("FS_DebugLines", SHADERTYPE::FRAGMENT, reloadShader);
+				pMaterial->m_type = eMaterialType::DEBUG_LINES2D;
 				break;
-			case MATERIAL_TYPE::COUNT:
+			case eMaterialType::DEBUG_LINES3D:
+				pMaterial->m_vertexShader = LoadShader("VS_DebugLines", SHADERTYPE::VERTEX, reloadShader);
+				pMaterial->m_fragmentShader = LoadShader("FS_DebugLines", SHADERTYPE::FRAGMENT, reloadShader);
+				pMaterial->m_type = eMaterialType::DEBUG_LINES3D;
+				break;
+			case eMaterialType::COUNT:
 				break;
 			default:
 				break;
 			}
-			if (material.m_vertexShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM ||
-				material.m_fragmentShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM)
+			if (pMaterial->m_vertexShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM ||
+				pMaterial->m_fragmentShader.loadState != SHADER_LOADSTATE::LOADED_TO_RAM)
 			{
 				return false;
 			}
-
-			material.m_type = type;
-			m_materials[(uint32_t)type] = material;
+			uint32 combinedShaderHash = TempLocalGetShaderHash(pMaterial->m_type);
+			const uint64 materialSortKey = GetMaterialSortValue(pMaterial->m_type, pMaterial->m_blendMode, combinedShaderHash);
+			pMaterial->m_sortKey = type != eMaterialType::DEBUG_LINES3D ? materialSortKey : materialSortKey + 1u;
+			pMaterial->m_type = type;
+			m_materials[(uint32_t)type].Add(pMaterial);
 		}
-		///VERY TEMP ABOVE ^
 
-		if (InitMaterialInternal(type, frameBufferToBindToMaterial, frameInFlight))
+		BindFrameBuffer(type, frameBufferToBindToMaterial);
+
+		if (InitMaterialInternal(*m_materials[(uint32_t)type].GetLast(), frameInFlight))
 		{
-			m_materialValidators[(uint32)type].ClearFrameData(frameInFlight);
+			m_materials[(uint32_t)type][0]->m_validator.ClearFrameData(frameInFlight);
 			return true;
 		}
 		return false;
 	}
 
-	Material& MaterialManager::GetMaterial(MATERIAL_TYPE materialType)
+
+
+	bool MaterialManager::LoadMaterialFromInstance(const SerializeableMaterialInstance& loadedMaterialInstance)
 	{
-		return m_materials[(uint32)materialType];
+		// TODO: add shaders to material instance so this will be data driven instead of hard-coded
+		uint32 combinedShaderHash = TempLocalGetShaderHash(loadedMaterialInstance.m_baseMaterialType);
+		const uint64 materialSortKey = GetMaterialSortValue(loadedMaterialInstance.m_baseMaterialType, loadedMaterialInstance.m_blendMode, combinedShaderHash);
+		for (size_t i = 0; i < m_materials[(uint8)loadedMaterialInstance.m_baseMaterialType].Size(); i++)
+		{
+			Material& loadedMaterial = *m_materials[(uint8)loadedMaterialInstance.m_baseMaterialType][i];
+			if (loadedMaterial.m_sortKey == materialSortKey)
+				return true;
+		}
+
+		Material* pMaterial = CreateUnderlyingMaterial();
+		pMaterial->m_sortKey = materialSortKey;
+		pMaterial->m_type = loadedMaterialInstance.m_baseMaterialType;
+		pMaterial->m_blendMode = loadedMaterialInstance.m_blendMode;
+		// Todo: The shaders should be saved in on the material instance and make the shaders be cached and handled more smartly
+		switch (loadedMaterialInstance.m_baseMaterialType)
+		{
+		case eMaterialType::SPRITE:
+			pMaterial->m_vertexShader = LoadShader("VS_Sprite", SHADERTYPE::VERTEX, false);
+			pMaterial->m_fragmentShader = LoadShader("FS_Sprite", SHADERTYPE::FRAGMENT, false);
+			break;
+		case eMaterialType::MODEL3D:
+			pMaterial->m_vertexShader = LoadShader("VS_triangle", SHADERTYPE::VERTEX, false);
+			pMaterial->m_fragmentShader = LoadShader("FS_triangle", SHADERTYPE::FRAGMENT, false);
+			break;
+		case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
+		case eMaterialType::DEBUG_LINES2D:
+		case eMaterialType::DEBUG_LINES3D:
+			
+			break;
+		case eMaterialType::COUNT:
+			break;
+		default:
+			break;
+		}
+		bool result = true;
+		for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+		{
+			if (InitMaterialInternal(*pMaterial, i))
+			{
+				pMaterial->m_validator.ClearFrameData(i);
+			}
+			else
+			{
+				result &= false;
+			}
+		}
+
+		if (!result)
+		{
+
+			// TODO assert / error
+		}
+		m_materials[(uint32_t)loadedMaterialInstance.m_baseMaterialType].Add(pMaterial);
+
+		return result;
 	}
 
-	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID, MATERIAL_TYPE materialType)
+	Material& MaterialManager::GetMaterial(eMaterialType materialType, uint32 materialIndex)
+	{
+		// TODO add bound checks
+		return *m_materials[(uint32)materialType][materialIndex];
+	}
+
+	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID, eMaterialType materialType)
 	{
 		if (instanceID >= m_materialsInstanceData.Size())
 		{
-			if (materialType == MATERIAL_TYPE::SPRITE)
+			if (materialType == eMaterialType::SPRITE)
 				return m_defaultSpriteMaterialInstance;
-			if (materialType == MATERIAL_TYPE::MODEL3D)
+			if (materialType == eMaterialType::MODEL3D)
 				return m_default3DMaterialInstance;
 		}
 
 		return m_materialsInstanceData[instanceID];
 	}
 
-	uint32 MaterialManager::CreateInstance(MATERIAL_TYPE materialType, MaterialInstance instanceData)
+	uint32 MaterialManager::CreateInstance(eMaterialType materialType, MaterialInstance instanceData)
 	{
 		instanceData.m_instanceIdentifier = m_materialsInstanceData.Size();
-		instanceData.m_materialIdentifier = (uint32_t)materialType;
+		//TODO: Get hash from serialized shader values instead
+		const uint64 materialSortKey = GetMaterialSortValue(materialType, instanceData.m_blendMode, TempLocalGetShaderHash(materialType));
+		bool isMaterialLoaded = false;
+		uint32 materialIndex = MAX_UINT;
+		for (size_t i = 0; i < m_materials[(uint8)materialType].Size(); i++)
+		{
+			Material& loadedMaterial = *m_materials[(uint8)materialType][i];
+			if (loadedMaterial.m_sortKey == materialSortKey)
+			{
+				isMaterialLoaded = true;
+				materialIndex = i;
+			}
+		}
+		if (!isMaterialLoaded)
+		{
+			// TODO: Assert here as a material should always be loaded before creating an instance
+			instanceData.m_materialIndex = 0;
+		}
+		instanceData.m_materialIndex = materialIndex;
 		m_materialsInstanceData.Add(instanceData);
 		ResourceValidator instanceValidator = ResourceValidator();
 		instanceValidator.MarkResourceAsDirty(0);
@@ -127,17 +250,21 @@ namespace Hail
 	bool MaterialManager::ReloadAllMaterials(uint32 frameInFlight)
 	{
 		bool result = true;
-		for (uint32_t i = 0; i < (uint32)(MATERIAL_TYPE::COUNT); i++)
+		for (uint32 i = 0; i < (uint32)(eMaterialType::COUNT); i++)
 		{
-			const bool firstFrameOfReload = m_materialValidators[i].GetIsResourceDirty() == false;
-			if(firstFrameOfReload)
+			for (uint32 iMaterial = 0; iMaterial < m_materials[i].Size(); iMaterial++)
 			{
-				ClearHighLevelMaterial((MATERIAL_TYPE)i, frameInFlight);
+				// TODO assert on the pointer here 
+				const bool firstFrameOfReload = m_materials[i][iMaterial]->m_validator.GetIsResourceDirty() == false;
+				if (firstFrameOfReload)
+				{
+					ClearHighLevelMaterial(m_materials[i][iMaterial], frameInFlight);
+				}
+				ClearMaterialInternal(m_materials[i][iMaterial], frameInFlight);
 			}
-			ClearMaterialInternal((MATERIAL_TYPE)i, frameInFlight);
-			if (InitMaterial((MATERIAL_TYPE)i, nullptr, true, frameInFlight))
+			if (!InitDefaultMaterial((eMaterialType)i, nullptr, true, frameInFlight))
 			{
-				m_materialValidators[i].ClearFrameData(frameInFlight);
+				// TODO add assert
 			}
 		}
 
@@ -172,13 +299,12 @@ namespace Hail
 		return false;
 	}
 
-	void MaterialManager::ClearHighLevelMaterial(MATERIAL_TYPE materialType, uint32 frameInFlight)
+	void MaterialManager::ClearHighLevelMaterial(Material* pMaterial, uint32 frameInFlight)
 	{
 		//TODO make more proper and robust validation later =) 
-		m_materials[(uint32)materialType].m_fragmentShader.loadState = SHADER_LOADSTATE::UNLOADED;
-		m_materials[(uint32)materialType].m_vertexShader.loadState = SHADER_LOADSTATE::UNLOADED;
-		m_materialValidators[(uint32)materialType].MarkResourceAsDirty(frameInFlight);
-
+		pMaterial->m_fragmentShader.loadState = SHADER_LOADSTATE::UNLOADED;
+		pMaterial->m_vertexShader.loadState = SHADER_LOADSTATE::UNLOADED;
+		pMaterial->m_validator.MarkResourceAsDirty(frameInFlight);
 	}
 
 	void MaterialManager::CheckMaterialInstancesToReload(uint32 frameInFlight)
@@ -213,11 +339,11 @@ namespace Hail
 	void MaterialManager::InitDefaultMaterialInstances()
 	{
 		m_defaultSpriteMaterialInstance.m_instanceIdentifier = MAX_UINT;
-		m_defaultSpriteMaterialInstance.m_materialIdentifier = (uint32)MATERIAL_TYPE::SPRITE;
+		m_defaultSpriteMaterialInstance.m_materialIndex = 0;// GetMaterialSortValue(eMaterialType::SPRITE, eBlendMode::None, TempLocalGetShaderHash(eMaterialType::SPRITE));
 		m_defaultSpriteMaterialsInstanceValidationData.MarkResourceAsDirty(0);
 
 		m_default3DMaterialInstance.m_instanceIdentifier = MAX_UINT;
-		m_default3DMaterialInstance.m_materialIdentifier = (uint32)MATERIAL_TYPE::MODEL3D;
+		m_default3DMaterialInstance.m_materialIndex = 0;// GetMaterialSortValue(eMaterialType::MODEL3D, eBlendMode::None, TempLocalGetShaderHash(eMaterialType::MODEL3D));
 		m_default3DMaterialsInstanceValidationData.MarkResourceAsDirty(0);
 		for (size_t frameInFlight = 0; frameInFlight < MAX_FRAMESINFLIGHT; frameInFlight++)
 		{
@@ -287,11 +413,11 @@ namespace Hail
 		SAFEDELETE(m_compiler)
 	}
 
-	ResourceValidator& MaterialManager::GetDefaultMaterialValidator(MATERIAL_TYPE type)
+	ResourceValidator& MaterialManager::GetDefaultMaterialValidator(eMaterialType type)
 	{
-		if (type == MATERIAL_TYPE::SPRITE)
+		if (type == eMaterialType::SPRITE)
 			return m_defaultSpriteMaterialsInstanceValidationData;
-		if (type == MATERIAL_TYPE::MODEL3D)
+		if (type == eMaterialType::MODEL3D)
 			return m_default3DMaterialsInstanceValidationData;
 	}
 

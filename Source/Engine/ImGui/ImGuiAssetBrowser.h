@@ -13,6 +13,7 @@ namespace Hail
 	{
 	public:
 		ImGuiAssetBrowser();
+		void DeInit();
 		void RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject);
 
 	private:

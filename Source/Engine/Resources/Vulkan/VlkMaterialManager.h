@@ -1,11 +1,12 @@
 #pragma once
 #include "Resources\MaterialManager.h"
-#include "Types.h"
 #include "Windows\VulkanInternal\VlkResources.h"
+#include "Types.h"
 
 namespace Hail
 {
 	class VlkFrameBufferTexture;
+	class VlkPassData;
 
 	class VlkMaterialManager : public MaterialManager
 	{
@@ -15,23 +16,24 @@ namespace Hail
 
 		void ClearAllResources() final;
 
-		VlkPassData& GetMaterialData(MATERIAL_TYPE material);
+		VlkPassData& GetMaterialData(eMaterialType material, uint32 materialIndex);
 
 	private:
 
-		bool InitMaterialInternal(MATERIAL_TYPE materialType, FrameBufferTexture* frameBufferToBindToMaterial, uint32 frameInFlight) final;
+		void BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial) final;
+		bool InitMaterialInternal(Material& material, uint32 frameInFlight) final;
 		bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance) final;
-		void ClearMaterialInternal(MATERIAL_TYPE materialType, uint32 frameInFlight) final;
+		void ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight) final;
+		Material* CreateUnderlyingMaterial() final;
 		bool CreateMaterialPipeline(Material& material, uint32 frameInFlight);
-		bool SetUpMaterialLayouts(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
-		bool SetUpPipelineLayout(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
-		bool CreateFramebuffers(VlkPassData& passData, MATERIAL_TYPE type, uint32 frameInFlight);
-		bool CreateRenderpass(VlkPassData& passData, MATERIAL_TYPE type);
+		bool SetUpMaterialLayouts(VlkPassData& passData, ResourceValidator& passDataValidator, eMaterialType type, uint32 frameInFlight);
+		bool SetUpPipelineLayout(VlkPassData& passData, eMaterialType type, uint32 frameInFlight);
+		bool CreateFramebuffers(VlkPassData& passData, eMaterialType type, uint32 frameInFlight);
+		bool CreateRenderpass(VlkPassData& passData, eMaterialType type);
 
 
-		VlkFrameBufferTexture* m_passesFrameBufferTextures[(uint32)(MATERIAL_TYPE::COUNT)];
-		VlkPassData m_passData[(uint32)(MATERIAL_TYPE::COUNT)];
-		ResourceValidator m_passDataValidators[(uint32)MATERIAL_TYPE::COUNT];
+		VlkFrameBufferTexture* m_passesFrameBufferTextures[(uint32)(eMaterialType::COUNT)];
+
 
 		//This is here so the local variables does not get optimized away in release
 		VkDescriptorImageInfo m_descriptorImageInfo;

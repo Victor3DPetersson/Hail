@@ -49,28 +49,28 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 	m_textureManager->Init(m_renderDevice);
 	m_renderingResourceManager->Init(m_renderDevice, m_swapChain);
 	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain );
-	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UINT, TEXTURE_DEPTH_FORMAT::D16_UNORM);
+	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UNORM, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 
 	//Temp, needs to be more data driven
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::SPRITE, m_mainPassFrameBufferTexture, false, i))
+		if(!m_materialManager->InitDefaultMaterial(eMaterialType::SPRITE, m_mainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
-		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX, m_swapChain->GetFrameBufferTexture(), false, i))
+		if(!m_materialManager->InitDefaultMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, m_swapChain->GetFrameBufferTexture(), false, i))
 		{
 			return false;
 		}
-		if(!m_materialManager->InitMaterial(MATERIAL_TYPE::MODEL3D, m_mainPassFrameBufferTexture, false, i))
+		if(!m_materialManager->InitDefaultMaterial(eMaterialType::MODEL3D, m_mainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
-		if (!m_materialManager->InitMaterial(MATERIAL_TYPE::DEBUG_LINES2D, m_mainPassFrameBufferTexture, false, i))
+		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES2D, m_mainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
-		if (!m_materialManager->InitMaterial(MATERIAL_TYPE::DEBUG_LINES3D, m_mainPassFrameBufferTexture, false, i))
+		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES3D, m_mainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
@@ -157,10 +157,27 @@ void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 
 	SerializeableMaterialInstance matData = m_materialManager->LoadMaterialSerializeableInstance(reg.GetProjectPath(ResourceType::Material, guid));
 
+
+	if (!m_materialManager->LoadMaterialFromInstance(matData))
+	{
+
+		// TODO:: assert / make it in to an invalid material
+		return;
+	}
+
 	//TODO: make this more data driven
 
 	MaterialInstance instance;
+	instance.m_materialType = matData.m_baseMaterialType;
 	instance.m_id = guid;
+	instance.m_blendMode = matData.m_blendMode;
+
+	if (matData.m_baseMaterialType == eMaterialType::SPRITE)
+	{
+		instance.m_cutoutThreshold = matData.m_extraData;
+	}
+
+	memset(instance.m_textureHandles.Data(), INVALID_TEXTURE_HANDLE, MAX_TEXTURE_HANDLES * sizeof(uint32));
 	instance.m_textureHandles[0] = INVALID_TEXTURE_HANDLE;
 
 	if (matData.m_textureHandles[0] != guidZero)
@@ -176,7 +193,6 @@ void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 	if (!result)
 	{
 		// TODO:: assert / make it in to an invalid material
-		result = true; // for debugging atm
 	}
 }
 
@@ -197,7 +213,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	{
 		const RenderCommand_Sprite& spriteCommand = renderPool.spriteCommands[sprite];
 		//Get sprite texture size and sort with material and everything here to the correct place. 
-		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID, MATERIAL_TYPE::SPRITE);
+		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID, eMaterialType::SPRITE);
 		const TextureResource& texture = materialInstance.m_textureHandles[0] != INVALID_TEXTURE_HANDLE ? textures[materialInstance.m_textureHandles[0]] : m_textureManager->GetDefaultTextureCommonData();
 		const float textureAspectRatio = (float)texture.m_compiledTextureData.header.width / (float)texture.m_compiledTextureData.header.height;
 		
@@ -215,13 +231,15 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		}
 		
 		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
-		SpriteInstanceData spriteInstance{};
 
+		const float cutoutThreshhold = materialInstance.m_blendMode == eBlendMode::None ? 0.0f : (float)materialInstance.m_cutoutThreshold / 256.f;
+
+		SpriteInstanceData spriteInstance{};
 		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
 		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
 		spriteInstance.color = spriteCommand.color;
 		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotationRad(), 0.0f };
-		spriteInstance.sizeMultiplier_effectData_padding = { spriteSizeMultiplier.x, spriteSizeMultiplier.y, 0, 0 };
+		spriteInstance.sizeMultiplier_effectData_cutoutThreshold_padding = { spriteSizeMultiplier.x, spriteSizeMultiplier.y, cutoutThreshhold, 0 };
 		m_spriteInstanceData.Add(spriteInstance);
 	}
 	m_renderingResourceManager->MapMemoryToBuffer(BUFFERS::SPRITE_INSTANCE_BUFFER, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());

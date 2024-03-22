@@ -7,7 +7,7 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 	float totalTime;
 } constantVariables;
 
-layout(binding = 1, set = 1) uniform usampler2D texSampler;
+layout(binding = 1, set = 1) uniform sampler2D texSampler;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 0) in vec2 fragTexCoord;
@@ -35,8 +35,8 @@ void main()
 		float ratioX = constantVariables.screenResolution.x / constantVariables.screenResolution.y;
 		float remappedXCoord = min(float(xIndex - xHalfOffset) / float(constantVariables.renderResolution.x), 1.0 - renderTexelSizeX * 0.5);
 		float remappedYCoord = min((1.0 - float(yIndex - yHalfOffset) / float(constantVariables.renderResolution.y)) + renderTexelSizeY * 0.5, 1.0 - renderTexelSizeY * 0.5);
-		uvec3 sampledColor = texture(texSampler, vec2(remappedXCoord, remappedYCoord)).rgb;
-		vec3 color = vec3(sampledColor) / 255.0;
+		vec3 sampledColor = texture(texSampler, vec2(remappedXCoord, remappedYCoord)).rgb;
+		vec3 color = vec3(sampledColor);
 		//vec3 color = vec3(remappedXCoord, remappedYCoord, 1.0);
 		outColor = vec4(color, 1.0);
 	}

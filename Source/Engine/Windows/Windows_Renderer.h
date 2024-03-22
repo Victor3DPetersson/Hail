@@ -22,7 +22,7 @@ namespace Hail
 		void Cleanup() final;
 		void InitImGui() final;
 
-		void BindMaterial(Material& materialToBind) final;
+		void BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame) final;
 		void EndMaterialPass() final;
 		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) final;
 		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) final;
@@ -63,7 +63,7 @@ namespace Hail
 		VkBuffer m_debugLineVertexBuffer = VK_NULL_HANDLE;
 		VkDeviceMemory m_debugLineVertexBufferMemory = VK_NULL_HANDLE;
 
-		MATERIAL_TYPE m_boundMaterialType = MATERIAL_TYPE::COUNT;
+		eMaterialType m_boundMaterialType = eMaterialType::COUNT;
 		bool m_commandBufferBound = false;
 
 		VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;

@@ -17,8 +17,8 @@ namespace Hail
 		void MetaResourceTooltipPanel(MetaResource* metaResource);
 		String64 FormattedTimeFromFileData(const FileTime& fileTime);
 
-		const char* GetMaterialTypeStringFromEnum(MATERIAL_TYPE type);
-		const char* GetMaterialBlendModeFromEnum(BLEND_MODE mode);
+		const char* GetMaterialTypeStringFromEnum(eMaterialType type);
+		const char* GetMaterialBlendModeFromEnum(eBlendMode mode);
 	}
 
 }

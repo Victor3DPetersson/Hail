@@ -133,7 +133,7 @@
       <PrecompiledHeaderFile>Shared_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;Containers;glm;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;Containers;glm;Hashing;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -153,7 +153,7 @@
       <PrecompiledHeaderFile>Shared_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_OSX;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;Containers;glm;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;Containers;glm;Hashing;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -173,7 +173,7 @@
       <PrecompiledHeaderFile>Shared_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;NDEBUG;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;Containers;glm;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;Containers;glm;Hashing;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -197,7 +197,7 @@
       <PrecompiledHeaderFile>Shared_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;NDEBUG;PLATFORM_OSX;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;Containers;glm;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;Containers;glm;Hashing;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -221,7 +221,7 @@
       <PrecompiledHeaderFile>Shared_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;Containers;glm;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;Containers;glm;Hashing;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -247,7 +247,7 @@
       <PrecompiledHeaderFile>Shared_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_OSX;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;Containers;glm;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;Containers;glm;Hashing;Reflection;Utility;Containers\BinaryTree;Containers\GridArray;Containers\GrowingArray;Containers\Heap;Containers\Queue;Containers\Stack;Containers\StaticArray;Containers\VectorOnStack;glm\detail;glm\ext;glm\gtc;glm\gtx;glm\simd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -284,6 +284,7 @@
     <ClInclude Include="Containers\StaticArray\StaticArray.h" />
     <ClInclude Include="Containers\VectorOnStack\VectorOnStack.h" />
     <ClInclude Include="DebugMacros.h" />
+    <ClInclude Include="Hashing\xxh64_en.hpp" />
     <ClInclude Include="InputMappings.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="Reflection\Reflection.h" />

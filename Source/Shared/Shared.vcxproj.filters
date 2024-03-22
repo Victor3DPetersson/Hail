@@ -28,6 +28,9 @@
     <Filter Include="Containers\VectorOnStack">
       <UniqueIdentifier>{506EC7FD-3C93-167E-65DE-FB0D5162159C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Hashing">
+      <UniqueIdentifier>{47EFC094-B3CE-3F30-BCE6-CA062845A691}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Reflection">
       <UniqueIdentifier>{104FCF04-FC06-1152-650E-EAAD51E5AB42}</UniqueIdentifier>
     </Filter>
@@ -98,6 +101,9 @@
       <Filter>Containers\VectorOnStack</Filter>
     </ClInclude>
     <ClInclude Include="DebugMacros.h" />
+    <ClInclude Include="Hashing\xxh64_en.hpp">
+      <Filter>Hashing</Filter>
+    </ClInclude>
     <ClInclude Include="InputMappings.h" />
     <ClInclude Include="MathUtils.h" />
     <ClInclude Include="Reflection\Reflection.h">

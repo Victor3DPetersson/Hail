@@ -31,6 +31,7 @@
 #include "VulkanInternal/VlkBufferCreationFunctions.h"
 #include "VulkanInternal/VlkSingleTimeCommand.h"
 #include "VulkanInternal/VlkFrameBufferTexture.h"
+#include "Resources\Vulkan\VlkMaterial.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -210,13 +211,23 @@ void Hail::VlkRenderer::EndFrame()
 #endif
 	}
 	m_swapChain->FrameEnd(signalSemaphores, device.GetPresentQueue());
-	m_boundMaterialType = MATERIAL_TYPE::COUNT;
+	m_boundMaterialType = eMaterialType::COUNT;
 }
 
-void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
+void Hail::VlkRenderer::BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame)
 {
+	if (m_currentlyBoundMaterial != materialToBind.m_sortKey && !bFirstMaterialInFrame)
+	{
+		EndMaterialPass();
+	}
+	if (m_currentlyBoundMaterial == materialToBind.m_sortKey)
+	{
+		return;
+	}
+	m_currentlyBoundMaterial = materialToBind.m_sortKey;
+
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
-	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(materialToBind.m_type);
+	VlkPassData& passData = ((VlkMaterial*)&materialToBind)->m_passData;
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 
 	VkCommandBufferBeginInfo beginInfo{};
@@ -240,7 +251,7 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind)
 	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	//TEMP: Will remove once we set up reload from resource manager
-	if (materialToBind.m_type != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
+	if (materialToBind.m_type != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		renderPassInfo.renderPass = passData.m_renderPass;
 		renderPassInfo.framebuffer = passData.m_frameBuffer[frameInFlightIndex];
@@ -286,22 +297,25 @@ void Hail::VlkRenderer::EndMaterialPass()
 
 void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance)
 {
+	const MaterialInstance& materialInstance = m_resourceManager->GetMaterialManager()->GetMaterialInstance(m_commandPoolToRender->spriteCommands[spriteInstance].materialInstanceID, eMaterialType::SPRITE);
+	BindMaterial(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex), false);
+
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::SPRITE);
+	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(eMaterialType::SPRITE, materialInstance.m_materialIndex);
 
 	//binding pass data first round
-	if (m_boundMaterialType != MATERIAL_TYPE::SPRITE)
+	if (m_boundMaterialType != eMaterialType::SPRITE)
 	{
 		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
 		VkDeviceSize spriteOffsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_spriteVertexBuffer, spriteOffsets);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 0, 2, sets, 0, nullptr);
-		m_boundMaterialType = MATERIAL_TYPE::SPRITE;
+		m_boundMaterialType = eMaterialType::SPRITE;
 	}
 
 	glm::uvec4 pushConstants_instanceID_padding = { spriteInstance, 0, 0, 0 };
-	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID, MATERIAL_TYPE::SPRITE);
+	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID, eMaterialType::SPRITE);
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 2, 1, &baseMaterial.m_materialDescriptors[instanceMaterialData.m_gpuResourceInstance].descriptors[frameInFlightIndex], 0, nullptr);
 	vkCmdPushConstants(commandBuffer, baseMaterial.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
@@ -312,14 +326,14 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::MODEL3D);
+	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(eMaterialType::MODEL3D, 0);
 
 	//binding pass data first round
-	if (m_boundMaterialType != MATERIAL_TYPE::MODEL3D)
+	if (m_boundMaterialType != eMaterialType::MODEL3D)
 	{
 		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 0, 2, sets, 0, nullptr);
-		m_boundMaterialType = MATERIAL_TYPE::MODEL3D;
+		m_boundMaterialType = eMaterialType::MODEL3D;
 	}
 
 	//Todo: Make sure to fix vertex binding and that kind of stuff later and make the resources be held outside of renderer
@@ -335,14 +349,14 @@ void Hail::VlkRenderer::RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::DEBUG_LINES2D);
+	VlkPassData& baseMaterial = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(eMaterialType::DEBUG_LINES2D, 0);
 
 	//binding pass data first round
-	if (m_boundMaterialType != MATERIAL_TYPE::DEBUG_LINES2D)
+	if (m_boundMaterialType != eMaterialType::DEBUG_LINES2D)
 	{
 		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), baseMaterial.m_passDescriptors[frameInFlightIndex] };
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, baseMaterial.m_pipelineLayout, 0, 2, sets, 0, nullptr);
-		m_boundMaterialType = MATERIAL_TYPE::DEBUG_LINES2D;
+		m_boundMaterialType = eMaterialType::DEBUG_LINES2D;
 	}
 
 	VkBuffer mainVertexBuffers[] = { m_debugLineVertexBuffer };
@@ -361,14 +375,14 @@ void Hail::VlkRenderer::RenderLetterBoxPass()
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX);
+	VlkPassData& passData = ((VlkMaterialManager*)m_resourceManager->GetMaterialManager())->GetMaterialData(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0);
 
 	//binding pass data first round
-	if (m_boundMaterialType != MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX)
+	if (m_boundMaterialType != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		VkDescriptorSet sets[2] = { ((VlkRenderingResourceManager*)m_resourceManager->GetRenderingResourceManager())->GetGlobalDescriptorSet(frameInFlightIndex), passData.m_passDescriptors[frameInFlightIndex] };
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, passData.m_pipelineLayout, 0, 2, sets, 0, nullptr);
-		m_boundMaterialType = MATERIAL_TYPE::FULLSCREEN_PRESENT_LETTERBOX;
+		m_boundMaterialType = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 	}
 
 	VkBuffer vertexBuffers[] = { m_fullscreenVertexBuffer };

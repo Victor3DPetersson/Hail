@@ -60,25 +60,25 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 		}
 	}
 
-	if (m_materialToEdit.m_materialObject.m_baseMaterialType == MATERIAL_TYPE::COUNT)
+	if (m_materialToEdit.m_materialObject.m_baseMaterialType == eMaterialType::COUNT)
 	{
 		ImGui::End();
 		return;
 	}
 	if (ImGui::BeginCombo("Material Base Type", ImGuiHelpers::GetMaterialTypeStringFromEnum(m_materialToEdit.m_materialObject.m_baseMaterialType)))
 	{
-		bool is_selected = (MATERIAL_TYPE::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType);
-		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(MATERIAL_TYPE::SPRITE), is_selected))
+		bool is_selected = (eMaterialType::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType);
+		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType::SPRITE), is_selected))
 		{
-			m_materialToEdit.m_materialObject.m_baseMaterialType = MATERIAL_TYPE::SPRITE;
+			m_materialToEdit.m_materialObject.m_baseMaterialType = eMaterialType::SPRITE;
 		}
 		if (is_selected)
 			ImGui::SetItemDefaultFocus();
 		//
-		is_selected = (MATERIAL_TYPE::MODEL3D == m_materialToEdit.m_materialObject.m_baseMaterialType);
-		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(MATERIAL_TYPE::MODEL3D), is_selected))
+		is_selected = (eMaterialType::MODEL3D == m_materialToEdit.m_materialObject.m_baseMaterialType);
+		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType::MODEL3D), is_selected))
 		{
-			m_materialToEdit.m_materialObject.m_baseMaterialType = MATERIAL_TYPE::MODEL3D;
+			m_materialToEdit.m_materialObject.m_baseMaterialType = eMaterialType::MODEL3D;
 		}
 		if (is_selected)
 			ImGui::SetItemDefaultFocus();
@@ -89,12 +89,12 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 	if (ImGui::BeginCombo("Blend Mode", ImGuiHelpers::GetMaterialBlendModeFromEnum(m_materialToEdit.m_materialObject.m_blendMode)))
 	{
 
-		for (uint8 i = 0; i < (uint8)BLEND_MODE::COUNT; i++)
+		for (uint8 i = 0; i < (uint8)eBlendMode::COUNT; i++)
 		{
-			bool is_selected = (BLEND_MODE)i == m_materialToEdit.m_materialObject.m_blendMode;
-			if (ImGui::Selectable(ImGuiHelpers::GetMaterialBlendModeFromEnum((BLEND_MODE)i), is_selected))
+			bool is_selected = (eBlendMode)i == m_materialToEdit.m_materialObject.m_blendMode;
+			if (ImGui::Selectable(ImGuiHelpers::GetMaterialBlendModeFromEnum((eBlendMode)i), is_selected))
 			{
-				m_materialToEdit.m_materialObject.m_blendMode = (BLEND_MODE)i;
+				m_materialToEdit.m_materialObject.m_blendMode = (eBlendMode)i;
 				is_selected = true;
 			}
 			if (is_selected)
@@ -104,7 +104,20 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 		ImGui::EndCombo();
 	}
 
-	if (MATERIAL_TYPE::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType)
+	// cutout threshold
+	{
+		const bool hasCutout = m_materialToEdit.m_materialObject.m_blendMode != eBlendMode::None;
+		float cutoutThreshold = (m_materialToEdit.m_materialObject.m_extraData & 0xff) / 255.f;
+		if (!hasCutout)
+			ImGui::BeginDisabled();
+		ImGui::SliderFloat("Cutout threshhold", &cutoutThreshold, 0.f, 1.f);
+		uint8 cutoutValue = (uint8)(cutoutThreshold * 255.f);
+		m_materialToEdit.m_materialObject.m_extraData = m_materialToEdit.m_materialObject.m_extraData & 0xff00 | cutoutValue;
+		if (!hasCutout)
+			ImGui::EndDisabled();
+	}
+
+	if (eMaterialType::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType)
 	{
 		ImGui::Text("Sprite Texture: ");
 		ImGui::SameLine();
