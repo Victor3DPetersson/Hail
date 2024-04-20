@@ -1,7 +1,7 @@
-project "Game"
+project "GameSystem"
 	location "%{dirs.localdir}"
 
-	print ("Building Game...")
+	print ("Building GameSystem...")
 		
 	language "C++"
 	cppdialect "C++17"
@@ -11,22 +11,21 @@ project "Game"
 	targetname("%{prj.name}_%{cfg.buildcfg}")
 	objdir ("%{dirs.intdir}")
 
-	pchheader "Game_PCH.h"
-	pchsource "Game_PCH.cpp"
+	pchheader "GameSystem_PCH.h"
+	pchsource "GameSystem_PCH.cpp"
 
 	debugdir ("%{dirs.outdir}")
 
 	files {
-		"%{dirs.srcdir}/Game/**.h",
-		"%{dirs.srcdir}/Game/**.cpp",
+		"%{dirs.srcdir}/GameSystem/**.h",
+		"%{dirs.srcdir}/GameSystem/**.cpp",
 	}
 
 
 	includedirs {
 		".",
 		"./**",
-		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/GameSystem/"
+		"%{dirs.srcdir}/Shared/"
 	}
 
 	dependson { "ReflectionCodeGenerator" }
@@ -35,8 +34,7 @@ project "Game"
 	links { 
 		"Engine",
 		"Reflection",
-		"Shared",
-		"GameSystem"
+		"Shared"
 		 }
 
 		 	defines {
@@ -50,6 +48,6 @@ project "Game"
 	}
 
 	filter { "system:windows" }
-		prebuildcommands { "start %{dirs.outdir}/ReflectionCodeGenerator_%{cfg.buildcfg}.exe Game" }
+		prebuildcommands { "start %{dirs.outdir}/ReflectionCodeGenerator_%{cfg.buildcfg}.exe GameSystem" }
 
 		
