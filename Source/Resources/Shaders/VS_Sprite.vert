@@ -23,7 +23,7 @@ struct UIData
 	vec4 scaleMultiplier_effectData_cutoutThreshold_padding;
 };
 
-layout(std140, set = 1, binding = 1) buffer UIDataBuffer 
+layout(std140, set = 1, binding = 0) buffer UIDataBuffer 
 {
    	UIData uiInstanceData[];
 };

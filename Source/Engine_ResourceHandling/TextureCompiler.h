@@ -1,6 +1,6 @@
 #pragma once
 
-#include "TextureCommons.h"
+#include "Resources_Textures\TextureCommons.h"
 #include "Utility\FilePath.hpp"
 
 namespace Hail

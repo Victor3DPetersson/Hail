@@ -2,16 +2,19 @@
 #include <stdint.h>
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
+#include "ReflectedShaderData.h"
+#include "MetaResource.h"
 
 namespace Hail
 {
-	enum class SHADERTYPE
+	enum class eShaderType : uint8
 	{
-		COMPUTE,
-		VERTEX,
-		CONTROL,
-		EVALUATION,
-		FRAGMENT
+		Compute,
+		Vertex,
+		Fragment,
+		Amplification,
+		Mesh,
+		None
 	};
 
 	enum class SHADERLANGUAGETARGET
@@ -28,18 +31,20 @@ namespace Hail
 		uint32_t shaderType = 0;
 	};
 
-	enum class SHADER_LOADSTATE
+	enum class eShaderLoadState
 	{
-		UNLOADED,
-		LOADED_TO_RAM,
-		UPLOADED_TO_GPU
+		Unloaded,
+		LoadedToRAM
 	};
 
 	struct CompiledShader
 	{
 		ShaderHeader header;
+		MetaResource m_metaData;
 		char* compiledCode = nullptr;
-		SHADER_LOADSTATE loadState = SHADER_LOADSTATE::UNLOADED;
+		eShaderLoadState loadState = eShaderLoadState::Unloaded;
 		String64 shaderName;
+		ReflectedShaderData reflectedShaderData;
+		uint64 m_nameHash{};
 	};
 }

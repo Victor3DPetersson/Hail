@@ -33,7 +33,7 @@ project "Game"
 	libdirs { "%{dirs.libdir}" }	
 	links { 
 		"Engine",
-		"Reflection",
+		"ReflectionCodeGenerator",
 		"Shared"
 		 }
 

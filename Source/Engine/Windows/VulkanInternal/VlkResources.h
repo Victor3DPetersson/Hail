@@ -55,6 +55,8 @@ namespace Hail
 
 	};
 
+
+
 	struct VlkTextureData
 	{
 		VkImage textureImage = VK_NULL_HANDLE;
@@ -62,12 +64,12 @@ namespace Hail
 		VkImageView textureImageView = VK_NULL_HANDLE;
 	};
 
-	struct VlkBufferObject
-	{
-		VkBuffer m_buffer[MAX_FRAMESINFLIGHT];
-		VkDeviceMemory m_bufferMemory[MAX_FRAMESINFLIGHT];
-		void* m_bufferMapped[MAX_FRAMESINFLIGHT];
-		void CleanupResource(VlkDevice& device);
-	};
+	//struct VlkBufferObject
+	//{
+	//	VkBuffer m_buffer[MAX_FRAMESINFLIGHT];
+	//	VkDeviceMemory m_bufferMemory[MAX_FRAMESINFLIGHT];
+	//	void* m_bufferMapped[MAX_FRAMESINFLIGHT];
+	//	
+	//};
 
 }

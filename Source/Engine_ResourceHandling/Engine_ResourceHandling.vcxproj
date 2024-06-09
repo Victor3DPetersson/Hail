@@ -27,10 +27,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{288AE39D-1483-02F0-3DB5-E774290DE2FB}</ProjectGuid>
+    <ProjectGuid>{A734B47A-136C-FC11-1C76-6035882C230B}</ProjectGuid>
     <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>ResourceCompiler</RootNamespace>
+    <RootNamespace>Engine_ResourceHandling</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug Windows|x64'" Label="Configuration">
@@ -93,38 +93,38 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug Windows|x64'">
     <OutDir>..\..\Generated\lib\</OutDir>
-    <IntDir>..\..\Generated\int-bin\Windows\Debug\ResourceCompiler\</IntDir>
-    <TargetName>ResourceCompiler_Debug</TargetName>
+    <IntDir>..\..\Generated\int-bin\Windows\Debug\Engine_ResourceHandling\</IntDir>
+    <TargetName>Engine_ResourceHandling_Debug</TargetName>
     <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug OSX|x64'">
     <OutDir>..\..\Generated\lib\</OutDir>
-    <IntDir>..\..\Generated\int-bin\OSX\Debug\ResourceCompiler\</IntDir>
-    <TargetName>ResourceCompiler_Debug</TargetName>
+    <IntDir>..\..\Generated\int-bin\OSX\Debug\Engine_ResourceHandling\</IntDir>
+    <TargetName>Engine_ResourceHandling_Debug</TargetName>
     <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release Windows|x64'">
     <OutDir>..\..\Generated\lib\</OutDir>
-    <IntDir>..\..\Generated\int-bin\Windows\Release\ResourceCompiler\</IntDir>
-    <TargetName>ResourceCompiler_Release</TargetName>
+    <IntDir>..\..\Generated\int-bin\Windows\Release\Engine_ResourceHandling\</IntDir>
+    <TargetName>Engine_ResourceHandling_Release</TargetName>
     <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release OSX|x64'">
     <OutDir>..\..\Generated\lib\</OutDir>
-    <IntDir>..\..\Generated\int-bin\OSX\Release\ResourceCompiler\</IntDir>
-    <TargetName>ResourceCompiler_Release</TargetName>
+    <IntDir>..\..\Generated\int-bin\OSX\Release\Engine_ResourceHandling\</IntDir>
+    <TargetName>Engine_ResourceHandling_Release</TargetName>
     <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Production Windows|x64'">
     <OutDir>..\..\Generated\lib\</OutDir>
-    <IntDir>..\..\Generated\int-bin\Windows\Production\ResourceCompiler\</IntDir>
-    <TargetName>ResourceCompiler_Production</TargetName>
+    <IntDir>..\..\Generated\int-bin\Windows\Production\Engine_ResourceHandling\</IntDir>
+    <TargetName>Engine_ResourceHandling_Production</TargetName>
     <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Production OSX|x64'">
     <OutDir>..\..\Generated\lib\</OutDir>
-    <IntDir>..\..\Generated\int-bin\OSX\Production\ResourceCompiler\</IntDir>
-    <TargetName>ResourceCompiler_Production</TargetName>
+    <IntDir>..\..\Generated\int-bin\OSX\Production\Engine_ResourceHandling\</IntDir>
+    <TargetName>Engine_ResourceHandling_Production</TargetName>
     <TargetExt>.lib</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug Windows|x64'">
@@ -133,7 +133,7 @@
       <PrecompiledHeaderFile>ResourceCompiler_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_WINDOWS;SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\Shared;..\Engine\Resources;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\Shared;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -144,7 +144,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>shaderc_combinedd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shaderc_combinedd.lib;spirv-cross-cored.lib;spirv-cross-reflectd.lib;spirv-cross-glsld.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\Generated\lib;..\..\External\Vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -154,7 +154,7 @@
       <PrecompiledHeaderFile>ResourceCompiler_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_OSX;SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\Shared;..\Engine\Resources;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\Shared;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -165,7 +165,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>shaderc_combinedd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shaderc_combinedd.lib;spirv-cross-cored.lib;spirv-cross-reflectd.lib;spirv-cross-glsld.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\Generated\lib;..\..\External\Vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -175,7 +175,7 @@
       <PrecompiledHeaderFile>ResourceCompiler_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;NDEBUG;PLATFORM_WINDOWS;SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\Shared;..\Engine\Resources;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\Shared;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -190,7 +190,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>shaderc_combined.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shaderc_combined.lib;spirv-cross-core.lib;spirv-cross-reflect.lib;spirv-cross-glsl.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\Generated\lib;..\..\External\Vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -200,7 +200,7 @@
       <PrecompiledHeaderFile>ResourceCompiler_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;NDEBUG;PLATFORM_OSX;SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\Shared;..\Engine\Resources;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\Shared;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -215,7 +215,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>shaderc_combined.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shaderc_combined.lib;spirv-cross-core.lib;spirv-cross-reflect.lib;spirv-cross-glsl.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\Generated\lib;..\..\External\Vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -225,7 +225,7 @@
       <PrecompiledHeaderFile>ResourceCompiler_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_WINDOWS;SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\Shared;..\Engine\Resources;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\Shared;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -242,7 +242,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>shaderc_combined.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shaderc_combined.lib;spirv-cross-core.lib;spirv-cross-reflect.lib;spirv-cross-glsl.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\Generated\lib;..\..\External\Vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
@@ -252,7 +252,7 @@
       <PrecompiledHeaderFile>ResourceCompiler_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_OSX;SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\Shared;..\Engine\Resources;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\Shared;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -269,20 +269,33 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <AdditionalDependencies>shaderc_combined.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>shaderc_combined.lib;spirv-cross-core.lib;spirv-cross-reflect.lib;spirv-cross-glsl.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>..\..\Generated\lib;..\..\External\Vulkan\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="MetaResource.h" />
+    <ClInclude Include="ReflectedShaderData.h" />
+    <ClInclude Include="ResourceCommon.h" />
     <ClInclude Include="ResourceCompiler_PCH.h" />
+    <ClInclude Include="Resources_Materials\Materials_Common.h" />
+    <ClInclude Include="Resources_Materials\ShaderBufferList.h" />
+    <ClInclude Include="Resources_Materials\ShaderCommons.h" />
+    <ClInclude Include="Resources_Materials\ShaderTextureList.h" />
+    <ClInclude Include="Resources_Textures\TextureCommons.h" />
     <ClInclude Include="ShaderCompiler.h" />
+    <ClInclude Include="ShaderReflection.h" />
     <ClInclude Include="TextureCompiler.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="MetaResource.cpp" />
+    <ClCompile Include="ResourceCommon.cpp" />
     <ClCompile Include="ResourceCompiler_PCH.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Resources_Textures\TextureCommons.cpp" />
     <ClCompile Include="ShaderCompiler.cpp" />
+    <ClCompile Include="ShaderReflection.cpp" />
     <ClCompile Include="TextureCompiler.cpp" />
   </ItemGroup>
   <ItemGroup>

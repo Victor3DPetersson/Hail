@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Rendering\UniformBufferManager.h"
+#include "BufferResource.h"
+#include "Resources_Materials\Materials_Common.h"
 
 namespace Hail
 {
@@ -14,15 +15,24 @@ namespace Hail
 	{
 	public:
 
+		// Creates the internal buffers
 		virtual bool Init(RenderingDevice* renderingDevice, SwapChain* swapChain) = 0;
 
 		//overloaded function that gets the udnerlying resources from the platform version
 		virtual void* GetRenderingResources() = 0;
 
 		virtual void ClearAllResources() = 0;
-		virtual void MapMemoryToBuffer(BUFFERS buffer, void* dataToMap, uint32_t sizeOfData) = 0;
+		virtual void MapMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32_t sizeOfData) = 0;
+
+		BufferObject* GetBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint);
+		virtual void CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor) = 0;
 
 	protected:
+		// Creates the common buffers, gets called from the virtual init function
+		bool InternalInit();
+		// 1 for Array for each set, so global and material domains
+		StaticArray<GrowingArray<BufferObject*>, 2> m_uniformBuffers;
+		StaticArray<GrowingArray<BufferObject*>, 2> m_structuredBuffers;
 
 		RenderingDevice* m_renderDevice;
 		SwapChain* m_swapChain;

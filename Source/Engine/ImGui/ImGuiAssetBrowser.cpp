@@ -52,7 +52,9 @@ namespace
 			if (showToolTip)
 				ImGuiHelpers::MetaResourceTooltipPanel(&imageResource->metaDataOfResource);
 			if (io.MouseClicked[0])
+			{
 				fileObject.m_selected = !fileObject.m_selected;
+			}
 		}
 		else
 			ImGui::BeginChildFrame(id, { ASSET_SIZE, ASSET_SIZE * 1.3 }, showBackground ? 0 : ImGuiWindowFlags_NoBackground);
@@ -73,13 +75,14 @@ namespace
 		return false;
 	}
 
-	bool CreateMaterialPopup(const Hail::FilePath& currentPath, String256& assetName)
+	bool CreateMaterialPopup(const Hail::FilePath& currentPath, String256& assetName, uint32& materialType)
 	{
 		ImGui::OpenPopup("Creation Window");
 		if (ImGui::BeginPopupModal("Creation Window"))
 		{
-
 			ImGui::InputText("Resource Name: ", assetName.Data(), 256);
+
+			materialType = ImGuiHelpers::GetMaterialTypeComboBox(materialType);
 			if (StringLength(assetName) > 0)
 			{
 				if (ImGui::Button("Ok"))
@@ -117,17 +120,25 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 		fileBrowser->RenderImGuiCommands(closeCommandWasSent);
 		if (closeCommandWasSent)
 		{
-			ImportTextureLogic();
+			if (!m_textureFileBrowserData.objectsToSelect.Empty())
+			{
+				ImportTextureLogic();
+			}
+			if (!m_shaderFileBrowserData.objectsToSelect.Empty())
+			{
+				ImportShaderResourceLogic();
+			}
+			InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
 			m_openedFileBrowser = false;
 		}
 	}
 	if (m_creatingMaterial)
 	{
-		m_creatingMaterial = CreateMaterialPopup(m_fileSystem.GetCurrentFilePath(), m_createResourceName);
+		m_creatingMaterial = CreateMaterialPopup(m_fileSystem.GetCurrentFilePath(), m_createResourceName, m_createMaterialType);
 
 		if (!m_creatingMaterial)
 		{
-			resourceManager->GetMaterialManager()->CreateMaterial(m_fileSystem.GetCurrentFilePath(), m_createResourceName);
+			resourceManager->GetMaterialManager()->CreateMaterial(m_fileSystem.GetCurrentFilePath(), m_createResourceName, (eMaterialType)m_createMaterialType);
 			m_fileSystem.ReloadFolder(m_fileSystem.GetCurrentFilePath());
 			m_createResourceName[0] = 0;
 		}
@@ -142,8 +153,10 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 	{
 		if (ImGui::BeginMenu("Import"))
 		{
-			if (ImGui::MenuItem("Import Texture", NULL, &m_openedFileBrowser))
+			if (ImGui::MenuItem("Texture", NULL, &m_openedFileBrowser))
 				fileBrowser->Init(&m_textureFileBrowserData);
+			if (ImGui::MenuItem("Shader", NULL, &m_openedFileBrowser))
+				fileBrowser->Init(&m_shaderFileBrowserData);
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("Create"))
@@ -218,6 +231,27 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 					contextObject->DeselectContext();
 				}
 			}
+			else if (StringCompare(currentObject.m_fileObject.Extension(), L"shr"))
+			{
+				RenderAssetPreview(currentObject, m_materialIconTexture.m_texture, false);
+
+				if (!wasSelected && currentObject.m_selected)
+				{
+					m_currentlySelectedShaderResource.m_pFileObject = &currentObject;
+					m_currentlySelectedShaderResource.m_metaResource = m_resourceManager->GetMaterialManager()->LoadShaderMetaData(m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject);
+					m_currentlySelectedShaderResource.m_pShader = m_resourceManager->GetMaterialManager()->GetCompiledLoadedShader(m_currentlySelectedShaderResource.m_metaResource.GetGUID());
+					if (!m_currentlySelectedShaderResource.m_pShader)
+					{
+						// TODO assert here, should not be possible to not have a shader loaded if it has a shr file
+					}
+
+					contextObject->SetCurrentContextObject(ImGuiContextsType::Shader, &m_currentlySelectedShaderResource);
+				}
+				if (wasSelected && !currentObject.m_selected && contextObject->GetCurrentContextObject())
+				{
+					contextObject->DeselectContext();
+				}
+			}
 			if ((i + 1) % xRegionAvailable != 0)
 				ImGui::SameLine();
 		}
@@ -277,6 +311,9 @@ void Hail::ImGuiAssetBrowser::InitFileBrowser()
 	m_textureFileBrowserData.allowMultipleSelection = true;
 	m_textureFileBrowserData.extensionsToSearchFor = { "tga" };
 	m_textureFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
+	m_shaderFileBrowserData.allowMultipleSelection = true;
+	m_shaderFileBrowserData.extensionsToSearchFor = { "cmp", "vert", "amp", "msh", "frag" };
+	m_shaderFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 }
 
 void Hail::ImGuiAssetBrowser::InitCommonData()
@@ -296,6 +333,8 @@ void Hail::ImGuiAssetBrowser::InitCommonData()
 	m_currentFileDirectoryOpened = m_fileSystem.GetCurrentFileDirectoryObject();
 	InitFileBrowser();
 	InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
+
+	m_createMaterialType = (uint32)eMaterialType::SPRITE;
 }
 
 void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
@@ -348,7 +387,16 @@ void Hail::ImGuiAssetBrowser::ImportTextureLogic()
 		m_fileSystem.ReloadFolder(m_resourceManager->GetTextureManager()->ImportTextureResource(m_textureFileBrowserData.objectsToSelect[i]));
 	}
 	m_textureFileBrowserData.objectsToSelect.RemoveAll(); 
-	InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
 }
+
+void Hail::ImGuiAssetBrowser::ImportShaderResourceLogic()
+{
+	for (size_t i = 0; i < m_shaderFileBrowserData.objectsToSelect.Size(); i++)
+	{
+		m_fileSystem.ReloadFolder(m_resourceManager->GetMaterialManager()->ImportShaderResource(m_shaderFileBrowserData.objectsToSelect[i]));
+	}
+	m_shaderFileBrowserData.objectsToSelect.RemoveAll();
+}
+
 #pragma optimize("", on)
 

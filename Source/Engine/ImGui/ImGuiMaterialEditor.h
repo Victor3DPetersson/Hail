@@ -13,7 +13,8 @@ namespace Hail
 		void SetMaterialAsset(ImGuiContext* context);
 	private:
 		MaterialResourceContextObject m_materialToEdit;
-		bool m_openTextureBrowser;
+		bool m_bOpenFileBrowser;
+		uint8 m_selectedShader;
 		uint8 m_selectedTextureSlot;
 	};
 }

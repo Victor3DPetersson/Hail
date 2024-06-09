@@ -244,9 +244,10 @@ namespace Hail
 		//Constructs a FilePath object from the known Data
 		FilePath GetFilePath() const;
 		const wchar_t* GetRelativePathData() const { return m_pathFromWorkingDir; }
-
-		void Serialize(InOutStream& outObject) final;
-		void Deserialize(InOutStream& inObject) final;
+		bool Empty() { return m_pathLength == 0; }
+		void Serialize(InOutStream& outObject) override;
+		void Deserialize(InOutStream& inObject) override;
+		String64 GetName() const { return m_name; }
 	private:
 		int16 m_stepsFromFileToCommonSharedDir;
 		uint16 m_directoryLevel;
@@ -254,5 +255,6 @@ namespace Hail
 
 		wchar_t m_pathFromWorkingDir[MAX_FILE_LENGTH];
 		uint16 m_pathLength;
+		String64 m_name;
 	};
 }

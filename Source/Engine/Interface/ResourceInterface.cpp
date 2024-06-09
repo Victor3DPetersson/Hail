@@ -24,7 +24,7 @@ namespace Hail
 
 	uint32 ResourceInterface::GetMaterialInstanceResourceHandle(GUID guid)
 	{
-		if (!m_instance || guid == guidZero)
+		if (!m_instance || guid == GuidZero)
 			return MAX_UINT;
 		ResourceInterface& interface = *m_instance;
 

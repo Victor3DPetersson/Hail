@@ -2,7 +2,7 @@
 #include <cassert>
 #include <initializer_list>
 
-template <typename Type, size_t size = static_cast<size_t>(128)>
+template <typename Type, size_t size>
 class StaticArray
 {
 public:
@@ -17,6 +17,7 @@ public:
 	// Utility functions
 	inline size_t Getsize();
 	Type* Data() { return m_data; };
+	void Fill(const Type& value);
 
 private:
 	Type m_data[size];
@@ -63,3 +64,11 @@ Type& StaticArray<Type, size>::operator[](const int& index)
 	return m_data[index];
 }
 
+template <typename Type, size_t size>
+void StaticArray<Type, size>::Fill(const Type& value)
+{
+	for (size_t i = 0; i < size; i++)
+	{
+		m_data[i] = value;
+	}
+}

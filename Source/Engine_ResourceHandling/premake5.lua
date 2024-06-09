@@ -1,7 +1,7 @@
-project "ResourceCompiler"
-	location "%{dirs.srcdir}/ResourceCompiler"
+project "Engine_ResourceHandling"
+	location "%{dirs.srcdir}/Engine_ResourceHandling"
 
-	print ("Building ResourceCompiler...")
+	print ("Building Engine_ResourceHandling...")
 	print (dirs.srcdir)
 	print (dirs.extdir)
 
@@ -18,14 +18,13 @@ project "ResourceCompiler"
 	pchsource "ResourceCompiler_PCH.cpp"
 
 	files {
-		"%{dirs.srcdir}/ResourceCompiler/**.h",
-		"%{dirs.srcdir}/ResourceCompiler/**.cpp",
+		"%{dirs.srcdir}/Engine_ResourceHandling/**.h",
+		"%{dirs.srcdir}/Engine_ResourceHandling/**.cpp",
 	}
 
 	includedirs {
 		".",
 		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/Engine/Resources",
 		"%{dirs.extdir}/Vulkan/Include/",
 	}
 	defines {
@@ -40,14 +39,23 @@ project "ResourceCompiler"
 		 }
 	filter { "configurations:Debug" }
 	 	links { 
-			"shaderc_combinedd"
+			"shaderc_combinedd",
+			"spirv-cross-cored",
+			"spirv-cross-reflectd",
+			"spirv-cross-glsld"
 			 }
 	filter { "configurations:Release" }
 		links { 
-			"shaderc_combined"
+			"shaderc_combined",
+			"spirv-cross-core",
+			"spirv-cross-reflect",
+			"spirv-cross-glsl"
 			 }
 	filter { "configurations:Production" }
 		links { 
-			"shaderc_combined"
+			"shaderc_combined",
+			"spirv-cross-core",
+			"spirv-cross-reflect",
+			"spirv-cross-glsl"
 			 }
 

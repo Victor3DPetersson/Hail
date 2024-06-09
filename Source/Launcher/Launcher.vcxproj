@@ -274,7 +274,7 @@
     <ProjectReference Include="..\Engine\Engine.vcxproj">
       <Project>{DBC7D3B0-C769-FE86-B024-12DB9C6585D7}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\Game\Game.vcxproj">
+    <ProjectReference Include="..\..\Generated\local\Game.vcxproj">
       <Project>{7FA9857C-6BE0-860D-14CD-6C1000E3020F}</Project>
     </ProjectReference>
   </ItemGroup>

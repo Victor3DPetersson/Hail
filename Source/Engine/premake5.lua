@@ -24,13 +24,13 @@ project "Engine"
 		".",
 		"%{dirs.extdir}/dearimgui/",
 		"%{dirs.srcdir}/Shared/",
-		"%{dirs.srcdir}/ResourceCompiler/",
+		"%{dirs.srcdir}/Engine_ResourceHandling/",
 	}
 
 	libdirs { "%{dirs.libdir}" }	
 	links { 
 		"dearimgui",
-		"ResourceCompiler",
+		"Engine_ResourceHandling",
 		"Shared"
 		 }
 filter { "platforms:Windows" }

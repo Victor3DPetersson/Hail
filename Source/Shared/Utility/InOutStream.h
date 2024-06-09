@@ -8,7 +8,7 @@ namespace Hail
 	{
 		READ,// Opens a file for reading.The file must exist.
 		WRITE, //Creates an empty file for writing.If a file with the same name already exists, its content is erased and the file is considered as a new empty file.
-		APPENDS, //Appends to a file.Writing operations, append data at the end of the file.The file is created if it does not exist.
+		APPENDS, //Appends to a file. Writing operations, append data at the end of the file.The file is created if it does not exist.
 		READ_WRITE, //Opens a file to update both reading and writing.The file must exist.
 		CLEAR_READ_WRITE, //Creates an empty file for both reading and writing.
 		READ_APPEND, //Opens a file for reading and appending.

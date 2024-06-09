@@ -1,6 +1,7 @@
 #pragma once
 #include "glm\vec2.hpp"
 #include "Types.h"
+#include "ResourceCommon.h"
 
 namespace Hail
 {

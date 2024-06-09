@@ -22,12 +22,14 @@ namespace Hail
 
 		void InitFolder(const FileObject& fileObject);
 		void ImportTextureLogic();
+		void ImportShaderResourceLogic();
 
 
 		bool m_fileBrowsersAreInited = false;
 		bool m_openAssetBrowser = false;
 		bool m_inited = false;
 		ImGuiFileBrowserData m_textureFileBrowserData;
+		ImGuiFileBrowserData m_shaderFileBrowserData;
 		FileSystem m_fileSystem;
 
 		FileObject m_currentFileDirectoryOpened;
@@ -40,7 +42,7 @@ namespace Hail
 
 		GrowingArray<TextureContextAsset> m_selectedTextureAssets;
 		MaterialResourceContextObject m_currentlySelectedMaterialResource;
-
+		ShaderResourceContextObject m_currentlySelectedShaderResource;
 
 		TextureContextAsset m_folderTexture;
 		TextureContextAsset m_materialIconTexture;
@@ -50,6 +52,7 @@ namespace Hail
 		bool m_openedFileBrowser;
 		bool m_creatingMaterial;
 		String256 m_createResourceName;
+		uint32 m_createMaterialType;
 	};
 
 

@@ -29,6 +29,7 @@ public:
 	inline const T &operator[](const CountType& index) const;
 
 	inline void Add(const T & object);
+	inline T& Add();
 	inline void Insert(CountType index, const T & object);
 
 	inline void RemoveCyclic(const T & object);
@@ -37,8 +38,8 @@ public:
 	inline void RemoveLast();
 	inline CountType Find(const T & object);
 
-	inline T & GetLast();
-	inline const T & GetLast() const;
+	inline T& GetLast();
+	inline const T& GetLast() const;
 
 	// Resets the counter but does not free the memory.
 	inline void RemoveAll();
@@ -58,10 +59,9 @@ private:
 	void GrowArray();
 	void GrowArray(const CountType growSize);
 
-	T *m_arrayPointer;
 	CountType m_elementCount;
 	CountType m_capacity;
-
+	T *m_arrayPointer;
 };
 
 template <typename T, typename CountType>
@@ -116,7 +116,6 @@ GrowingArray<typename T, typename CountType>::GrowingArray(CountType nrOfRecomme
 template <typename T, typename CountType>
 GrowingArray<typename T, typename CountType>::GrowingArray(const GrowingArray& growingArray)
 {
-	DumpAll();
 	m_arrayPointer = nullptr;
 	m_capacity = 0;
 	m_elementCount = 0;
@@ -227,6 +226,13 @@ void GrowingArray<typename T, typename CountType>::Add(const T & object)
 
 	m_arrayPointer[m_elementCount] = object;
 	++m_elementCount;
+}
+
+template <typename T, typename CountType>
+T& GrowingArray<typename T, typename CountType>::Add()
+{
+	Add(T());
+	return GetLast();
 }
 
 template <typename T, typename CountType>
@@ -356,7 +362,7 @@ template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::Resize(CountType aNewSize)
 {
 	if (!m_arrayPointer)
-		return;
+		Prepare(aNewSize);
 	GrowArray(aNewSize);
 }
 
@@ -372,7 +378,7 @@ void GrowingArray<typename T, typename CountType>::GrowArray()
 template <typename T, typename CountType>
 void GrowingArray<typename T, typename CountType>::GrowArray(const CountType newSize)
 {
-	if (!m_arrayPointer)
+	if (!m_arrayPointer || newSize <= m_capacity)
 		return;
 	T* tempPointer = m_arrayPointer;
 	const CountType tempCount = m_elementCount;

@@ -14,13 +14,14 @@ void ResourceRegistry::Init()
 {
 	RecursiveFileIterator fileIterator(FilePath::GetCurrentWorkingDirectory());
 
-	
+	//TODO: Check if current path does not match the meta resource project path, and make a function to clean that up.
+
 	while (fileIterator.IterateOverFolderRecursively())
 	{
 		FilePath currentFilePath = fileIterator.GetCurrentPath();
 		const FileObject& currentFileObject = currentFilePath.Object();
 
-		MetaDataWithKey resource;
+		MetaData resource;
 		resource.bIsLoaded = false;
 
 		if (StringCompare(currentFileObject.Extension(), L"txr"))
@@ -32,8 +33,7 @@ void ResourceRegistry::Init()
 				continue;
 
 
-			resource.key = resourceToFill.GetGUID();
-			resource.projectPath = RelativeFilePath(currentFilePath);
+			resource.m_resource = resourceToFill;
 			m_textureResources.Add(resource);
 		}
 		if (StringCompare(currentFileObject.Extension(), L"mat"))
@@ -43,16 +43,23 @@ void ResourceRegistry::Init()
 			if (resourceToFill.GetGUID() == GUID())
 				continue;
 
-			resource.key = resourceToFill.GetGUID();
-			resource.projectPath = RelativeFilePath(currentFilePath);
+			resource.m_resource = resourceToFill;
 			m_materialResources.Add(resource);
+		}
+		if (StringCompare(currentFileObject.Extension(), L"shr"))
+		{
+			MetaResource resourceToFill = MaterialManager::LoadShaderMetaData(currentFilePath);
+			if (resourceToFill.GetGUID() == GUID())
+				continue;
+			resource.m_resource = resourceToFill;
+			m_shaderResources.Add(resource);
 		}
 	}
 }
 
 void Hail::ResourceRegistry::AddToRegistry(const FilePath& resourcePath, ResourceType type)
 {
-	MetaDataWithKey resource;
+	MetaData resource;
 	resource.bIsLoaded = false;
 	MetaResource resourceToFill;
 
@@ -66,7 +73,7 @@ void Hail::ResourceRegistry::AddToRegistry(const FilePath& resourcePath, Resourc
 		bool isAlreadyLoaded = false;
 		for (size_t i = 0; i < m_textureResources.Size(); i++)
 		{
-			if (m_textureResources[i].key == resourceToFill.GetGUID())
+			if (m_textureResources[i].m_resource.GetGUID() == resourceToFill.GetGUID())
 			{
 				isAlreadyLoaded = true;
 				break;
@@ -83,7 +90,24 @@ void Hail::ResourceRegistry::AddToRegistry(const FilePath& resourcePath, Resourc
 		bool isAlreadyLoaded = false;
 		for (size_t i = 0; i < m_materialResources.Size(); i++)
 		{
-			if (m_materialResources[i].key == resourceToFill.GetGUID())
+			if (m_materialResources[i].m_resource.GetGUID() == resourceToFill.GetGUID())
+			{
+				isAlreadyLoaded = true;
+				break;
+			}
+		}
+		if (isAlreadyLoaded)
+			return;
+	}
+	if (type == ResourceType::Shader)
+	{
+		resourceToFill = MaterialManager::LoadShaderMetaData(resourcePath);
+		if (resourceToFill.GetGUID() == GUID())
+			return;
+		bool isAlreadyLoaded = false;
+		for (size_t i = 0; i < m_shaderResources.Size(); i++)
+		{
+			if (m_shaderResources[i].m_resource.GetGUID() == resourceToFill.GetGUID())
 			{
 				isAlreadyLoaded = true;
 				break;
@@ -93,21 +117,35 @@ void Hail::ResourceRegistry::AddToRegistry(const FilePath& resourcePath, Resourc
 			return;
 	}
 
-	resource.key = resourceToFill.GetGUID();
-	resource.projectPath = RelativeFilePath(resourcePath);
+	resource.m_resource = resourceToFill;
 
 	if (type == ResourceType::Texture)
 		m_textureResources.Add(resource);
 	if (type == ResourceType::Material)
 		m_materialResources.Add(resource);
+	if (type == ResourceType::Shader)
+		m_shaderResources.Add(resource);
 }
 
 FilePath ResourceRegistry::GetProjectPath(ResourceType type, GUID resourceGuid) const
 {
 	if (type == ResourceType::Texture)
-		return GetFilePathInternal(m_textureResources, resourceGuid);
+		return GetProjectFilePathInternal(m_textureResources, resourceGuid);
 	if (type == ResourceType::Material)
-		return GetFilePathInternal(m_materialResources, resourceGuid);
+		return GetProjectFilePathInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		return GetProjectFilePathInternal(m_shaderResources, resourceGuid);
+	return FilePath();
+}
+
+FilePath Hail::ResourceRegistry::GetSourcePath(ResourceType type, GUID resourceGuid) const
+{
+	if (type == ResourceType::Texture)
+		return GetSourceFilePathInternal(m_textureResources, resourceGuid);
+	if (type == ResourceType::Material)
+		return GetSourceFilePathInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		return GetSourceFilePathInternal(m_shaderResources, resourceGuid);
 	return FilePath();
 }
 
@@ -117,6 +155,8 @@ bool Hail::ResourceRegistry::GetIsResourceImported(ResourceType type, GUID resou
 		return GetIsResourceImportedInternal(m_textureResources, resourceGuid);
 	if (type == ResourceType::Material)
 		return GetIsResourceImportedInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		return GetIsResourceImportedInternal(m_shaderResources, resourceGuid);
 	return false;
 }
 
@@ -126,6 +166,8 @@ bool Hail::ResourceRegistry::GetIsResourceLoaded(ResourceType type, GUID resourc
 		return GetIsResourceLoadedInternal(m_textureResources, resourceGuid);
 	if (type == ResourceType::Material)
 		return GetIsResourceLoadedInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		return GetIsResourceLoadedInternal(m_shaderResources, resourceGuid);
 	return false;
 }
 
@@ -135,7 +177,8 @@ void Hail::ResourceRegistry::SetResourceLoaded(ResourceType type, GUID resourceG
 		SetIsResourceLoadedInternal(m_textureResources, resourceGuid);
 	if (type == ResourceType::Material)
 		SetIsResourceLoadedInternal(m_materialResources, resourceGuid);
-
+	if (type == ResourceType::Shader)
+		SetIsResourceLoadedInternal(m_shaderResources, resourceGuid);
 }
 
 void Hail::ResourceRegistry::SetResourceUnloaded(ResourceType type, GUID resourceGuid)
@@ -144,37 +187,92 @@ void Hail::ResourceRegistry::SetResourceUnloaded(ResourceType type, GUID resourc
 		SetIsResourceUnloadedInternal(m_textureResources, resourceGuid);
 	if (type == ResourceType::Material)
 		SetIsResourceUnloadedInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		SetIsResourceUnloadedInternal(m_shaderResources, resourceGuid);
 }
 
-FilePath Hail::ResourceRegistry::GetFilePathInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const
+String64 Hail::ResourceRegistry::GetResourceName(ResourceType type, GUID resourceGUID) const
+{
+	if (type == ResourceType::Texture)
+		return	GetResourceNameInternal(m_textureResources, resourceGUID);
+	if (type == ResourceType::Material)
+		return	GetResourceNameInternal(m_materialResources, resourceGUID);
+	if (type == ResourceType::Shader)
+		return	GetResourceNameInternal(m_shaderResources, resourceGUID);
+
+	return String64();
+}
+
+bool Hail::ResourceRegistry::IsResourceOutOfDate(ResourceType type, GUID resourceGUID)
+{
+	if (type == ResourceType::Texture)
+	{
+		return IsResourceOutOfDateInternal(m_textureResources, resourceGUID);
+	}
+	if (type == ResourceType::Material)
+	{
+		// TODO insert error if this is tried to be done.
+		return false;
+	}
+	if (type == ResourceType::Shader)
+	{
+		return IsResourceOutOfDateInternal(m_shaderResources, resourceGUID);
+	}
+	return false;
+}
+
+FilePath Hail::ResourceRegistry::GetProjectFilePathInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
 {
 	for (size_t i = 0; i < list.Size(); i++)
-		if (list[i].key == resourceGuid)
-			return list[i].projectPath.GetFilePath();
+		if (list[i].m_resource.GetGUID() == resourceGuid)
+			return list[i].m_resource.GetProjectFilePath().GetFilePath();
 	return FilePath();
 }
 
-bool Hail::ResourceRegistry::GetIsResourceImportedInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const
+FilePath Hail::ResourceRegistry::GetSourceFilePathInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
 {
 	for (size_t i = 0; i < list.Size(); i++)
-		if (list[i].key == resourceGuid)
+		if (list[i].m_resource.GetGUID() == resourceGuid)
+			return list[i].m_resource.GetSourceFilePath().GetFilePath();
+	return FilePath();
+}
+
+bool Hail::ResourceRegistry::GetIsResourceImportedInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
+{
+	for (size_t i = 0; i < list.Size(); i++)
+		if (list[i].m_resource.GetGUID() == resourceGuid)
 			return true;
 	return false;
 }
 
-bool Hail::ResourceRegistry::GetIsResourceLoadedInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const
+bool Hail::ResourceRegistry::GetIsResourceLoadedInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
 {
 	for (size_t i = 0; i < list.Size(); i++)
-		if (list[i].key == resourceGuid)
+		if (list[i].m_resource.GetGUID() == resourceGuid)
 			return list[i].bIsLoaded;
 	return false;
 }
 
-void Hail::ResourceRegistry::SetIsResourceLoadedInternal(GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid)
+bool Hail::ResourceRegistry::IsResourceOutOfDateInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
 {
 	for (size_t i = 0; i < m_textureResources.Size(); i++)
 	{
-		if (list[i].key == resourceGuid)
+		if (list[i].m_resource.GetGUID() == resourceGuid)
+		{
+			CommonFileData sourceCurrentFileData = list[i].m_resource.GetSourceFilePath().GetFilePath().Object().GetFileData();
+			const CommonFileData& serializedSourceFileData = list[i].m_resource.GetSourceFileData();
+			return sourceCurrentFileData.m_lastWriteTime.m_highDateTime != serializedSourceFileData.m_lastWriteTime.m_highDateTime && 
+				sourceCurrentFileData.m_lastWriteTime.m_lowDateTime != serializedSourceFileData.m_lastWriteTime.m_lowDateTime;
+		}
+	}
+	return false;
+}
+
+void Hail::ResourceRegistry::SetIsResourceLoadedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid)
+{
+	for (size_t i = 0; i < m_textureResources.Size(); i++)
+	{
+		if (list[i].m_resource.GetGUID() == resourceGuid)
 		{
 			list[i].bIsLoaded = true;
 			return;
@@ -182,14 +280,22 @@ void Hail::ResourceRegistry::SetIsResourceLoadedInternal(GrowingArray<MetaDataWi
 	}
 }
 
-void Hail::ResourceRegistry::SetIsResourceUnloadedInternal(GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid)
+void Hail::ResourceRegistry::SetIsResourceUnloadedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid)
 {
 	for (size_t i = 0; i < m_textureResources.Size(); i++)
 	{
-		if (list[i].key == resourceGuid)
+		if (list[i].m_resource.GetGUID() == resourceGuid)
 		{
 			list[i].bIsLoaded = false;
 			return;
 		}
 	}
+}
+
+String64 Hail::ResourceRegistry::GetResourceNameInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
+{
+	for (size_t i = 0; i < list.Size(); i++)
+		if (list[i].m_resource.GetGUID() == resourceGuid)
+			return list[i].m_resource.GetName();
+	return false;
 }

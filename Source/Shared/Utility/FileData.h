@@ -7,8 +7,8 @@ namespace Hail
 
 	struct FileTime
 	{
-		uint32 m_lowDateTime = 0;
-		uint32 m_highDateTime = 0;
+		uint32 m_lowDateTime;
+		uint32 m_highDateTime;
 	};
 
 	struct CommonFileData

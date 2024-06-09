@@ -1,7 +1,9 @@
-#include "Engine_PCH.h"
-#include "Resource.h"
+#include "ResourceCompiler_PCH.h"
+#include "ResourceCommon.h"
 
-Hail::ResourceValidator::ResourceValidator()
+Hail::ResourceValidator::ResourceValidator() :
+	m_resourceIsDirty(false),
+	m_frameInFlightThatSetDirty(0)
 {
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{

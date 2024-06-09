@@ -38,7 +38,7 @@ namespace Hail
         unsigned char  m_data4[8]{};
     };
 
-    static GUID guidZero = GUID();
+    static GUID GuidZero = GUID();
 
     static glm::vec2 Vec2Zero = glm::vec2(0.0, 0.0);
     static glm::vec2 Vec2One = glm::vec2(1.0, 1.0);

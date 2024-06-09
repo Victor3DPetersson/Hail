@@ -17,6 +17,7 @@ namespace Hail
 {
 	bool g_inited = false;
 	ImGuiFileBrowserData g_textureFileBrowserData;
+	ImGuiFileBrowserData g_shaderFileBrowserData;
 
 	void InitCommonData()
 	{
@@ -27,16 +28,20 @@ namespace Hail
 		g_inited = true;
 
 		g_textureFileBrowserData.allowMultipleSelection = false;
-		g_textureFileBrowserData.objectsToSelect.Prepare(4);
+		g_textureFileBrowserData.objectsToSelect.Prepare(1);
 		g_textureFileBrowserData.extensionsToSearchFor = { "txr" };
 		g_textureFileBrowserData.pathToBeginSearchingIn = FilePath::GetCurrentWorkingDirectory();
+
+		g_shaderFileBrowserData.allowMultipleSelection = false;
+		g_shaderFileBrowserData.objectsToSelect.Prepare(1);
+		g_shaderFileBrowserData.extensionsToSearchFor = { "shr" };
+		g_shaderFileBrowserData.pathToBeginSearchingIn = FilePath::GetCurrentWorkingDirectory();
 	}
 }
 
-
 Hail::ImGuiMaterialEditor::ImGuiMaterialEditor()
 {
-	m_openTextureBrowser = false;
+	m_bOpenFileBrowser = false;
 	m_selectedTextureSlot = 0;
 }
 
@@ -46,45 +51,39 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 	ImGui::Begin("Material Editor", closeButton);
 	ImGui::Text("Material Name: %s", m_materialToEdit.m_fileObject->m_fileObject.Name().CharString());
 
-	if (m_openTextureBrowser)
-	{
-		bool finishedBrowsing = false;
-		fileBrowser->RenderImGuiCommands(finishedBrowsing);
-		if (finishedBrowsing)
-		{
-			MetaResource textureMetaData;
-			resourceManager.GetTextureManager()->LoadTextureMetaData(g_textureFileBrowserData.objectsToSelect[0], textureMetaData);
-			m_materialToEdit.m_materialObject.m_textureHandles[m_selectedTextureSlot] = textureMetaData.GetGUID();
-			m_selectedTextureSlot = 0;
-			m_openTextureBrowser = false;
-		}
-	}
-
 	if (m_materialToEdit.m_materialObject.m_baseMaterialType == eMaterialType::COUNT)
 	{
 		ImGui::End();
 		return;
 	}
-	if (ImGui::BeginCombo("Material Base Type", ImGuiHelpers::GetMaterialTypeStringFromEnum(m_materialToEdit.m_materialObject.m_baseMaterialType)))
-	{
-		bool is_selected = (eMaterialType::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType);
-		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType::SPRITE), is_selected))
-		{
-			m_materialToEdit.m_materialObject.m_baseMaterialType = eMaterialType::SPRITE;
-		}
-		if (is_selected)
-			ImGui::SetItemDefaultFocus();
-		//
-		is_selected = (eMaterialType::MODEL3D == m_materialToEdit.m_materialObject.m_baseMaterialType);
-		if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType::MODEL3D), is_selected))
-		{
-			m_materialToEdit.m_materialObject.m_baseMaterialType = eMaterialType::MODEL3D;
-		}
-		if (is_selected)
-			ImGui::SetItemDefaultFocus();
 
-		ImGui::EndCombo();
+	bool finishedBrowsing = false;
+	MetaResource selectedShaderMetaResource;
+	if (m_bOpenFileBrowser)
+	{
+		fileBrowser->RenderImGuiCommands(finishedBrowsing);
+		if (finishedBrowsing)
+		{
+			if (!g_textureFileBrowserData.objectsToSelect.Empty())
+			{
+				MetaResource textureMetaData;
+				resourceManager.GetTextureManager()->LoadTextureMetaData(g_textureFileBrowserData.objectsToSelect[0], textureMetaData);
+				m_materialToEdit.m_materialObject.m_textureHandles[m_selectedTextureSlot] = textureMetaData.GetGUID();
+				m_selectedTextureSlot = 0;
+				g_textureFileBrowserData.objectsToSelect.RemoveAll();
+			}
+			if (!g_shaderFileBrowserData.objectsToSelect.Empty())
+			{
+				selectedShaderMetaResource = resourceManager.GetMaterialManager()->LoadShaderMetaData(g_shaderFileBrowserData.objectsToSelect[0]);
+				g_shaderFileBrowserData.objectsToSelect.RemoveAll();
+			}
+			m_bOpenFileBrowser = false;
+		}
 	}
+
+	ImGui::Separator();
+
+	m_materialToEdit.m_materialObject.m_baseMaterialType = (eMaterialType)ImGuiHelpers::GetMaterialTypeComboBox((uint32)m_materialToEdit.m_materialObject.m_baseMaterialType);
 
 	if (ImGui::BeginCombo("Blend Mode", ImGuiHelpers::GetMaterialBlendModeFromEnum(m_materialToEdit.m_materialObject.m_blendMode)))
 	{
@@ -117,19 +116,75 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 			ImGui::EndDisabled();
 	}
 
-	if (eMaterialType::SPRITE == m_materialToEdit.m_materialObject.m_baseMaterialType)
+	ImGui::Separator();
+	MaterialManager* pMaterialManager = resourceManager.GetMaterialManager();
+	uint32 numberOfTextureSlots = 0;
+	VectorOnStack<ShaderDecoration, 8> textures;
+	for (size_t i = 0; i < 2; i++)
 	{
-		ImGui::Text("Sprite Texture: ");
+		CompiledShader* pShaderData = nullptr;
+		if (m_materialToEdit.m_materialObject.m_shaders[i].m_id != GuidZero)
+		{
+			pShaderData = pMaterialManager->GetCompiledLoadedShader(m_materialToEdit.m_materialObject.m_shaders[i].m_id);
+		}
+		if (m_materialToEdit.m_materialObject.m_shaders[i].m_id == GuidZero || !pShaderData)
+		{
+			pShaderData = pMaterialManager->GetDefaultCompiledLoadedShader(m_materialToEdit.m_materialObject.m_shaders[i].m_type);
+		}
+
+		if (m_selectedShader == i && selectedShaderMetaResource.GetGUID() != GuidZero)
+		{
+			CompiledShader* pSelectedShader = pMaterialManager->GetCompiledLoadedShader(selectedShaderMetaResource.GetGUID());
+
+			if (!pSelectedShader)
+			{
+				pSelectedShader = pMaterialManager->LoadShaderResource(selectedShaderMetaResource.GetGUID());
+			}
+
+			if (pSelectedShader && pMaterialManager->IsShaderValidWithMaterialType(m_materialToEdit.m_materialObject.m_baseMaterialType,
+				(eShaderType)pSelectedShader->header.shaderType, pSelectedShader->reflectedShaderData))
+			{
+				pShaderData = pSelectedShader;
+				m_materialToEdit.m_materialObject.m_shaders[i].m_id = selectedShaderMetaResource.GetGUID();
+			}
+			else
+			{
+				// TODO: show error
+			}
+
+			m_selectedShader = 0;
+		}
+
+		const VectorOnStack<ShaderDecoration, 8>& shaderTextures = pShaderData->reflectedShaderData.m_setDecorations[InstanceDomain].m_sampledImages;
+		for (size_t iTexture = 0; iTexture < shaderTextures.Size(); iTexture++)
+		{
+			textures.Add(shaderTextures[iTexture]);
+			numberOfTextureSlots++;
+		}
+		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderType)pShaderData->header.shaderType));
+		ImGui::Text("Shader Name: %s", pShaderData->shaderName.Data());
+		if (ImGui::Button(String64::Format("Change Shader: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderType)pShaderData->header.shaderType))) && fileBrowser->Init(&g_shaderFileBrowserData))
+		{
+			m_bOpenFileBrowser = true;
+			m_selectedShader = i;
+		}
+		ImGui::Separator();
+	}
+
+	for (size_t i = 0; i < numberOfTextureSlots; i++)
+	{
+		
+		ImGui::Text("Texture Binding point: %i", textures[i].m_bindingLocation);
 		ImGui::SameLine();
-		if (m_materialToEdit.m_materialObject.m_textureHandles[0] == guidZero)
+		if (m_materialToEdit.m_materialObject.m_textureHandles[i] == GuidZero)
 			ImGui::Text("None");
 		else
-			ImGui::Text(GetResourceRegistry().GetProjectPath(ResourceType::Texture, m_materialToEdit.m_materialObject.m_textureHandles[0]).Object().Name().CharString());
+			ImGui::Text(GetResourceRegistry().GetProjectPath(ResourceType::Texture, m_materialToEdit.m_materialObject.m_textureHandles[i]).Object().Name().CharString());
 		ImGui::SameLine();
-		if (ImGui::Button("Search") && fileBrowser->Init(&g_textureFileBrowserData))
+		if (ImGui::Button(String64::Format("Replace Texture %i", i)) && fileBrowser->Init(&g_textureFileBrowserData))
 		{
-			m_openTextureBrowser = true;
-			m_selectedTextureSlot = 0;
+			m_bOpenFileBrowser = true;
+			m_selectedTextureSlot = i;
 		}
 	}
 

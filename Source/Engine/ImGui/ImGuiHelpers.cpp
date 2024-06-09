@@ -6,7 +6,7 @@
 #include "Utility\FileSystem.h"
 #include "Utility\StringUtility.h"
 #include "ImGuiHelpers.h"
-#include "Resources\MetaResource.h"
+#include "MetaResource.h"
 
 #ifdef PLATFORM_WINDOWS
 #include <windows.h>
@@ -109,9 +109,9 @@ void Hail::ImGuiHelpers::MetaResourcePanel(MetaResource* metaResource)
         ImGui::Text("Base resource information");
         FromWCharToConstChar(metaResource->GetSourceFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
         ImGui::Text("Source Path : ..%s", pathString);
-        ImGui::Text("Creation Time: %s", FormattedTimeFromFileData(metaResource->GetFileData().m_creationTime));
-        ImGui::Text("Last Edited Time: %s", FormattedTimeFromFileData(metaResource->GetFileData().m_lastWriteTime));
-        ImGui::Text("File size: %f mb", (float)((double)metaResource->GetFileData().m_filesizeInBytes) / 1000000.f);
+        ImGui::Text("Creation Time: %s", FormattedTimeFromFileData(metaResource->GetSourceFileData().m_creationTime));
+        ImGui::Text("Last Edited Time: %s", FormattedTimeFromFileData(metaResource->GetSourceFileData().m_lastWriteTime));
+        ImGui::Text("File size: %f mb", (float)((double)metaResource->GetSourceFileData().m_filesizeInBytes) / 1000000.f);
     }
     //static float arr[] = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
     //ImGui::PlotLines("Curve", arr, IM_ARRAYSIZE(arr));
@@ -175,4 +175,53 @@ const char* Hail::ImGuiHelpers::GetMaterialBlendModeFromEnum(eBlendMode mode)
         break;
     }
     return nullptr;
+}
+
+const char* Hail::ImGuiHelpers::GetShaderTypeFromEnum(eShaderType mode)
+{
+    switch (mode)
+    {
+    case Hail::eShaderType::Compute:
+        return "Compute";
+    case Hail::eShaderType::Vertex:
+        return "Vertex";
+    case Hail::eShaderType::Fragment:
+        return "Fragment";
+    case Hail::eShaderType::Amplification:
+        return "Amplification";
+    case Hail::eShaderType::Mesh:
+        return "Mesh";
+    case Hail::eShaderType::None:
+        return "None";
+    default:
+        break;
+    }
+
+    return nullptr;
+}
+
+int Hail::ImGuiHelpers::GetMaterialTypeComboBox(uint32 index)
+{
+    int materialIndex = index;
+    if (ImGui::BeginCombo("Material Base Type", ImGuiHelpers::GetMaterialTypeStringFromEnum((eMaterialType)index)))
+    {
+        bool is_selected = (eMaterialType::SPRITE == (eMaterialType)index);
+        if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType::SPRITE), is_selected))
+        {
+            materialIndex = (int)eMaterialType::SPRITE;
+        }
+        if (is_selected)
+            ImGui::SetItemDefaultFocus();
+        //
+        is_selected = (eMaterialType::MODEL3D == (eMaterialType)index);
+        if (ImGui::Selectable(ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType::MODEL3D), is_selected))
+        {
+            materialIndex = (int)eMaterialType::MODEL3D;
+        }
+        if (is_selected)
+            ImGui::SetItemDefaultFocus();
+
+        ImGui::EndCombo();
+    }
+    return materialIndex;
 }

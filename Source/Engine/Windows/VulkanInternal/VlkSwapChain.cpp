@@ -37,6 +37,7 @@ bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemap
 	}
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_bResizeSwapChain)
 	{
+		Debug_PrintConsoleString64("Recreating Swapchain");
 		RecreateSwapchain(device, inFrameFences, imageAvailableSemaphores);
 		resizedSwapChain = true;
 		m_bResizeSwapChain = false;
@@ -54,7 +55,6 @@ bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemap
 
 void VlkSwapChain::FrameEnd(VkSemaphore* endSemaphore, VkQueue presentQueue)
 {
-
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
@@ -68,14 +68,12 @@ void VlkSwapChain::FrameEnd(VkSemaphore* endSemaphore, VkQueue presentQueue)
 	presentInfo.pResults = nullptr; // Optional
 
 	vkQueuePresentKHR(presentQueue, &presentInfo);
-
 	m_currentFrame = (m_currentFrame + 1) % MAX_FRAMESINFLIGHT;
 }
 
 
 void VlkSwapChain::RecreateSwapchain(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores)
 {
-
 	glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
 
 	vkDeviceWaitIdle(device.GetDevice());
@@ -177,7 +175,7 @@ VkSurfaceFormatKHR VlkSwapChain::ChooseSwapSurfaceFormat(const GrowingArray<VkSu
 	unsigned short numberOfFormats = availableFormats.Size();
 	for (size_t i = 0; i < numberOfFormats; i++)
 	{
-		if (availableFormats[i].format == VK_FORMAT_R8G8B8A8_SRGB && availableFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) 
+		if (availableFormats[i].format == VK_FORMAT_B8G8R8A8_UNORM && availableFormats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 		{
 			return availableFormats[i];
 		}

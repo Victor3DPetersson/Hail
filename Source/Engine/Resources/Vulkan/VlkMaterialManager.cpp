@@ -4,7 +4,7 @@
 #include "Windows\VulkanInternal\VlkDevice.h"
 #include "Windows\VulkanInternal\VlkSwapChain.h"
 #include "Windows\VulkanInternal\VlkVertex_Descriptor.h"
-#include "Rendering\UniformBufferManager.h"
+#include "VlkBufferResource.h"
 #include "Windows\VulkanInternal\VlkResourceManager.h"
 #include "VlkTextureManager.h"
 #include "Windows\VulkanInternal\VlkMaterialCreationUtils.h"
@@ -22,13 +22,10 @@ namespace
 		createInfo.pCode = reinterpret_cast<const uint32_t*>(shader.compiledCode);
 		VkShaderModule shaderModule;
 		if (vkCreateShaderModule(device.GetDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-#ifdef DEBUG
-			throw std::runtime_error("failed to create shader module!");
-#endif
+			
+			// TODO: Throw error and move this to the shader loading stage so we can have an early test for this.
 			return nullptr;
 		}
-		shader.loadState = SHADER_LOADSTATE::UPLOADED_TO_GPU;
-		SAFEDELETE_ARRAY(shader.compiledCode);
 		return shaderModule;
 	}
 
@@ -37,34 +34,6 @@ namespace
 void VlkMaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain)
 {
 	MaterialManager::Init(renderingDevice, textureResourceManager, renderingResourceManager, swapChain);
-}
-
-void Hail::VlkMaterialManager::ClearAllResources()
-{
-	MaterialManager::ClearAllResources();
-	//make sure to cleanup everything
-	VlkDevice& device = *(VlkDevice*)m_renderDevice;
-
-	for (uint32 i = 0; i < (uint32)(eMaterialType::COUNT); i++)
-	{
-
-		for (uint32 iMaterial = 0; iMaterial < m_materials[i].Size(); iMaterial++)
-		{
-			for (uint32 j = 0; j < MAX_FRAMESINFLIGHT; j++)
-			{
-				VlkMaterial* pVlkMat = (VlkMaterial*)m_materials[i][iMaterial];
-				pVlkMat->m_passData.CleanupResource(device);
-				pVlkMat->m_passData.CleanupResourceFrameData(device, j);
-			}
-		}
-
-
-	}
-}
-
-VlkPassData& Hail::VlkMaterialManager::GetMaterialData(eMaterialType material, uint32 materialIndex)
-{
-	return ((VlkMaterial*)m_materials[(uint32)material][materialIndex])->m_passData;
 }
 
 void Hail::VlkMaterialManager::BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial)
@@ -79,220 +48,68 @@ void Hail::VlkMaterialManager::BindFrameBuffer(eMaterialType materialType, Frame
 	}
 }
 
-bool VlkMaterialManager::InitMaterialInternal(Material& material, uint32 frameInFlight)
+bool VlkMaterialManager::InitMaterialInternal(Material* pMaterial, uint32 frameInFlight)
 {
-	return CreateMaterialPipeline(material, frameInFlight);
-}
+	const uint32 materialBaseType = (uint32)pMaterial->m_type;
 
-bool VlkMaterialManager::CreateMaterialPipeline(Material& material, uint32 frameInFlight)
-{
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
-	VlkMaterial* pMat = (VlkMaterial*)&material;
+	VlkMaterial* pVlkMat = (VlkMaterial*)pMaterial;
 
-	VlkPassData& passData = pMat->m_passData;
-	ResourceValidator& passDataValidator = pMat->m_passDataValidator;
-	if (passDataValidator.GetIsResourceDirty())
+	ResourceValidator& materialDataValidator = pVlkMat->m_validator;
+	if (materialDataValidator.GetIsResourceDirty())
 	{
-		if (!passDataValidator.GetIsFrameDataDirty(frameInFlight))
+		if (!materialDataValidator.GetIsFrameDataDirty(frameInFlight))
 		{
 			//Add fatal assert here that something have gone wrong
 			return false;
 		}
 	}
 
-	passData.m_frameBufferTextures = m_passesFrameBufferTextures[(uint32)material.m_type];
-	if (!SetUpMaterialLayouts(passData, passDataValidator, material.m_type, frameInFlight))
+	pVlkMat->m_frameBufferTextures = m_passesFrameBufferTextures[materialBaseType];
+
+	if (materialDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
+	{
+		if (!CreateMaterialTypeDescriptor(pMaterial))
+		{
+			// TODO assert
+			return false;
+		}
+
+		// TODO: assert on !pMaterial->m_pTypeDescriptor
+
+		// TODO: if reloading a material and the materials layout is different, this needs to be looked over
+		if (!CreatePipelineLayout(pMaterial))
+		{
+			// TODO assert
+			return false;
+		}
+
+
+		// Create the render pass
+		if (!CreateRenderpass(*pVlkMat))
+		{
+			return false;
+		}
+	}
+	if (!CreateFramebuffers(*pVlkMat, frameInFlight))
 	{
 		return false;
 	}
+	AllocateTypeDescriptors(*pVlkMat, frameInFlight);
 
 	//for debugging, check so that once everyFrameDataIsDirty the validator is set to not dirty
-	passDataValidator.ClearFrameData(frameInFlight);
+	materialDataValidator.ClearFrameData(frameInFlight);
 
-	if (passDataValidator.GetFrameThatMarkedFrameDirty() != frameInFlight)
+	if (materialDataValidator.GetFrameThatMarkedFrameDirty() != frameInFlight)
 	{
 		//Early out as below the resources are only created for the first frame in flight
 		return true;
 	}
 
-	//TODO: make a wireframe toggle for materials
-	const bool isWireFrame = material.m_type == eMaterialType::DEBUG_LINES2D || material.m_type == eMaterialType::DEBUG_LINES3D;
-
-	//Code below is creating Graphics Pipeline
-	//TODO: Break out in to its own function
-	bool renderDepth = false;
-	VkVertexInputBindingDescription vertexBindingDescription = VkVertexInputBindingDescription();
-	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions(1);
-	switch (material.m_type)
+	if (!CreateGraphicsPipeline(*pVlkMat))
 	{
-	case eMaterialType::SPRITE:
-		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
-		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
-		break;
-	case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-		{
-			VkVertexInputAttributeDescription attributeDescription{};
-			attributeDescription.binding = 0;
-			attributeDescription.location = 0;
-			attributeDescription.format = VK_FORMAT_R32_UINT;
-			attributeDescription.offset = 0;
-			vertexAttributeDescriptions.Add(attributeDescription);
-		}
-		vertexBindingDescription.binding = 0;
-		vertexBindingDescription.stride = sizeof(uint32_t);
-		vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		break;
-	case eMaterialType::MODEL3D:
-		renderDepth = true;
-		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
-		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
-		break;
-	case eMaterialType::DEBUG_LINES2D:
-	case eMaterialType::DEBUG_LINES3D:
-		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
-		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
-		break;
-	default:
-		break;
-	}
-
-	VkShaderModule vertShaderModule = CreateShaderModule(material.m_vertexShader, device);
-	VkShaderModule fragShaderModule = CreateShaderModule(material.m_fragmentShader, device);
-
-	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertShaderStageInfo.module = vertShaderModule;
-	vertShaderStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragShaderStageInfo.module = fragShaderModule;
-	fragShaderStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-	VkDynamicState dynamicStates[2] = {
-	VK_DYNAMIC_STATE_VIEWPORT,
-	VK_DYNAMIC_STATE_SCISSOR
-	};
-
-	VkPipelineDynamicStateCreateInfo dynamicState{};
-	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicState.dynamicStateCount = 2;
-	dynamicState.pDynamicStates = dynamicStates;
-
-	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
-	vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
-
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = isWireFrame ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	const glm::uvec2 resolution = passData.m_frameBufferTextures->GetResolution();
-	const VkExtent2D passExtent = { resolution.x, resolution.y };
-	viewport.width = (float)passExtent.width;
-	viewport.height = (float)passExtent.height;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = passExtent;
-
-	VkPipelineViewportStateCreateInfo viewportState{};
-	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportState.viewportCount = 1;
-	viewportState.scissorCount = 1;
-
-	VkPipelineRasterizationStateCreateInfo rasterizer{};
-	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizer.depthClampEnable = VK_FALSE;
-	rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	rasterizer.polygonMode = isWireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
-	rasterizer.lineWidth = 1.0f;
-	rasterizer.depthBiasEnable = VK_FALSE;
-	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-	rasterizer.depthBiasClamp = 0.0f; // Optional
-	rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
-	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	//rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-
-	VkPipelineMultisampleStateCreateInfo multisampling{};
-	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	multisampling.minSampleShading = 1.0f; // Optional
-	multisampling.pSampleMask = nullptr; // Optional
-	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
-	multisampling.alphaToOneEnable = VK_FALSE; // Optional
-
-	VkPipelineColorBlendAttachmentState colorBlendAttachment = CreateColorBlendAttachment(material);
-
-	VkPipelineColorBlendStateCreateInfo colorBlending{};
-	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	colorBlending.logicOpEnable = VK_FALSE;
-	colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
-	colorBlending.attachmentCount = 1;
-	colorBlending.pAttachments = &colorBlendAttachment;
-	colorBlending.blendConstants[0] = 0.0f; // Optional
-	colorBlending.blendConstants[1] = 0.0f; // Optional
-	colorBlending.blendConstants[2] = 0.0f; // Optional
-	colorBlending.blendConstants[3] = 0.0f; // Optional
-
-	VkPipelineDepthStencilStateCreateInfo depthStencil{};
-	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depthStencil.depthTestEnable = renderDepth;
-	depthStencil.depthWriteEnable = renderDepth;
-	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-	depthStencil.depthBoundsTestEnable = VK_FALSE;
-	depthStencil.minDepthBounds = 0.0f; // Optional
-	depthStencil.maxDepthBounds = 1.0f; // Optional
-	depthStencil.stencilTestEnable = VK_FALSE;
-	depthStencil.front = {}; // Optional
-	depthStencil.back = {}; // Optional
-
-	VkGraphicsPipelineCreateInfo pipelineInfo{};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStages;
-	pipelineInfo.pVertexInputState = &vertexInputInfo;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
-	pipelineInfo.pViewportState = &viewportState;
-	pipelineInfo.pRasterizationState = &rasterizer;
-	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = &depthStencil;
-	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.pDynamicState = &dynamicState;
-
-	pipelineInfo.layout = passData.m_pipelineLayout;
-	pipelineInfo.renderPass = passData.m_renderPass;
-	pipelineInfo.subpass = 0;
-	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-	pipelineInfo.basePipelineIndex = -1; // Optional
-
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributeDescriptions.Size());
-	vertexInputInfo.pVertexBindingDescriptions = &vertexBindingDescription;
-	vertexInputInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.Data();
-
-	if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &passData.m_pipeline) != VK_SUCCESS)
-	{
-		//TODO ASSERT
 		return false;
 	}
-
-	vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
-	vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
 	return true;
 }
 
@@ -301,10 +118,18 @@ struct VlkLayoutDescriptor
 	VkShaderStageFlags flags;
 	uint32_t bindingPoint;
 	VkDescriptorType type;
+	eDecorationType decorationType;
 };
 
-bool CreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors, VkDescriptorSetLayout& returnDescriptorLayoput, VlkDevice& device)
+bool localCreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors, VkDescriptorSetLayout& returnDescriptorLayoput, VlkDevice& device)
 {
+	//if (descriptors.Empty())
+	//{
+	//	// This material does not use any resources for this set
+	//	returnDescriptorLayoput = VK_NULL_HANDLE;
+	//	return true;
+	//}
+	//
 	GrowingArray<VkDescriptorSetLayoutBinding>bindings(descriptors.Size());
 	bindings.Fill();
 
@@ -378,249 +203,14 @@ bool ValidateDescriptorBufferWrite(VkDescriptorBufferInfo& descriptorToValidate)
 	return returnValue;
 }
 
-bool VlkMaterialManager::SetUpMaterialLayouts(VlkPassData& passData, ResourceValidator& passDataValidator, eMaterialType type, uint32 frameInFlight)
+bool Hail::VlkMaterialManager::CreateRenderpass(VlkMaterial& vlkMaterial)
 {
-	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
-
-	if (passDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
-	{
-		if (!SetUpPipelineLayout(passData, type, frameInFlight))
-		{
-			//TODO ASSERT
-			return false;
-		}
-
-		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, passData.m_passSetLayout);
-		VkDescriptorSetAllocateInfo passAllocInfo{};
-		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		passAllocInfo.descriptorPool = vlkRenderingResources->m_globalDescriptorPool;
-		passAllocInfo.descriptorSetCount = (uint32)MAX_FRAMESINFLIGHT;
-		passAllocInfo.pSetLayouts = setLayouts.Data();
-
-		if (vkAllocateDescriptorSets(device.GetDevice(), &passAllocInfo, passData.m_passDescriptors) != VK_SUCCESS)
-		{
-			//TODO ASSERT
-			return false;
-		}
-		if (!CreateRenderpass(passData, type))
-		{
-			return false;
-		}
-	}
-	if (!CreateFramebuffers(passData, type, frameInFlight))
-	{
-		return false;
-	}
-
-	GrowingArray< VkWriteDescriptorSet> setWrites(2);
-	uint32_t bufferSize = 0;
-	m_descriptorImageInfo.imageView = VK_NULL_HANDLE;
-	m_descriptorImageInfo.sampler = VK_NULL_HANDLE;
-	GrowingArray<VkDescriptorBufferInfo> bufferDescriptors(2);
-	switch (type)
-	{
-	case Hail::eMaterialType::SPRITE:
-	{
-
-		bufferSize = GetUniformBufferSize(BUFFERS::SPRITE_INSTANCE_BUFFER);
-
-		bufferDescriptors.Fill();
-		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::SPRITE_INSTANCE_BUFFER].m_buffer[frameInFlight];
-		bufferDescriptors[0].offset = 0;
-		bufferDescriptors[0].range = bufferSize;
-		if (!ValidateDescriptorBufferWrite(bufferDescriptors[0]))
-		{
-			return false;
-		}
-		VkWriteDescriptorSet spriteInstanceBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[0], 1);
-		setWrites.Add(spriteInstanceBuffer);
-	}
-	break;
-	case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-	{
-		m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		m_descriptorImageInfo.imageView = m_passesFrameBufferTextures[(uint32)(eMaterialType::SPRITE)]->GetTextureImage(frameInFlight).imageView;
-		m_descriptorImageInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
-		if (!ValidateDescriptorSamplerWrite(m_descriptorImageInfo))
-		{
-			return false;
-		}
-		VkWriteDescriptorSet textureSampler = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, passData.m_passDescriptors[frameInFlight], m_descriptorImageInfo, 1);
-		setWrites.Add(textureSampler);
-	}
-
-	break;
-	case Hail::eMaterialType::MODEL3D:
-	{
-		bufferSize = GetUniformBufferSize(BUFFERS::TUTORIAL);
-		bufferDescriptors.Fill();
-		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::TUTORIAL].m_buffer[frameInFlight];
-		bufferDescriptors[0].offset = 0;
-		bufferDescriptors[0].range = bufferSize;
-		if (!ValidateDescriptorBufferWrite(bufferDescriptors[0]))
-		{
-			return false;
-		}
-		VkWriteDescriptorSet tutorialBufferSet = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[0], GetUniformBufferIndex(Hail::BUFFERS::TUTORIAL));
-		setWrites.Add(tutorialBufferSet);
-
-		m_descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		m_descriptorImageInfo.imageView = ((VlkTextureResourceManager*)m_textureManager)->GetDefaultTextureData().GetVlkTextureData().textureImageView;
-		m_descriptorImageInfo.sampler = vlkRenderingResources->m_linearTextureSampler;
-		if (!ValidateDescriptorSamplerWrite(m_descriptorImageInfo))
-		{
-			return false;
-		}
-		VkWriteDescriptorSet textureSampler = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, passData.m_passDescriptors[frameInFlight], m_descriptorImageInfo, 1);
-		setWrites.Add(textureSampler);
-
-	}
-	break;
-
-	case eMaterialType::DEBUG_LINES2D:
-	case eMaterialType::DEBUG_LINES3D:
-		bufferDescriptors.Fill();
-
-		bufferSize = GetUniformBufferSize(BUFFERS::PER_CAMERA_DATA);
-		bufferDescriptors[0].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::PER_CAMERA_DATA].m_buffer[frameInFlight];
-		bufferDescriptors[0].offset = 0;
-		bufferDescriptors[0].range = bufferSize;
-		if (!ValidateDescriptorBufferWrite(bufferDescriptors[0]))
-		{
-			return false;
-		}
-		VkWriteDescriptorSet perCameraBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[0], GetUniformBufferIndex(BUFFERS::PER_CAMERA_DATA));
-		setWrites.Add(perCameraBuffer);
-
-		bufferSize = GetUniformBufferSize(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER);
-		bufferDescriptors[1].buffer = vlkRenderingResources->m_buffers[(uint32)BUFFERS::DEBUG_LINE_INSTANCE_BUFFER].m_buffer[frameInFlight];
-		bufferDescriptors[1].offset = 0;
-		bufferDescriptors[1].range = bufferSize;
-		if (!ValidateDescriptorBufferWrite(bufferDescriptors[1]))
-		{
-			return false;
-		}
-		VkWriteDescriptorSet debugLineBuffer = WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, passData.m_passDescriptors[frameInFlight], bufferDescriptors[1], GetUniformBufferIndex(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER));
-		setWrites.Add(debugLineBuffer);
-
-		break;
-
-	default:
-		break;
-	}
-	if (setWrites.Size() > 0)
-	{
-		vkUpdateDescriptorSets(device.GetDevice(), setWrites.Size(), setWrites.Data(), 0, nullptr);
-	}
-}
-
-bool Hail::VlkMaterialManager::SetUpPipelineLayout(VlkPassData& passData, eMaterialType type, uint32 frameInFlight)
-{
-	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-
-	switch (type)
-	{
-	case Hail::eMaterialType::SPRITE:
-		if (!CreateSetLayoutDescriptor(
-			{
-				{VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, GetUniformBufferIndex(Hail::BUFFERS::SPRITE_INSTANCE_BUFFER), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}
-			}, passData.m_passSetLayout, device))
-		{
-			return false;
-		}
-		if (!CreateSetLayoutDescriptor(
-			{
-				{ VK_SHADER_STAGE_FRAGMENT_BIT,  1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER }
-			}, passData.m_materialSetLayout, device))
-		{
-			return false;
-		}
-		break;
-	case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-		if (!CreateSetLayoutDescriptor(
-			{
-				{ VK_SHADER_STAGE_FRAGMENT_BIT,  1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER }
-			}, passData.m_passSetLayout, device))
-		{
-			return false;
-		}
-		break;
-	case Hail::eMaterialType::MODEL3D:
-		if (!CreateSetLayoutDescriptor(
-			{
-				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(Hail::BUFFERS::TUTORIAL), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER },
-				{VK_SHADER_STAGE_FRAGMENT_BIT,  1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER }
-			}, passData.m_passSetLayout, device))
-		{
-			return false;
-		}
-		if (!CreateSetLayoutDescriptor(
-			{
-				{ VK_SHADER_STAGE_FRAGMENT_BIT,  1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER }
-			}, passData.m_materialSetLayout, device))
-		{
-			return false;
-		}
-		break;
-
-	case Hail::eMaterialType::DEBUG_LINES2D:
-	case Hail::eMaterialType::DEBUG_LINES3D:
-		if (!CreateSetLayoutDescriptor(
-			{
-				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(BUFFERS::PER_CAMERA_DATA), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER },
-				{VK_SHADER_STAGE_VERTEX_BIT,  GetUniformBufferIndex(BUFFERS::DEBUG_LINE_INSTANCE_BUFFER), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER }
-			}, passData.m_passSetLayout, device))
-		{
-			return false;
-		}
-		break;
-
-	default:
-		break;
-	}
-
-	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
-
-	//setup push constants
-	VkPushConstantRange push_constant;
-	//this push constant range starts at the beginning
-	push_constant.offset = 0;
-	//this push constant range takes up the size of a MeshPushConstants struct
-	push_constant.size = sizeof(uint32_t) * 4;
-	//this push constant range is accessible only in the vertex shader
-	push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-	GrowingArray<VkDescriptorSetLayout> layouts(3);
-	layouts.Add(vlkRenderingResources->m_globalPerFrameSetLayout);
-	if (passData.m_passSetLayout != VK_NULL_HANDLE)
-	{
-		layouts.Add(passData.m_passSetLayout);
-	}
-	if (passData.m_materialSetLayout != VK_NULL_HANDLE)
-	{
-		layouts.Add(passData.m_materialSetLayout);
-	}
-	VkPipelineLayoutCreateInfo passPipelineLayoutInfo{};
-	passPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	passPipelineLayoutInfo.setLayoutCount = layouts.Size(); // Optional
-	passPipelineLayoutInfo.pSetLayouts = layouts.Data(); // Optional
-	passPipelineLayoutInfo.pushConstantRangeCount = 1; // Optional
-	passPipelineLayoutInfo.pPushConstantRanges = &push_constant; // Optional
-
-	if (vkCreatePipelineLayout(device.GetDevice(), &passPipelineLayoutInfo, nullptr, &passData.m_pipelineLayout) != VK_SUCCESS)
-	{
-		//TODO ASSERT
-		return false;
-	}
-}
-
-bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterialType type)
-{
-	if (type == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
+	VlkMaterialTypeDescriptor& typeDescriptor = *(VlkMaterialTypeDescriptor*)m_materialTypeDescriptors[(uint32)vlkMaterial.m_type];
+	if (vlkMaterial.m_type == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
-		passData.m_ownsRenderpass = false;
-		passData.m_renderPass = swapChain->GetRenderPass();
+		vlkMaterial.m_ownsRenderpass = false;
+		vlkMaterial.m_renderPass = swapChain->GetRenderPass();
 		return true;
 	}
 
@@ -628,15 +218,15 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 	GrowingArray<VkAttachmentDescription> attachmentDescriptors(2);
 	VkAttachmentReference colorAttachmentRef{};
 	VkAttachmentReference depthAttachmentRef{};
-	switch (type)
+	switch (vlkMaterial.m_type)
 	{
 		case Hail::eMaterialType::SPRITE:
 		{
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 
-			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
-			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			colorAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetTextureFormat());
+			depthAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetDepthFormat());
 			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -667,7 +257,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 		{
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
-			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
+			colorAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetTextureFormat());
 			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -680,7 +270,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 			colorAttachmentRef.attachment = 0;
 			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			depthAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetDepthFormat());
 			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -700,8 +290,8 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 
-			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
-			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			colorAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetTextureFormat());
+			depthAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetDepthFormat());
 			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -733,8 +323,8 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 			VkAttachmentDescription colorAttachment{};
 			VkAttachmentDescription depthAttachment{};
 
-			colorAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetTextureFormat());
-			depthAttachment.format = ToVkFormat(passData.m_frameBufferTextures->GetDepthFormat());
+			colorAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetTextureFormat());
+			depthAttachment.format = ToVkFormat(vlkMaterial.m_frameBufferTextures->GetDepthFormat());
 			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -788,7 +378,7 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 	renderPassInfo.pSubpasses = &subpass;
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
-	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &passData.m_renderPass) != VK_SUCCESS)
+	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &vlkMaterial.m_renderPass) != VK_SUCCESS)
 	{
 		//TODO ASSERT
 		return false;
@@ -796,38 +386,643 @@ bool Hail::VlkMaterialManager::CreateRenderpass(VlkPassData& passData, eMaterial
 	return true;
 }
 
-bool VlkMaterialManager::CreateFramebuffers(VlkPassData& passData, eMaterialType type, uint32 frameInFlight)
+void localGetDescriptorsFromDecoration(
+	const VectorOnStack<ShaderDecoration, 8>* decoration1,
+	VkShaderStageFlags stageFlag1, 
+	const VectorOnStack<ShaderDecoration, 8>* decoration2,
+	VkShaderStageFlags stageFlag2, 
+	VkDescriptorType descriptorType,
+	GrowingArray<VlkLayoutDescriptor>& descriptorToFill)
 {
-	if (type != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
+	VectorOnStack<VlkLayoutDescriptor, 8> descriptors;
+
+	for (int i = 0; i < decoration1->Size(); i++)
 	{
-		VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-		FrameBufferTextureData colorTexture = passData.m_frameBufferTextures->GetTextureImage(frameInFlight);
-		FrameBufferTextureData depthTexture = passData.m_frameBufferTextures->GetDepthTextureImage(frameInFlight);
-		VkImageView attachments[2] = { colorTexture.imageView, depthTexture.imageView };
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = passData.m_renderPass;
-		framebufferInfo.attachmentCount = 2;
-		framebufferInfo.pAttachments = attachments;
-		framebufferInfo.width = passData.m_frameBufferTextures->GetResolution().x;
-		framebufferInfo.height = passData.m_frameBufferTextures->GetResolution().y;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &passData.m_frameBuffer[frameInFlight]) != VK_SUCCESS)
+		VlkLayoutDescriptor descriptor;
+		descriptor.bindingPoint = (*decoration1)[i].m_bindingLocation;
+		descriptor.type = descriptorType;
+		descriptor.flags = stageFlag1;
+		descriptor.decorationType = (*decoration1)[i].m_type;
+		descriptors.Add(descriptor);
+	}
+	if (decoration2)
+	{
+		for (int i = 0; i < decoration2->Size(); i++)
 		{
-			//TODO ASSERT
+			const uint32 bindingPoint = (*decoration2)[i].m_bindingLocation;
+			bool foundDescriptor = false;
+			for (size_t iPreviousDescriptors = 0; iPreviousDescriptors < descriptors.Size(); iPreviousDescriptors++)
+			{
+				if (bindingPoint == descriptors[iPreviousDescriptors].bindingPoint)
+				{
+					descriptors[iPreviousDescriptors].flags |= stageFlag2;
+					foundDescriptor = true;
+					break;
+				}
+			}
+			if (!foundDescriptor)
+			{
+				VlkLayoutDescriptor descriptor;
+				descriptor.bindingPoint = bindingPoint;
+				descriptor.type = descriptorType;
+				descriptor.flags = stageFlag2;
+				descriptor.decorationType = (*decoration2)[i].m_type;
+				descriptors.Add(descriptor);
+			}
+		}
+	}
+	for (size_t i = 0; i < descriptors.Size(); i++)
+	{
+		descriptorToFill.Add(descriptors[i]);
+	}
+}
+
+void localGetImageDescriptorsFromDecoration(
+	const VectorOnStack<ShaderDecoration, 8>* decoration1,
+	VkShaderStageFlags stageFlag1,
+	const VectorOnStack<ShaderDecoration, 8>* decoration2,
+	VkShaderStageFlags stageFlag2,
+	VkDescriptorType descriptorType,
+	GrowingArray<VlkLayoutDescriptor>& descriptorToFill)
+{
+	VectorOnStack<VlkLayoutDescriptor, 8> descriptors;
+
+	for (int i = 0; i < decoration1->Size(); i++)
+	{
+		VlkLayoutDescriptor descriptor;
+		descriptor.bindingPoint = (*decoration1)[i].m_bindingLocation;
+		descriptor.type = descriptorType;
+		descriptor.flags = stageFlag1;
+		descriptor.decorationType = (*decoration1)[i].m_type;
+		descriptors.Add(descriptor);
+	}
+	if (decoration2)
+	{
+		for (int i = 0; i < decoration2->Size(); i++)
+		{
+			const uint32 bindingPoint = (*decoration2)[i].m_bindingLocation;
+			bool foundDescriptor = false;
+			for (size_t iPreviousDescriptors = 0; iPreviousDescriptors < descriptors.Size(); iPreviousDescriptors++)
+			{
+				if (bindingPoint == descriptors[iPreviousDescriptors].bindingPoint)
+				{
+					descriptors[iPreviousDescriptors].flags |= stageFlag2;
+					foundDescriptor = true;
+					break;
+				}
+			}
+			if (!foundDescriptor)
+			{
+				VlkLayoutDescriptor descriptor;
+				descriptor.bindingPoint = bindingPoint;
+				descriptor.type = descriptorType;
+				descriptor.flags = stageFlag2;
+				descriptor.decorationType = (*decoration2)[i].m_type;
+				descriptors.Add(descriptor);
+			}
+		}
+	}
+	for (size_t i = 0; i < descriptors.Size(); i++)
+	{
+		descriptorToFill.Add(descriptors[i]);
+	}
+}
+
+GrowingArray<VlkLayoutDescriptor> localGetSetLayoutDescription(eShaderType primaryShaderType, eDecorationSets domainToFetch, ReflectedShaderData* pMainData, ReflectedShaderData* pSecondaryData)
+{
+	GrowingArray<VlkLayoutDescriptor> typeSetDescriptors;
+	VkShaderStageFlagBits flagBit = VK_SHADER_STAGE_ALL;
+	VkShaderStageFlagBits secondaryFlagBit = VK_SHADER_STAGE_ALL;
+	const SetDecorations& setDecorations = pMainData->m_setDecorations[domainToFetch];
+	bool use2Shaders = false;
+	if (primaryShaderType == eShaderType::Compute)
+	{
+		flagBit = VK_SHADER_STAGE_COMPUTE_BIT;
+	}
+	else if (primaryShaderType == eShaderType::Fragment)
+	{
+		flagBit = VK_SHADER_STAGE_FRAGMENT_BIT;
+		secondaryFlagBit = VK_SHADER_STAGE_VERTEX_BIT;
+		use2Shaders = true;
+	}
+	else if (primaryShaderType == eShaderType::Vertex)
+	{
+		flagBit = VK_SHADER_STAGE_VERTEX_BIT;
+		secondaryFlagBit = VK_SHADER_STAGE_FRAGMENT_BIT;
+		use2Shaders = true;
+	}
+	SetDecorations* pSecondarySetDecorations = nullptr;  pMainData->m_setDecorations[domainToFetch];
+
+	if (use2Shaders)
+	{
+		pSecondarySetDecorations = &pSecondaryData->m_setDecorations[domainToFetch];
+	}
+
+	localGetDescriptorsFromDecoration(
+		&setDecorations.m_uniformBuffers, flagBit,
+		&pSecondarySetDecorations->m_uniformBuffers, secondaryFlagBit,
+		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, typeSetDescriptors);
+
+	localGetDescriptorsFromDecoration(
+		&setDecorations.m_storageBuffers, flagBit,
+		&pSecondarySetDecorations->m_storageBuffers, secondaryFlagBit,
+		VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, typeSetDescriptors);
+
+	localGetImageDescriptorsFromDecoration(
+		&setDecorations.m_sampledImages, flagBit,
+		&pSecondarySetDecorations->m_sampledImages, secondaryFlagBit,
+		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeSetDescriptors);
+
+	return typeSetDescriptors;
+}
+
+bool Hail::VlkMaterialManager::CreateMaterialTypeDescriptor(Material* pMaterial)
+{
+	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
+
+	VlkMaterial* pVlkMaterial = (VlkMaterial*)pMaterial;
+
+	// First create the domain set layout, we should only get here if this has not already been created
+	if (!pVlkMaterial->m_instanceSetLayout)
+	{
+		ReflectedShaderData* pSecondaryShaderData = nullptr;
+		if (pMaterial->m_pShaders.Size() > 1)
+		{
+			pSecondaryShaderData = &pMaterial->m_pShaders[1]->reflectedShaderData;
+		}
+		GrowingArray<VlkLayoutDescriptor> materialSetLayoutDescriptors = localGetSetLayoutDescription((eShaderType)pMaterial->m_pShaders[0]->header.shaderType, InstanceDomain, &pMaterial->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+		if (!localCreateSetLayoutDescriptor(materialSetLayoutDescriptors, pVlkMaterial->m_instanceSetLayout, device))
+		{
 			return false;
 		}
 	}
 	else
 	{
-		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
-		passData.m_ownsFrameBuffer = false;
-		passData.m_ownsRenderpass = false;
+		// TODO assert here
+	}
 
-		passData.m_frameBuffer[frameInFlight] = swapChain->GetFrameBuffer(frameInFlight);
-		passData.m_renderPass = swapChain->GetRenderPass();
+	if (m_materialTypeDescriptors[(uint32)pMaterial->m_type])
+	{
+		// TODO: Check if the reflected shader data matches, otherwise assert
+		pMaterial->m_pTypeDescriptor = m_materialTypeDescriptors[(uint32)pMaterial->m_type];
+		return true;
+	}
+
+	m_materialTypeDescriptors[(uint32)pMaterial->m_type] = new VlkMaterialTypeDescriptor();
+	VlkMaterialTypeDescriptor& typeDescriptor = *(VlkMaterialTypeDescriptor*)m_materialTypeDescriptors[(uint32)pMaterial->m_type];
+	typeDescriptor.m_type = pMaterial->m_type;
+	if (pMaterial->m_pShaders[0]->loadState == eShaderLoadState::LoadedToRAM)
+	{
+		const eShaderType shader1Type = (eShaderType)pMaterial->m_pShaders[0]->header.shaderType;
+
+		ReflectedShaderData* pSecondaryShaderData = nullptr;
+		if (pMaterial->m_pShaders.Size() > 1)
+		{
+			pSecondaryShaderData = &pMaterial->m_pShaders[1]->reflectedShaderData;
+		}
+
+		GrowingArray<VlkLayoutDescriptor> globalSetDescriptors = localGetSetLayoutDescription((eShaderType)pMaterial->m_pShaders[0]->header.shaderType, GlobalDomain, &pMaterial->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+		if (!localCreateSetLayoutDescriptor(globalSetDescriptors, typeDescriptor.m_globalSetLayout, device))
+		{
+			return false;
+		}
+		GrowingArray<VlkLayoutDescriptor> typeSetDescriptors = localGetSetLayoutDescription((eShaderType)pMaterial->m_pShaders[0]->header.shaderType, MaterialTypeDomain, &pMaterial->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+		if (!localCreateSetLayoutDescriptor(typeSetDescriptors, typeDescriptor.m_typeSetLayout, device))
+		{
+			return false;
+		}
+	}
+	else
+	{
+		// TODO: Assert here
+		return false;
+	}
+
+	if (typeDescriptor.m_typeSetLayout != VK_NULL_HANDLE)
+	{
+		VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
+		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, typeDescriptor.m_typeSetLayout);
+		VkDescriptorSetAllocateInfo passAllocInfo{};
+		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		passAllocInfo.descriptorPool = vlkRenderingResources->m_globalDescriptorPool;
+		passAllocInfo.descriptorSetCount = (uint32)MAX_FRAMESINFLIGHT;
+		passAllocInfo.pSetLayouts = setLayouts.Data();
+
+		if (vkAllocateDescriptorSets(device.GetDevice(), &passAllocInfo, typeDescriptor.m_typeDescriptors) != VK_SUCCESS)
+		{
+			//TODO ASSERT
+			return false;
+		}
+	}
+
+	if (typeDescriptor.m_globalSetLayout != VK_NULL_HANDLE)
+	{
+		VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
+		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, typeDescriptor.m_globalSetLayout);
+		VkDescriptorSetAllocateInfo passAllocInfo{};
+		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+		passAllocInfo.descriptorPool = vlkRenderingResources->m_globalDescriptorPool;
+		passAllocInfo.descriptorSetCount = (uint32)MAX_FRAMESINFLIGHT;
+		passAllocInfo.pSetLayouts = setLayouts.Data();
+
+		if (vkAllocateDescriptorSets(device.GetDevice(), &passAllocInfo, typeDescriptor.m_globalDescriptors) != VK_SUCCESS)
+		{
+			//TODO ASSERT
+			return false;
+		}
+	}
+
+	pMaterial->m_pTypeDescriptor = m_materialTypeDescriptors[(uint32)pMaterial->m_type];
+	return true;
+}
+
+bool Hail::VlkMaterialManager::CreatePipelineLayout(Material* pMaterial)
+{
+
+	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
+	//setup push constants
+	VectorOnStack<VkPushConstantRange, 4> push_constants;
+
+	VectorOnStack<ShaderDecoration, 8>* reflectedPushConstants = &pMaterial->m_pShaders[0]->reflectedShaderData.m_pushConstants;
+
+	if ((eShaderType)pMaterial->m_pShaders[0]->header.shaderType == eShaderType::Fragment ||
+		(eShaderType)pMaterial->m_pShaders[0]->header.shaderType == eShaderType::Amplification)
+	{
+		reflectedPushConstants = &pMaterial->m_pShaders[1]->reflectedShaderData.m_pushConstants;
+	}
+	for (size_t i = 0; i < (*reflectedPushConstants).Size(); i++)
+	{
+		const ShaderDecoration& reflectedPushConstant = (*reflectedPushConstants)[i];
+		VkPushConstantRange pushConstant;
+		//this push constant range starts at the beginning
+		pushConstant.offset = 0;
+		//this push constant range takes up the size of a MeshPushConstants struct
+		pushConstant.size = reflectedPushConstant.m_byteSize; // Check if this length is correct 
+		//this push constant range is accessible only in the vertex and compute shader
+		if ((eShaderType)pMaterial->m_pShaders[0]->header.shaderType == eShaderType::Vertex)
+		{
+			pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		}
+		else if ((eShaderType)pMaterial->m_pShaders[0]->header.shaderType == eShaderType::Compute)
+		{
+			pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		}
+		push_constants.Add(pushConstant);
+	}
+
+
+	VlkMaterialTypeDescriptor& typeDescriptor = *(VlkMaterialTypeDescriptor*)m_materialTypeDescriptors[(uint32)pMaterial->m_type];
+	VlkMaterial* material = (VlkMaterial*)pMaterial;
+	VectorOnStack<VkDescriptorSetLayout, eDecorationSets::Count> layouts;
+	if (typeDescriptor.m_globalSetLayout != VK_NULL_HANDLE)
+	{
+		layouts.Add(typeDescriptor.m_globalSetLayout);
+	}
+	if (typeDescriptor.m_typeSetLayout != VK_NULL_HANDLE)
+	{
+		layouts.Add(typeDescriptor.m_typeSetLayout);
+	}
+	if (((VlkMaterial*)pMaterial)->m_instanceSetLayout != VK_NULL_HANDLE)
+	{
+		layouts.Add(material->m_instanceSetLayout);
+	}
+
+	VkPipelineLayoutCreateInfo passPipelineLayoutInfo{};
+	passPipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	passPipelineLayoutInfo.setLayoutCount = layouts.Size();
+	passPipelineLayoutInfo.pSetLayouts = layouts.Data();
+	passPipelineLayoutInfo.pushConstantRangeCount = push_constants.Size();
+	passPipelineLayoutInfo.pPushConstantRanges = push_constants.Data();
+
+	if (vkCreatePipelineLayout(device.GetDevice(), &passPipelineLayoutInfo, nullptr, &material->m_pipelineLayout) != VK_SUCCESS)
+	{
+		//TODO ASSERT
+		return false;
+	}
+	return true;
+}
+
+bool Hail::VlkMaterialManager::CreateGraphicsPipeline(VlkMaterial& vlkMaterial)
+{
+	VlkDevice& device = *(VlkDevice*)m_renderDevice;
+	//TODO: make a wireframe toggle for materials
+	const bool isWireFrame = vlkMaterial.m_type == eMaterialType::DEBUG_LINES2D || vlkMaterial.m_type == eMaterialType::DEBUG_LINES3D;
+
+	bool renderDepth = false;
+	VkVertexInputBindingDescription vertexBindingDescription = VkVertexInputBindingDescription();
+	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions(1);
+	switch (vlkMaterial.m_type)
+	{
+	case eMaterialType::SPRITE:
+		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
+		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
+		break;
+	case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
+	{
+		VkVertexInputAttributeDescription attributeDescription{};
+		attributeDescription.binding = 0;
+		attributeDescription.location = 0;
+		attributeDescription.format = VK_FORMAT_R32_UINT;
+		attributeDescription.offset = 0;
+		vertexAttributeDescriptions.Add(attributeDescription);
+	}
+	vertexBindingDescription.binding = 0;
+	vertexBindingDescription.stride = sizeof(uint32_t);
+	vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	break;
+	case eMaterialType::MODEL3D:
+		renderDepth = true;
+		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
+		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
+		break;
+	case eMaterialType::DEBUG_LINES2D:
+	case eMaterialType::DEBUG_LINES3D:
+		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
+		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
+		break;
+	default:
+		break;
+	}
+
+	// TODO: assert if sahders is not 2
+	VkShaderModule vertShaderModule;
+	VkShaderModule fragShaderModule;
+	for (size_t i = 0; i < vlkMaterial.m_pShaders.Size(); i++)
+	{
+		if ((eShaderType)vlkMaterial.m_pShaders[i]->header.shaderType == eShaderType::Vertex)
+		{
+			vertShaderModule = CreateShaderModule(*vlkMaterial.m_pShaders[i], device);
+		}
+		else if ((eShaderType)vlkMaterial.m_pShaders[i]->header.shaderType == eShaderType::Fragment)
+		{
+			fragShaderModule = CreateShaderModule(*vlkMaterial.m_pShaders[i], device);
+		}
+	}
+
+	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertShaderStageInfo.module = vertShaderModule;
+	vertShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragShaderStageInfo.module = fragShaderModule;
+	fragShaderStageInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+	VkDynamicState dynamicStates[2] = {
+	VK_DYNAMIC_STATE_VIEWPORT,
+	VK_DYNAMIC_STATE_SCISSOR
+	};
+
+	VkPipelineDynamicStateCreateInfo dynamicState{};
+	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicState.dynamicStateCount = 2;
+	dynamicState.pDynamicStates = dynamicStates;
+
+	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputInfo.vertexBindingDescriptionCount = 0;
+	vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputInfo.pVertexAttributeDescriptions = nullptr; // Optional
+
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	inputAssembly.topology = isWireFrame ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	VkViewport viewport{};
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	const glm::uvec2 resolution = vlkMaterial.m_frameBufferTextures->GetResolution();
+	const VkExtent2D passExtent = { resolution.x, resolution.y };
+	viewport.width = (float)passExtent.width;
+	viewport.height = (float)passExtent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = passExtent;
+
+	VkPipelineViewportStateCreateInfo viewportState{};
+	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportState.viewportCount = 1;
+	viewportState.scissorCount = 1;
+
+	VkPipelineRasterizationStateCreateInfo rasterizer{};
+	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizer.depthClampEnable = VK_FALSE;
+	rasterizer.rasterizerDiscardEnable = VK_FALSE;
+	rasterizer.polygonMode = isWireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+	rasterizer.lineWidth = 1.0f;
+	rasterizer.depthBiasEnable = VK_FALSE;
+	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+	rasterizer.depthBiasClamp = 0.0f; // Optional
+	rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
+	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+	//rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+	VkPipelineMultisampleStateCreateInfo multisampling{};
+	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampling.sampleShadingEnable = VK_FALSE;
+	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampling.minSampleShading = 1.0f; // Optional
+	multisampling.pSampleMask = nullptr; // Optional
+	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+	multisampling.alphaToOneEnable = VK_FALSE; // Optional
+
+	VkPipelineColorBlendAttachmentState colorBlendAttachment = CreateColorBlendAttachment(vlkMaterial);
+
+	VkPipelineColorBlendStateCreateInfo colorBlending{};
+	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlending.logicOpEnable = VK_FALSE;
+	colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+	colorBlending.attachmentCount = 1;
+	colorBlending.pAttachments = &colorBlendAttachment;
+	colorBlending.blendConstants[0] = 0.0f; // Optional
+	colorBlending.blendConstants[1] = 0.0f; // Optional
+	colorBlending.blendConstants[2] = 0.0f; // Optional
+	colorBlending.blendConstants[3] = 0.0f; // Optional
+
+	VkPipelineDepthStencilStateCreateInfo depthStencil{};
+	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencil.depthTestEnable = renderDepth;
+	depthStencil.depthWriteEnable = renderDepth;
+	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencil.depthBoundsTestEnable = VK_FALSE;
+	depthStencil.minDepthBounds = 0.0f; // Optional
+	depthStencil.maxDepthBounds = 1.0f; // Optional
+	depthStencil.stencilTestEnable = VK_FALSE;
+	depthStencil.front = {}; // Optional
+	depthStencil.back = {}; // Optional
+
+	VkGraphicsPipelineCreateInfo pipelineInfo{};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount = 2;
+	pipelineInfo.pStages = shaderStages;
+	pipelineInfo.pVertexInputState = &vertexInputInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pViewportState = &viewportState;
+	pipelineInfo.pRasterizationState = &rasterizer;
+	pipelineInfo.pMultisampleState = &multisampling;
+	pipelineInfo.pDepthStencilState = &depthStencil;
+	pipelineInfo.pColorBlendState = &colorBlending;
+	pipelineInfo.pDynamicState = &dynamicState;
+
+	pipelineInfo.layout = vlkMaterial.m_pipelineLayout;
+	pipelineInfo.renderPass = vlkMaterial.m_renderPass;
+	pipelineInfo.subpass = 0;
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+	pipelineInfo.basePipelineIndex = -1; // Optional
+
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributeDescriptions.Size());
+	vertexInputInfo.pVertexBindingDescriptions = &vertexBindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.Data();
+
+	if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vlkMaterial.m_pipeline) != VK_SUCCESS)
+	{
+		//TODO ASSERT
+		return false;
+	}
+
+	vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
+	vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
+	return true;
+}
+
+void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkMaterial& vlkMaterial, uint32 frameInFlight)
+{
+	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
+	GrowingArray< VkWriteDescriptorSet> setWrites(2);
+	uint32_t bufferSize = 0;
+	//m_descriptorImageInfo.imageView = VK_NULL_HANDLE;
+	//m_descriptorImageInfo.sampler = VK_NULL_HANDLE;
+
+	ReflectedShaderData* pSecondaryShaderData = nullptr;
+	if (vlkMaterial.m_pShaders.Size() > 1)
+	{
+		pSecondaryShaderData = &vlkMaterial.m_pShaders[1]->reflectedShaderData;
+	}
+
+	VlkMaterialTypeDescriptor& typeDescriptor = *(VlkMaterialTypeDescriptor*)m_materialTypeDescriptors[(uint32)vlkMaterial.m_type];
+
+	GrowingArray<VlkLayoutDescriptor> globalDescriptors = localGetSetLayoutDescription(
+		(eShaderType)vlkMaterial.m_pShaders[0]->header.shaderType,
+		GlobalDomain, &vlkMaterial.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+
+	VectorOnStack<VkDescriptorBufferInfo, 8> bufferDescriptorInfos;
+	VectorOnStack<VkDescriptorImageInfo, 8> imageDescriptorInfos;
+
+	for (size_t i = 0; i < globalDescriptors.Size(); i++)
+	{
+		VlkLayoutDescriptor& descriptor = globalDescriptors[i];
+		if (descriptor.decorationType == eDecorationType::UniformBuffer)
+		{
+			VkDescriptorBufferInfo& bufferDescriptorInfo = bufferDescriptorInfos.Add();
+			VlkBufferObject* vlkBuffer = (VlkBufferObject*)m_renderingResourceManager->GetBuffer(GlobalDomain, eBufferType::uniform, descriptor.bindingPoint);
+			bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
+			bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+			bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
+			setWrites.Add(WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, typeDescriptor.m_globalDescriptors[frameInFlight], bufferDescriptorInfo, descriptor.bindingPoint));
+			
+		}
+		else if (descriptor.decorationType == eDecorationType::ShaderStorageBuffer)
+		{
+			VkDescriptorBufferInfo& bufferDescriptorInfo = bufferDescriptorInfos.Add();
+			VlkBufferObject* vlkBuffer = (VlkBufferObject*)m_renderingResourceManager->GetBuffer(GlobalDomain, eBufferType::structured, descriptor.bindingPoint);
+			bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
+			bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+			bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
+			setWrites.Add(WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, typeDescriptor.m_globalDescriptors[frameInFlight], bufferDescriptorInfo, descriptor.bindingPoint));
+		}
+		else if (descriptor.decorationType == eDecorationType::SampledImage)
+		{
+			VkDescriptorImageInfo& imageDescriptorInfo = imageDescriptorInfos.Add();
+			VlkTextureResource* vlkTexture = (VlkTextureResource*)m_textureManager->GetEngineTexture(GlobalDomain, descriptor.bindingPoint, frameInFlight);
+			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageDescriptorInfo.imageView = vlkTexture->GetVlkTextureData().textureImageView;
+			imageDescriptorInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
+			setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeDescriptor.m_globalDescriptors[frameInFlight], imageDescriptorInfo, descriptor.bindingPoint));
+		}
+	}
+	GrowingArray<VlkLayoutDescriptor> materialDescriptors = localGetSetLayoutDescription(
+		(eShaderType)vlkMaterial.m_pShaders[0]->header.shaderType,
+		MaterialTypeDomain, &vlkMaterial.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+	for (size_t i = 0; i < materialDescriptors.Size(); i++)
+	{
+		VlkLayoutDescriptor& descriptor = materialDescriptors[i];
+		if (descriptor.decorationType == eDecorationType::UniformBuffer)
+		{
+			VkDescriptorBufferInfo& bufferDescriptorInfo = bufferDescriptorInfos.Add();
+			VlkBufferObject* vlkBuffer = (VlkBufferObject*)m_renderingResourceManager->GetBuffer(MaterialTypeDomain, eBufferType::uniform, descriptor.bindingPoint);
+			bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
+			bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+			bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
+			setWrites.Add(WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, typeDescriptor.m_typeDescriptors[frameInFlight], bufferDescriptorInfo, descriptor.bindingPoint));
+		}
+		else if (descriptor.decorationType == eDecorationType::ShaderStorageBuffer)
+		{
+			VkDescriptorBufferInfo& bufferDescriptorInfo = bufferDescriptorInfos.Add();
+			VlkBufferObject* vlkBuffer = (VlkBufferObject*)m_renderingResourceManager->GetBuffer(MaterialTypeDomain, eBufferType::structured, descriptor.bindingPoint);
+			bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
+			bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+			bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
+			setWrites.Add(WriteDescriptorBuffer(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, typeDescriptor.m_typeDescriptors[frameInFlight], bufferDescriptorInfo, descriptor.bindingPoint));
+		}
+		else if (descriptor.decorationType == eDecorationType::SampledImage)
+		{
+			VkDescriptorImageInfo& imageDescriptorInfo = imageDescriptorInfos.Add();
+			VlkTextureResource* vlkTexture = (VlkTextureResource*)m_textureManager->GetEngineTexture(MaterialTypeDomain, descriptor.bindingPoint, frameInFlight);
+			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageDescriptorInfo.imageView = vlkTexture->GetVlkTextureData().textureImageView;
+			imageDescriptorInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
+			setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeDescriptor.m_typeDescriptors[frameInFlight], imageDescriptorInfo, descriptor.bindingPoint));
+		}
+	}
+	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
+	if (setWrites.Size() > 0)
+	{
+		vkUpdateDescriptorSets(device.GetDevice(), setWrites.Size(), setWrites.Data(), 0, nullptr);
+	}
+}
+
+bool VlkMaterialManager::CreateFramebuffers(VlkMaterial& vlkMaterial, uint32 frameInFlight)
+{
+	if (vlkMaterial.m_type == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
+	{
+		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
+		vlkMaterial.m_ownsFrameBuffer = false;
+
+		vlkMaterial.m_frameBuffer[frameInFlight] = swapChain->GetFrameBuffer(frameInFlight);
+		vlkMaterial.m_renderPass = swapChain->GetRenderPass();
+	}
+	else
+	{
+		VlkDevice& device = *(VlkDevice*)(m_renderDevice);
+		FrameBufferTextureData colorTexture = vlkMaterial.m_frameBufferTextures->GetTextureImage(frameInFlight);
+		FrameBufferTextureData depthTexture = vlkMaterial.m_frameBufferTextures->GetDepthTextureImage(frameInFlight);
+		VkImageView attachments[2] = { colorTexture.imageView, depthTexture.imageView };
+
+		VkFramebufferCreateInfo framebufferInfo{};
+		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		framebufferInfo.renderPass = vlkMaterial.m_renderPass;
+		framebufferInfo.attachmentCount = 2;
+		framebufferInfo.pAttachments = attachments;
+		framebufferInfo.width = vlkMaterial.m_frameBufferTextures->GetResolution().x;
+		framebufferInfo.height = vlkMaterial.m_frameBufferTextures->GetResolution().y;
+		framebufferInfo.layers = 1;
+
+		if (vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &vlkMaterial.m_frameBuffer[frameInFlight]) != VK_SUCCESS)
+		{
+			//TODO ASSERT
+			return false;
+		}
 	}
 	return true;
 }
@@ -840,15 +1035,15 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 
 	VlkMaterial* pMat = (VlkMaterial*)m_materials[(uint8)instance.m_materialType][instance.m_materialIndex];
 
-	VlkPassData& passData = pMat->m_passData;
+	//VlkPassData& passData = pMat->m_passData;
 	ResourceValidator& validator = isDefaultMaterialInstance ? GetDefaultMaterialValidator(instance.m_materialType) : m_materialsInstanceValidationData[instance.m_instanceIdentifier];
 	
 	if (validator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
-		VlkPassData::VkInternalMaterialDescriptorSet setAllocLayouts{};
+		VkInternalMaterialDescriptorSet setAllocLayouts{};
 		setAllocLayouts.descriptors[0] = VK_NULL_HANDLE;
 		setAllocLayouts.descriptors[1] = VK_NULL_HANDLE;
-		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, passData.m_materialSetLayout);
+ 		GrowingArray<VkDescriptorSetLayout> setLayouts(MAX_FRAMESINFLIGHT, pMat->m_instanceSetLayout);
 		VkDescriptorSetAllocateInfo passAllocInfo{};
 		passAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		passAllocInfo.descriptorPool = vlkRenderingResources->m_globalDescriptorPool;
@@ -859,52 +1054,74 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 			//TODO add assert
 			return false;
 		}
-		instance.m_gpuResourceInstance = passData.m_materialDescriptors.Size();
-		passData.m_materialDescriptors.Add(setAllocLayouts);
+		instance.m_gpuResourceInstance = pMat->m_instanceDescriptors.Size();
+		pMat->m_instanceDescriptors.Add(setAllocLayouts);
 	}
 
 
-
-	GrowingArray<VkWriteDescriptorSet> descriptorWrites(1);
-	switch (instance.m_materialType)
+	ReflectedShaderData* pSecondaryShaderData = nullptr;
+	if (pMat->m_pShaders.Size() > 1)
 	{
-	case Hail::eMaterialType::SPRITE:
-	{
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = ((VlkTextureResourceManager*)m_textureManager)->GetTextureData(instance.m_textureHandles[0]).textureImageView;
-		imageInfo.sampler = vlkRenderingResources->m_linearTextureSampler;
-		VkWriteDescriptorSet textureWrite = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, passData.m_materialDescriptors[instance.m_gpuResourceInstance].descriptors[frameInFlight], imageInfo, 1);
-		descriptorWrites.Add(textureWrite);
-		vkUpdateDescriptorSets(device.GetDevice(), static_cast<uint32_t>(descriptorWrites.Size()), descriptorWrites.Data(), 0, nullptr);
+		pSecondaryShaderData = &pMat->m_pShaders[1]->reflectedShaderData;
 	}
 
-	break;
-	case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-	{
-	}
-	break;
-	case Hail::eMaterialType::MODEL3D:
-	{
-	}
-	break;
-	default:
-		break;
-	}
 
+	GrowingArray<VlkLayoutDescriptor> instanceDescriptors = localGetSetLayoutDescription(
+		(eShaderType)pMat->m_pShaders[0]->header.shaderType,
+		InstanceDomain, &pMat->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+
+	GrowingArray<VkWriteDescriptorSet> descriptorWrites(instanceDescriptors.Size());
+
+	GrowingArray<VkDescriptorImageInfo> imageDescriptorInfos;
+
+	uint32 textureIndex = 0;
+	for (size_t i = 0; i < instanceDescriptors.Size(); i++)
+	{
+		VlkLayoutDescriptor& descriptor = instanceDescriptors[i];
+		if (descriptor.decorationType == eDecorationType::UniformBuffer)
+		{
+			// ASSERT as I do not have buffer support yet in Set 2
+		}
+		else if (descriptor.decorationType == eDecorationType::ShaderStorageBuffer)
+		{
+			// ASSERT as I do not have buffer support yet in Set 2
+		}
+		else if (descriptor.decorationType == eDecorationType::SampledImage)
+		{
+
+			VlkTextureResource* pVlkTexture = instance.m_textureHandles[textureIndex] != MAX_UINT ? 
+				(VlkTextureResource*)m_textureManager->GetTexture(instance.m_textureHandles[textureIndex]) : 
+				(VlkTextureResource*)m_textureManager->GetDefaultTexture();
+
+			VkDescriptorImageInfo& imageDescriptorInfo = imageDescriptorInfos.Add();
+
+			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageDescriptorInfo.imageView = pVlkTexture->GetVlkTextureData().textureImageView;
+			imageDescriptorInfo.sampler = vlkRenderingResources->m_linearTextureSampler;
+
+			VkWriteDescriptorSet& writeDescriptor = descriptorWrites.Add();
+
+			writeDescriptor = WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				pMat->m_instanceDescriptors[instance.m_gpuResourceInstance].descriptors[frameInFlight],
+				imageDescriptorInfo, descriptor.bindingPoint);
+
+			textureIndex++;
+
+		}
+	}
+	vkUpdateDescriptorSets(device.GetDevice(), (uint32)descriptorWrites.Size(), descriptorWrites.Data(), 0, nullptr);
 
 	return true;
 }
 
 void Hail::VlkMaterialManager::ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight)
 {
-	VlkMaterial* pVlkMaterial = (VlkMaterial*)pMaterial;
-	pVlkMaterial->m_passDataValidator.MarkResourceAsDirty(frameInFlight);
-	if (pVlkMaterial->m_passDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
+	pMaterial->m_validator.MarkResourceAsDirty(frameInFlight);
+	if (pMaterial->m_validator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
-		pVlkMaterial->m_passData.CleanupResource(*(VlkDevice*)m_renderDevice);
+		pMaterial->CleanupResource(*m_renderDevice);
 	}
-	pVlkMaterial->m_passData.CleanupResourceFrameData(*(VlkDevice*)m_renderDevice, frameInFlight);
+	pMaterial->CleanupResourceFrameData(*m_renderDevice, frameInFlight);
 }
 
 Material* Hail::VlkMaterialManager::CreateUnderlyingMaterial()

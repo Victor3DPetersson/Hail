@@ -1,10 +1,10 @@
 #pragma once
 
 #include "EngineConstants.h"
-#include "Resource.h"
+#include "ResourceCommon.h"
 #include "MeshResources.h"
+#include "BufferResource.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
-#include "Rendering\UniformBufferManager.h"
 
 class Timer;
 

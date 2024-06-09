@@ -1,45 +1,38 @@
 #pragma once
 #include "glm\vec4.hpp"
-#include "Resource.h"
+#include "ResourceCommon.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "Containers\StaticArray\StaticArray.h"
 #include "String.hpp"
 #include "../EngineConstants.h"
-#include "ShaderCommons.h"
+#include "Resources_Materials/ShaderCommons.h"
+#include "Resources_Materials/Materials_Common.h"
+#include "ReflectedShaderData.h"
 
 namespace Hail
 {
-	enum class eMaterialType : uint8
-	{
-		SPRITE,
-		FULLSCREEN_PRESENT_LETTERBOX, 
-		MODEL3D,
-		DEBUG_LINES2D,
-		DEBUG_LINES3D,
-		COUNT
-	};
-	enum class eBlendMode : uint8
-	{
-		None,
-		Cutout,
-		Translucent,
-		Additive,
-		COUNT
-	};
-	constexpr uint8 MAX_TEXTURE_HANDLES = 16;
+	class RenderingDevice;
 
+	constexpr uint8 MAX_TEXTURE_HANDLES = 8;
 
 	constexpr uint8 MATERIAL_VERSION = 1;
 
-	struct SerializeableMaterialInstance
+	struct SerializeableMaterial
 	{
 		eMaterialType m_baseMaterialType{};
 		eBlendMode m_blendMode{};
 		uint16 m_extraData{};
 		StaticArray<GUID, MAX_TEXTURE_HANDLES> m_textureHandles;
 		glm::vec4 m_instanceFloatParameters;
+		struct ShaderType
+		{
+			eShaderType m_type = eShaderType::None;
+			GUID m_id = GuidZero;
+		};
+		ShaderType m_shaders[2];
 	};
 
+	// TODO: Add support for shader names in material instances
 	class MaterialInstance
 	{
 	public:
@@ -47,7 +40,7 @@ namespace Hail
 		uint32 m_materialIndex = 0;
 		uint32 m_instanceIdentifier = 0;
 		uint32 m_gpuResourceInstance = 0;
-		eMaterialType m_materialType;
+		eMaterialType m_materialType; 
 		eBlendMode m_blendMode = eBlendMode::None;
 		uint8 m_cutoutThreshold = 0;
 		//Textures
@@ -57,23 +50,46 @@ namespace Hail
 	};
 
 	// TODO: Add unique shader hashes
-	uint64 GetMaterialSortValue(eMaterialType type, eBlendMode blend, uint32 shaderValues);
+	uint64 GetMaterialSortValue(eMaterialType type, eBlendMode blend, uint64 shaderValues);
 
+	// Owns common data for a specific material type, so common textures and descriptors Set 1 and 0 data
+	class MaterialTypeDescriptor
+	{
+	public:
+		virtual void CleanupResource(RenderingDevice& device) = 0;
+		eMaterialType m_type = eMaterialType::COUNT;
+		ResourceValidator m_typeDataValidator;
+		VectorOnStack<ReflectedShaderData, 2> m_expectedShaderData;
+	};
+	
+	// Descriptors unique to one material, Set 2 data
+	class MaterialInstanceDescriptor
+	{
+	public:
+		virtual void CleanupResource(RenderingDevice& device) = 0;
+		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
+		ResourceValidator m_instanceDataValidator;
+	};
+
+	// The material owns the shader, has a pointer to the shared type data and owns the instance descriptors
 	class Material
 	{
 	public:
 
-		CompiledShader m_vertexShader;
-		CompiledShader m_fragmentShader;
-		CompiledShader m_tessShader;
-		CompiledShader m_controlShader;
+		virtual void CleanupResource(RenderingDevice& device) = 0;
+		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
+
+		VectorOnStack<CompiledShader*, 2> m_pShaders;
 
 		eBlendMode m_blendMode = eBlendMode::None;
 		eMaterialType m_type = eMaterialType::COUNT;
 		uint64 m_sortKey = MAX_UINT;
 		ResourceValidator m_validator;
 
+		GrowingArray<MaterialInstanceDescriptor*> m_pInstanceDescriptors;
+		MaterialTypeDescriptor* m_pTypeDescriptor = nullptr;
 	};
+
 
 
 

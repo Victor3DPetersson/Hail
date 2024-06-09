@@ -1,4 +1,4 @@
-#include "Engine_PCH.h"
+#include "ResourceCompiler_PCH.h"
 #include "TextureCommons.h"
 
 namespace Hail

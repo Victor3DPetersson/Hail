@@ -137,7 +137,11 @@ bool Hail::InOutStream::Read(void* readOutData, size_t sizeOfData, size_t number
     }
     if (m_currentPosition + sizeOfData * numberOfElements > m_fileSize)
     {
-        return false;
+        // TODO: Add warning that the requested length is not read
+        const size_t remainingSize = m_fileSize - m_currentPosition;
+        m_currentPosition = m_fileSize;
+        fread(readOutData, remainingSize, 1, (FILE*)m_fileHandle);
+        return true;
     }
     m_currentPosition += sizeOfData * numberOfElements;
     fread(readOutData, sizeOfData, numberOfElements, (FILE*)m_fileHandle);

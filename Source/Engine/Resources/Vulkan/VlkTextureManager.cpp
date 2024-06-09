@@ -6,10 +6,11 @@
 #include "Windows\VulkanInternal\VlkResourceManager.h"
 
 #include "Utility\FilePath.hpp"
+#include "Utility\InOutStream.h"
 
 
 #include "Windows/imgui_impl_vulkan.h"
-#include "Resources\MetaResource.h"
+#include "MetaResource.h"
 
 
 using namespace Hail;
@@ -20,42 +21,24 @@ void VlkTextureResourceManager::Init(RenderingDevice* device)
 	TextureManager::Init(device);
 }
 
-void VlkTextureResourceManager::ClearAllResources()
+TextureResource* VlkTextureResourceManager::CreateTextureInternal(const char* name, CompiledTexture& compiledTextureData)
 {
-	m_defaultTextureResource.CleanupResource(m_device);
-	for (size_t i = 0; i < m_textures.Size(); i++)
+	VlkTextureResource* vlkTextureResource = new VlkTextureResource();
+	vlkTextureResource->textureName = name;
+	if (!CreateTextureData(compiledTextureData, vlkTextureResource->GetVlkTextureData()))
 	{
-		m_textures[i].CleanupResource(m_device);
-	}
-	m_textures.RemoveAll();
-}
-
-
-bool Hail::VlkTextureResourceManager::CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture)
-{
-	VlkTextureResource vlkTextureResource;
-	if (!CreateTextureData(textureToCreate.m_compiledTextureData, vlkTextureResource.GetVlkTextureData()))
-	{
-		vlkTextureResource.CleanupResource(m_device);
-		DeleteCompiledTexture(textureToCreate.m_compiledTextureData);
+		vlkTextureResource->CleanupResource(m_device);
+		DeleteCompiledTexture(compiledTextureData);
 		return false;
 	}
-	if (createDefaultTexture)
-	{
-		m_defaultTextureResource = vlkTextureResource;
-	}
-	else
-	{
-		m_textures.Add(vlkTextureResource);
-	}
-
-	return true;
+	vlkTextureResource->m_compiledTextureData = compiledTextureData;
+	return vlkTextureResource;
 }
 
 void Hail::VlkTextureResourceManager::ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight)
 {
 	TextureManager::ClearTextureInternalForReload(textureIndex, frameInFlight);
-	m_textures[textureIndex].CleanupResourceForReload(m_device, frameInFlight);
+	m_loadedTextures[textureIndex]->CleanupResourceForReload(m_device, frameInFlight);
 }
 
 bool Hail::VlkTextureResourceManager::ReloadTextureInternal(int textureIndex, uint32 frameInFlight)
@@ -64,13 +47,13 @@ bool Hail::VlkTextureResourceManager::ReloadTextureInternal(int textureIndex, ui
 	{
 		return false;
 	}
- 	if (m_textures[textureIndex].GetValidator().IsAllFrameResourcesDirty() && !CreateTextureData(m_textureCommonData[textureIndex].m_compiledTextureData, m_textures[textureIndex].GetVlkTextureData()))
+ 	if (m_loadedTextures[textureIndex]->m_validator.IsAllFrameResourcesDirty() && !CreateTextureData(m_loadedTextures[textureIndex]->m_compiledTextureData, ((VlkTextureResource*)m_loadedTextures[textureIndex])->GetVlkTextureData()))
 	{
-		m_textures[textureIndex].CleanupResource(m_device);
-		DeleteCompiledTexture(m_textureCommonData[textureIndex].m_compiledTextureData);
+		m_loadedTextures[textureIndex]->CleanupResource(m_device);
+		DeleteCompiledTexture(m_loadedTextures[textureIndex]->m_compiledTextureData);
 		return false;
 	}
-	m_textures[textureIndex].GetValidator().ClearFrameData(frameInFlight);
+	m_loadedTextures[textureIndex]->m_validator.ClearFrameData(frameInFlight);
 	return true;
 }
 
@@ -115,15 +98,6 @@ bool VlkTextureResourceManager::CreateTextureData(CompiledTexture& compiledTextu
 	return true;
 }
 
-
-VlkTextureData& VlkTextureResourceManager::GetTextureData(uint32_t index)
-{
-	if (index != INVALID_TEXTURE_HANDLE)
-		return m_textures[index].GetVlkTextureData();
-
-	return m_defaultTextureResource.GetVlkTextureData();
-}
-
 FrameBufferTexture* VlkTextureResourceManager::FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat)
 {
 	VlkFrameBufferTexture* frameBuffer = new VlkFrameBufferTexture(resolution, format, depthFormat);
@@ -131,37 +105,44 @@ FrameBufferTexture* VlkTextureResourceManager::FrameBufferTexture_Create(String6
 	frameBuffer->CreateFrameBufferTextureObjects(m_device);
 	return frameBuffer;
 }
+
 #pragma optimize("", off)
 ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureHeader* headerToFill)
 {
 	const FileObject& object = filepath.Object();
-	TextureResource textureToFill;
-	ImGuiVlkTextureResource* returnResource = new ImGuiVlkTextureResource();
+	MetaResource metaData;
+	CompiledTexture compiledTextureData;
 
 	if (StringCompare(object.Extension(), L"txr"))
 	{
-		if (!LoadTextureInternalPath(filepath, textureToFill, returnResource->metaDataOfResource))
+		InOutStream inStream;
+		if (!inStream.OpenFile(filepath, FILE_OPEN_TYPE::READ, true))
 		{
-			Debug_PrintConsoleConstChar("Failed to load imguiTexture");
 			return nullptr;
 		}
+
+		if (!ReadStreamInternal(compiledTextureData, inStream, metaData))
+		{
+			return nullptr;
+		}
+
+		inStream.CloseFile();
+		compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 	}
 	else
 	{
 		//TODO: import external texture 
 	}
 
+	ImGuiVlkTextureResource* returnResource = new ImGuiVlkTextureResource();
 	VlkDevice& device = *m_device;
-	if (textureToFill.m_compiledTextureData.loadState != TEXTURE_LOADSTATE::LOADED_TO_RAM)
-	{
-		return false;
-	}
+
 	if (headerToFill)
-		*headerToFill = textureToFill.m_compiledTextureData.header;
+		*headerToFill = compiledTextureData.header;
 
 	VkBuffer stagingBuffer;
 	VkDeviceMemory stagingBufferMemory;
-	const uint32_t imageSize = GetTextureByteSize(textureToFill.m_compiledTextureData.header);
+	const uint32_t imageSize = GetTextureByteSize(compiledTextureData.header);
 
 	CreateBuffer(device, imageSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -170,20 +151,19 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 
 	void* data;
 	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, textureToFill.m_compiledTextureData.compiledColorValues, static_cast<size_t>(imageSize));
+	memcpy(data, compiledTextureData.compiledColorValues, static_cast<size_t>(imageSize));
 	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
-	DeleteCompiledTexture(textureToFill.m_compiledTextureData);
+	DeleteCompiledTexture(compiledTextureData);
 
-	VkFormat textureFormat = ToVkFormat(TextureTypeToTextureFormat(static_cast<TEXTURE_TYPE>(textureToFill.m_compiledTextureData.header.textureType)));
+	VkFormat textureFormat = ToVkFormat(TextureTypeToTextureFormat((TEXTURE_TYPE)compiledTextureData.header.textureType));
 
-
-	CreateImage(device, textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height,
+	CreateImage(device, compiledTextureData.header.width, compiledTextureData.header.height,
 		textureFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT |
 		VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		returnResource->m_image, returnResource->m_uploadBufferMemory);
 
 	TransitionImageLayout(device, returnResource->m_image, textureFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
-	CopyBufferToImage(device, stagingBuffer, returnResource->m_image, textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, device.GetCommandPool(), device.GetGraphicsQueue());
+	CopyBufferToImage(device, stagingBuffer, returnResource->m_image, compiledTextureData.header.width, compiledTextureData.header.height, device.GetCommandPool(), device.GetGraphicsQueue());
 	TransitionImageLayout(device, returnResource->m_image, textureFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, device.GetCommandPool(), device.GetGraphicsQueue());
 
 	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
@@ -191,13 +171,12 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 
 	returnResource->m_imageView = CreateImageView(device, returnResource->m_image, textureFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	returnResource->m_height = textureToFill.m_compiledTextureData.header.height;
-	returnResource->m_width = textureToFill.m_compiledTextureData.header.width;
+	returnResource->m_height = compiledTextureData.header.height;
+	returnResource->m_width = compiledTextureData.header.width;
 
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)renderingResourceManager->GetRenderingResources();
 	// Create Descriptor Set using ImGUI's implementation
 	returnResource->m_ImGuiResource = ImGui_ImplVulkan_AddTexture(vlkRenderingResources->m_linearTextureSampler, returnResource->m_imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
 	//Debug_PrintConsoleConstChar("Succeded to load imguiTexture");
 	return returnResource;
 }

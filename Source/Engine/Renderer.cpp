@@ -25,15 +25,13 @@ void Hail::Renderer::EndFrame()
 
 void Hail::Renderer::Render()
 {
-	BindMaterial(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0), true);
+	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0), true);
 	if (!m_commandPoolToRender->meshCommands.Empty())
 	{
 		RenderMesh(m_commandPoolToRender->meshCommands[0], 0);
 	}
 
-	BindMaterial(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES3D, 0), false);
-
-
+	//BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES3D, 0), false);
 
 	const uint32_t numberOfSprites = m_commandPoolToRender->spriteCommands.Size();
 	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
@@ -41,11 +39,10 @@ void Hail::Renderer::Render()
 		RenderSprite(m_commandPoolToRender->spriteCommands[sprite], sprite);
 	}
 
-
-	BindMaterial(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0), false);
+	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0), false);
 	const uint32_t numberOfLines = m_commandPoolToRender->debugLineCommands.Size() * 2;
 	RenderDebugLines2D(numberOfLines, 0);
 
-	BindMaterial(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0), false);
+	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0), false);
 	RenderLetterBoxPass();
 }

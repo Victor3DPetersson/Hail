@@ -13,7 +13,6 @@
 
 #include "../Windows_ApplicationWindow.h"
 #include "HailEngine.h"
-#include "Rendering\UniformBufferManager.h"
 #include "Resources\TextureManager.h"
 
 #include "Resources\Vertices.h"

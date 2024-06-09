@@ -69,14 +69,17 @@
     <ClInclude Include="Rendering\FrameBufferTexture.h">
       <Filter>Rendering</Filter>
     </ClInclude>
+    <ClInclude Include="Rendering\RenderDependencies.h">
+      <Filter>Rendering</Filter>
+    </ClInclude>
     <ClInclude Include="Rendering\RenderDevice.h">
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="Rendering\SwapChain.h">
       <Filter>Rendering</Filter>
     </ClInclude>
-    <ClInclude Include="Rendering\UniformBufferManager.h">
-      <Filter>Rendering</Filter>
+    <ClInclude Include="Resources\BufferResource.h">
+      <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="Resources\MaterialManager.h">
       <Filter>Resources</Filter>
@@ -87,25 +90,13 @@
     <ClInclude Include="Resources\MeshResources.h">
       <Filter>Resources</Filter>
     </ClInclude>
-    <ClInclude Include="Resources\MetaResource.h">
-      <Filter>Resources</Filter>
-    </ClInclude>
     <ClInclude Include="Resources\RenderingResourceManager.h">
-      <Filter>Resources</Filter>
-    </ClInclude>
-    <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="Resources\ResourceManager.h">
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="Resources\ResourceRegistry.h">
-      <Filter>Resources</Filter>
-    </ClInclude>
-    <ClInclude Include="Resources\ShaderCommons.h">
-      <Filter>Resources</Filter>
-    </ClInclude>
-    <ClInclude Include="Resources\TextureCommons.h">
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="Resources\TextureManager.h">
@@ -116,6 +107,9 @@
     </ClInclude>
     <ClInclude Include="Resources\Vertices.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources\Vulkan\VlkBufferResource.h">
+      <Filter>Resources\Vulkan</Filter>
     </ClInclude>
     <ClInclude Include="Resources\Vulkan\VlkMaterial.h">
       <Filter>Resources\Vulkan</Filter>
@@ -220,8 +214,8 @@
     <ClCompile Include="Rendering\SwapChain.cpp">
       <Filter>Rendering</Filter>
     </ClCompile>
-    <ClCompile Include="Rendering\UniformBufferManager.cpp">
-      <Filter>Rendering</Filter>
+    <ClCompile Include="Resources\BufferResource.cpp">
+      <Filter>Resources</Filter>
     </ClCompile>
     <ClCompile Include="Resources\MaterialManager.cpp">
       <Filter>Resources</Filter>
@@ -232,13 +226,7 @@
     <ClCompile Include="Resources\MeshResources.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
-    <ClCompile Include="Resources\MetaResource.cpp">
-      <Filter>Resources</Filter>
-    </ClCompile>
     <ClCompile Include="Resources\RenderingResourceManager.cpp">
-      <Filter>Resources</Filter>
-    </ClCompile>
-    <ClCompile Include="Resources\Resource.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
     <ClCompile Include="Resources\ResourceManager.cpp">
@@ -247,14 +235,14 @@
     <ClCompile Include="Resources\ResourceRegistry.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
-    <ClCompile Include="Resources\TextureCommons.cpp">
-      <Filter>Resources</Filter>
-    </ClCompile>
     <ClCompile Include="Resources\TextureManager.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
     <ClCompile Include="Resources\TextureResource.cpp">
       <Filter>Resources</Filter>
+    </ClCompile>
+    <ClCompile Include="Resources\Vulkan\VlkBufferResource.cpp">
+      <Filter>Resources\Vulkan</Filter>
     </ClCompile>
     <ClCompile Include="Resources\Vulkan\VlkMaterial.cpp">
       <Filter>Resources\Vulkan</Filter>

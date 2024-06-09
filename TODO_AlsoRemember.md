@@ -27,12 +27,16 @@
 [] Animation system for 2D animations
 [] Profiling and a profiler window
 [] Imgui Dockable
-[] Use material system to take control over render styles and add blending
+[x] Use material system to take control over render styles and add blending
+[] Shader owned by material Instances
+[] Configurable rendering, so start of a render graph
+[] Compute shaders, dependent on Configurable rendering
 [] Implement Mip-Mapping
 [] Implement a File watcher
 [] Make resource registry thread safe, could be done by looking it on write operations and waiting on read
 [] Font rendering
 [] 2D camera for the 2D rendering
+[] Resource registration Init Check if current path does not match the meta resource project path, and make a function to clean that up.
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.

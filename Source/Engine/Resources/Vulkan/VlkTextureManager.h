@@ -14,24 +14,21 @@ namespace Hail
 	class VlkTextureResourceManager : public TextureManager
 	{
 	public:
-		void Init(RenderingDevice* device) final;
-		void ClearAllResources() final;
-		VlkTextureData& GetTextureData(uint32_t index);
-		VlkTextureResource& GetDefaultTextureData() { return m_defaultTextureResource; }
+		void Init(RenderingDevice* device) override;
 
-		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) final;
+		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) override;
 
-		ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureHeader* headerToFill) final;
-		void DeleteImGuiTextureResource(ImGuiTextureResource* textureToDelete) final;
+		ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureHeader* headerToFill) override;
+		void DeleteImGuiTextureResource(ImGuiTextureResource* textureToDelete) override;
 
 	private:
-		bool CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture) final;
-		void ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight) final;
-		bool ReloadTextureInternal(int textureIndex, uint32 frameInFlight) final;
+		TextureResource* CreateTextureInternal(const char* name, CompiledTexture& compiledTextureData) override;
+		void ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight) override;
+		bool ReloadTextureInternal(int textureIndex, uint32 frameInFlight) override;
 		bool CreateTextureData(CompiledTexture& textureData, VlkTextureData& vlkTextureData);
 		VlkDevice* m_device;
-		VlkTextureResource m_defaultTextureResource;
-		GrowingArray<VlkTextureResource> m_textures;
+		//VlkTextureResource m_defaultTextureResource;
+		//GrowingArray<VlkTextureResource> m_textures;
 	};
 
 }

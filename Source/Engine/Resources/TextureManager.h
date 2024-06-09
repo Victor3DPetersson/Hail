@@ -1,7 +1,7 @@
 #pragma once
-#include "String.hpp"
 #include "TextureResource.h"
-constexpr uint32_t REQUIRED_TEXTURE_COUNT = 3;
+#include "Resources_Materials\ShaderTextureList.h"
+#include "Resources_Materials\\Materials_Common.h"
 
 namespace Hail
 {
@@ -18,7 +18,7 @@ namespace Hail
 		friend class ResourceManager;
 	public:
 		virtual void Init(RenderingDevice* device);
-		virtual void ClearAllResources() = 0;
+		void ClearAllResources();
 		void ReloadAllTextures(uint32 frameInFlight);
 		void Update();
 
@@ -27,9 +27,12 @@ namespace Hail
 		uint32 LoadTexture(GUID textureID);
 		virtual FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format, TEXTURE_DEPTH_FORMAT depthFormat) = 0;
 
-		const GrowingArray<ResourceValidator>& GetTextureValidators() const { return m_textureCommonDataValidators; }
-		const GrowingArray<TextureResource>& GetTexturesCommonData() const { return m_textureCommonData; }
-		const TextureResource& GetDefaultTextureCommonData() const { return m_defaultTexture; }
+		TextureResource* GetTexture(uint32_t index);
+		TextureResource* GetEngineTexture(eDecorationSets setDomainToGet, uint32_t bindingIndex, uint32 frameInFlight);
+		void RegisterEngineTexture(TextureResource* textureToSet, eDecorationSets setDomain, uint32 bindingIndex, uint32 frameInFlight);
+		const TextureResource* GetDefaultTexture() const { return m_defaultTexture; }
+
+		const GrowingArray<TextureResource*>& GetLoadedTextures() const { return m_loadedTextures; }
 
 		//Editor / non game functionality
 		FilePath ImportTextureResource(const FilePath& filepath) const;
@@ -40,21 +43,22 @@ namespace Hail
 
 	protected:
 		void CreateDefaultTexture();
-		virtual bool CreateTextureInternal(TextureResource& textureToCreate, bool createDefaultTexture) = 0;
+		virtual TextureResource* CreateTextureInternal(const char* name, CompiledTexture& compiledTextureData) = 0;
 		virtual void ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight);
 		//Reloading will always call ClearTextureInternal
 		virtual bool ReloadTextureInternal(int textureIndex, uint32 frameInFlight);
-		bool LoadTextureInternal(const char* textureName, TextureResource& textureToFill, MetaResource& metaResourceToFill, bool reloadTexture);
-		bool LoadTextureInternalPath(const FilePath& path, TextureResource& textureToFill, MetaResource& metaResourceToFill);
-		bool ReadStreamInternal(TextureResource& textureToFill, InOutStream& inStream, MetaResource& metaResourceToFill) const;
+		CompiledTexture LoadTextureInternal(const char* textureName, MetaResource& metaResourceToFill, bool reloadTexture);
+		TextureResource* LoadTextureInternalPath(const FilePath& path);
+		bool ReadStreamInternal(CompiledTexture& textureToFill, InOutStream& inStream, MetaResource& metaResourceToFill) const;
 		bool CompileTexture(const char* textureName);
 
-		TextureResource m_defaultTexture;
+		RenderingDevice* m_device;
+		TextureResource* m_defaultTexture;
+		GrowingArray<TextureResource*> m_loadedTextures;
 
-		GrowingArray<TextureResource> m_textureCommonData;
-		GrowingArray<ResourceValidator> m_textureCommonDataValidators;
-
-
+		// Static engine defined textures for material types and global domains
+		//StaticArray<TextureResource*, (uint32)eGlobalTextures::count> m_globalTextures;
+		StaticArray< StaticArray<TextureResource*, MAX_FRAMESINFLIGHT>, (uint32)eMaterialTextures::count> m_materialTextures;
 
 	};
 }

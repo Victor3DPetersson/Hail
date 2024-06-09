@@ -30,16 +30,16 @@ namespace Hail
 		FrameBufferTextureData GetDepthTextureImage(uint32_t index);
 
 	private:
-
+		void CreateTextureResources(bool isColorTexture)  override;
 		void CreateTexture(VlkDevice& device);
 		void CreateDepthTexture(VlkDevice& device);
 		void NullMemory();
-
+		// TODO: look in to making a seperate class for the swapchain and remove this * 2 on the frame in flight
 		VkImage m_textureImage[MAX_FRAMESINFLIGHT * 2];
 		VkDeviceMemory m_textureMemory[MAX_FRAMESINFLIGHT * 2];
 		VkImageView m_textureView[MAX_FRAMESINFLIGHT * 2];
-		VkImage m_depthTextureImage [MAX_FRAMESINFLIGHT * 2];
-		VkDeviceMemory m_depthTextureMemory [MAX_FRAMESINFLIGHT * 2];
-		VkImageView m_depthTextureView [MAX_FRAMESINFLIGHT * 2];
+		VkImage m_depthTextureImage[MAX_FRAMESINFLIGHT * 2];
+		VkDeviceMemory m_depthTextureMemory[MAX_FRAMESINFLIGHT * 2];
+		VkImageView m_depthTextureView[MAX_FRAMESINFLIGHT * 2];
 	};
 }

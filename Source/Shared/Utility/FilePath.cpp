@@ -563,10 +563,10 @@ Hail::FileObject::FileObject(const FilePath& filePath)
     m_fileData = ConstructFileDataFromPath(filePath);
 }
 
-Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData) :
-    m_fileData(fileData)
+Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData)    
 {
     Reset();
+    m_fileData = fileData;
     m_name = string;
     m_parentName = parentObject.Name();
     m_directoryLevel = parentObject.GetDirectoryLevel() + 1;
@@ -721,15 +721,6 @@ RelativeFilePath::RelativeFilePath()
 
 RelativeFilePath::RelativeFilePath(const FilePath& longFilePath)
 {
-    if (!longFilePath.IsValid())
-    {
-        m_stepsFromFileToCommonSharedDir = -1;
-        m_isInsideWorkingDirectory = false;
-        m_directoryLevel = 0;
-        m_pathLength = 0;
-        m_pathFromWorkingDir[0] = g_End;
-        return;
-    }
     const FilePath& currentWorkingDirectory = FilePath::GetCurrentWorkingDirectory();
     const uint16 currentWorkingDirectoryLevel = currentWorkingDirectory.m_directoryLevel;
     bool isDirectoryInsideOfWorkingDirectory = false;
@@ -755,6 +746,7 @@ RelativeFilePath::RelativeFilePath(const FilePath& longFilePath)
             memcpy(m_pathFromWorkingDir, &longFilePath.m_data[nameLengthToDirectory], m_pathLength * sizeof(wchar_t));
             m_pathFromWorkingDir[m_pathLength] = g_End;
             m_isInsideWorkingDirectory = true;
+            m_name = longFilePath.Object().Name().CharString();
             return;
         }
     }
@@ -778,6 +770,7 @@ RelativeFilePath::RelativeFilePath(const FilePath& longFilePath)
         memcpy(m_pathFromWorkingDir, &longFilePath.m_data[nameLengthToDirectory], m_pathLength * sizeof(wchar_t));
         m_pathFromWorkingDir[m_pathLength] = g_End;
     }
+    m_name = longFilePath.Object().Name().CharString();
 }
 
 FilePath RelativeFilePath::GetFilePath() const
@@ -817,7 +810,7 @@ FilePath RelativeFilePath::GetFilePath() const
 
 void RelativeFilePath::Serialize(InOutStream& outObject)
 {
-    if (outObject.IsReading())
+    if (!outObject.IsWriting())
         return; //TODO: Add assert here
     outObject.Write(&m_pathLength, sizeof(uint16));
     outObject.Write(m_pathFromWorkingDir, sizeof(wchar_t), m_pathLength);
@@ -836,4 +829,5 @@ void RelativeFilePath::Deserialize(InOutStream& inObject)
     inObject.Read(&m_stepsFromFileToCommonSharedDir, sizeof(int16));
     inObject.Read(&m_directoryLevel, sizeof(uint16));
     inObject.Read(&m_isInsideWorkingDirectory, sizeof(bool));
+    m_name = GetFilePath().Object().Name().CharString();
 }

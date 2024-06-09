@@ -15,7 +15,7 @@
 #include "../Engine/HailEngine.h"
 #include "../Engine/ImGui/ImGuiFileBrowser.h"
 
-#include "ResourceInterface.h"
+#include "../Engine/Interface/ResourceInterface.h"
 
 #include "Utility\DebugLineHelpers.h"
 #include "Reflection\Reflection.h"
@@ -52,48 +52,48 @@ namespace Hail
 
 	void GameApplication::Init(void* initData)
 	{
-		spaceShipGuid.m_data1 = 217501042;
-		spaceShipGuid.m_data2 = 62551;
-		spaceShipGuid.m_data3 = 17719;
-		spaceShipGuid.m_data4[0] = 158;
-		spaceShipGuid.m_data4[1] = 133;
-		spaceShipGuid.m_data4[2] = 106;
-		spaceShipGuid.m_data4[3] = 192;
-		spaceShipGuid.m_data4[4] = 197;
-		spaceShipGuid.m_data4[5] = 0;
-		spaceShipGuid.m_data4[6] = 17;
-		spaceShipGuid.m_data4[7] = 61;
+		spaceShipGuid.m_data1 = 3698324670;
+		spaceShipGuid.m_data2 = 58616;
+		spaceShipGuid.m_data3 = 18806;
+		spaceShipGuid.m_data4[0] = 130;
+		spaceShipGuid.m_data4[1] = 207;
+		spaceShipGuid.m_data4[2] = 174;
+		spaceShipGuid.m_data4[3] = 64;
+		spaceShipGuid.m_data4[4] = 37;
+		spaceShipGuid.m_data4[5] = 86;
+		spaceShipGuid.m_data4[6] = 92;
+		spaceShipGuid.m_data4[7] = 175;
 		Hail::ResourceInterface::LoadMaterialInstanceResource(spaceShipGuid);
-		backgroundGuid.m_data1 = 2552708824;
-		backgroundGuid.m_data2 = 38327;
-		backgroundGuid.m_data3 = 17069;
-		backgroundGuid.m_data4[0] = 165;
-		backgroundGuid.m_data4[1] = 33;
-		backgroundGuid.m_data4[2] = 142;
-		backgroundGuid.m_data4[3] = 48;
-		backgroundGuid.m_data4[4] = 122;
-		backgroundGuid.m_data4[5] = 219;
-		backgroundGuid.m_data4[6] = 156;
-		backgroundGuid.m_data4[7] = 161;
+		backgroundGuid.m_data1 = 221196968;
+		backgroundGuid.m_data2 = 33006;
+		backgroundGuid.m_data3 = 17645;
+		backgroundGuid.m_data4[0] = 180;
+		backgroundGuid.m_data4[1] = 67;
+		backgroundGuid.m_data4[2] = 112;
+		backgroundGuid.m_data4[3] = 246;
+		backgroundGuid.m_data4[4] = 44;
+		backgroundGuid.m_data4[5] = 166;
+		backgroundGuid.m_data4[6] = 126;
+		backgroundGuid.m_data4[7] = 203;
 		Hail::ResourceInterface::LoadMaterialInstanceResource(backgroundGuid);
-		debugGridGuid.m_data1 = 2671171390;
-		debugGridGuid.m_data2 = 34019;
-		debugGridGuid.m_data3 = 18305;
-		debugGridGuid.m_data4[0] = 133;
-		debugGridGuid.m_data4[1] = 20;
-		debugGridGuid.m_data4[2] = 248;
-		debugGridGuid.m_data4[3] = 102;
-		debugGridGuid.m_data4[4] = 102;
-		debugGridGuid.m_data4[5] = 1;
-		debugGridGuid.m_data4[6] = 161;
-		debugGridGuid.m_data4[7] = 37;
+		debugGridGuid.m_data1 = 107330914;
+		debugGridGuid.m_data2 = 8412;
+		debugGridGuid.m_data3 = 20452;
+		debugGridGuid.m_data4[0] = 181;
+		debugGridGuid.m_data4[1] = 33;
+		debugGridGuid.m_data4[2] = 121;
+		debugGridGuid.m_data4[3] = 115;
+		debugGridGuid.m_data4[4] = 212;
+		debugGridGuid.m_data4[5] = 6;
+		debugGridGuid.m_data4[6] = 155;
+		debugGridGuid.m_data4[7] = 118;
 		Hail::ResourceInterface::LoadMaterialInstanceResource(debugGridGuid);
 
 		g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 		player.transform.SetPosition({ 0.5f, 0.5f });
 		player.bSizeRelativeToRenderTarget = true;
-		player.transform.SetScale({ 0.085f, 0.085f });
+		player.transform.SetScale({ 0.285f, 0.285f });
 		sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
 

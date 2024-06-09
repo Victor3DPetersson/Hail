@@ -1,13 +1,12 @@
 #pragma once
+#include <stdint.h>
 #include "Types.h"
-#include "glm\vec3.hpp"
-#include "glm\gtx\color_encoding.hpp"
+#include "Containers\GrowingArray\GrowingArray.h"
+#include "String.hpp"
+#include "DebugMacros.h"
 
 namespace Hail
 {
-#ifdef PLATFORM_WINDOWS
-    const uint32 MAX_FRAMESINFLIGHT = 2;
-#endif
 
     enum class TEXTURE_FORMAT : uint32
     {
@@ -150,14 +149,14 @@ namespace Hail
     };
 
 
-	enum class TEXTURE_WRAP_MODE : uint32_t
-	{
+    enum class TEXTURE_WRAP_MODE : uint32_t
+    {
         REPEAT = 0,
         MIRRORED_REPEAT = 1,
         CLAMP_TO_EDGE = 2,
         CLAMP_TO_BORDER = 3,
         MIRROR_CLAMP_TO_EDGE = 4
-	};
+    };
 
     enum class TEXTURE_FILTER_MODE : uint32_t
     {
@@ -174,14 +173,14 @@ namespace Hail
 
     enum class COMPARE_MODE : uint32_t
     {
-       NEVER = 0,
-       LESS = 1,
-       EQUAL = 2,
-       LESS_OR_EQUAL = 3,
-       GREATER = 4,
-       NOT_EQUAL = 5,
-       GREATER_OR_EQUAL = 6,
-       ALWAYS = 7
+        NEVER = 0,
+        LESS = 1,
+        EQUAL = 2,
+        LESS_OR_EQUAL = 3,
+        GREATER = 4,
+        NOT_EQUAL = 5,
+        GREATER_OR_EQUAL = 6,
+        ALWAYS = 7
     };
 
     constexpr glm::vec3 Color_RED = { 1.0, 0.0, 0.0 };
@@ -206,22 +205,53 @@ namespace Hail
         bool anisotropy = true;
     };
 
-    class ResourceValidator
-    {
-    public:
-        ResourceValidator();
-        void MarkResourceAsDirty(uint32 frameInFlight);
-        bool IsAllFrameResourcesDirty() const;
-        uint32 GetFrameThatMarkedFrameDirty() const { return m_frameInFlightThatSetDirty; }
-        
-        bool GetIsFrameDataDirty(uint32 frameInFlight) const { return m_dirtyFrameData[frameInFlight]; }
-        bool GetIsResourceDirty() const { return m_resourceIsDirty; }
-        void ClearFrameData(uint32 frameInFlight);
-    private:
+	enum class TEXTURE_TYPE : uint16
+	{
+		R32G32B32A32F,
+		R32G32B32F,
+		R32F,
+		R32G32B32A32,
+		R32G32B32,
+		R32,
+		R16G16B16A16,
+		R16G16B16,
+		R16,
+		R8G8B8A8,
+		R8G8B8,
+		R8,
+		R8G8B8A8_SRGB,
+		R8G8B8_SRGB,
+	};
 
-        bool m_dirtyFrameData[MAX_FRAMESINFLIGHT];
-        //Variable to mark that we have started a reload of the resource
-        bool m_resourceIsDirty = false;
-        uint32 m_frameInFlightThatSetDirty = 0;
-    };
+	struct TextureHeader
+	{
+		uint32 width = 0;
+		uint32 height = 0;
+		uint32 textureType = 0;
+	};
+
+	enum class TEXTURE_LOADSTATE
+	{
+		UNLOADED,
+		LOADED_TO_RAM,
+		UPLOADED_TO_GPU
+	};
+
+	struct CompiledTexture
+	{
+		TextureHeader header;
+		void* compiledColorValues = nullptr;
+		TEXTURE_LOADSTATE loadState = TEXTURE_LOADSTATE::UNLOADED;
+	};
+
+	void DeleteCompiledTexture(CompiledTexture& texture);
+
+
+	uint32_t GetTextureByteSize(TextureHeader header);
+
+	TEXTURE_FORMAT TextureTypeToTextureFormat(TEXTURE_TYPE type);
+
+	const char* GetTextureTypeAsText(TEXTURE_TYPE type);
+
 }
+

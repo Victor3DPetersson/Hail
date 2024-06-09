@@ -2,7 +2,7 @@
 
 #include "VlkFrameBufferTexture.h"
 #include "VlkDevice.h"
-
+#include "Resources\Vulkan\VlkTextureResource.h"
 namespace Hail
 {
 
@@ -31,17 +31,23 @@ namespace Hail
 		attachmentCount += m_textureFormat != TEXTURE_FORMAT::UNDEFINED ? 1 : 0;
 		attachmentCount += m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED ? 1 : 0;
 
+		//TODO: assert if both are undefined
+
 		if (m_textureFormat != TEXTURE_FORMAT::UNDEFINED && m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED )
 		{
 			CreateTexture(*vlkDevice);
 			CreateDepthTexture(*vlkDevice);
+			CreateTextureResources(false);
+			CreateTextureResources(true);
 		}
 		else if(m_textureFormat != TEXTURE_FORMAT::UNDEFINED)
 		{
+			CreateTextureResources(true);
 			CreateTexture(*vlkDevice);
 		}
 		else if(m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED)
 		{
+			CreateTextureResources(false);
 			CreateDepthTexture(*vlkDevice);
 		}
 	}
@@ -68,10 +74,14 @@ namespace Hail
 			}
 			if (m_depthTextureImage[i])
 			{
-				
 				vkDestroyImageView(vlkDevice->GetDevice(), m_depthTextureView[i], nullptr);
 				vkFreeMemory(vlkDevice->GetDevice(), m_depthTextureMemory[i], nullptr);
 				vkDestroyImage(vlkDevice->GetDevice(), m_depthTextureImage[i], nullptr);
+			}
+			if (i < MAX_FRAMESINFLIGHT)
+			{
+				SAFEDELETE(m_pTextureResource[i]);
+				SAFEDELETE(m_pDepthTextureResource[i]);
 			}
 		}
 	}
@@ -84,6 +94,34 @@ namespace Hail
 	FrameBufferTextureData Hail::VlkFrameBufferTexture::GetDepthTextureImage(uint32_t index)
 	{
 		return FrameBufferTextureData(m_depthTextureImage[index], m_depthTextureMemory[index], m_depthTextureView[index]);
+	}
+
+	void VlkFrameBufferTexture::CreateTextureResources(bool bIsColorTexture)
+	{
+		for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+		{
+			VlkTextureResource* vlkTextureResource = new VlkTextureResource();
+
+			vlkTextureResource->textureName = m_bufferName;
+			vlkTextureResource->m_compiledTextureData.header.width = m_resolution.x;
+			vlkTextureResource->m_compiledTextureData.header.height = m_resolution.y;
+			//vlkTextureResource->m_compiledTextureData.header.textureType = 
+			if (bIsColorTexture)
+			{
+				vlkTextureResource->GetVlkTextureData().textureImage = m_textureImage[i];
+				vlkTextureResource->GetVlkTextureData().textureImageMemory = m_textureMemory[i];
+				vlkTextureResource->GetVlkTextureData().textureImageView = m_textureView[i];
+				m_pTextureResource[i] = vlkTextureResource;
+			}
+			else
+			{
+				vlkTextureResource->GetVlkTextureData().textureImage = m_depthTextureImage[i];
+				vlkTextureResource->GetVlkTextureData().textureImageMemory = m_depthTextureMemory[i];
+				vlkTextureResource->GetVlkTextureData().textureImageView = m_depthTextureView[i];
+				m_pDepthTextureResource[i] = vlkTextureResource;
+			}
+		}
+
 	}
 
 	void VlkFrameBufferTexture::CreateTexture(VlkDevice& device)

@@ -10,7 +10,14 @@ namespace Hail
 	enum class ResourceType
 	{
 		Texture,
-		Material
+		Material,
+		Shader
+	};
+	enum class ResourceState
+	{
+		Imported,
+		Unloaded,
+		Invalid
 	};
 
 	class ResourceRegistry
@@ -20,28 +27,37 @@ namespace Hail
 		void AddToRegistry(const FilePath& resourcePath, ResourceType type);
 
 		FilePath GetProjectPath(ResourceType type, GUID resourceGuid) const;
+		FilePath GetSourcePath(ResourceType type, GUID resourceGuid) const;
+		// A resource is imported if it exists in the folder structure.
 		bool GetIsResourceImported(ResourceType type, GUID resourceGuid) const;
+		// A resource is loaded if it has been opened and processed by the appropriate manager.
 		bool GetIsResourceLoaded(ResourceType type, GUID resourceGuid) const;
 		void SetResourceLoaded(ResourceType type, GUID resourceGuid);
 		void SetResourceUnloaded(ResourceType type, GUID resourceGuid);
+		String64 GetResourceName(ResourceType type, GUID resourceGUID) const;
+		// Checks the source resource and compares it with the project resource to see if it needs to be reloaded. Does not work with all types.
+		bool IsResourceOutOfDate(ResourceType type, GUID resourceGUID);
 
 	private:
-		struct MetaDataWithKey
+		struct MetaData
 		{
-			GUID key;
-			RelativeFilePath projectPath;
+			MetaResource m_resource;
 			bool bIsLoaded;
+			ResourceState m_state;
 		};
-		FilePath GetFilePathInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const;
-		bool GetIsResourceImportedInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const;
-		bool GetIsResourceLoadedInternal(const GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid) const;
-		void SetIsResourceLoadedInternal(GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid);
-		void SetIsResourceUnloadedInternal(GrowingArray<MetaDataWithKey>& list, const GUID& resourceGuid);
+		FilePath GetProjectFilePathInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
+		FilePath GetSourceFilePathInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
+		bool GetIsResourceImportedInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
+		bool GetIsResourceLoadedInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
+		bool IsResourceOutOfDateInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
+		void SetIsResourceLoadedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid);
+		void SetIsResourceUnloadedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid);
+		String64 GetResourceNameInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
 		//TODO: use a red black tree structure or hash these values later
 		//TODO: add more types of resources here
-		GrowingArray<MetaDataWithKey> m_textureResources;
-		GrowingArray<MetaDataWithKey> m_materialResources;
-
+		GrowingArray<MetaData> m_textureResources;
+		GrowingArray<MetaData> m_materialResources;
+		GrowingArray<MetaData> m_shaderResources;
 
 
 	};

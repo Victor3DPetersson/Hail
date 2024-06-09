@@ -1,20 +1,28 @@
 #pragma once
 
 #include "EngineConstants.h"
+#include "Resources\MaterialResources.h"
 
 #include "glm\mat4x4.hpp"
 #include "glm\vec2.hpp"
 
 namespace Hail
 {
-	enum class BUFFERS : uint32
+	class RenderingDevice;
+
+	enum class eShaderBufferUsage : uint32
 	{
-		PER_FRAME_DATA = 0u,
-		SPRITE_INSTANCE_BUFFER = 1u,
-		TUTORIAL = 2u,
-		DEBUG_LINE_INSTANCE_BUFFER = 3u,
-		PER_CAMERA_DATA = 4u,
-		COUNT
+		READ,
+		WRITE,
+		READ_WRITE
+	};
+
+	enum class eBufferType : uint32
+	{
+		vertex,
+		index,
+		uniform,
+		structured, 
 	};
 
 	struct TutorialUniformBufferObject {
@@ -35,6 +43,8 @@ namespace Hail
 		glm::mat4 proj;
 	};
 
+	// Structured Buffers
+
 	struct SpriteInstanceData
 	{
 		glm::vec4 position_scale;
@@ -50,33 +60,26 @@ namespace Hail
 		glm::vec4 color;
 	};
 
-	enum class SHADER_STORAGE_BUFFER_USAGE : uint32
+	struct BufferProperties
 	{
-		READ,
-		WRITE,
-		READ_WRITE
+		eBufferType type;
+		uint32 elementByteSize = 0;
+		uint32 offset = 0;
+		uint32 numberOfElements = 0;
 	};
 
-	enum class BUFFER_TYPE : uint32
+	class BufferObject
 	{
-		VERTEX,
-		INDEX,
-		CONSTANT, // Uniform buffer in OpenGL
-		SHADER_STORAGE, // Structured buffer in DX, read write on GPU
+	public:
+		virtual bool Init(RenderingDevice* device, BufferProperties properties) = 0;
+		virtual void CleanupResource(RenderingDevice* device) = 0;
+
+		const BufferProperties& GetProperties() { return m_properties; }
+		const uint32 GetBufferSize() const;
+
+	protected:
+		BufferProperties m_properties;
 	};
 
-	[[nodiscard]] const uint32_t GetUniformBufferIndex(const BUFFERS buffer);
-	[[nodiscard]] const uint32_t GetUniformBufferSize(const BUFFERS buffer);
-
-
-
-	struct BufferObject
-	{
-		const uint32 GetBufferSize();
-
-		BUFFER_TYPE type{};
-		uint32_t sizeInBytes = 0;
-		uint32_t offset = 0;
-	};
 }
 

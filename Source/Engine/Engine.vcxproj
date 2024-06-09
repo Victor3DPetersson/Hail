@@ -133,7 +133,7 @@
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\ResourceCompiler;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -157,7 +157,7 @@
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_OSX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\ResourceCompiler;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -180,7 +180,7 @@
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;NDEBUG;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\ResourceCompiler;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -208,7 +208,7 @@
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;NDEBUG;PLATFORM_OSX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\ResourceCompiler;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -235,7 +235,7 @@
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\ResourceCompiler;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -265,7 +265,7 @@
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_OSX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\ResourceCompiler;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -307,22 +307,20 @@
     <ClInclude Include="RenderCommands.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Rendering\FrameBufferTexture.h" />
+    <ClInclude Include="Rendering\RenderDependencies.h" />
     <ClInclude Include="Rendering\RenderDevice.h" />
     <ClInclude Include="Rendering\SwapChain.h" />
-    <ClInclude Include="Rendering\UniformBufferManager.h" />
+    <ClInclude Include="Resources\BufferResource.h" />
     <ClInclude Include="Resources\MaterialManager.h" />
     <ClInclude Include="Resources\MaterialResources.h" />
     <ClInclude Include="Resources\MeshResources.h" />
-    <ClInclude Include="Resources\MetaResource.h" />
     <ClInclude Include="Resources\RenderingResourceManager.h" />
-    <ClInclude Include="Resources\Resource.h" />
     <ClInclude Include="Resources\ResourceManager.h" />
     <ClInclude Include="Resources\ResourceRegistry.h" />
-    <ClInclude Include="Resources\ShaderCommons.h" />
-    <ClInclude Include="Resources\TextureCommons.h" />
     <ClInclude Include="Resources\TextureManager.h" />
     <ClInclude Include="Resources\TextureResource.h" />
     <ClInclude Include="Resources\Vertices.h" />
+    <ClInclude Include="Resources\Vulkan\VlkBufferResource.h" />
     <ClInclude Include="Resources\Vulkan\VlkMaterial.h" />
     <ClInclude Include="Resources\Vulkan\VlkMaterialManager.h" />
     <ClInclude Include="Resources\Vulkan\VlkTextureManager.h" />
@@ -364,18 +362,16 @@
     <ClCompile Include="Rendering\FrameBufferTexture.cpp" />
     <ClCompile Include="Rendering\RenderDevice.cpp" />
     <ClCompile Include="Rendering\SwapChain.cpp" />
-    <ClCompile Include="Rendering\UniformBufferManager.cpp" />
+    <ClCompile Include="Resources\BufferResource.cpp" />
     <ClCompile Include="Resources\MaterialManager.cpp" />
     <ClCompile Include="Resources\MaterialResources.cpp" />
     <ClCompile Include="Resources\MeshResources.cpp" />
-    <ClCompile Include="Resources\MetaResource.cpp" />
     <ClCompile Include="Resources\RenderingResourceManager.cpp" />
-    <ClCompile Include="Resources\Resource.cpp" />
     <ClCompile Include="Resources\ResourceManager.cpp" />
     <ClCompile Include="Resources\ResourceRegistry.cpp" />
-    <ClCompile Include="Resources\TextureCommons.cpp" />
     <ClCompile Include="Resources\TextureManager.cpp" />
     <ClCompile Include="Resources\TextureResource.cpp" />
+    <ClCompile Include="Resources\Vulkan\VlkBufferResource.cpp" />
     <ClCompile Include="Resources\Vulkan\VlkMaterial.cpp" />
     <ClCompile Include="Resources\Vulkan\VlkMaterialManager.cpp" />
     <ClCompile Include="Resources\Vulkan\VlkTextureManager.cpp" />
@@ -398,8 +394,8 @@
     <ProjectReference Include="..\..\Generated\local\dearimgui.vcxproj">
       <Project>{7C6018E5-E8CA-CC5B-3109-7E019DB2AAB0}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\ResourceCompiler\ResourceCompiler.vcxproj">
-      <Project>{288AE39D-1483-02F0-3DB5-E774290DE2FB}</Project>
+    <ProjectReference Include="..\Engine_ResourceHandling\Engine_ResourceHandling.vcxproj">
+      <Project>{A734B47A-136C-FC11-1C76-6035882C230B}</Project>
     </ProjectReference>
     <ProjectReference Include="..\Shared\Shared.vcxproj">
       <Project>{7C480CD1-68EA-36A7-51A5-4AFB3DE6BDF7}</Project>

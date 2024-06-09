@@ -5,12 +5,12 @@
 namespace Hail
 {
 	class RenderingDevice;
-	class VlkTextureResource
+	class VlkTextureResource : public TextureResource
 	{
 	public:
 
-		void CleanupResource(RenderingDevice* device);
-		void CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth);
+		void CleanupResource(RenderingDevice* device) override;
+		void CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth) override;
 		VlkTextureData& GetVlkTextureData() { return m_textureData; }
 		ResourceValidator& GetValidator() { return m_validator; }
 	private:

@@ -1,6 +1,7 @@
 #pragma once
 #include "../EngineConstants.h"
-#include "TextureCommons.h"
+#include "Resources_Textures\TextureCommons.h"
+#include "ResourceCommon.h"
 
 #include "MetaResource.h"
 
@@ -10,12 +11,14 @@ namespace Hail
 	class TextureResource
 	{
 	public:
-
+		virtual void CleanupResource(RenderingDevice* device) = 0;
+		virtual void CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth) = 0;
 	//private:
 		String64 textureName;
 		uint32_t index = 0;
-		GUID m_uuid;
 		CompiledTexture m_compiledTextureData;
+		ResourceValidator m_validator;
+		MetaResource m_metaResource;
 	};
 
 	// Only use for ImGui data

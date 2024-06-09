@@ -54,12 +54,23 @@ using namespace Hail;
 
 void TextureManager::Init(RenderingDevice* device)
 {
+	m_device = device;
 	CreateDefaultTexture();
+}
+
+void Hail::TextureManager::ClearAllResources()
+{
+	m_defaultTexture->CleanupResource(m_device);
+	for (size_t i = 0; i < m_loadedTextures.Size(); i++)
+	{
+		m_loadedTextures[i]->CleanupResource(m_device);
+	}
+	m_loadedTextures.RemoveAll();
 }
 
 void Hail::TextureManager::ReloadAllTextures(uint32 frameInFlight)
 {
-	for (uint32 i = 0; i < m_textureCommonData.Size(); i++)
+	for (uint32 i = 0; i < m_loadedTextures.Size(); i++)
 	{
 		if (!ReloadTextureInternal(i, frameInFlight))
 		{
@@ -75,75 +86,78 @@ void TextureManager::Update()
 
 bool Hail::TextureManager::LoadTexture(const char* textureName)
 {
-	TextureResource textureResource;
 	MetaResource metaData;
-	//TODO: hook up meta data to engine handling of resource
-	if (LoadTextureInternal(textureName, textureResource, metaData, false))
+	//TODO: hook up meta data to engine handling of resource'
+	CompiledTexture compiledTextureData = LoadTextureInternal(textureName, metaData, false);
+	if (compiledTextureData.loadState == TEXTURE_LOADSTATE::LOADED_TO_RAM)
 	{
-		textureResource.index = m_textureCommonData.Size();
-		m_textureCommonData.Add(textureResource);
-		const bool creationResult = CreateTextureInternal(m_textureCommonData.GetLast(), false);
-		if (creationResult)
+		TextureResource* textureResource = CreateTextureInternal(textureName, compiledTextureData);
+		textureResource->index = m_loadedTextures.Size();
+		textureResource->m_metaResource = metaData;
+		m_loadedTextures.Add(textureResource);
+		if (textureResource)
 			GetResourceRegistry().SetResourceLoaded(ResourceType::Texture, metaData.GetGUID());
 		else
 			GetResourceRegistry().SetResourceUnloaded(ResourceType::Texture, metaData.GetGUID());
 
-		return creationResult;
+		return textureResource;
 	}
 	return false;
 }
 
 uint32 Hail::TextureManager::LoadTexture(GUID textureID)
 {
-	TextureResource textureResource;
-	MetaResource metaData;
-
-	if (LoadTextureInternalPath(GetResourceRegistry().GetProjectPath(ResourceType::Texture, textureID), textureResource, metaData))
+	if (GetResourceRegistry().GetIsResourceLoaded(ResourceType::Texture, textureID))
 	{
-		textureResource.index = m_textureCommonData.Size();
-		m_textureCommonData.Add(textureResource);
-		const bool creationResult = CreateTextureInternal(m_textureCommonData.GetLast(), false);
-		if (creationResult)
+		for (uint32 i = 0; i < m_loadedTextures.Size(); i++)
 		{
-			GetResourceRegistry().SetResourceLoaded(ResourceType::Texture, metaData.GetGUID());
-			m_textureCommonDataValidators.Add(ResourceValidator());
+			TextureResource* pTexture = m_loadedTextures[i];
+			if (pTexture->m_metaResource.GetGUID() == textureID)
+				return i;
 		}
-		else
-			GetResourceRegistry().SetResourceUnloaded(ResourceType::Texture, metaData.GetGUID());
-
-		return textureResource.index;
 	}
+
+	TextureResource* pTexture = LoadTextureInternalPath(GetResourceRegistry().GetProjectPath(ResourceType::Texture, textureID));
+	if (pTexture)
+	{
+		pTexture->index = m_loadedTextures.Size();
+		m_loadedTextures.Add(pTexture);
+		GetResourceRegistry().SetResourceLoaded(ResourceType::Texture, pTexture->m_metaResource.GetGUID());
+		return pTexture->index;
+	}
+	GetResourceRegistry().SetResourceUnloaded(ResourceType::Texture, textureID);
 	return INVALID_TEXTURE_HANDLE;
 }
 
 
 void Hail::TextureManager::ClearTextureInternalForReload(int textureIndex, uint32 frameInFlight)
 {
-	m_textureCommonDataValidators[textureIndex].MarkResourceAsDirty(frameInFlight);
-	if (m_textureCommonData[textureIndex].m_compiledTextureData.loadState == TEXTURE_LOADSTATE::LOADED_TO_RAM)
+	m_loadedTextures[textureIndex]->m_validator.MarkResourceAsDirty(frameInFlight);
+	if (m_loadedTextures[textureIndex]->m_compiledTextureData.loadState == TEXTURE_LOADSTATE::LOADED_TO_RAM)
 	{
-		DeleteCompiledTexture(m_textureCommonData[textureIndex].m_compiledTextureData);
+		DeleteCompiledTexture(m_loadedTextures[textureIndex]->m_compiledTextureData);
 	}
 }
 
 bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameInFlight)
 {
 	ClearTextureInternalForReload(textureIndex, frameInFlight);
-	if (m_textureCommonDataValidators[textureIndex].IsAllFrameResourcesDirty())
+	if (m_loadedTextures[textureIndex]->m_validator.IsAllFrameResourcesDirty())
 	{
 		//TODO: hook up meta data to engine handling of resource
-		MetaResource metaData;
-		if (!LoadTextureInternal(m_textureCommonData[textureIndex].textureName, m_textureCommonData[textureIndex], metaData, true))
+		m_loadedTextures[textureIndex]->m_compiledTextureData = LoadTextureInternal(m_loadedTextures[textureIndex]->textureName, m_loadedTextures[textureIndex]->m_metaResource, true);
+		if (m_loadedTextures[textureIndex]->m_compiledTextureData.loadState != TEXTURE_LOADSTATE::LOADED_TO_RAM)
 		{
 			return false;
 		}
 	}
-	m_textureCommonDataValidators[textureIndex].ClearFrameData(frameInFlight);
+	m_loadedTextures[textureIndex]->m_validator.ClearFrameData(frameInFlight);
 	return true;
 }
 
-bool TextureManager::LoadTextureInternal(const char* textureName, TextureResource& textureToFill, MetaResource& metaResourceToFill, bool reloadTexture)
+CompiledTexture TextureManager::LoadTextureInternal(const char* textureName, MetaResource& metaResourceToFill, bool reloadTexture)
 {
+	CompiledTexture returnTexture;
 	String256 inPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
 
 	InOutStream inStream;
@@ -152,69 +166,75 @@ bool TextureManager::LoadTextureInternal(const char* textureName, TextureResourc
 	{
 		if (!CompileTexture(textureName))
 		{
-			return false;
+			return returnTexture;
 		}
 	}
 	inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
-	if (!ReadStreamInternal(textureToFill, inStream, metaResourceToFill))
-		return false;
+	if (!ReadStreamInternal(returnTexture, inStream, metaResourceToFill))
+		return returnTexture;
 
 	inStream.CloseFile();
 
-	textureToFill.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
-	textureToFill.textureName = textureName;
-	return true;
+	returnTexture.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+	return returnTexture;
 }
 
-bool Hail::TextureManager::LoadTextureInternalPath(const FilePath& path, TextureResource& textureToFill, MetaResource& metaResourceToFill)
+TextureResource* Hail::TextureManager::LoadTextureInternalPath(const FilePath& path)
 {
 	InOutStream inStream;
 
+	MetaResource metaData;
+	CompiledTexture compiledTextureData;
 	if (!inStream.OpenFile(path, FILE_OPEN_TYPE::READ, true))
 		return false;
 
-	if (!ReadStreamInternal(textureToFill, inStream, metaResourceToFill))
+	if (!ReadStreamInternal(compiledTextureData, inStream, metaData))
 		return false;
 
 	inStream.CloseFile();
+	compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 
-	textureToFill.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
-	textureToFill.textureName = path.Object().Name().CharString();
-	return true;
+	TextureResource* textureResource = nullptr;
+	if (compiledTextureData.loadState == TEXTURE_LOADSTATE::LOADED_TO_RAM)
+	{
+		textureResource = CreateTextureInternal(path.Object().Name().CharString(), compiledTextureData);
+		textureResource->m_metaResource = metaData;
+	}
+	return textureResource;
 }
 
-bool Hail::TextureManager::ReadStreamInternal(TextureResource& textureToFill, InOutStream& inStream, MetaResource& metaResourceToFill) const
+bool Hail::TextureManager::ReadStreamInternal(CompiledTexture& textureToFill, InOutStream& inStream, MetaResource& metaResourceToFill) const
 {
-	inStream.Read((char*)&textureToFill.m_compiledTextureData.header, sizeof(TextureHeader));
+	inStream.Read((char*)&textureToFill.header, sizeof(TextureHeader));
 	//Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, "\n"));
-	switch (ToEnum<TEXTURE_TYPE>(textureToFill.m_compiledTextureData.header.textureType))
+	switch (ToEnum<TEXTURE_TYPE>(textureToFill.header.textureType))
 	{
 	case TEXTURE_TYPE::R8G8B8A8_SRGB:
-		Read8BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read8BitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R8G8B8_SRGB:
 	{
 		void* tempData = nullptr;
-		Read8BitStream(inStream, &tempData, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
-		textureToFill.m_compiledTextureData.header.textureType = static_cast<uint32_t>(TEXTURE_TYPE::R8G8B8A8_SRGB);
-		textureToFill.m_compiledTextureData.compiledColorValues = new uint8_t[1 * 4 * textureToFill.m_compiledTextureData.header.width * textureToFill.m_compiledTextureData.header.height];
+		Read8BitStream(inStream, &tempData, GetTextureByteSize(textureToFill.header));
+		textureToFill.header.textureType = static_cast<uint32_t>(TEXTURE_TYPE::R8G8B8A8_SRGB);
+		textureToFill.compiledColorValues = new uint8_t[1 * 4 * textureToFill.header.width * textureToFill.header.height];
 		uint32_t rgbIterator = 0;
-		for (size_t i = 0; i < 4 * textureToFill.m_compiledTextureData.header.width * textureToFill.m_compiledTextureData.header.height; i++)
+		for (size_t i = 0; i < 4 * textureToFill.header.width * textureToFill.header.height; i++)
 		{
 			switch (i % 4)
 			{
 			case 0:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 1:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 2:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 3:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = 255;
+				((uint8_t*)textureToFill.compiledColorValues)[i] = 255;
 				break;
 			}
 		}
@@ -222,30 +242,30 @@ bool Hail::TextureManager::ReadStreamInternal(TextureResource& textureToFill, In
 	}
 	break;
 	case TEXTURE_TYPE::R8G8B8A8:
-		Read8BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read8BitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R8G8B8:
 	{
 		void* tempData = nullptr;
-		Read8BitStream(inStream, &tempData, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
-		textureToFill.m_compiledTextureData.header.textureType = static_cast<uint32_t>(TEXTURE_TYPE::R8G8B8A8);
-		textureToFill.m_compiledTextureData.compiledColorValues = new uint8_t[1 * 4 * textureToFill.m_compiledTextureData.header.width * textureToFill.m_compiledTextureData.header.height];
+		Read8BitStream(inStream, &tempData, GetTextureByteSize(textureToFill.header));
+		textureToFill.header.textureType = static_cast<uint32_t>(TEXTURE_TYPE::R8G8B8A8);
+		textureToFill.compiledColorValues = new uint8_t[1 * 4 * textureToFill.header.width * textureToFill.header.height];
 		uint32_t rgbIterator = 0;
-		for (size_t i = 0; i < 4 * textureToFill.m_compiledTextureData.header.width * textureToFill.m_compiledTextureData.header.height; i++)
+		for (size_t i = 0; i < 4 * textureToFill.header.width * textureToFill.header.height; i++)
 		{
 			switch (i % 4)
 			{
 			case 0:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 1:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 2:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
+				((uint8_t*)textureToFill.compiledColorValues)[i] = static_cast<uint8_t*>(tempData)[rgbIterator++];
 				break;
 			case 3:
-				((uint8_t*)textureToFill.m_compiledTextureData.compiledColorValues)[i] = 255;
+				((uint8_t*)textureToFill.compiledColorValues)[i] = 255;
 				break;
 			}
 		}
@@ -253,22 +273,22 @@ bool Hail::TextureManager::ReadStreamInternal(TextureResource& textureToFill, In
 	}
 	break;
 	case TEXTURE_TYPE::R16G16B16A16:
-		Read16BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read16BitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R16G16B16:
-		Read16BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read16BitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R16:
-		Read16BitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read16BitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R32G32B32A32:
-		Read32UintBitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read32UintBitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R32G32B32:
-		Read32UintBitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read32UintBitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	case TEXTURE_TYPE::R32:
-		Read32UintBitStream(inStream, &textureToFill.m_compiledTextureData.compiledColorValues, GetTextureByteSize(textureToFill.m_compiledTextureData.header));
+		Read32UintBitStream(inStream, &textureToFill.compiledColorValues, GetTextureByteSize(textureToFill.header));
 		break;
 	default:
 		return false;
@@ -321,6 +341,38 @@ bool TextureManager::CompileTexture(const char* textureName)
 	return false;
 }
 
+TextureResource* Hail::TextureManager::GetTexture(uint32_t index)
+{
+	return m_loadedTextures[index];
+}
+
+TextureResource* Hail::TextureManager::GetEngineTexture(eDecorationSets setDomainToGet, uint32_t bindingIndex, uint32 frameInFlight)
+{
+	// TODO: Assert on setDomain
+	if (setDomainToGet == eDecorationSets::GlobalDomain)
+	{
+
+	}
+	else if (setDomainToGet == eDecorationSets::MaterialTypeDomain)
+	{
+		return m_materialTextures[bindingIndex][frameInFlight];
+	}
+	return nullptr;
+}
+
+void Hail::TextureManager::RegisterEngineTexture(TextureResource* textureToSet, eDecorationSets setDomain, uint32 bindingIndex, uint32 frameInFlight)
+{
+	// TODO: Assert on setDomain
+	if (setDomain == eDecorationSets::GlobalDomain)
+	{
+
+	}
+	else if (setDomain == eDecorationSets::MaterialTypeDomain)
+	{
+		m_materialTextures[bindingIndex][frameInFlight] = textureToSet;
+	}
+}
+
 FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
 	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(filepath);
@@ -337,9 +389,9 @@ void Hail::TextureManager::LoadTextureMetaData(const FilePath& filePath, MetaRes
 	if (!inStream.OpenFile(filePath.Data(), FILE_OPEN_TYPE::READ, true))
 		return;
 
-	TextureResource textureToFill;
-	inStream.Read((char*)&textureToFill.m_compiledTextureData.header, sizeof(TextureHeader));
-	inStream.Seek(GetTextureByteSize(textureToFill.m_compiledTextureData.header), 1);
+	CompiledTexture textureToFill;
+	inStream.Read((char*)&textureToFill.header, sizeof(TextureHeader));
+	inStream.Seek(GetTextureByteSize(textureToFill.header), 1);
 
 	const uint64 sizeLeft = inStream.GetFileSize() - inStream.GetFileSeekPosition();
 	if (sizeLeft != 0)
@@ -351,13 +403,13 @@ void Hail::TextureManager::LoadTextureMetaData(const FilePath& filePath, MetaRes
 void Hail::TextureManager::CreateDefaultTexture()
 {
 	const uint8 widthHeight = 16;
-	m_defaultTexture.index = MAX_UINT;
-	m_defaultTexture.textureName = "Default Texture";
-	m_defaultTexture.m_compiledTextureData.header.height = widthHeight;
-	m_defaultTexture.m_compiledTextureData.header.width = widthHeight;
-	m_defaultTexture.m_compiledTextureData.header.textureType = (uint32)TEXTURE_TYPE::R8G8B8A8_SRGB;
-	m_defaultTexture.m_compiledTextureData.compiledColorValues = new uint8[GetTextureByteSize(m_defaultTexture.m_compiledTextureData.header)];
-	m_defaultTexture.m_compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+
+	CompiledTexture compiledTextureData;
+	compiledTextureData.header.height = widthHeight;
+	compiledTextureData.header.width = widthHeight;
+	compiledTextureData.header.textureType = (uint32)TEXTURE_TYPE::R8G8B8A8_SRGB;
+	compiledTextureData.compiledColorValues = new uint8[GetTextureByteSize(compiledTextureData.header)];
+	compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 	struct Color
 	{
 		uint8 r = 255;
@@ -386,19 +438,20 @@ void Hail::TextureManager::CreateDefaultTexture()
 			if (xIndexValue == 0 || xIndexValue == 1)
 			{
 				if ((yIndexValue == 0 || yIndexValue == 16))
-					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
+					memcpy(&((uint8*)compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
 				else
-					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
+					memcpy(&((uint8*)compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
 			}
 			else
 			{
 				if ((yIndexValue == 32 || yIndexValue == 48))
-					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
+					memcpy(&((uint8*)compiledTextureData.compiledColorValues)[x + y * widthHeight], &color1, sizeof(Color));
 				else
-					memcpy(&((uint8*)m_defaultTexture.m_compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
+					memcpy(&((uint8*)compiledTextureData.compiledColorValues)[x + y * widthHeight], &color2, sizeof(Color));
 			}
 
 		}
 	}
-	CreateTextureInternal(m_defaultTexture, true);
+	m_defaultTexture = CreateTextureInternal("Default Texture", compiledTextureData);
+	m_defaultTexture->index = MAX_UINT;
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
-#include "ShaderCommons.h"
+#include "Resources_Materials/ShaderCommons.h"
 #include "MaterialResources.h"
 
 
@@ -22,58 +22,76 @@ namespace Hail
 	public:
 
 		virtual void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain);
-		// Loads the base default materials for each type
+		// Loads the base default materials for each type.
 		bool InitDefaultMaterial(eMaterialType  type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight);
-		bool LoadMaterialFromInstance(const SerializeableMaterialInstance& loadedMaterial);
-		Material& GetMaterial(eMaterialType materialType, uint32 materialIndex);
+		Material* GetMaterial(eMaterialType materialType, uint32 materialIndex);
 		const MaterialInstance& GetMaterialInstance(uint32_t instanceID, eMaterialType materialType);
-		uint32 CreateInstance(eMaterialType materialType, MaterialInstance instanceData);
+		// Creates a material Instance from a materialType and materialSortKey which corresponds to a Shader Blend mode Key.
+		bool InitMaterialInstance(eMaterialType materialType, MaterialInstance instanceData);
 		uint32 GetMaterialInstanceHandle(GUID guid) const;
 
 		bool InitMaterialInstance(uint32 instanceID, uint32 frameInFlight);
 		bool ReloadAllMaterials(uint32 frameInFlight);
 		bool ReloadAllMaterialInstances(uint32 frameInFlight);
-		virtual void ClearAllResources();
+		void ClearAllResources();
 
 		void InitDefaultMaterialInstances();
+		
+		bool LoadMaterialFromSerializeableInstanceGUID(const GUID guid);
 
-		//Editor / non game functionality.
-		FilePath CreateMaterial(const FilePath& outPath, const String256& name) const;
+		// Resource handling functionality
+		FilePath CreateMaterial(const FilePath& outPath, const String256& name, eMaterialType type) const;
 		void ExportMaterial(MaterialResourceContextObject& materialToExport);
 		static void LoadMaterialMetaData(const FilePath& materialPath, MetaResource& resourceToFill);
-		static SerializeableMaterialInstance LoadMaterialSerializeableInstance(const FilePath& materialPath);
+		static SerializeableMaterial LoadMaterialSerializeableInstance(const FilePath& materialPath);
+		static MetaResource LoadShaderMetaData(const FilePath& shaderPath);
+		CompiledShader* GetDefaultCompiledLoadedShader(eShaderType shaderType);
+		CompiledShader* GetCompiledLoadedShader(GUID shaderGUID);
+		CompiledShader* LoadShaderResource(GUID shaderGUID);
+		FilePath ImportShaderResource(const FilePath& filepath);
+
+		const bool IsShaderValidWithMaterialType(eMaterialType materialType, eShaderType shaderType, ReflectedShaderData& shaderDataToCheck) const;
 
 	protected:
 
+		// Returns the index of the loaded material, will be MAX_UINT if not loaded.
+		// Also loads and imports the shaders.
+		uint32 LoadMaterialFromSerializedData(const SerializeableMaterial& loadedMaterial);
 		virtual void BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial) = 0;
-		virtual bool InitMaterialInternal(Material& material, uint32 frameInFlight) = 0;
+		virtual bool InitMaterialInternal(Material* pMaterial, uint32 frameInFlight) = 0;
 		virtual bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance) = 0;
 		virtual void ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight) = 0;
 		// Creates the material that is based on the underlying API
 		virtual Material* CreateUnderlyingMaterial() = 0;
 
+		// Setting up the material type, or binds the already created type definition to the material
+		virtual bool CreateMaterialTypeDescriptor(Material* pMaterial) = 0;
 
 		void ClearHighLevelMaterial(Material* pMaterial, uint32 frameInFlight);
 		void CheckMaterialInstancesToReload(uint32 frameInFlight);
 
 
-		CompiledShader LoadShader(const char* shaderName, SHADERTYPE shaderType, bool reloadShader);
+		CompiledShader* LoadShader(const char* shaderName, eShaderType shaderType, bool reloadShader, const char* shaderExtension = "");
 		void InitCompiler();
 		void DeInitCompiler();
 
 		ResourceValidator& GetDefaultMaterialValidator(eMaterialType type);
+		const ReflectedShaderData* GetDefaultShaderData(eMaterialType materialType, eShaderType shaderType) const;
 
+		// Resource dependencies
 		RenderingDevice* m_renderDevice = nullptr;
 		RenderingResourceManager* m_renderingResourceManager = nullptr;
 		TextureManager* m_textureManager = nullptr;
 		SwapChain* m_swapChain = nullptr;
 
 		ShaderCompiler* m_compiler = nullptr;
-		GrowingArray<CompiledShader> m_compiledRequiredShaders;
 
 		StaticArray<GrowingArray<Material*>, (uint32)eMaterialType::COUNT> m_materials;
+		StaticArray<MaterialTypeDescriptor*, (uint32)eMaterialType::COUNT> m_materialTypeDescriptors;
 
+		// TODO: maybe join these together in to one object
 		GrowingArray<MaterialInstance> m_materialsInstanceData;
+		GrowingArray<ResourceValidator> m_materialsInstanceValidationData;
 		
 
 		MaterialInstance m_defaultSpriteMaterialInstance;
@@ -82,6 +100,8 @@ namespace Hail
 		MaterialInstance m_default3DMaterialInstance;
 		ResourceValidator m_default3DMaterialsInstanceValidationData;
 
-		GrowingArray<ResourceValidator> m_materialsInstanceValidationData;
+		// TODO: better data structure
+		StaticArray<GrowingArray<CompiledShader>, (uint32)eShaderType::None> m_loadedShaders;
+		StaticArray<VectorOnStack<CompiledShader*, 2>, (uint32)eMaterialType::COUNT> m_defaultShaders;
 	};
 }

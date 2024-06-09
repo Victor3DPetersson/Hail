@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resources_Materials">
+      <UniqueIdentifier>{010469DB-6D65-46E9-F6D2-8C9B62337DA8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources_Textures">
+      <UniqueIdentifier>{036D8BE1-EF50-4C37-58B1-468A44B436B9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="MetaResource.h" />
+    <ClInclude Include="ReflectedShaderData.h" />
+    <ClInclude Include="ResourceCommon.h" />
+    <ClInclude Include="ResourceCompiler_PCH.h" />
+    <ClInclude Include="Resources_Materials\Materials_Common.h">
+      <Filter>Resources_Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources_Materials\ShaderBufferList.h">
+      <Filter>Resources_Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources_Materials\ShaderCommons.h">
+      <Filter>Resources_Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources_Materials\ShaderTextureList.h">
+      <Filter>Resources_Materials</Filter>
+    </ClInclude>
+    <ClInclude Include="Resources_Textures\TextureCommons.h">
+      <Filter>Resources_Textures</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCompiler.h" />
+    <ClInclude Include="ShaderReflection.h" />
+    <ClInclude Include="TextureCompiler.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="MetaResource.cpp" />
+    <ClCompile Include="ResourceCommon.cpp" />
+    <ClCompile Include="ResourceCompiler_PCH.cpp" />
+    <ClCompile Include="Resources_Textures\TextureCommons.cpp">
+      <Filter>Resources_Textures</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderCompiler.cpp" />
+    <ClCompile Include="ShaderReflection.cpp" />
+    <ClCompile Include="TextureCompiler.cpp" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{000BCD17-6C75-818E-B5B3-3234215D5FE3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="ResourceCompiler_PCH.h" />
+    <ClInclude Include="Resources\ReflectedShader.h">
+      <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCompiler.h" />
+    <ClInclude Include="ShaderReflection.h" />
+    <ClInclude Include="TextureCompiler.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ResourceCompiler_PCH.cpp" />
+    <ClCompile Include="ShaderCompiler.cpp" />
+    <ClCompile Include="ShaderReflection.cpp" />
+    <ClCompile Include="TextureCompiler.cpp" />
+  </ItemGroup>
+</Project>

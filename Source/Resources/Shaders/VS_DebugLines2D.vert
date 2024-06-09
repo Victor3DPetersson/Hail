@@ -1,7 +1,7 @@
 #version 450
 layout(location = 0) in uint inIndex;
 
-layout( std140, set = 1, binding = 4) uniform PerCameraDataBuffer {
+layout( std140, set = 0, binding = 1) uniform PerCameraDataBuffer {
     mat4 cameraView;
     mat4 cameraProj;
 } perCameraUbo;
@@ -12,7 +12,7 @@ struct DebugLineData
     vec4 color; 
 };
 
-layout(std140, set = 1, binding = 3) buffer LineDataBuffer 
+layout(std140, set = 1, binding = 1) buffer LineDataBuffer 
 {
    	DebugLineData lineDataBuffer[];
 };
