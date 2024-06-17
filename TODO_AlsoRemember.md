@@ -21,14 +21,14 @@
 [] Memory allocators & memory pool
 [] Red-black tree and hashmap
 [] Long string class
-[] Make asserts and error Handling
+[x] Make asserts and error Handling
 [x] Update the input handler and create an input to action map
 [] Threaded loading, make it safe to load from game thread
 [] Animation system for 2D animations
 [] Profiling and a profiler window
 [] Imgui Dockable
 [x] Use material system to take control over render styles and add blending
-[] Shader owned by material Instances
+[x] Shader owned by material Instances
 [] Configurable rendering, so start of a render graph
 [] Compute shaders, dependent on Configurable rendering
 [] Implement Mip-Mapping

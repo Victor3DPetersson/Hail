@@ -1035,7 +1035,6 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 
 	VlkMaterial* pMat = (VlkMaterial*)m_materials[(uint8)instance.m_materialType][instance.m_materialIndex];
 
-	//VlkPassData& passData = pMat->m_passData;
 	ResourceValidator& validator = isDefaultMaterialInstance ? GetDefaultMaterialValidator(instance.m_materialType) : m_materialsInstanceValidationData[instance.m_instanceIdentifier];
 	
 	if (validator.GetFrameThatMarkedFrameDirty() == frameInFlight)

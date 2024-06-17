@@ -42,6 +42,8 @@ namespace Hail
 		size_t m_currentPosition = 0;
 		FILE_OPEN_TYPE m_fileAction = FILE_OPEN_TYPE::NONE;
 		void* m_fileHandle = nullptr;
+
+		FileObject m_objectThatStream;
 	};
 
 

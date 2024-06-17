@@ -118,11 +118,13 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 		InOutStream inStream;
 		if (!inStream.OpenFile(filepath, FILE_OPEN_TYPE::READ, true))
 		{
+			H_ASSERT(false, "Creating ImGui image with a path from a tool should not be possible.");
 			return nullptr;
 		}
 
 		if (!ReadStreamInternal(compiledTextureData, inStream, metaData))
 		{
+			H_ERROR(String256::Format("Failed to import ImGui Texture: %", filepath.Object().Name()));
 			return nullptr;
 		}
 
@@ -135,6 +137,7 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 	}
 
 	ImGuiVlkTextureResource* returnResource = new ImGuiVlkTextureResource();
+	returnResource->metaDataOfResource = metaData;
 	VlkDevice& device = *m_device;
 
 	if (headerToFill)
@@ -177,7 +180,6 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)renderingResourceManager->GetRenderingResources();
 	// Create Descriptor Set using ImGUI's implementation
 	returnResource->m_ImGuiResource = ImGui_ImplVulkan_AddTexture(vlkRenderingResources->m_linearTextureSampler, returnResource->m_imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-	//Debug_PrintConsoleConstChar("Succeded to load imguiTexture");
 	return returnResource;
 }
 #pragma optimize("", on)

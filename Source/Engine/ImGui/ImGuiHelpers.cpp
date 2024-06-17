@@ -87,42 +87,42 @@ bool ImGuiHelpers::DirectoryPanelLogic(FileSystem* fileSystem, uint32 minimumDep
     return fileSystemUpdated;
 }
 
-void Hail::ImGuiHelpers::MetaResourcePanel(MetaResource* metaResource)
+void Hail::ImGuiHelpers::MetaResourcePanel(const MetaResource* pMetaResource)
 {
-    if (!metaResource)
+    if (!pMetaResource)
         return;
 
-    if (metaResource->GetGUID() == GUID())
+    if (pMetaResource->GetGUID() == GUID())
     {
         ImGui::Text("No meta resource associated with this resource, reload / reimport the resource.");
     }
     else
     {
-        const GUID& metaID = metaResource->GetGUID();
+        const GUID& metaID = pMetaResource->GetGUID();
         char pathString[MAX_FILE_LENGTH];
-        FromWCharToConstChar(metaResource->GetProjectFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
+        FromWCharToConstChar(pMetaResource->GetProjectFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
         ImGui::Text("Project Path : ..%s", pathString);
         ImGui::Text("GUID: %xll %xh %xh %c%c%c%c%c%c%c%c", metaID.m_data1, metaID.m_data2, metaID.m_data3,
             metaID.m_data4[0], metaID.m_data4[1], metaID.m_data4[2], metaID.m_data4[3], 
             metaID.m_data4[4], metaID.m_data4[5], metaID.m_data4[6], metaID.m_data4[7]);
         ImGui::Separator();
         ImGui::Text("Base resource information");
-        FromWCharToConstChar(metaResource->GetSourceFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
+        FromWCharToConstChar(pMetaResource->GetSourceFilePath().GetRelativePathData(), pathString, MAX_FILE_LENGTH);
         ImGui::Text("Source Path : ..%s", pathString);
-        ImGui::Text("Creation Time: %s", FormattedTimeFromFileData(metaResource->GetSourceFileData().m_creationTime));
-        ImGui::Text("Last Edited Time: %s", FormattedTimeFromFileData(metaResource->GetSourceFileData().m_lastWriteTime));
-        ImGui::Text("File size: %f mb", (float)((double)metaResource->GetSourceFileData().m_filesizeInBytes) / 1000000.f);
+        ImGui::Text("Creation Time: %s", FormattedTimeFromFileData(pMetaResource->GetSourceFileData().m_creationTime));
+        ImGui::Text("Last Edited Time: %s", FormattedTimeFromFileData(pMetaResource->GetSourceFileData().m_lastWriteTime));
+        ImGui::Text("File size: %f mb", (float)((double)pMetaResource->GetSourceFileData().m_filesizeInBytes) / 1000000.f);
     }
     //static float arr[] = { 0.6f, 0.1f, 1.0f, 0.5f, 0.92f, 0.1f, 0.2f };
     //ImGui::PlotLines("Curve", arr, IM_ARRAYSIZE(arr));
 }
 
-void Hail::ImGuiHelpers::MetaResourceTooltipPanel(MetaResource* metaResource)
+void Hail::ImGuiHelpers::MetaResourceTooltipPanel(const MetaResource* pMetaResource)
 {
-    if (!metaResource)
+    if (!pMetaResource)
         return;
     ImGui::BeginTooltip();
-    MetaResourcePanel(metaResource);
+    MetaResourcePanel(pMetaResource);
     ImGui::EndTooltip();
 }
 

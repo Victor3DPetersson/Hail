@@ -49,6 +49,9 @@
     <ClInclude Include="ImGui\ImGuiMaterialEditor.h">
       <Filter>ImGui</Filter>
     </ClInclude>
+    <ClInclude Include="ImGui\ImGuiMessageLogger.h">
+      <Filter>ImGui</Filter>
+    </ClInclude>
     <ClInclude Include="ImGui\ImGuiPropertyWindow.h">
       <Filter>ImGui</Filter>
     </ClInclude>
@@ -190,6 +193,9 @@
       <Filter>ImGui</Filter>
     </ClCompile>
     <ClCompile Include="ImGui\ImGuiMaterialEditor.cpp">
+      <Filter>ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGui\ImGuiMessageLogger.cpp">
       <Filter>ImGui</Filter>
     </ClCompile>
     <ClCompile Include="ImGui\ImGuiPropertyWindow.cpp">

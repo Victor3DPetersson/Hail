@@ -21,16 +21,14 @@ project "ReflectionCodeGenerator"
 	}
 
 	includedirs {
-		".",
 		"%{dirs.srcdir}/Shared/",
 	}
 
 	libdirs { "%{dirs.libdir}" }	
 	links { 
-		"Shared",
+		"Shared"
 		 }
 	
 	defines {
-
 	 	'SOURCE_DIR="' .. (dirs.sourcedir):gsub("%\\", "/") .. '"',
 	}

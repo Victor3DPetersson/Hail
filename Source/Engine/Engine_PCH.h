@@ -5,6 +5,9 @@
 #include <memory.h>
 #include <tchar.h>
 
+#include "Threading.h"
+#include "ErrorHandling\ErrorHandling.h"
+
 #ifdef DEBUG
 #include <stdexcept>
 #endif

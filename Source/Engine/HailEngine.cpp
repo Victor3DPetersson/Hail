@@ -11,6 +11,8 @@
 #include "Interface\ResourceInterface.h"
 #include "ThreadSynchronizer.h"
 
+#include "ErrorHandling\ErrorLogger.h"
+
 #include <iostream>
 #include "imgui.h"
 #include "ImGui\ImGuiCommands.h"
@@ -19,6 +21,7 @@
 #include "Windows/Windows_ApplicationWindow.h"
 #include "Windows/Windows_InputHandler.h"
 #include "Windows/Windows_Renderer.h"
+#include "Hail_Time.h"
 //#elif PLATFORM_OSX//.... more to be added
 
 #endif
@@ -26,7 +29,7 @@ namespace Hail
 {
 	struct EngineData
 	{
-		Timer* timer = nullptr;
+		Timer timer;
 		InputHandler* inputHandler = nullptr;
 		InputActionMap inputActionMap;
 		ApplicationWindow* appWindow = nullptr;
@@ -55,7 +58,7 @@ namespace Hail
 
 	void MainLoop();
 	void ProcessRendering(const bool applicationThreadLocked);
-	void ProcessApplication();
+	void ProcessApplicationThread();
 	void Cleanup();
 }
 
@@ -63,9 +66,11 @@ namespace Hail
 
 bool Hail::InitEngine(StartupAttributes startupData)
 {
-	g_engineData = new EngineData();
-	g_engineData->timer = new Timer();
+	SetMainThread();
+	ErrorLogger::Initialize();
 
+	g_engineData = new EngineData();
+	SetGlobalTimer(&g_engineData->timer);
 #ifdef PLATFORM_WINDOWS
 	 
 	g_engineData->appWindow = new Windows_ApplicationWindow();
@@ -81,7 +86,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->InitDevice(g_engineData->timer))
+	if (!g_engineData->renderer->InitDevice(&g_engineData->timer))
 	{
 		return false;
 	}
@@ -108,24 +113,21 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	startupData.initFunctionToCall(&g_engineData->inputHandler->GetInputMapping()); // Init the calling application
 	g_engineData->updateFunctionToCall = startupData.updateFunctionToCall;
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
-	g_engineData->applicationTickRate = static_cast<float>(startupData.applicationTickRate);
+	g_engineData->applicationTickRate = (float32)startupData.applicationTickRate;
 
 	g_engineData->inputActionMap.Init(g_engineData->inputHandler);
 
 	g_engineData->threadSynchronizer.SynchronizeAppData(g_engineData->inputActionMap, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
 	startupData.postInitFunctionToCall();
 
-
 	return true;
 }
-
-
 
 void Hail::StartEngine()
 {
 	g_engineData->runApplication = true;
 	g_engineData->runMainThread = true;
-	g_engineData->applicationThread = std::thread( &ProcessApplication );
+	g_engineData->applicationThread = std::thread( &ProcessApplicationThread);
 	MainLoop();
 }
 
@@ -165,7 +167,7 @@ void Hail::MainLoop()
 	EngineData& engineData = *g_engineData;
 	while (engineData.runMainThread)
 	{
-		engineData.timer->FrameStart();
+		engineData.timer.FrameStart();
 		// Updates window state and checks for input messages from OS
 		engineData.appWindow->ApplicationUpdateLoop();
 		const glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
@@ -176,13 +178,14 @@ void Hail::MainLoop()
 		}
 		if(lockApplicationThread == false)
 		{
-			engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer->GetDeltaTime());
+			engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer.GetDeltaTime());
 		}
 		//SwapData
 		if (engineData.applicationLoopDone)
 		{
 			engineData.inputHandler->UpdateGamepads();
 			g_engineData->inputActionMap.UpdateInputActions();
+			ErrorLogger::GetInstance().Update();
 			engineData.imguiCommandRecorder.SwitchCommandBuffers(lockApplicationThread);
 			engineData.threadSynchronizer.SynchronizeAppData(engineData.inputActionMap, engineData.imguiCommandRecorder.FetchImguiResults(), *engineData.resourceManager);
 
@@ -220,7 +223,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 		{
 			engineData.pauseApplication = false;
 			engineData.runApplication = true;
-			engineData.applicationThread = std::thread(&ProcessApplication);
+			engineData.applicationThread = std::thread(&ProcessApplicationThread);
 			engineData.inputHandler->UpdateKeyStates();
 		}
 	}
@@ -233,7 +236,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 	engineData.renderer->EndFrame();
 }
 
-void Hail::ProcessApplication()
+void Hail::ProcessApplicationThread()
 {
 	EngineData& engineData = *g_engineData;
 	Timer applicationTimer;
@@ -268,8 +271,8 @@ void Hail::Cleanup()
 	g_engineData->renderer->Cleanup();
 	SAFEDELETE(g_engineData->appWindow);
 	SAFEDELETE(g_engineData->inputHandler);
-	SAFEDELETE(g_engineData->timer);
 	SAFEDELETE(g_engineData->renderer);
 	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
+	ErrorLogger::Deinitialize();
 }

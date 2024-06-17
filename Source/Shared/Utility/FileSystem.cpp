@@ -230,6 +230,7 @@ namespace Hail
                 return &m_fileDirectories[m_currentDepth - m_baseDepth][i].files;
             }
         }
+        return nullptr;
     }
 
     const GrowingArray<SelectAbleFileObject>* FileSystem::GetFileDirectory(const FileObject& fileDirectory)
@@ -245,6 +246,7 @@ namespace Hail
                 return &m_fileDirectories[fileDirectory.GetDirectoryLevel() - m_baseDepth][i].files;
             }
         }
+        return nullptr;
     }
 
     bool FileSystem::SetCurrentFileDirectory(const FileObject& directory)

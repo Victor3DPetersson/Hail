@@ -121,7 +121,6 @@ namespace Hail
 	{
 		Hail::ApplicationFrameData& frameData = recievedFrameData;
 		//Make Gawme ^^
-
 		g_fTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(3);
 		g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<String256>(4);
 		if (recievedFrameData.imguiCommandRecorder->AddBeginCommand("ImGui From Game Thread", 0))
@@ -230,9 +229,17 @@ namespace Hail
 			player.transform.LookAt(direction);
 		}
 		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerPause) == Hail::eInputState::Released)
-
 		{
 			renderPlayer = !renderPlayer;
+		}
+
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::DebugAction1) == Hail::eInputState::Released)
+		{
+			H_ERROR("Error frome game");
+		}
+		if (frameData.inputActionMap->GetButtonInput(eInputAction::DebugAction2) == Hail::eInputState::Released)
+		{
+			H_WARNING("Warning frome game");
 		}
 
 		player.color.r = sinf(totalTime) * 0.5 + 0.5f;

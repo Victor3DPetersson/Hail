@@ -38,6 +38,8 @@ namespace Hail
 		// Checks the source resource and compares it with the project resource to see if it needs to be reloaded. Does not work with all types.
 		bool IsResourceOutOfDate(ResourceType type, GUID resourceGUID);
 
+		const MetaResource* GetResourceMetaInformation(ResourceType type, const FilePath& pathToCheck) const;
+
 	private:
 		struct MetaData
 		{
@@ -53,6 +55,7 @@ namespace Hail
 		void SetIsResourceLoadedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid);
 		void SetIsResourceUnloadedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid);
 		String64 GetResourceNameInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;
+		const MetaResource* GetMetaResourceInternal(const GrowingArray<MetaData>& list, const FilePath& pathToCheck) const;
 		//TODO: use a red black tree structure or hash these values later
 		//TODO: add more types of resources here
 		GrowingArray<MetaData> m_textureResources;

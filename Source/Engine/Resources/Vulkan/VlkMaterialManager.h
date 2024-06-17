@@ -7,7 +7,6 @@ namespace Hail
 {
 	class VlkFrameBufferTexture;
 	class VlkMaterial;
-	//class VlkPassData;
 
 	class VlkMaterialManager : public MaterialManager
 	{
@@ -22,7 +21,6 @@ namespace Hail
 		bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance) override;
 		void ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight) override;
 		Material* CreateUnderlyingMaterial() override;
-		//bool SetUpMaterialLayouts(VlkPassData& passData, ResourceValidator& passDataValidator, eMaterialType type, uint32 frameInFlight);
 		bool CreateFramebuffers(VlkMaterial& vlkMaterial, uint32 frameInFlight);
 		// TODO: Fix this one to not be hard-coded when making a render-graph / setting up dependencies of materials.
 		bool CreateRenderpass(VlkMaterial& vlkMaterial);

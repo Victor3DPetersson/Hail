@@ -10,6 +10,7 @@
 #include "Utility\StringUtility.h"
 #include "Utility\InOutStream.h"
 
+using namespace Hail;
 
 namespace
 {

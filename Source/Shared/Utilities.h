@@ -1,5 +1,4 @@
 #pragma once
-#include "glm\vec2.hpp"
 #include "Types.h"
 #include <type_traits>
 

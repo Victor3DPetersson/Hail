@@ -23,7 +23,7 @@ filter { "configurations:Release" }
   optimize "On"
 
 filter { "configurations:Production" }
-  defines {  "DEBUG", "PRODUCTION" }
+  defines {  "DEBUG" }
   symbols "On"
   optimize "On"
 

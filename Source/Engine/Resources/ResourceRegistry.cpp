@@ -211,7 +211,7 @@ bool Hail::ResourceRegistry::IsResourceOutOfDate(ResourceType type, GUID resourc
 	}
 	if (type == ResourceType::Material)
 	{
-		// TODO insert error if this is tried to be done.
+		H_ASSERT(false, "Do not try to check if a material is out of date, as it is not depending on a source file.");
 		return false;
 	}
 	if (type == ResourceType::Shader)
@@ -219,6 +219,23 @@ bool Hail::ResourceRegistry::IsResourceOutOfDate(ResourceType type, GUID resourc
 		return IsResourceOutOfDateInternal(m_shaderResources, resourceGUID);
 	}
 	return false;
+}
+
+const MetaResource* Hail::ResourceRegistry::GetResourceMetaInformation(ResourceType type, const FilePath& pathToCheck) const
+{
+	if (type == ResourceType::Texture)
+	{
+		return GetMetaResourceInternal(m_textureResources, pathToCheck);
+	}
+	if (type == ResourceType::Material)
+	{
+		return GetMetaResourceInternal(m_materialResources, pathToCheck);
+	}
+	if (type == ResourceType::Shader)
+	{
+		return GetMetaResourceInternal(m_shaderResources, pathToCheck);
+	}
+	return nullptr;
 }
 
 FilePath Hail::ResourceRegistry::GetProjectFilePathInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
@@ -298,4 +315,16 @@ String64 Hail::ResourceRegistry::GetResourceNameInternal(const GrowingArray<Meta
 		if (list[i].m_resource.GetGUID() == resourceGuid)
 			return list[i].m_resource.GetName();
 	return false;
+}
+
+const Hail::MetaResource* Hail::ResourceRegistry::GetMetaResourceInternal(const GrowingArray<MetaData>& list, const FilePath& pathToCheck) const
+{
+	for (size_t i = 0; i < list.Size(); i++)
+	{
+		const MetaData& meta = list[i];
+		if (meta.m_resource.GetProjectFilePath().GetFilePath() == pathToCheck)
+			return &meta.m_resource;
+	}
+
+	return nullptr;
 }

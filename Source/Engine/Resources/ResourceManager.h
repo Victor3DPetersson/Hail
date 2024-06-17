@@ -6,10 +6,10 @@
 #include "BufferResource.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
 
-class Timer;
 
 namespace Hail
 {
+	class Timer;
 	struct RenderCommandPool;
 	class FrameBufferTexture;
 	class MaterialManager;

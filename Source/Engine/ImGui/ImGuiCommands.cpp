@@ -4,6 +4,7 @@
 #include "DebugMacros.h"
 #include "ImGuiMaterialEditor.h"
 #include "ImGuiAssetBrowser.h"
+#include "ImGuiMessageLogger.h"
 #include "Resources\ResourceManager.h"
 #include "ImGuiPropertyWindow.h"
 #include "ImGuiContext.h"
@@ -13,6 +14,7 @@ namespace Hail
 	ImGuiMaterialEditor g_materialEditor;
 	ImGuiAssetBrowser g_assetBrowser;
 	ImGuiPropertyWindow g_propertyWindow;
+	ImGuiMessageLogger g_messageLogger;
 	ImGuiContext g_contextObject;
 }
 
@@ -485,8 +487,9 @@ void Hail::ImGuiCommandManager::RenderEngineImgui()
 		{
 			if (ImGui::BeginMenu("Windows"))
 			{
-				ImGui::MenuItem("AssetBrowser", NULL, &m_openAssetBrowser);
-				ImGui::MenuItem("PropertyWindow", NULL, &m_openPropertyWindow);
+				ImGui::MenuItem("Asset Browser", NULL, &m_openAssetBrowser);
+				ImGui::MenuItem("Property Window", NULL, &m_openPropertyWindow);
+				ImGui::MenuItem("Message Logger", NULL, &m_openMessageLogger);
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Reload"))
@@ -499,16 +502,24 @@ void Hail::ImGuiCommandManager::RenderEngineImgui()
 			}
 			ImGui::EndMenuBar();
 		}
-		if (m_openAssetBrowser)
-			g_assetBrowser.RenderImGuiCommands(&m_fileBrowser, m_resourceManager, &g_contextObject);
-		if (m_openPropertyWindow)
+
+		if (m_openMessageLogger)
 		{
-			ImGui::SameLine();
-			ImGuiPropertyWindowReturnValue propertyReturnValue = g_propertyWindow.RenderImGuiCommands(&m_fileBrowser, &g_contextObject);
-			if (propertyReturnValue == ImGuiPropertyWindowReturnValue::OpenMaterialWindow)
+			g_messageLogger.RenderImGuiCommands();
+		}
+		else
+		{
+			if (m_openAssetBrowser)
+				g_assetBrowser.RenderImGuiCommands(&m_fileBrowser, m_resourceManager, &g_contextObject);
+			if (m_openPropertyWindow)
 			{
-				m_openMaterialWindow = true;
-				g_materialEditor.SetMaterialAsset(&g_contextObject);
+				ImGui::SameLine();
+				ImGuiPropertyWindowReturnValue propertyReturnValue = g_propertyWindow.RenderImGuiCommands(&m_fileBrowser, &g_contextObject);
+				if (propertyReturnValue == ImGuiPropertyWindowReturnValue::OpenMaterialWindow)
+				{
+					m_openMaterialWindow = true;
+					g_materialEditor.SetMaterialAsset(&g_contextObject);
+				}
 			}
 		}
 	}

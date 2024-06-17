@@ -16,7 +16,6 @@
 #include "windows\VulkanInternal\VlkSwapChain.h"
 #include "Resources\Vulkan\VlkTextureManager.h"
 #include "Resources\Vulkan\VlkMaterialManager.h"
-
 #endif
 
 namespace Hail
@@ -57,7 +56,7 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
 	{
 		m_textureManager->RegisterEngineTexture(m_mainPassFrameBufferTexture->GetColorTexture(i), eDecorationSets::MaterialTypeDomain, (uint32)eMaterialTextures::FullscreenPassTarget, i);
 	}
-	//Temp, needs to be more data driven
+
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
 		if(!m_materialManager->InitDefaultMaterial(eMaterialType::SPRITE, m_mainPassFrameBufferTexture, false, i))
@@ -155,7 +154,10 @@ void Hail::ResourceManager::ReloadResources()
 void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 {
 	if (guid == GuidZero)
+	{
+		H_ERROR("Loading material failed, guid is zero.");
 		return;
+	}
 
 	ResourceRegistry& reg = GetResourceRegistry();
 	if (!reg.GetIsResourceImported(ResourceType::Material, guid))
@@ -169,7 +171,7 @@ void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 	{
 		// TODO: Add resource load error type for registry.
 		//reg.SetResourceLoadError
-		// Show an error here for the GUID and resource name
+		H_ERROR(String256::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid).Data()));
 	}
 }
 

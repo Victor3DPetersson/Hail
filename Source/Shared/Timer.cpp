@@ -1,40 +1,62 @@
 #include "Shared_PCH.h"
 #include "Timer.h"
+#include <chrono>
+
+#ifdef PLATFORM_WINDOWS
+#include "windows.h"
+#endif
+
+using namespace Hail;
+
+uint64 localGetCurrentTimeInMs()
+{
+	const auto duration = std::chrono::high_resolution_clock::now().time_since_epoch();
+	return (uint64)std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+}
+
+Hail::Timer::Timer()
+{
+	m_startTimeMs = localGetCurrentTimeInMs();
+	m_frameStartMs = m_startTimeMs;
+}
 
 void Timer::FrameStart()
 {
-	std::chrono::duration<double, std::ratio<1, 1>> deltaTime = std::chrono::high_resolution_clock::now() - m_frameStart;
-	if (m_isPaused)
-	{
-		m_pausedTotalTime += (deltaTime.count());
-	}
-	else
-	{
-		m_deltaTime = (deltaTime.count());
-	}
-	m_frameStart = std::chrono::high_resolution_clock::now();
+	const uint64 currentTimeInMs = localGetCurrentTimeInMs();
+
+	m_deltaTimeMs = currentTimeInMs - m_frameStartMs;
+	m_frameStartMs = currentTimeInMs;
 }
+
 double Timer::GetDeltaTime() const
 {
-	return m_deltaTime;
+	return m_deltaTimeMs * 0.001;
 }
-double Timer::GetPausedTotalTime() const
-{
-	return m_pausedTotalTime;
-}
+
 double Timer::GetTotalTime() const
 {
-	std::chrono::duration<double, std::ratio<1, 1>> totalTime = m_frameStart - m_begin;
-	return totalTime.count();
+	return (localGetCurrentTimeInMs() - m_startTimeMs) * 0.001;
 }
 
-
-void Timer::Pause()
+uint64 Timer::GetTotalTimeMs() const
 {
-	m_isPaused = true;
+	return localGetCurrentTimeInMs() - m_startTimeMs;
 }
 
-void Timer::Resume()
+uint64 Hail::Timer::GetSystemTime() const
 {
-	m_isPaused = false;
+	std::chrono::time_point<std::chrono::system_clock> timeZoneBias;
+#ifdef PLATFORM_WINDOWS
+	TIME_ZONE_INFORMATION timeZoneData;
+	bool hasBias = GetTimeZoneInformation(&timeZoneData);
+	if (hasBias)
+	{
+		int totalBias = timeZoneData.Bias + timeZoneData.DaylightBias;
+		timeZoneBias -= std::chrono::minutes(totalBias);
+	}
+#endif
+	
+	const std::chrono::system_clock::time_point timePoint = std::chrono::system_clock::now() + timeZoneBias.time_since_epoch();
+	// Magic number that might only be needed on windows? Will be vigilant with time for now.
+	return timePoint.time_since_epoch().count() + 116444736000000000;
 }

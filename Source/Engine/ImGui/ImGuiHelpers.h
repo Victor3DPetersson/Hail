@@ -13,8 +13,8 @@ namespace Hail
 	{
 		//Send in a filesystem to get a Directory panel. 
 		bool DirectoryPanelLogic(FileSystem* fileSystem, uint32 minimumDepth);
-		void MetaResourcePanel(MetaResource* metaResource);
-		void MetaResourceTooltipPanel(MetaResource* metaResource);
+		void MetaResourcePanel(const MetaResource* pMetaResource);
+		void MetaResourceTooltipPanel(const MetaResource* pMetaResource);
 		String64 FormattedTimeFromFileData(const FileTime& fileTime);
 
 		const char* GetMaterialTypeStringFromEnum(eMaterialType type);

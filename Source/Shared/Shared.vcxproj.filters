@@ -28,6 +28,9 @@
     <Filter Include="Containers\VectorOnStack">
       <UniqueIdentifier>{506EC7FD-3C93-167E-65DE-FB0D5162159C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ErrorHandling">
+      <UniqueIdentifier>{F4627B46-6023-F77C-295E-40FA95DD3B59}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Hashing">
       <UniqueIdentifier>{47EFC094-B3CE-3F30-BCE6-CA062845A691}</UniqueIdentifier>
     </Filter>
@@ -101,6 +104,13 @@
       <Filter>Containers\VectorOnStack</Filter>
     </ClInclude>
     <ClInclude Include="DebugMacros.h" />
+    <ClInclude Include="ErrorHandling\ErrorHandling.h">
+      <Filter>ErrorHandling</Filter>
+    </ClInclude>
+    <ClInclude Include="ErrorHandling\ErrorLogger.h">
+      <Filter>ErrorHandling</Filter>
+    </ClInclude>
+    <ClInclude Include="Hail_Time.h" />
     <ClInclude Include="Hashing\xxh64_en.hpp">
       <Filter>Hashing</Filter>
     </ClInclude>
@@ -121,6 +131,7 @@
     <ClInclude Include="Shared_PCH.h" />
     <ClInclude Include="StartUpAttributes.h" />
     <ClInclude Include="String.hpp" />
+    <ClInclude Include="Threading.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Transforms.h" />
     <ClInclude Include="Types.h" />
@@ -1007,10 +1018,18 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="ErrorHandling\ErrorHandling.cpp">
+      <Filter>ErrorHandling</Filter>
+    </ClCompile>
+    <ClCompile Include="ErrorHandling\ErrorLogger.cpp">
+      <Filter>ErrorHandling</Filter>
+    </ClCompile>
+    <ClCompile Include="Hail_Time.cpp" />
     <ClCompile Include="Reflection\Reflection.cpp">
       <Filter>Reflection</Filter>
     </ClCompile>
     <ClCompile Include="Shared_PCH.cpp" />
+    <ClCompile Include="Threading.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Transforms.cpp" />
     <ClCompile Include="Utility\DebugLineHelpers.cpp">

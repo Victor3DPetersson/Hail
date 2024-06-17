@@ -18,8 +18,9 @@ namespace Hail
     using float32 = float;
     using float64 = double;
 
-    constexpr uint32 MAX_UINT = 0xFFFFFFFF;
     constexpr uint16 MAX_UINT16 = 0xFFFF;
+    constexpr uint32 MAX_UINT = 0xFFFFFFFF;
+    constexpr uint64 MAX_UINT64 = 0xFFFFFFFFFFFFFFFF;
 
     struct GUID {
         bool operator ==(const GUID& other) const

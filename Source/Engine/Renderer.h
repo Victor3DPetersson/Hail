@@ -13,7 +13,6 @@
 
 
 struct CompiledShader;
-class Timer;
 namespace Hail
 {
 	class RenderingDevice;
@@ -22,6 +21,7 @@ namespace Hail
 	class FrameBufferTexture;
 	struct RenderCommand_Sprite;
 	struct RenderCommand_Mesh;
+	class Timer;
 	class Renderer
 	{
 	public:

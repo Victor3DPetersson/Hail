@@ -234,7 +234,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_WINDOWS;PROJECT_DIR="D:/Projects/YlvicProject/Hail/";SOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/";RESOURCE_DIR="D:/Projects/YlvicProject/Hail/Source/Resources/";RESOURCE_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/";SHADER_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/";SHADER_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/shaders/";TEXTURES_DIR_IN="D:/Projects/YlvicProject/Hail/Source/Resources/Textures/";TEXTURES_DIR_OUT="D:/Projects/YlvicProject/Hail/Generated/bin/resources/textures/";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;..\..\External\Vulkan\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
@@ -264,7 +264,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>Engine_PCH.h</PrecompiledHeaderFile>
       <WarningLevel>Level3</WarningLevel>
-      <PreprocessorDefinitions>symbols;DEBUG;PRODUCTION;PLATFORM_OSX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>symbols;DEBUG;PLATFORM_OSX;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>.;..\..\External\dearimgui;..\Shared;..\Engine_ResourceHandling;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Full</Optimization>
@@ -299,6 +299,7 @@
     <ClInclude Include="ImGui\ImGuiFileBrowser.h" />
     <ClInclude Include="ImGui\ImGuiHelpers.h" />
     <ClInclude Include="ImGui\ImGuiMaterialEditor.h" />
+    <ClInclude Include="ImGui\ImGuiMessageLogger.h" />
     <ClInclude Include="ImGui\ImGuiPropertyWindow.h" />
     <ClInclude Include="Input\InputActionList.h" />
     <ClInclude Include="Input\InputActionMap.h" />
@@ -354,6 +355,7 @@
     <ClCompile Include="ImGui\ImGuiFileBrowser.cpp" />
     <ClCompile Include="ImGui\ImGuiHelpers.cpp" />
     <ClCompile Include="ImGui\ImGuiMaterialEditor.cpp" />
+    <ClCompile Include="ImGui\ImGuiMessageLogger.cpp" />
     <ClCompile Include="ImGui\ImGuiPropertyWindow.cpp" />
     <ClCompile Include="Input\InputActionMap.cpp" />
     <ClCompile Include="Input\InputHandler.cpp" />

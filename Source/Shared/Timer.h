@@ -1,29 +1,26 @@
 #pragma once
-#include <chrono>
+#include "Types.h"
 
-class Timer
+namespace Hail
 {
-public:
-    Timer()
+    class Timer
     {
-        m_frameStart = std::chrono::high_resolution_clock::now();
-        m_begin = std::chrono::high_resolution_clock::now();
-    }
-    Timer(const Timer& timer) = delete;
-    Timer& operator=(const Timer& timer) = delete;
-    Timer(const Timer&& timer) = delete;
-    Timer& operator=(const Timer&& timer) = delete;
+    public:
+        Timer();
+        Timer(const Timer& timer) = delete;
+        Timer& operator=(const Timer& timer) = delete;
+        Timer(const Timer&& timer) = delete;
+        Timer& operator=(const Timer&& timer) = delete;
 
-    void FrameStart();
-    double GetDeltaTime() const;
-    double GetPausedTotalTime() const;
-    double GetTotalTime() const;
-    void Pause();
-    void Resume();
-private:
-    double m_deltaTime = 0;
-    double m_pausedTotalTime = 0;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_frameStart;
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_begin;
-    bool m_isPaused = false;
-};
+        void FrameStart();
+        double GetDeltaTime() const;
+        uint32 GetDeltaTimeMs() const { return m_deltaTimeMs; }
+        double GetTotalTime() const;
+        uint64 GetTotalTimeMs() const;
+        uint64 GetSystemTime() const;
+    private:
+        uint32 m_deltaTimeMs = 0;
+        uint64 m_startTimeMs = 0;
+        uint64 m_frameStartMs = 0;
+    };
+}

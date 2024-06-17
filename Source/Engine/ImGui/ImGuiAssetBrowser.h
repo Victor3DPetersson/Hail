@@ -23,7 +23,7 @@ namespace Hail
 		void InitFolder(const FileObject& fileObject);
 		void ImportTextureLogic();
 		void ImportShaderResourceLogic();
-
+		void DeselectAllObjects(GrowingArray<SelectAbleFileObject>* pCurrentDirectory);
 
 		bool m_fileBrowsersAreInited = false;
 		bool m_openAssetBrowser = false;

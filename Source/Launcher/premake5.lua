@@ -3,7 +3,7 @@ project "Launcher"
 
 	print ("Building Launcher...")
 	
-	kind "ConsoleApp"
+	kind "WindowedApp"
 	language "C++"
 	cppdialect "C++17"
 

@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-
+using namespace Hail;
 
 namespace
 {
@@ -29,6 +29,8 @@ namespace
         case Hail::FILE_OPEN_TYPE::READ_APPEND:
             return binaryMode ? "a+b" : "a+t";
         }
+        H_ASSERT(false, "Should not be possible to get here.")
+        return "";
     }
     FILE* Open(const char* szPath, const char* type)
     {
@@ -71,6 +73,7 @@ bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpe
             return false;
         }
     }
+    m_objectThatOpenedStream = fileToWriteTo.Object();
     m_isBinary = binaryMode;
     char fileDirectory[MAX_FILE_LENGTH];
     FromWCharToConstChar(fileToWriteTo.Data(), fileDirectory, MAX_FILE_LENGTH);
@@ -137,8 +140,10 @@ bool Hail::InOutStream::Read(void* readOutData, size_t sizeOfData, size_t number
     }
     if (m_currentPosition + sizeOfData * numberOfElements > m_fileSize)
     {
-        // TODO: Add warning that the requested length is not read
         const size_t remainingSize = m_fileSize - m_currentPosition;
+
+        H_WARNING(String256::Format("Reading longer by: %i than file length: %i with file object: %s", sizeOfData * numberOfElements - remainingSize, m_fileSize, m_objectThatOpenedStream.Name().CharString()))
+
         m_currentPosition = m_fileSize;
         fread(readOutData, remainingSize, 1, (FILE*)m_fileHandle);
         return true;
@@ -160,8 +165,12 @@ bool Hail::InOutStream::Write(const void* writeOutData, size_t sizeOfData, size_
 
 bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)
 {
-    if (IsReading() && m_currentPosition + sizeOfData * numberOfElements < m_fileSize)
+    if (IsReading())
     {
+        H_ASSERT(m_currentPosition + sizeOfData * numberOfElements > m_fileSize, String256::Format("Seeking outside range in file object: %s", m_objectThatOpenedStream.Name().CharString()))
+        if (m_currentPosition + sizeOfData * numberOfElements > m_fileSize)
+            return false;
+
         int result = fseek((FILE*)m_fileHandle, sizeOfData * numberOfElements, SEEK_CUR);
         if (result == 0)
         {
@@ -169,6 +178,7 @@ bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)
             return true;
         }
     }
+    H_WARNING(String256::Format("Trying to seek in Writing file object: %s", m_objectThatOpenedStream.Name().CharString()))
     return false;
 }
 

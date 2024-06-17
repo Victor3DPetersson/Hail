@@ -14,6 +14,9 @@
 #include "Resources\ResourceManager.h"
 #include "Resources\TextureManager.h"
 
+#include "Resources\ResourceRegistry.h"
+#include "HailEngine.h"
+
 #include "ImGuiHelpers.h"
 #ifdef PLATFORM_WINDOWS
 #include "Resources\Vulkan\VlkTextureResource.h"
@@ -27,7 +30,7 @@ namespace
 	//StaticArray<String64, (uint32_t)eMaterialType::COUNT> g_materialTypeStrings;
 	constexpr uint32 ASSET_SIZE = 100;
 	// will return true if double clicked
-	bool RenderAssetPreview(SelectAbleFileObject& fileObject, ImGuiTextureResource* imageResource, bool showToolTip)
+	bool RenderAssetPreview(SelectAbleFileObject& fileObject, ImGuiTextureResource* imageResource, const MetaResource* pMetaResource)
 	{
 		if (!imageResource)
 			return false;
@@ -49,8 +52,8 @@ namespace
 		if (hovered)
 		{
 			ImGui::BeginChildFrame(id, { ASSET_SIZE, ASSET_SIZE * 1.3 }, showBackground ? 0 : ImGuiWindowFlags_NoBackground);
-			if (showToolTip)
-				ImGuiHelpers::MetaResourceTooltipPanel(&imageResource->metaDataOfResource);
+			if (pMetaResource)
+				ImGuiHelpers::MetaResourceTooltipPanel(pMetaResource);
 			if (io.MouseClicked[0])
 			{
 				fileObject.m_selected = !fileObject.m_selected;
@@ -193,6 +196,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 
 	if (GrowingArray<SelectAbleFileObject>* currentDirectory = m_fileSystem.GetCurrentFileDirectory())
 	{
+		ResourceRegistry& reg = GetResourceRegistry();
 		const uint32 xRegionAvailable = ImGui::GetContentRegionAvail().x / ASSET_SIZE;
 		for (size_t i = 0; i < currentDirectory->Size(); i++)
 		{
@@ -216,10 +220,12 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 			}
 			else if (StringCompare(currentObject.m_fileObject.Extension(), L"mat"))
 			{
-				RenderAssetPreview(currentObject, m_materialIconTexture.m_texture, false);
+				RenderAssetPreview(currentObject, m_materialIconTexture.m_texture, reg.GetResourceMetaInformation(ResourceType::Material, m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject));
 
 				if (!wasSelected && currentObject.m_selected)
 				{
+					DeselectAllObjects(currentDirectory);
+					currentObject.m_selected = true;
 					m_currentlySelectedMaterialResource.m_fileObject = &currentObject;
 					m_resourceManager->GetMaterialManager()->LoadMaterialMetaData( m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject, m_currentlySelectedMaterialResource.m_metaResource);
 					m_currentlySelectedMaterialResource.m_materialObject = m_resourceManager->GetMaterialManager()->LoadMaterialSerializeableInstance(m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject);
@@ -229,27 +235,29 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 				if (wasSelected && !currentObject.m_selected && contextObject->GetCurrentContextObject())
 				{
 					contextObject->DeselectContext();
+					m_currentlySelectedMaterialResource.m_metaResource = MetaResource();
 				}
 			}
 			else if (StringCompare(currentObject.m_fileObject.Extension(), L"shr"))
 			{
-				RenderAssetPreview(currentObject, m_materialIconTexture.m_texture, false);
+				RenderAssetPreview(currentObject, m_materialIconTexture.m_texture, reg.GetResourceMetaInformation(ResourceType::Shader, m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject));
 
 				if (!wasSelected && currentObject.m_selected)
 				{
+					DeselectAllObjects(currentDirectory);
+					currentObject.m_selected = true;
 					m_currentlySelectedShaderResource.m_pFileObject = &currentObject;
 					m_currentlySelectedShaderResource.m_metaResource = m_resourceManager->GetMaterialManager()->LoadShaderMetaData(m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject);
 					m_currentlySelectedShaderResource.m_pShader = m_resourceManager->GetMaterialManager()->GetCompiledLoadedShader(m_currentlySelectedShaderResource.m_metaResource.GetGUID());
 					if (!m_currentlySelectedShaderResource.m_pShader)
-					{
-						// TODO assert here, should not be possible to not have a shader loaded if it has a shr file
-					}
+						H_ASSERT(false, "Should not be possible to not have a shader loaded if it has a shr file.");
 
 					contextObject->SetCurrentContextObject(ImGuiContextsType::Shader, &m_currentlySelectedShaderResource);
 				}
 				if (wasSelected && !currentObject.m_selected && contextObject->GetCurrentContextObject())
 				{
 					contextObject->DeselectContext();
+					m_currentlySelectedShaderResource.m_metaResource = MetaResource();
 				}
 			}
 			if ((i + 1) % xRegionAvailable != 0)
@@ -266,7 +274,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 			for (size_t iTexture = 0; iTexture < folder.folderTextures.Size(); iTexture++)
 			{
 				const bool wasSelected = folder.folderTextures[iTexture].m_fileObject.m_selected;
-				RenderAssetPreview(folder.folderTextures[iTexture].m_fileObject, folder.folderTextures[iTexture].m_texture, true);
+				RenderAssetPreview(folder.folderTextures[iTexture].m_fileObject, folder.folderTextures[iTexture].m_texture, &folder.folderTextures[iTexture].m_texture->metaDataOfResource);
 
 				if (ImGui::GetContentRegionAvail().x > ASSET_SIZE)
 					ImGui::SameLine();
@@ -396,6 +404,15 @@ void Hail::ImGuiAssetBrowser::ImportShaderResourceLogic()
 		m_fileSystem.ReloadFolder(m_resourceManager->GetMaterialManager()->ImportShaderResource(m_shaderFileBrowserData.objectsToSelect[i]));
 	}
 	m_shaderFileBrowserData.objectsToSelect.RemoveAll();
+}
+
+void Hail::ImGuiAssetBrowser::DeselectAllObjects(GrowingArray<SelectAbleFileObject>* pCurrentDirectory)
+{
+	for (size_t i = 0; i < pCurrentDirectory->Size(); i++)
+	{
+		SelectAbleFileObject& currentObject = (*pCurrentDirectory)[i];
+		currentObject.m_selected = false;
+	}
 }
 
 #pragma optimize("", on)
