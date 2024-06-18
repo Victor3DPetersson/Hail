@@ -38,11 +38,11 @@ namespace Hail
 
 
 #else
-#define H_ASSERT(Condition, Message)
-#define H_ASSERT_LOGMESSAGE(Condition, Message)
-#define H_ERROR(Message)
-#define H_WARNING(Message)
-#define H_DEBUGMESSAGE(Message)
+#define H_ASSERT(Condition, Message);
+#define H_ASSERT_LOGMESSAGE(Condition, Message);
+#define H_ERROR(Message);
+#define H_WARNING(Message);
+#define H_DEBUGMESSAGE(Message);
 #endif
 
 

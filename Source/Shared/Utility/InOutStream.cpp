@@ -167,7 +167,7 @@ bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)
 {
     if (IsReading())
     {
-        H_ASSERT(m_currentPosition + sizeOfData * numberOfElements > m_fileSize, String256::Format("Seeking outside range in file object: %s", m_objectThatOpenedStream.Name().CharString()))
+        H_ASSERT(m_currentPosition + sizeOfData * numberOfElements < m_fileSize, String256::Format("Seeking outside range in file object: %s", m_objectThatOpenedStream.Name().CharString()))
         if (m_currentPosition + sizeOfData * numberOfElements > m_fileSize)
             return false;
 

@@ -43,7 +43,7 @@ namespace Hail
 		FILE_OPEN_TYPE m_fileAction = FILE_OPEN_TYPE::NONE;
 		void* m_fileHandle = nullptr;
 
-		FileObject m_objectThatStream;
+		FileObject m_objectThatOpenedStream;
 	};
 
 

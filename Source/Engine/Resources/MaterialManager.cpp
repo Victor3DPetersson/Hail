@@ -41,7 +41,9 @@ namespace Hail
 		if (shader2)
 			shader2Hash = shader2->m_nameHash;
 
-		return (shader1Hash & 0xffff0000) | (shader2Hash & 0xffff);
+		const uint64 combinedShaderHash = (shader1Hash & 0xffff0000) | (shader2Hash & 0xffff);
+		H_ASSERT(combinedShaderHash, "No shader added, incorrect code.");
+		return combinedShaderHash;
 	}
 
 	uint64 LocalGetCombinedShaderHash(String64 shader1, String64 shader2)
@@ -58,7 +60,9 @@ namespace Hail
 		{
 			shader2Hash = xxh64::hash(shader2.Data(), shader2.Length(), 1337);
 		}
-		return (shader1Hash & 0xffff0000) | (shader2Hash & 0xffff);
+		const uint64 combinedShaderHash = (shader1Hash & 0xffff0000) | (shader2Hash & 0xffff);
+		H_ASSERT(combinedShaderHash, "No shader added, incorrect code.");
+		return combinedShaderHash;
 	}
 
 	bool MaterialManager::InitDefaultMaterial(eMaterialType type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight)
@@ -107,12 +111,12 @@ namespace Hail
 			{
 				if (!pMaterial->m_pShaders[i])
 				{
-					// TODO add assert, 
+					H_ASSERT(false, "Failed to load default shader.");
 					return false;
 				}
 				if (pMaterial->m_pShaders[i]->loadState != eShaderLoadState::LoadedToRAM)
 				{
-					// TODO add assert
+					H_ASSERT(false, "Failed to load default shader.");
 					return false;
 				}
 				shaders[i] = pMaterial->m_pShaders[i];
@@ -179,7 +183,7 @@ namespace Hail
 			shaders.Add({ eShaderType::Vertex, GuidZero, "VS_DebugLines2D" });
 			shaders.Add({ eShaderType::Fragment, GuidZero, "FS_DebugLines" });
 		case eMaterialType::DEBUG_LINES3D:
-			// TODO: not created yet, assert
+			H_ASSERT(false, "Should not get here yet.");
 			//shaders.Add("VS_DebugLines3D");
 			//shaders.Add("FS_DebugLines");
 			break;
@@ -210,7 +214,7 @@ namespace Hail
 			shaderString = "VS_DebugLines2D";
 			break;
 		case Hail::eMaterialType::DEBUG_LINES3D:
-			// TODO: not created yet, assert
+			H_ASSERT(false, "Should not get here yet.");
 			//return "VS_DebugLines3D";
 		case Hail::eMaterialType::COUNT:
 		default:
@@ -237,7 +241,7 @@ namespace Hail
 			shaderString = "FS_DebugLines";
 			break;
 		case Hail::eMaterialType::DEBUG_LINES3D:
-			// TODO: not created yet, assert
+			H_ASSERT(false, "Should not get here yet.");
 			//return "VS_DebugLines3D";
 		case Hail::eMaterialType::COUNT:
 		default:
@@ -263,7 +267,7 @@ namespace Hail
 		default:
 			break;
 		}
-		// TODO: assert
+		H_ASSERT(false, "Should not get here.");
 		return { eShaderType::None, GuidZero, "" };
 	}
 
@@ -350,7 +354,6 @@ namespace Hail
 
 		if (!result)
 		{
-			// TODO assert / error
 			SAFEDELETE(pMaterial);
 			return MAX_UINT;
 		}
@@ -361,7 +364,6 @@ namespace Hail
 
 	Material* MaterialManager::GetMaterial(eMaterialType materialType, uint32 materialIndex)
 	{
-		// TODO add bound checks
 		return m_materials[(uint32)materialType][materialIndex];
 	}
 
@@ -429,7 +431,7 @@ namespace Hail
 			}
 			if (!InitDefaultMaterial((eMaterialType)i, nullptr, true, frameInFlight))
 			{
-				// TODO add assert
+				H_ASSERT(false, "Failed to reload default material.");
 			}
 		}
 
@@ -513,11 +515,11 @@ namespace Hail
 		{
 			if (!InitMaterialInstanceInternal(m_defaultSpriteMaterialInstance, frameInFlight, true))
 			{
-				//Assert here
+				H_ASSERT(false, "Failed to create default sprite material instance");
 			}
 			if (!InitMaterialInstanceInternal(m_default3DMaterialInstance, frameInFlight, true))
 			{
-				//Assert here
+				H_ASSERT(false, "Failed to create default mesh material instance");
 			}
 		}
 
@@ -532,7 +534,7 @@ namespace Hail
 		uint32 materialIndex = LoadMaterialFromSerializedData(matData);
 		if (materialIndex == MAX_UINT)
 		{
-			// TODO:: assert / make it in to an invalid material
+			H_ERROR(String256::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid)));
 			return false;
 		}
 
@@ -545,9 +547,7 @@ namespace Hail
 			instance.m_cutoutThreshold = matData.m_extraData;
 		}
 
-		memset(instance.m_textureHandles.Data(), INVALID_TEXTURE_HANDLE, MAX_TEXTURE_HANDLES * sizeof(uint32));
-		instance.m_textureHandles[0] = INVALID_TEXTURE_HANDLE;
-		// TODO parse more textures here
+		instance.m_textureHandles.Fill(INVALID_TEXTURE_HANDLE);
 
 		for (uint32 i = 0; i < MAX_TEXTURE_HANDLES; i++)
 		{
@@ -617,6 +617,7 @@ namespace Hail
 			if (!m_compiler->CompileSpecificShader(shaderName, shaderType))
 			{
 				DeInitCompiler();
+				H_ERROR(String256::Format("Failed to load shader: %s", shaderName));
 				return nullptr;
 			}
 		}
@@ -624,21 +625,17 @@ namespace Hail
 		DeInitCompiler();
 		inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
-		//Debug_PrintConsoleString256(String256::Format("\nImporting Shader:\n%s:", shaderName));
 		CompiledShader& shader = m_loadedShaders[(uint32)shaderType].Add();
 
 		shader.m_metaData.Deserialize(inStream);
 		inStream.Read((char*)&shader.header, sizeof(ShaderHeader));
-		//Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shader.header.sizeOfShaderData, "\n"));
 
 		shader.compiledCode = new char[shader.header.sizeOfShaderData];
 		inStream.Read((char*)shader.compiledCode, sizeof(char) * shader.header.sizeOfShaderData);
-		inStream.Read(shader.compiledCode, shader.header.sizeOfShaderData);
 		inStream.CloseFile();
 		shader.shaderName = shaderName;
 		ParseShader(shader.reflectedShaderData, shader.shaderName.Data(), shader.compiledCode, shader.header.sizeOfShaderData);
 		shader.loadState = eShaderLoadState::LoadedToRAM;
-		shader.shaderName = shaderName;
 		shader.m_nameHash = shaderHash;
 
 		// Add the created shader to the registry
@@ -719,7 +716,7 @@ namespace Hail
 		case Hail::eMaterialType::DEBUG_LINES2D:
 		case Hail::eMaterialType::DEBUG_LINES3D:
 		case Hail::eMaterialType::COUNT:
-			//TODO Error
+			H_ERROR(String256::Format("Create material type is incorrect for material: %s", name));
 			break;
 		default:
 			break;
