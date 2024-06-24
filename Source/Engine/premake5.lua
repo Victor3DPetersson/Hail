@@ -23,6 +23,7 @@ project "Engine"
 	includedirs {
 		".",
 		"%{dirs.extdir}/dearimgui/",
+		"%{dirs.extdir}/AngelScript/include/",
 		"%{dirs.srcdir}/Shared/",
 		"%{dirs.srcdir}/Engine_ResourceHandling/",
 	}
@@ -33,8 +34,24 @@ project "Engine"
 		"Engine_ResourceHandling",
 		"Shared"
 		 }
+	filter { "configurations:Debug" }
+	 	links { 
+			"angelscript64d"
+			 }
+	filter { "configurations:Release" }
+		links { 
+			"angelscript64"
+			 }
+	filter { "configurations:Production" }
+		links { 
+			"angelscript64d"
+			 }
+
 filter { "platforms:Windows" }
-	libdirs {"%{dirs.extdir}/Vulkan/Lib/" }	
+	libdirs {
+		"%{dirs.extdir}/Vulkan/Lib/", 
+		"%{dirs.extdir}/AngelScript/"
+	 }	
 	links { 
 		"vulkan-1"
 		 }
@@ -52,7 +69,8 @@ filter { "platforms:Windows" }
 	 	'SHADER_DIR_IN="' .. (dirs.shadersindir):gsub("%\\", "/") .. '/"',
 	 	'SHADER_DIR_OUT="' .. (dirs.shadersoutdir):gsub("%\\", "/") .. '/"',
 	 	'TEXTURES_DIR_IN="' .. (dirs.texturesindir):gsub("%\\", "/") .. '/"',
-	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"'
+	 	'TEXTURES_DIR_OUT="' .. (dirs.texturesoutdir):gsub("%\\", "/") .. '/"',
+		'ANGELSCRIPT_DIR="' .. (dirs.angelscriptdir):gsub("%\\", "/") .. '/"'
 	}
 
 	filter { "system:windows" }

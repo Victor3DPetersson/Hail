@@ -31,7 +31,7 @@ namespace Hail
 		FileObject();
 		FileObject(const FileObject& otherObject);
 		FileObject(const FilePath& filePath);
-		FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData);
+		FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData, bool isDirectory);
 		FileObject(const char* const name, const char* extension, const FilePath& directoryLevel);
 
 		FileObject& operator=(const FileObject& object);
@@ -50,11 +50,13 @@ namespace Hail
 		bool IsFile() const { return !m_isDirectory; }
 		uint32_t Length() const { return m_name.Length(); }
 		const CommonFileData& GetFileData() const { return m_fileData; }
-		uint64_t GetLastWriteFileTime() const;
+
+		uint64_t GetCachedLastWriteFileTime() const;
 		uint16_t GetDirectoryLevel() const { return m_directoryLevel; }
 	private:
 		void Reset();
-		bool FindExtension();
+		// Will insert the StringName for the extension of the file.
+		void FindExtension();
 		friend class FilePath;
 
 		WString64 m_name;
@@ -83,7 +85,7 @@ namespace Hail
 			{
 				mbstowcs(m_data, string, length + 1);
 				m_length = length;
-				FindExtension();
+				FindExtension(false);
 			}
 			else
 			{
@@ -98,7 +100,7 @@ namespace Hail
 			{
 				wcscpy_s(m_data, string);
 				m_length = length;
-				FindExtension();
+				FindExtension(false);
 			}
 			else
 			{
@@ -154,7 +156,7 @@ namespace Hail
 				wcscpy_s(m_data, string);
 			m_length = wcslen(m_data);
 			if (string)
-				FindExtension();
+				FindExtension(false);
 			return *this;
 		}
 
@@ -180,7 +182,9 @@ namespace Hail
 		bool CreateFileDirectory() const;
 
 		//Fetches the file data from the path, the size and creation time.
-		void LoadCommonFileData();
+		CommonFileData LoadCommonFileData() const;
+		//Updates the filepaths file data.
+		void UpdateCommonFileData();
 		// Folder of the exe
 		static const FilePath& GetCurrentWorkingDirectory();
 		// Will be User / ProjectName for save files and the like
@@ -188,10 +192,12 @@ namespace Hail
 
 		//returns -1 if no common directory is found
 		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
+		// Will check the actual file on disk to see when it was most recently written too.
+		uint64_t GetCurrentLastWriteFileTime() const;
 
 	protected:
 		FilePath(const FilePath& path, uint32_t lengthOfPath);
-		void FindExtension();
+		void FindExtension(bool useFileObjectsExtension);
 		void CreateFileObject();
 		// If the filepath is a directory this will clear the final separator if one is present
 		void DeleteEndSeperator();

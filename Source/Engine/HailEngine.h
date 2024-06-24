@@ -1,7 +1,4 @@
-//Interface for the entire engine
 #pragma once
-#include <thread>
-#include <atomic>
 #include "StartupAttributes.h"
 
 

@@ -695,7 +695,7 @@ namespace Hail
 
 		outStream.CloseFile();
 		outStream.OpenFile(finalPath, FILE_OPEN_TYPE::APPENDS, true);
-		finalPath.LoadCommonFileData();
+		finalPath.UpdateCommonFileData();
 		
 		MetaResource metaResource;
 		metaResource.ConstructResourceAndID(finalPath, finalPath);

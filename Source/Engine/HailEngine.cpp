@@ -16,6 +16,14 @@
 #include <iostream>
 #include "imgui.h"
 #include "ImGui\ImGuiCommands.h"
+
+#include "angelscript.h"
+#include "AngelScript\AngelScriptErrorHandler.h"
+#include "AngelScript\AngelScriptGlobalFunctions.h"
+#include "AngelScript\AngelScriptRunner.h"
+//TODO replace with Hails own string class
+#include "AngelScript\AngelScriptScriptstdstring.h"
+
 #ifdef PLATFORM_WINDOWS
 
 #include "Windows/Windows_ApplicationWindow.h"
@@ -52,6 +60,9 @@ namespace Hail
 
 		std::thread applicationThread;
 		float applicationTickRate = 0;
+
+		asIScriptEngine* pAsScriptEngine = nullptr;
+		AngelScript::ErrorHandler asErrorHandler;
 	};
 
 	EngineData* g_engineData = nullptr;
@@ -107,6 +118,14 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		return false;
 	}
 	ResourceInterface::InitializeResourceInterface(*g_engineData->resourceManager);
+
+	// Create AngelScript Engine
+	g_engineData->pAsScriptEngine = asCreateScriptEngine();
+	g_engineData->asErrorHandler.SetScriptEngine(g_engineData->pAsScriptEngine);
+	//TODO replace with Hails own string class
+	RegisterStdString(g_engineData->pAsScriptEngine);
+	AngelScript::RegisterGlobalMessages(g_engineData->pAsScriptEngine);
+
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
 	g_engineData->threadSynchronizer.Init(tickTime);
 	g_engineData->imguiCommandRecorder.Init(g_engineData->resourceManager);
@@ -242,6 +261,14 @@ void Hail::ProcessApplicationThread()
 	Timer applicationTimer;
 	const float tickTime = 1.0f / engineData.applicationTickRate;
 	float applicationTime = 0.0;
+
+	AngelScript::Runner asScriptRunner;
+	asScriptRunner.Initialize(engineData.pAsScriptEngine);
+
+	String256 firstScriptPath = ANGELSCRIPT_DIR;
+	firstScriptPath += "FirstScript.as";
+	asScriptRunner.ImportAndBuildScript(firstScriptPath.Data(), "FirstScript");
+
 	while(engineData.runApplication)
 	{
 		applicationTimer.FrameStart();
@@ -249,7 +276,9 @@ void Hail::ProcessApplicationThread()
 		if (applicationTime >= tickTime && !engineData.applicationLoopDone)
 		{
 			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, engineData.threadSynchronizer.GetAppFrameData());
+			asScriptRunner.RunScript("FirstScript");
 			engineData.threadSynchronizer.PrepareApplicationData();
+			asScriptRunner.Update();
 			applicationTime = 0.0;
 			engineData.applicationLoopDone = true;
 		}
@@ -263,12 +292,15 @@ void Hail::ProcessApplicationThread()
 	{
 		g_engineData->runMainThread = false;
 	}
+
+	asScriptRunner.Cleanup();
 }
 
 void Hail::Cleanup()
 {
 	g_engineData->imguiCommandRecorder.DeInit();
 	g_engineData->renderer->Cleanup();
+	g_engineData->pAsScriptEngine->ShutDownAndRelease();
 	SAFEDELETE(g_engineData->appWindow);
 	SAFEDELETE(g_engineData->inputHandler);
 	SAFEDELETE(g_engineData->renderer);

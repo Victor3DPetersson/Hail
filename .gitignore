@@ -32,12 +32,24 @@
 *.app
 *.pdb
 *.ini
+*.exp
+
+# Visual Studio
+**.vcxproj
 
 
 /Generated/int-bin/*
 /Generated/lib/*
 /Generated/local/*
-/Generated/bin/resources/shaders/*
+/Generated/bin/resources/shaders/FS_DebugLines.shr*
+/Generated/bin/resources/shaders/FS_fullscreenPass.shr*
+/Generated/bin/resources/shaders/FS_Sprite.shr*
+/Generated/bin/resources/shaders/FS_triangle.shr*
+/Generated/bin/resources/shaders/VS_DebugLines2D.shr*
+/Generated/bin/resources/shaders/VS_fullscreenPass.shr*
+/Generated/bin/resources/shaders/VS_Sprite.shr*
+/Generated/bin/resources/shaders/VS_triangle.shr*
+/Generated/bin/AS_DEBUG/*
 /Build/*
 /.vs/*
 *.sln

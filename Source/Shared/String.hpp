@@ -292,6 +292,30 @@ public:
 
 		return *this;
 	}
+	String256& operator+=(String256& anotherString) noexcept
+	{
+		const int stringLength = anotherString.Length();
+		const uint32_t existingLength = Length();
+
+		const int remainingLength = 256 - existingLength;
+		const int stringLengthToCopy = stringLength > remainingLength ? remainingLength : stringLength;
+
+		memcpy(&m_data[existingLength], anotherString, stringLengthToCopy);
+		m_data[existingLength + stringLengthToCopy] = 0;
+		return *this;
+	}
+	String256& operator+=(const char* cString) noexcept
+	{
+		const int stringLength = Hail::StringLength(cString);
+		const uint32_t existingLength = Length();
+
+		const int remainingLength = 256 - existingLength;
+		const int stringLengthToCopy = stringLength > remainingLength ? remainingLength : stringLength;
+
+		memcpy(&m_data[existingLength], cString, stringLengthToCopy);
+		m_data[existingLength + stringLengthToCopy] = 0;
+		return *this;
+	}
 	char* Data()
 	{
 		return m_data;

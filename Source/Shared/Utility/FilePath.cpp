@@ -148,9 +148,14 @@ bool Hail::FilePath::CreateFileDirectory() const
 
     return true;
 }
-void FilePath::LoadCommonFileData()
+CommonFileData FilePath::LoadCommonFileData() const
 {
-    m_object.m_fileData = ConstructFileDataFromPath(*this);
+    return ConstructFileDataFromPath(*this);
+}
+
+void Hail::FilePath::UpdateCommonFileData()
+{
+    m_object.m_fileData = LoadCommonFileData();
 }
 
 const FilePath& FilePath::GetCurrentWorkingDirectory()
@@ -221,7 +226,15 @@ int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, cons
     return commonLowestDirectory;
 }
 
-
+uint64_t Hail::FilePath::GetCurrentLastWriteFileTime() const
+{
+    CommonFileData fileData = LoadCommonFileData();
+    uint64_t returnValue;
+    returnValue = fileData.m_lastWriteTime.m_highDateTime;
+    returnValue << 32;
+    returnValue |= fileData.m_lastWriteTime.m_lowDateTime;
+    return returnValue;
+}
 
 void Hail::FilePath::DeleteEndSeperator()
 {
@@ -247,11 +260,12 @@ Hail::FilePath::FilePath(const FilePath& path, uint32_t lengthOfPath)
             break;
         }
     }
-    FindExtension();
+    FindExtension(false);
 }
 
 Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
 {
+    m_object = otherPath.Object();
     if (otherPath.IsValid())
     {
         if (m_isDirectory)
@@ -272,7 +286,7 @@ Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
         {
             wcscat_s(m_data, MAX_FILE_LENGTH - m_length, otherPath.Data());
         }
-        FindExtension();
+        FindExtension(true);
     }
     return *this;
 }
@@ -280,7 +294,13 @@ Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
 Hail::FilePath Hail::FilePath::operator+(const FileObject& object) const
 {
     FilePath returnPath = *this;
+    // If the same directory levels do no addition
+    if (object.GetDirectoryLevel() == returnPath.GetDirectoryLevel() && returnPath.GetDirectoryLevel() != 0)
+    {
+        return returnPath;
+    }
     uint32_t length = 0;
+    returnPath.m_object = object;
     if (object.IsValid() && m_isDirectory)
     {
         if (returnPath.m_length != 0 && m_data[returnPath.m_length - 1] == g_Wildcard)
@@ -302,9 +322,10 @@ Hail::FilePath Hail::FilePath::operator+(const FileObject& object) const
         }
         returnPath.m_data[returnPath.m_length + length] = g_End;
         returnPath.m_length += length;
-        returnPath.FindExtension();
+
+
+        returnPath.FindExtension(true);
     }
-    returnPath.m_object = object;
     return returnPath;
 }
 
@@ -331,7 +352,7 @@ Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
         }
         m_length += length;
         Slashify();
-        FindExtension();
+        FindExtension(false);
     }
     return *this;
 }
@@ -404,28 +425,37 @@ bool Hail::FilePath::IsValid() const
     return IsValidFilePathInternal(this);
 }
 
-void Hail::FilePath::FindExtension()
+void Hail::FilePath::FindExtension(bool useFileObjectsExtension)
 {
     if (m_length == 0)
     {
         return;
     }
-    m_isDirectory = true;
-    int32_t seperator = m_length - 1;
-    wchar_t currentCharacter = 0;
-    while (seperator != 0)
+
+    if (useFileObjectsExtension)
     {
-        if (currentCharacter == g_Wildcard)
-        {
-            break;
-        }
-        if (currentCharacter == L'.')
-        {
-            m_isDirectory = false;
-            break;
-        }
-        currentCharacter = m_data[seperator--];
+        m_isDirectory = m_object.IsDirectory();
     }
+    else
+    {
+        m_isDirectory = true;
+        int32_t seperator = m_length - 1;
+        wchar_t currentCharacter = 0;
+        while (seperator != 0)
+        {
+            if (currentCharacter == g_Wildcard)
+            {
+                break;
+            }
+            if (currentCharacter == L'.')
+            {
+                m_isDirectory = false;
+                break;
+            }
+            currentCharacter = m_data[seperator--];
+        }
+    }
+
     Slashify();
     CreateFileObject();
 }
@@ -563,13 +593,14 @@ Hail::FileObject::FileObject(const FilePath& filePath)
     m_fileData = ConstructFileDataFromPath(filePath);
 }
 
-Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData)    
+Hail::FileObject::FileObject(const wchar_t* const string, const FileObject& parentObject, CommonFileData fileData, bool isDirectory)
 {
     Reset();
     m_fileData = fileData;
     m_name = string;
     m_parentName = parentObject.Name();
     m_directoryLevel = parentObject.GetDirectoryLevel() + 1;
+    m_isDirectory = isDirectory;
     FindExtension();
 }
 
@@ -656,7 +687,7 @@ bool Hail::FileObject::operator!=(const FileObject& a) const
     return !(a == *this);
 }
 
-uint64_t Hail::FileObject::GetLastWriteFileTime() const
+uint64_t Hail::FileObject::GetCachedLastWriteFileTime() const
 {
     uint64_t returnValue;
     returnValue = m_fileData.m_lastWriteTime.m_highDateTime;
@@ -676,27 +707,29 @@ void Hail::FileObject::Reset()
     memset(&m_fileData, 0, sizeof(CommonFileData));
 }
 
-bool Hail::FileObject::FindExtension()
+void Hail::FileObject::FindExtension()
 {
     const uint32_t length = m_name.Length();
     if (length == 0)
     {
-        return false;
+        return;
     }
-    m_isDirectory = true;
+    if (m_isDirectory)
+    {
+        m_extension = L"folder\0";
+        return;
+    }
+
     int32_t seperator = length - 1;
     wchar_t currentCharacter = 0;
     while (seperator != 0)
     {
         if (currentCharacter == L'.')
         {
-            m_isDirectory = false;
             break;
         }
         currentCharacter = m_name[seperator--];
     }
-    if (currentCharacter == L'.')
-        m_isDirectory = false;
     if (m_isDirectory == false)
     {
         seperator++;
@@ -704,10 +737,9 @@ bool Hail::FileObject::FindExtension()
         //m_extension[length - (seperator + 1)] = L'\0';
         memset(m_name + seperator, 0, sizeof(wchar_t) * (length - seperator));
         //m_length = seperator;
-        return true;
+        return;
     }
-    m_extension = L"folder\0";
-    return false;
+    return;
 }
 
 RelativeFilePath::RelativeFilePath()

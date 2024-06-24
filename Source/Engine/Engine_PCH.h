@@ -5,6 +5,7 @@
 #include <memory.h>
 #include <tchar.h>
 
+#include "Utilities.h"
 #include "Threading.h"
 #include "ErrorHandling\ErrorHandling.h"
 

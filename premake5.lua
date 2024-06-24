@@ -47,6 +47,8 @@ dirs.intdir = os.realpath("Generated/int-bin")
 dirs.reflectiongenerationdir = os.realpath("Generated/int-bin/generatedCode")
 dirs.libdir = os.realpath("Generated/lib")
 dirs.localdir = os.realpath("Generated/local")
+dirs.angelscriptdir = os.realpath("Generated/bin/Scripts")
+
 
 for i,v in pairs(dirs) do
 	if not os.isdir(v) then
