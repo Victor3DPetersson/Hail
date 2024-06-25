@@ -677,7 +677,11 @@ namespace Hail
 	{
 		for (uint32 i = 0; i < (uint32)eMaterialType::COUNT; i++)
 		{
-			m_materialTypeDescriptors[i]->CleanupResource(*m_renderDevice);
+			if (m_materialTypeDescriptors[i])
+			{
+				m_materialTypeDescriptors[i]->CleanupResource(*m_renderDevice);
+				SAFEDELETE(m_materialTypeDescriptors[i]);
+			}
 
 			for (uint32 iMat = 0; iMat < m_materials[i].Size(); iMat++)
 			{

@@ -44,7 +44,7 @@ project "Engine"
 			 }
 	filter { "configurations:Production" }
 		links { 
-			"angelscript64d"
+			"angelscript64"
 			 }
 
 filter { "platforms:Windows" }

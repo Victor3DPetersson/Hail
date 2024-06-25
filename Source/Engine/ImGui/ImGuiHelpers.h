@@ -15,6 +15,8 @@ namespace Hail
 		bool DirectoryPanelLogic(FileSystem* fileSystem, uint32 minimumDepth);
 		void MetaResourcePanel(const MetaResource* pMetaResource);
 		void MetaResourceTooltipPanel(const MetaResource* pMetaResource);
+		void TextWithHoverHint(const char* textToShow);
+		void ColoredTextWithHoverHint(glm::vec4 color, const char* textToShow);
 		String64 FormattedTimeFromFileData(const FileTime& fileTime);
 
 		const char* GetMaterialTypeStringFromEnum(eMaterialType type);

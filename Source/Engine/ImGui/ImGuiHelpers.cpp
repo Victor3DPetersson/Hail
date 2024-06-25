@@ -126,6 +126,28 @@ void Hail::ImGuiHelpers::MetaResourceTooltipPanel(const MetaResource* pMetaResou
     ImGui::EndTooltip();
 }
 
+void Hail::ImGuiHelpers::TextWithHoverHint(const char* textToShow)
+{
+    ImGui::Text(textToShow);
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text(textToShow);
+        ImGui::EndTooltip();
+    }
+}
+
+void Hail::ImGuiHelpers::ColoredTextWithHoverHint(glm::vec4 color, const char* textToShow)
+{
+    ImGui::TextColored(ImVec4(color.x, color.y, color.z, color.w), textToShow);
+    if (ImGui::IsItemHovered())
+    {
+        ImGui::BeginTooltip();
+        ImGui::Text(textToShow);
+        ImGui::EndTooltip();
+    }
+}
+
 String64 Hail::ImGuiHelpers::FormattedTimeFromFileData(const FileTime& fileTime)
 {
     String64 timePreview;

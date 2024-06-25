@@ -225,6 +225,7 @@ void Hail::MainLoop()
 		}
 	}
 	engineData.applicationThread.join();
+	engineData.renderer->WaitForGPU();
 	Cleanup();
 }
 

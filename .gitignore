@@ -35,7 +35,9 @@
 *.exp
 
 # Visual Studio
-**.vcxproj
+*.vcxproj
+*.filters
+*.user
 
 
 /Generated/int-bin/*

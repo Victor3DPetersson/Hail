@@ -30,6 +30,8 @@ void Hail::VlkMaterial::CleanupResource(RenderingDevice& device)
 		m_renderPass = VK_NULL_HANDLE;
 	}
 	m_frameBufferTextures = nullptr;
+	for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
+		CleanupResourceFrameData(device, i);
 }
 
 void Hail::VlkMaterial::CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight)

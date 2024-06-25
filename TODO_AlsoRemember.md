@@ -33,10 +33,18 @@
 [] Compute shaders, dependent on Configurable rendering
 [] Implement Mip-Mapping
 [] Implement a File watcher
-[] Make resource registry thread safe, could be done by looking it on write operations and waiting on read
+[] Make resource registry thread safe, could be done by locking it on write operations and waiting on read
 [] Font rendering
 [] 2D camera for the 2D rendering
 [] Resource registration Init Check if current path does not match the meta resource project path, and make a function to clean that up.
+[] Implement batch rendering of sprites
+[] Spline objects
+[] Implement VMA on the Vulkan backend
+[] Angelscript, implement array
+[] Angelscript, replace std::string with our own string class
+[] Angelscript, add debugging support in VS code
+[] Angelscript, implement the input handler and debug commands to the scripts
+[] Fix broken reloading of GPU resources and then make hot reloading 
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.
