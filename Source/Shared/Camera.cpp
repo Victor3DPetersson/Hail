@@ -36,15 +36,17 @@ Hail::Camera Hail::Camera::LerpCamera(const Camera cam1, const Camera cam2, floa
     return returnCam;
 }
 
-Hail::Camera2D::Camera2D() :
-    m_zoom(1.f),
-    m_position(0.f)
+Hail::Camera2D::Camera2D()
+    : m_zoom(1.f)
+    , m_position(0.f)
+    , m_normalizedPosition(0.f)
 {
 }
 
 void Hail::Camera2D::SetPosition(glm::vec2 position)
 {
     m_position = position;
+    m_normalizedPosition = m_position / glm::vec2(m_screenResolution);
 }
 
 void Hail::Camera2D::SetZoom(float zoom)
@@ -59,7 +61,20 @@ void Hail::Camera2D::TransformToCameraSpace(Transform2D& transformToTransform) c
     transformToTransform.SetScale(transformToTransform.GetScale() * m_zoom);
 }
 
-void Hail::Camera2D::TransformLineToCameraSpace(glm::vec3& start, glm::vec3& end) const
+void Hail::Camera2D::TransformLineToCameraSpaceFromNormalizedSpace(glm::vec3& start, glm::vec3& end) const
+{
+    const glm::vec2 gridSpacePos1 = glm::vec2(start) * 2.0f - 1.f;
+    const glm::vec2 gridSpacePos2 = glm::vec2(end) * 2.0f - 1.f;
+    glm::vec2 transformedPosition1 = ((gridSpacePos1 * m_zoom) * 0.5f + 0.5f) - m_normalizedPosition;
+    glm::vec2 transformedPosition2 = ((gridSpacePos2 * m_zoom) * 0.5f + 0.5f) - m_normalizedPosition;
+    start.x = transformedPosition1.x;
+    start.y = transformedPosition1.y;
+    end.x = transformedPosition2.x;
+    end.y = transformedPosition2.y;
+}
+
+
+void Hail::Camera2D::TransformLineToCameraSpaceFromPixelSpace(glm::vec3& start, glm::vec3& end) const
 {
     glm::vec2 transformedPosition1 = glm::vec2(start) * m_zoom - m_position;
     glm::vec2 transformedPosition2 = glm::vec2(end) * m_zoom - m_position;
@@ -70,3 +85,4 @@ void Hail::Camera2D::TransformLineToCameraSpace(glm::vec3& start, glm::vec3& end
     end.x = transformedPosition2.x;
     end.y = transformedPosition2.y;
 }
+

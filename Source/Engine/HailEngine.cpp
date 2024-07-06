@@ -18,8 +18,7 @@
 #include "ImGui\ImGuiCommands.h"
 
 #include "angelscript.h"
-#include "AngelScript\AngelScriptErrorHandler.h"
-#include "AngelScript\AngelScriptGlobalFunctions.h"
+#include "AngelScript\AngelScriptHandler.h"
 #include "AngelScript\AngelScriptRunner.h"
 //TODO replace with Hails own string class
 #include "AngelScript\AngelScriptScriptstdstring.h"
@@ -61,8 +60,7 @@ namespace Hail
 		std::thread applicationThread;
 		float applicationTickRate = 0;
 
-		asIScriptEngine* pAsScriptEngine = nullptr;
-		AngelScript::ErrorHandler asErrorHandler;
+		AngelScript::Handler asHandler;
 	};
 
 	EngineData* g_engineData = nullptr;
@@ -119,12 +117,9 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	}
 	ResourceInterface::InitializeResourceInterface(*g_engineData->resourceManager);
 
-	// Create AngelScript Engine
-	g_engineData->pAsScriptEngine = asCreateScriptEngine();
-	g_engineData->asErrorHandler.SetScriptEngine(g_engineData->pAsScriptEngine);
-	//TODO replace with Hails own string class
-	RegisterStdString(g_engineData->pAsScriptEngine);
-	AngelScript::RegisterGlobalMessages(g_engineData->pAsScriptEngine);
+	g_engineData->inputActionMap.Init(g_engineData->inputHandler);
+	// AngelScriptHandler
+	g_engineData->asHandler.Init(&g_engineData->inputActionMap, &g_engineData->threadSynchronizer);
 
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
 	g_engineData->threadSynchronizer.Init(tickTime);
@@ -133,8 +128,6 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	g_engineData->updateFunctionToCall = startupData.updateFunctionToCall;
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
 	g_engineData->applicationTickRate = (float32)startupData.applicationTickRate;
-
-	g_engineData->inputActionMap.Init(g_engineData->inputHandler);
 
 	g_engineData->threadSynchronizer.SynchronizeAppData(g_engineData->inputActionMap, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
 	startupData.postInitFunctionToCall();
@@ -264,7 +257,7 @@ void Hail::ProcessApplicationThread()
 	float applicationTime = 0.0;
 
 	AngelScript::Runner asScriptRunner;
-	asScriptRunner.Initialize(engineData.pAsScriptEngine);
+	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine());
 
 	String256 firstScriptPath = ANGELSCRIPT_DIR;
 	firstScriptPath += "FirstScript.as";
@@ -301,7 +294,7 @@ void Hail::Cleanup()
 {
 	g_engineData->imguiCommandRecorder.DeInit();
 	g_engineData->renderer->Cleanup();
-	g_engineData->pAsScriptEngine->ShutDownAndRelease();
+	g_engineData->asHandler.GetScriptEngine()->ShutDownAndRelease();
 	SAFEDELETE(g_engineData->appWindow);
 	SAFEDELETE(g_engineData->inputHandler);
 	SAFEDELETE(g_engineData->renderer);

@@ -17,6 +17,7 @@ void Hail::ThreadSyncronizer::Init(float tickTimer)
 
 void Hail::ThreadSyncronizer::SynchronizeAppData(InputActionMap& inputActionMap, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager)
 {
+	m_currentResolution = ResolutionFromEnum(resourceManager.GetTargetResolution());
 	SwapBuffersInternal();
 	ClearApplicationBuffers();
 	m_appData.rawInputData = inputActionMap.GetRawInputMap();
@@ -25,13 +26,25 @@ void Hail::ThreadSyncronizer::SynchronizeAppData(InputActionMap& inputActionMap,
 	m_currentRenderTimer = 0.0f;
 	m_appData.renderPool->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();
 	m_appData.renderPool->inverseHorizontalAspectRatio = 1.0 / m_appData.renderPool->horizontalAspectRatio;
-	m_currentResolution = ResolutionFromEnum(resourceManager.GetTargetResolution());
+	m_appData.renderPool->camera2D.SetResolution(m_currentResolution);
 }
 
 void Hail::ThreadSyncronizer::SynchronizeRenderData(float frameDeltaTime)
 {
 	m_currentRenderTimer += frameDeltaTime;
 	LerpRenderBuffers();
+}
+
+void Transform2DLineFromPixelSpaceToNormalizedSpace(glm::vec3& start, glm::vec3& end, const glm::uvec2& screenResoltuion)
+{
+	glm::vec2 transformedPosition1 = glm::vec2(start) / glm::vec2(screenResoltuion);
+	glm::vec2 transformedPosition2 = glm::vec2(end) / glm::vec2(screenResoltuion);
+	transformedPosition1 += 0.5f;
+	transformedPosition2 += 0.5f;
+	start.x = transformedPosition1.x;
+	start.y = transformedPosition1.y;
+	end.x = transformedPosition2.x;
+	end.y = transformedPosition2.y;
 }
 
 void Hail::ThreadSyncronizer::PrepareApplicationData()
@@ -50,9 +63,17 @@ void Hail::ThreadSyncronizer::PrepareApplicationData()
 	for (size_t i = 0; i < pPool->debugLineCommands.Size(); i++)
 	{
 		RenderCommand_DebugLine& line = pPool->debugLineCommands[i];
-		if (line.bIs2D && line.bIsAffectedBy2DCamera)
+		if (line.bIs2D)
 		{
-			camera.TransformLineToCameraSpace(line.pos1, line.pos2);
+			if (line.bIsAffectedBy2DCamera)
+			{
+				if (line.bIsNormalized)
+					camera.TransformLineToCameraSpaceFromNormalizedSpace(line.pos1, line.pos2);
+				else
+					camera.TransformLineToCameraSpaceFromPixelSpace(line.pos1, line.pos2);
+			}
+			else if (!line.bIsNormalized)
+				Transform2DLineFromPixelSpaceToNormalizedSpace(line.pos1, line.pos2, camera.GetResolution());
 		}
 	}
 }
@@ -244,6 +265,7 @@ void Hail::LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCo
 	writeLine.pos2 = glm::mix(readLine.pos2, lastReadLine.pos2, t);
 	writeLine.bIs2D = readLine.bIs2D;
 	writeLine.bLerpCommand = readLine.bLerpCommand;
+	writeLine.bIsAffectedBy2DCamera = readLine.bIsAffectedBy2DCamera;
 }
 
 void Hail::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)

@@ -77,9 +77,9 @@ void Hail::AngelScript::Runner::RunScript(String64 scriptName)
 
 #ifdef DEBUG
 	// Tell the context to invoke the debugger's line callback
-	script.m_pScriptContext->SetLineCallback(asMETHOD(CDebugger, LineCallback), m_pDebugger, asCALL_THISCALL);
+	//script.m_pScriptContext->SetLineCallback(asMETHOD(CDebugger, LineCallback), m_pDebugger, asCALL_THISCALL);
 	// Allow the user to initialize the debugging before moving on
-	m_pDebugger->TakeCommands(script.m_pScriptContext);
+	//m_pDebugger->TakeCommands(script.m_pScriptContext);
 	// Execute the script normally. If a breakpoint is reached the 
 	// debugger will take over the control loop.
 	int r = script.m_pScriptContext->Execute();
@@ -103,10 +103,28 @@ void Hail::AngelScript::Runner::Update()
 
 	for (int i = 0; i < m_scripts.Size(); i++)
 	{
-		if (m_scripts[i].m_lastWriteTime != m_scripts[i].m_filePath.GetCurrentLastWriteFileTime())
+		Script& script = m_scripts[i];
+
+		//Adding a delay to the reloading, as there can be a frame or two where the filesystem is still saving the script. Leading to a load error.
+		if (!script.m_isDirty)
 		{
-			ReloadScript(m_scripts[i]);
-			m_scripts[i].m_lastWriteTime = m_scripts[i].m_filePath.GetCurrentLastWriteFileTime();
+			if (script.m_lastWriteTime != m_scripts[i].m_filePath.GetCurrentLastWriteFileTime())
+			{
+				script.m_isDirty = true;
+				script.m_reloadDelay = 0;
+			}
+		}
+
+		if (script.m_isDirty)
+		{
+			if (script.m_reloadDelay > 10)
+			{
+				ReloadScript(script);
+				script.m_lastWriteTime = m_scripts[i].m_filePath.GetCurrentLastWriteFileTime();
+				script.m_isDirty = false;
+			}
+			else
+				script.m_reloadDelay++;
 		}
 	}
 
@@ -136,7 +154,7 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 	}
 
 	H_ASSERT(m_pScriptEngine, "Must have a script engine on the importer.")
-		CScriptBuilder builder;
+	CScriptBuilder builder;
 
 	int r = builder.StartNewModule(m_pScriptEngine, "MyModule");
 	if (r < 0)
@@ -155,7 +173,6 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 		// The builder wasn't able to load the file. Maybe the file
 		// has been removed, or the wrong name was given, or some
 		// preprocessing commands are incorrectly written.
-		H_ERROR("Please correct the errors in the script and try again.");
 		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
 		return false;
 	}
@@ -164,7 +181,6 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 	{
 		// An error occurred. Instruct the script writer to fix the 
 		// compilation errors that were listed in the output stream.
-		H_ERROR("Please correct the errors in the script and try again.");
 		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
 		return false;
 	}
@@ -182,12 +198,13 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 
 	// Create our context, prepare it, and then execute
 	asIScriptContext* pCtx = m_pScriptEngine->CreateContext();
-
 	scriptToFill.m_filePath = filePath;
 	scriptToFill.m_lastWriteTime = filePath.GetCurrentLastWriteFileTime();
 	scriptToFill.m_pScriptContext = pCtx;
 	scriptToFill.m_name = scriptName;
 	scriptToFill.loadStatus = eScriptLoadStatus::NoError;
+	scriptToFill.m_reloadDelay = 0;
+	scriptToFill.m_isDirty = false;
 	return true;
 }
 

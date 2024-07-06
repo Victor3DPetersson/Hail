@@ -24,6 +24,8 @@ namespace Hail
 			asIScriptContext* m_pScriptContext;
 			String64 m_name;
 			eScriptLoadStatus loadStatus;
+			uint32 m_reloadDelay;
+			bool m_isDirty;
 		};
 
 		class Runner

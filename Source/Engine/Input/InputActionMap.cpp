@@ -29,6 +29,8 @@ namespace Local
 		{ eInputAction::PlayerMoveJoystickL, (uint8)InputActionMap::eInputType::Direction, (uint8)InputActionMap::eDirectionInputType::Mouse},
 		{ eInputAction::PlayerAction1, (uint8)InputActionMap::eInputType::Button, inputHandler.GetInputMapping().Q },
 		{ eInputAction::PlayerAction2, (uint8)InputActionMap::eInputType::Button, inputHandler.GetInputMapping().E },
+		{ eInputAction::PlayerAction1, (uint8)InputActionMap::eInputType::GamepadButton, (uint8)eGamepadInputMapping::A },
+		{ eInputAction::PlayerAction2, (uint8)InputActionMap::eInputType::GamepadButton, (uint8)eGamepadInputMapping::B },
 		{ eInputAction::PlayerPause, (uint8)InputActionMap::eInputType::Button, inputHandler.GetInputMapping().ESC },
 		{ eInputAction::PlayerPause, (uint8)InputActionMap::eInputType::GamepadButton, (uint8)eGamepadInputMapping::Back },
 
