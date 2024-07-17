@@ -197,7 +197,10 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 	if (GrowingArray<SelectAbleFileObject>* currentDirectory = m_fileSystem.GetCurrentFileDirectory())
 	{
 		ResourceRegistry& reg = GetResourceRegistry();
-		const uint32 xRegionAvailable = ImGui::GetContentRegionAvail().x / ASSET_SIZE;
+		float sizeX = ImGui::GetContentRegionAvail().x;
+		if (sizeX < 1.f)
+			sizeX = 1.f;
+		const uint32 xRegionAvailable = sizeX < ASSET_SIZE ? sizeX : sizeX / ASSET_SIZE;
 		for (size_t i = 0; i < currentDirectory->Size(); i++)
 		{
 			SelectAbleFileObject& currentObject = (*currentDirectory)[i];

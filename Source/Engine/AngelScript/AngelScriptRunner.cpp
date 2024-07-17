@@ -116,7 +116,8 @@ void Hail::AngelScript::Runner::Cleanup()
 {
 	for (int i = 0; i < m_scripts.Size(); i++)
 	{
-		m_scripts[i].m_pScriptContext->Release();
+		if (m_scripts[i].m_pScriptContext != nullptr)
+			m_scripts[i].m_pScriptContext->Release();
 	}
 	m_scripts.RemoveAll();
 
@@ -135,8 +136,8 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 		return false;
 	}
 
-	H_ASSERT(m_pScriptEngine, "Must have a script engine on the importer.")
-		CScriptBuilder builder;
+	H_ASSERT(m_pScriptEngine, "Must have a script engine on the importer.");
+	CScriptBuilder builder;
 
 	int r = builder.StartNewModule(m_pScriptEngine, "MyModule");
 	if (r < 0)
@@ -202,6 +203,7 @@ void Hail::AngelScript::Runner::ReloadScript(Script& scriptToReload)
 	if (CreateScript(scriptToReload.m_filePath, scriptToReload.m_name, newScript))
 	{
 		scriptToReload = newScript;
+		H_DEBUGMESSAGE("Reload A_OK! c:");
 	}
 	else
 	{

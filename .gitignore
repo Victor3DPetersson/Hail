@@ -53,3 +53,5 @@
 /Build/*
 /.vs/*
 *.sln
+*.filters
+*.user

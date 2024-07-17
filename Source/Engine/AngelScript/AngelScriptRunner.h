@@ -24,6 +24,8 @@ namespace Hail
 			asIScriptContext* m_pScriptContext;
 			String64 m_name;
 			eScriptLoadStatus loadStatus;
+
+			// growing array included filepaths, add to filewatcher, callback fetches and fills dis
 		};
 
 		class Runner
