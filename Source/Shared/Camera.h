@@ -37,6 +37,7 @@ namespace Hail
 		Camera2D();
 
 		void SetResolution(glm::uvec2 resolution) { m_screenResolution = resolution; }
+		const glm::uvec2& GetResolution() const { return m_screenResolution; }
 		//Position of the camera in pixel space
 		glm::vec2 GetPosition() const { return m_position; }
 		void SetPosition(glm::vec2 position);
@@ -45,13 +46,14 @@ namespace Hail
 		float GetZoom() const { return m_zoom; }
 		void SetZoom(float zoom);
 
-		//Transforms the position from pixel space to the 0-1 space of the camera
+		//Transforms the position from a space to the 0-1 space of the camera
 		void TransformToCameraSpace(Transform2D& transformToTransform) const;
-		void TransformLineToCameraSpace(glm::vec3& start, glm::vec3& end) const;
-
+		void TransformLineToCameraSpaceFromNormalizedSpace(glm::vec3& start, glm::vec3& end) const;
+		void TransformLineToCameraSpaceFromPixelSpace(glm::vec3& start, glm::vec3& end) const;
 	private:
 		float m_zoom{};
 		glm::vec2 m_position;
+		glm::vec2 m_normalizedPosition;
 		glm::uvec2 m_screenResolution;
 	};
 }

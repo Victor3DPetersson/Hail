@@ -28,6 +28,7 @@ namespace Hail
 		// Flips the doublebuffers
 		void Update();
 		const GrowingArray<ErrorMessage>& GetCurrentMessages() const;
+		void ClearMessages();
 
 		// Thread safe operation.
 		void InsertMessage(ErrorMessage message);

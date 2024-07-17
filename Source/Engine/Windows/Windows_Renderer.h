@@ -11,24 +11,25 @@
 namespace Hail
 {
 	class VlkSwapChain;
-	class VlkRenderer : public Renderer
+	class VlkRenderer : public Renderer 
 	{
 	public:
-		bool InitDevice(Timer* timer) final;
-		bool InitGraphicsEngine(ResourceManager* resourceManager) final;
-		void StartFrame(RenderCommandPool& renderPool) final;
-		void Render() final;
-		void EndFrame() final;
-		void Cleanup() final;
-		void InitImGui() final;
+		bool InitDevice(Timer* timer) override;
+		bool InitGraphicsEngine(ResourceManager* resourceManager) override;
+		void StartFrame(RenderCommandPool& renderPool) override;
+		void Render() override;
+		void EndFrame() override;
+		void Cleanup() override;
+		void InitImGui() override;
+		void WaitForGPU() override;
 
-		void BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame) final;
-		void EndMaterialPass() final;
-		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) final;
-		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) final;
-		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) final;
-		void RenderDebugLines3D(uint32 numberOfLinesToRender) final;
-		void RenderLetterBoxPass() final;
+		void BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame) override;
+		void EndMaterialPass() override;
+		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) override;
+		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) override;
+		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) override;
+		void RenderDebugLines3D(uint32 numberOfLinesToRender) override;
+		void RenderLetterBoxPass() override;
 
 	private:
 

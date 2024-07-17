@@ -138,7 +138,7 @@ namespace Hail
 
 		bool m_openAssetBrowser = true;
 		bool m_openPropertyWindow = true;
-		bool m_openMessageLogger = false;
+		bool m_openMessageLogger = true;
 		bool m_openMaterialWindow = false;
 	};
 

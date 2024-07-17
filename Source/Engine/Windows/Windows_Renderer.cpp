@@ -151,8 +151,13 @@ void VlkRenderer::InitImGui()
 	//	vkDestroyDescriptorPool(_device, imguiPool, nullptr);
 	//	ImGui_ImplVulkan_Shutdown();
 	//	});
+}
 
-
+void Hail::VlkRenderer::WaitForGPU()
+{
+	H_ASSERT(GetIsMainThread(), "Only the main thread should wait for the GPU.");
+	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
+	vkDeviceWaitIdle(device.GetDevice());
 }
 
 void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)

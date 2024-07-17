@@ -34,6 +34,8 @@ namespace Hail
 		virtual void Render();
 		virtual void Cleanup() = 0;
 		virtual void InitImGui() = 0; 
+		// Blocking operation for executing thread.
+		virtual void WaitForGPU() = 0;
 
 		//virtual FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format = TEXTURE_FORMAT::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED) = 0;
 		//virtual void FrameBufferTexture_ClearFrameBuffer(FrameBufferTexture& frameBuffer) = 0;

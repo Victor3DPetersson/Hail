@@ -1,9 +1,9 @@
 #include "Engine_PCH.h"
 #include "ImGuiMessageLogger.h"
 #include "imgui.h"
-
-#include "ErrorHandling\ErrorLogger.h"
 #include "ImGuiHelpers.h"
+#include "ErrorHandling\ErrorLogger.h"
+
 using namespace Hail;
 
 namespace
@@ -25,7 +25,7 @@ namespace
         }
         return "";
     }
-    const ImVec4 localGetColorFromMessageType(eMessageType type)
+    const glm::vec4 localGetColorFromMessageType(eMessageType type)
     {
         switch (type)
         {
@@ -64,8 +64,9 @@ void Hail::ImGuiMessageLogger::RenderImGuiCommands()
             ImGui::Text("TODO: filter types");
             ImGui::EndMenu();
         }
-        if (ImGui::Button("TODO: Clear Messages"))
+        if (ImGui::Button("Clear Messages"))
         {
+            ErrorLogger::GetInstance().ClearMessages();
         }
         ImGui::EndMenuBar();
     }
@@ -90,7 +91,6 @@ void Hail::ImGuiMessageLogger::RenderImGuiCommands()
         ImGui::TableSetupColumn(topLabels[4]);
         ImGui::TableHeadersRow();
 
-
         for (size_t iRow = 0; iRow < m_sortedMessages.Size(); iRow++)
         {
             H_ASSERT(m_sortedMessages[iRow], "Invalid Message.");
@@ -98,9 +98,9 @@ void Hail::ImGuiMessageLogger::RenderImGuiCommands()
             ImGui::TableNextRow(iRow);
 
             ImGui::TableNextColumn();
-            ImGui::Text(localMessageTypeToChar(message.m_type));
+            ImGuiHelpers::TextWithHoverHint(localMessageTypeToChar(message.m_type));
             ImGui::TableNextColumn();
-            ImGui::TextColored(localGetColorFromMessageType(message.m_type), message.m_message);
+            ImGuiHelpers::ColoredTextWithHoverHint(localGetColorFromMessageType(message.m_type), message.m_message);
             ImGui::TableNextColumn();
             ImGui::Text("%i", message.m_numberOfOccurences);
             ImGui::TableNextColumn();
@@ -108,9 +108,9 @@ void Hail::ImGuiMessageLogger::RenderImGuiCommands()
             FileTime time;
             time.m_highDateTime = currentTimeInNanoSeconds >> 32;
             time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
-            ImGui::Text(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
+            ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
             ImGui::TableNextColumn();
-            ImGui::Text("%s Line : % i", message.m_fileName.Data(), message.m_codeLine);
+            ImGuiHelpers::TextWithHoverHint(String256::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
             ImGui::TableNextColumn();
         }
         ImGui::EndTable();

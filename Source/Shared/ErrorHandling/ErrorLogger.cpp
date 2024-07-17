@@ -77,10 +77,17 @@ void Hail::ErrorLogger::Update()
 	for (uint32 i = 0; i < messagesToAdd.Size(); i++)
 		m_messages.Add(*messagesToAdd[i]);
 
-	m_incomingMessages[readBufferIndex].DeleteAll();
+	m_incomingMessages[readBufferIndex].RemoveAll();
 }
 
 const GrowingArray<ErrorMessage>& Hail::ErrorLogger::GetCurrentMessages() const
 {
 	return m_messages;
+}
+
+void Hail::ErrorLogger::ClearMessages()
+{
+	H_ASSERT(GetIsMainThread(), "Only main thread should clear the logger.");
+	m_messages.RemoveAll();
+	m_incomingMessages[(m_currentIncomingMessageBuffer + 1) % 2].RemoveAll();
 }

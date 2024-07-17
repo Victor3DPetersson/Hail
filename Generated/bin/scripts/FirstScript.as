@@ -2,10 +2,13 @@
 
 void main()
 {
-    int64 i = 66775;
-    string stringToFill;
-    stringToFill = "Hello world from angelscript.";
-    Print(stringToFill);
+    Vec2 direction = GetDirectionInput(PlayerMoveJoystickL, 0);
 
-    PrintError(stringToFill + globalInt);
+    DrawLineNormalized(Vec2(0), Vec2(1));
+    DrawLineNormalizedScreenAlligned(Vec2(0.5), (direction * 0.5) + 0.5);
+
+    if (GetButtonInput(eInputAction::PlayerAction1, 0) == 1)
+    {
+        Print("Triggered input from AS!!!");
+    }
 }

@@ -39,6 +39,5 @@ void Hail::CreateMessage(String256 message, String256 fileName, int line, eMessa
 	errorMessage.m_codeLine = line;
 	ErrorLogger::GetInstance().InsertMessage(errorMessage);
 	//TODO: Make a global setting or something for if console should be enabled or not.
-	if (type == eMessageType::LogMessage)
-		Debug_PrintConsoleString256(message);
+	Debug_PrintConsoleString256(message);
 }

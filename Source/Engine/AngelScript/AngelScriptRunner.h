@@ -25,6 +25,9 @@ namespace Hail
 			String64 m_name;
 			eScriptLoadStatus loadStatus;
 
+			uint32 m_reloadDelay;
+			bool m_isDirty;
+
 			// growing array included filepaths, add to filewatcher, callback fetches and fills dis
 		};
 

@@ -109,8 +109,29 @@ Hail::ImGuiAssetBrowser::ImGuiAssetBrowser()
 
 void Hail::ImGuiAssetBrowser::DeInit()
 {
-	m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(m_folderTexture.m_texture);
-	m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(m_materialIconTexture.m_texture);
+	if (m_resourceManager)
+	{
+		for (uint32 iFolder = 0; iFolder < MAX_RESOURCE_FOLDER_DEPTH; iFolder++)
+		{
+			GrowingArray<TextureFolder>& textureFolders = m_ImGuiTextureResources[iFolder];
+
+			for (uint32 iTextureFolder = 0; iTextureFolder < textureFolders.Size(); iTextureFolder++)
+			{
+				for (size_t i = 0; i < textureFolders[iTextureFolder].folderTextures.Size(); i++)
+				{
+					TextureContextAsset& texture = textureFolders[iTextureFolder].folderTextures[i];
+					m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(texture.m_texture);
+					SAFEDELETE(texture.m_texture);
+				}
+				textureFolders[iTextureFolder].folderTextures.DeleteAll();
+			}
+		}
+
+		if (m_folderTexture.m_texture)
+			m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(m_folderTexture.m_texture);
+		if (m_materialIconTexture.m_texture)
+			m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(m_materialIconTexture.m_texture);
+	}
 }
 
 void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject)
@@ -367,7 +388,7 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 			for (size_t j = 0; j < foldersAtLevel[i].folderTextures.Size(); j++)
 			{
 				m_resourceManager->GetTextureManager()->DeleteImGuiTextureResource(foldersAtLevel[i].folderTextures[j].m_texture);
-				delete foldersAtLevel[i].folderTextures[j].m_texture;
+				SAFEDELETE(foldersAtLevel[i].folderTextures[j].m_texture);
 			}
 			foldersAtLevel[i].folderTextures.RemoveAll();
 			foldersAtLevel.RemoveCyclicAtIndex(i);

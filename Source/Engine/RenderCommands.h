@@ -30,6 +30,7 @@ namespace Hail
 		bool bLerpCommand;
 		bool bIs2D;
 		bool bIsAffectedBy2DCamera;
+		bool bIsNormalized;
 	};
 
 	struct RenderCommand_Sprite
