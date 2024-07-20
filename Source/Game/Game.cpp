@@ -120,6 +120,7 @@ namespace Hail
 	void GameApplication::Update(double totalTime, float deltaTime, Hail::ApplicationFrameData& recievedFrameData)
 	{
 		Hail::ApplicationFrameData& frameData = recievedFrameData;
+		g_2DCamera.SetResolution(frameData.renderPool->camera2D.GetResolution());
 		//Make Gawme ^^
 		g_fTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(3);
 		g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<String256>(4);
@@ -247,9 +248,8 @@ namespace Hail
 		for (uint32_t i = 1; i < 5; i++)
 		{
 			sprites[i].transform.AddToRotation({ 0.15f * (i + 1) });
-			DrawLine2DPixelSpace(*frameData.renderPool, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f));
+			DrawLine2DPixelSpace(*frameData.renderPool, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f), true);
 		}
-
 		FillFrameData(*frameData.renderPool);
 	}
 
@@ -270,11 +270,11 @@ namespace Hail
 		{
 			renderCommandPoolToFill.spriteCommands.Add(player);
 
-			DrawLine2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0);
-			DrawCircle2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), 10.0f);
-			DrawBox2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(40.0f, 40.0f), glm::vec4(1.0, 0.0, 0.0, 1.0f));
+			DrawLine2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0, true);
+			DrawCircle2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), 10.0f, false);
+			DrawBox2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(40.0f, 40.0f), false, glm::vec4(1.0, 0.0, 0.0, 1.0f));
 			const glm::vec2 halfDimensions = glm::vec2(10.0, 10.0);
-			DrawBox2DMinMaxPixelSpace(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, glm::vec4(1.0, 0.6, 0.0, 1.0f));
+			DrawBox2DMinMaxPixelSpace(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, true, glm::vec4(1.0, 0.6, 0.0, 1.0f));
 		}
 		renderCommandPoolToFill.camera2D = g_2DCamera;
 		renderCommandPoolToFill.meshCommands.Add(Hail::RenderCommand_Mesh());
