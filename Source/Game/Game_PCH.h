@@ -1,4 +1,4 @@
 #pragma once
 #include "DebugMacros.h"
-#include "ErrorHandling\ErrorHandling.h"
+#include "InternalMessageHandling\InternalMessageHandling.h"
 #include "Threading.h"

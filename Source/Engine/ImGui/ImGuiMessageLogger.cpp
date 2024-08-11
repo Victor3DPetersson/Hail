@@ -2,7 +2,7 @@
 #include "ImGuiMessageLogger.h"
 #include "imgui.h"
 #include "ImGuiHelpers.h"
-#include "ErrorHandling\ErrorLogger.h"
+#include "InternalMessageHandling\InternalMessageLogger.h"
 
 using namespace Hail;
 
@@ -42,10 +42,25 @@ namespace
         }
         return { 1.0, 1.0, 1.0, 1.0 };
     }
+
+    const char* localGetMessageLogType(eMessageLogType messageType)
+    {
+        switch (messageType)
+        {
+        case Hail::eMessageLogType::DrawUniqueueMessages:
+            return "Uniqueue messages";
+        case Hail::eMessageLogType::DrawAllMessages:
+            return "All messages";
+        default:
+            break;
+        }
+        return "";
+    }
 }
 
-Hail::ImGuiMessageLogger::ImGuiMessageLogger() :
-    m_currentSortingType(eMessageSortingType::Time)
+Hail::ImGuiMessageLogger::ImGuiMessageLogger()
+    : m_currentSortingType(eMessageSortingType::Time)
+    , m_logType(eMessageLogType::DrawAllMessages)
 {
     m_visibleTypes.Fill(true);
 }
@@ -54,6 +69,8 @@ void Hail::ImGuiMessageLogger::RenderImGuiCommands()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
     ImGui::BeginChild("MessageWindow", ImGui::GetContentRegionAvail(), true, ImGuiWindowFlags_MenuBar);
+
+    bool updateMessageList = false;
 
     // Menu Bar:
     if (ImGui::BeginMenuBar())
@@ -66,67 +83,153 @@ void Hail::ImGuiMessageLogger::RenderImGuiCommands()
         }
         if (ImGui::Button("Clear Messages"))
         {
-            ErrorLogger::GetInstance().ClearMessages();
+            InternalMessageLogger::GetInstance().ClearMessages();
         }
+
+        if (ImGui::BeginCombo("Display type", localGetMessageLogType(m_logType)))
+        {
+            for (int n = 0; n < 2; n++)
+            {
+                const bool is_selected = ((int)(m_logType) == n);
+                if (ImGui::Selectable(localGetMessageLogType((eMessageLogType)n), is_selected))
+                {
+                    m_logType = (eMessageLogType)n;
+                    updateMessageList = true;
+                }
+
+                // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+                if (is_selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
         ImGui::EndMenuBar();
     }
 
-    FillAndSortMessageList();
+    FillAndSortMessageList(updateMessageList);
 
-    // Table:
-    const char* topLabels[] = { "Type", "Message", "Number of Occurences", "Last Occurence", "File" };
-    const int numberOfLabels = (int)eMessageSortingType::Count;
-    ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
-    tableFlags &= ImGuiTableFlags_BordersOuterV;
-    tableFlags &= ImGuiTableFlags_BordersInnerH;
-    tableFlags &= ImGuiTableFlags_BordersOuterH;
-    tableFlags |= ImGuiTableFlags_BordersInnerV;
-    tableFlags |= ImGuiTableFlags_Resizable;
-    if (ImGui::BeginTable("Messages", numberOfLabels, tableFlags))
-    {
-        ImGui::TableSetupColumn(topLabels[0]);
-        ImGui::TableSetupColumn(topLabels[1]);
-        ImGui::TableSetupColumn(topLabels[2]);
-        ImGui::TableSetupColumn(topLabels[3]);
-        ImGui::TableSetupColumn(topLabels[4]);
-        ImGui::TableHeadersRow();
+    DrawMessageLog();
 
-        for (size_t iRow = 0; iRow < m_sortedMessages.Size(); iRow++)
-        {
-            H_ASSERT(m_sortedMessages[iRow], "Invalid Message.");
-            const ErrorMessage& message = *m_sortedMessages[iRow];
-            ImGui::TableNextRow(iRow);
-
-            ImGui::TableNextColumn();
-            ImGuiHelpers::TextWithHoverHint(localMessageTypeToChar(message.m_type));
-            ImGui::TableNextColumn();
-            ImGuiHelpers::ColoredTextWithHoverHint(localGetColorFromMessageType(message.m_type), message.m_message);
-            ImGui::TableNextColumn();
-            ImGui::Text("%i", message.m_numberOfOccurences);
-            ImGui::TableNextColumn();
-            const uint64 currentTimeInNanoSeconds = (message.m_systemTimeLastHappened);
-            FileTime time;
-            time.m_highDateTime = currentTimeInNanoSeconds >> 32;
-            time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
-            ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
-            ImGui::TableNextColumn();
-            ImGuiHelpers::TextWithHoverHint(String256::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
-            ImGui::TableNextColumn();
-        }
-        ImGui::EndTable();
-    }
     ImGui::EndChild();
     ImGui::PopStyleVar();
 }
 
-void Hail::ImGuiMessageLogger::FillAndSortMessageList()
+void Hail::ImGuiMessageLogger::DrawMessageLog()
 {
-    m_sortedMessages.RemoveAll();
-    const GrowingArray<ErrorMessage>& messages = ErrorLogger::GetInstance().GetCurrentMessages();
-    const uint32 numberOfMessages = messages.Size();
-    for (size_t iMessage = 0; iMessage < numberOfMessages; iMessage++)
+    if (m_logType == eMessageLogType::DrawUniqueueMessages)
     {
-        m_sortedMessages.Add(&messages[iMessage]);
+        const char* topLabels[] = { "Type", "Message", "Number of Occurences", "Last Occurence", "File" };
+        const int numberOfLabels = (int)eMessageSortingType::Count;
+        ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
+        tableFlags &= ImGuiTableFlags_BordersOuterV;
+        tableFlags &= ImGuiTableFlags_BordersInnerH;
+        tableFlags &= ImGuiTableFlags_BordersOuterH;
+        tableFlags |= ImGuiTableFlags_BordersInnerV;
+        tableFlags |= ImGuiTableFlags_Resizable;
+        if (ImGui::BeginTable("Messages", numberOfLabels, tableFlags))
+        {
+            ImGui::TableSetupColumn(topLabels[0]);
+            ImGui::TableSetupColumn(topLabels[1]);
+            ImGui::TableSetupColumn(topLabels[2]);
+            ImGui::TableSetupColumn(topLabels[3]);
+            ImGui::TableSetupColumn(topLabels[4]);
+            ImGui::TableHeadersRow();
+
+            for (size_t iRow = 0; iRow < m_sortedMessages.Size(); iRow++)
+            {
+                H_ASSERT(m_sortedMessages[iRow], "Invalid Message.");
+                const InternalMessage& message = *m_sortedMessages[iRow];
+                ImGui::TableNextRow(iRow);
+
+                ImGui::TableNextColumn();
+                ImGuiHelpers::TextWithHoverHint(localMessageTypeToChar(message.m_type));
+                ImGui::TableNextColumn();
+                ImGuiHelpers::ColoredTextWithHoverHint(localGetColorFromMessageType(message.m_type), message.m_message);
+                ImGui::TableNextColumn();
+                ImGui::Text("%i", message.m_numberOfOccurences);
+                ImGui::TableNextColumn();
+                const uint64 currentTimeInNanoSeconds = (message.m_systemTimeLastHappened);
+                FileTime time;
+                time.m_highDateTime = currentTimeInNanoSeconds >> 32;
+                time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
+                ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
+                ImGui::TableNextColumn();
+                ImGuiHelpers::TextWithHoverHint(String256::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
+                ImGui::TableNextColumn();
+            }
+            ImGui::EndTable();
+        }
+    }
+    else if (m_logType == eMessageLogType::DrawAllMessages)
+    {
+        const char* topLabels[] = { "Type", "Message", "Occurence Time", "File" };
+        const int numberOfLabels = (int)eMessageSortingType::Count;
+        ImGuiTableFlags tableFlags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable;
+        tableFlags &= ImGuiTableFlags_BordersOuterV;
+        tableFlags &= ImGuiTableFlags_BordersInnerH;
+        tableFlags &= ImGuiTableFlags_BordersOuterH;
+        tableFlags |= ImGuiTableFlags_BordersInnerV;
+        tableFlags |= ImGuiTableFlags_Resizable;
+        if (ImGui::BeginTable("Messages", numberOfLabels, tableFlags))
+        {
+            ImGui::TableSetupColumn(topLabels[0]);
+            ImGui::TableSetupColumn(topLabels[1]);
+            ImGui::TableSetupColumn(topLabels[2]);
+            ImGui::TableSetupColumn(topLabels[3]);
+            ImGui::TableHeadersRow();
+
+            for (size_t iRow = 0; iRow < m_sortedMessages.Size(); iRow++)
+            {
+                H_ASSERT(m_sortedMessages[iRow], "Invalid Message.");
+                const InternalMessage& message = *m_sortedMessages[iRow];
+                ImGui::TableNextRow(iRow);
+
+                ImGui::TableNextColumn();
+                ImGuiHelpers::TextWithHoverHint(localMessageTypeToChar(message.m_type));
+                ImGui::TableNextColumn();
+                ImGuiHelpers::ColoredTextWithHoverHint(localGetColorFromMessageType(message.m_type), message.m_message);
+                ImGui::TableNextColumn();
+                const uint64 currentTimeInNanoSeconds = (message.m_systemTimeLastHappened);
+                FileTime time;
+                time.m_highDateTime = currentTimeInNanoSeconds >> 32;
+                time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
+                ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
+                ImGui::TableNextColumn();
+                ImGuiHelpers::TextWithHoverHint(String256::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
+                ImGui::TableNextColumn();
+            }
+            ImGui::EndTable();
+        }
+    }
+
+}
+
+void Hail::ImGuiMessageLogger::FillAndSortMessageList(bool bUpdateMessageList)
+{
+    const bool bUpdateList = bUpdateMessageList || InternalMessageLogger::GetInstance().HasRecievedNewMessages();
+    if (!bUpdateList)
+        return;
+
+    m_sortedMessages.RemoveAll();
+
+    if (m_logType == eMessageLogType::DrawAllMessages)
+    {
+        const GrowingArray<InternalMessage>& messages = InternalMessageLogger::GetInstance().GetAllMessages();
+        const uint32 numberOfMessages = messages.Size();
+        for (size_t iMessage = 0; iMessage < numberOfMessages; iMessage++)
+        {
+            m_sortedMessages.Add(&messages[iMessage]);
+        }
+    }
+    else
+    {
+        const GrowingArray<InternalMessage>& messages = InternalMessageLogger::GetInstance().GetUniqueueMessages();
+        const uint32 numberOfMessages = messages.Size();
+        for (size_t iMessage = 0; iMessage < numberOfMessages; iMessage++)
+        {
+            m_sortedMessages.Add(&messages[iMessage]);
+        }
     }
 
     // TODO: Sorting

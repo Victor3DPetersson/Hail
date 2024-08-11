@@ -189,6 +189,8 @@ namespace Hail
 		static const FilePath& GetCurrentWorkingDirectory();
 		// Will be User / ProjectName for save files and the like
 		static const FilePath& GetUserProjectDirectory();
+		// Generated/bin/Scripts
+		static const FilePath& GetAngelscriptDirectory();
 
 		//returns -1 if no common directory is found
 		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
@@ -205,6 +207,7 @@ namespace Hail
 	private:
 		static FilePath ProjectCurrentWorkingDirectory;
 		static FilePath UserProjectDirectory;
+		static FilePath AngelscriptDirectory;
 		friend class RelativeFilePath;
 		void Reset();
 		wchar_t m_data[MAX_FILE_LENGTH];

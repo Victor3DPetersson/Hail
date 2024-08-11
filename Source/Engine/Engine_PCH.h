@@ -7,7 +7,7 @@
 
 #include "Utilities.h"
 #include "Threading.h"
-#include "ErrorHandling\ErrorHandling.h"
+#include "InternalMessageHandling\InternalMessageHandling.h"
 
 #include "glm\geometric.hpp"
 

@@ -11,7 +11,7 @@
 #include "Interface\ResourceInterface.h"
 #include "ThreadSynchronizer.h"
 
-#include "ErrorHandling\ErrorLogger.h"
+#include "InternalMessageHandling\InternalMessageLogger.h"
 
 #include <iostream>
 #include "imgui.h"
@@ -20,8 +20,7 @@
 #include "angelscript.h"
 #include "AngelScript\AngelScriptHandler.h"
 #include "AngelScript\AngelScriptRunner.h"
-//TODO replace with Hails own string class
-#include "AngelScript\AngelScriptScriptstdstring.h"
+#include "AngelScript\AngelScriptDebugger.h"
 
 #ifdef PLATFORM_WINDOWS
 
@@ -76,7 +75,7 @@ namespace Hail
 bool Hail::InitEngine(StartupAttributes startupData)
 {
 	SetMainThread();
-	ErrorLogger::Initialize();
+	InternalMessageLogger::Initialize();
 
 	g_engineData = new EngineData();
 	SetGlobalTimer(&g_engineData->timer);
@@ -197,7 +196,7 @@ void Hail::MainLoop()
 		{
 			engineData.inputHandler->UpdateGamepads();
 			g_engineData->inputActionMap.UpdateInputActions();
-			ErrorLogger::GetInstance().Update();
+			InternalMessageLogger::GetInstance().Update();
 			engineData.imguiCommandRecorder.SwitchCommandBuffers(lockApplicationThread);
 			engineData.threadSynchronizer.SynchronizeAppData(engineData.inputActionMap, engineData.imguiCommandRecorder.FetchImguiResults(), *engineData.resourceManager);
 
@@ -300,5 +299,5 @@ void Hail::Cleanup()
 	SAFEDELETE(g_engineData->renderer);
 	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
-	ErrorLogger::Deinitialize();
+	InternalMessageLogger::Deinitialize();
 }

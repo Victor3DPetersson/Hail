@@ -61,6 +61,7 @@ namespace
 
 FilePath FilePath::ProjectCurrentWorkingDirectory("");
 FilePath FilePath::UserProjectDirectory("");
+FilePath FilePath::AngelscriptDirectory("");
 
 void FilePath::CreateFileObject()
 {
@@ -206,6 +207,15 @@ const FilePath& Hail::FilePath::GetUserProjectDirectory()
     return UserProjectDirectory;
 }
 
+const FilePath& FilePath::GetAngelscriptDirectory()
+{
+    if (AngelscriptDirectory.Length() != 0)
+        return AngelscriptDirectory;
+
+    AngelscriptDirectory = FilePath(ANGELSCRIPT_DIR);
+    return AngelscriptDirectory;
+}
+
 int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB)
 {
     if (!pathA.IsValid() || !pathB.IsValid())
@@ -214,7 +224,8 @@ int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, cons
     int16 commonLowestDirectory = -1;
     for (size_t i = 0; i < pathA.m_length; i++)
     {
-        if (pathA.m_data[i] != pathB.m_data[i])
+        // Windows filesystem is not case sensitive, TODO: if this is not windows there will be bugs here.
+        if (std::tolower(pathA.m_data[i]) != std::tolower(pathB.m_data[i]))
         {
             break;
         }

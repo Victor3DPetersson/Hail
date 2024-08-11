@@ -4,4 +4,4 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
-#include "ErrorHandling\ErrorHandling.h"
+#include "InternalMessageHandling\InternalMessageHandling.h"

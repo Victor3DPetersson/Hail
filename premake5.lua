@@ -47,7 +47,7 @@ dirs.intdir = os.realpath("Generated/int-bin")
 dirs.reflectiongenerationdir = os.realpath("Generated/int-bin/generatedCode")
 dirs.libdir = os.realpath("Generated/lib")
 dirs.localdir = os.realpath("Generated/local")
-dirs.angelscriptdir = os.realpath("Generated/bin/Scripts")
+dirs.angelscriptdir = os.realpath("Generated/bin/scripts")
 
 
 for i,v in pairs(dirs) do

@@ -10,6 +10,7 @@ namespace Hail
 	size_t StringLength(const wchar_t* string);
 
 	bool StringCompare(const char* string1, const char* string2);
+	bool StringCompareCaseInsensitive(const char* string1, const char* string2);
 	bool StringCompare(const wchar_t* string1, const wchar_t* string2);
 
 	bool StringContains(const char* string, const char charToFind);

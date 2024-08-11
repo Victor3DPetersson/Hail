@@ -1,27 +1,27 @@
 #include "Shared_PCH.h"
-#include "ErrorLogger.h"
-#include "ErrorHandling.h"
+#include "InternalMessageLogger.h"
+#include "InternalMessageHandling.h"
 #include "Hashing\xxh64_en.hpp"
 using namespace Hail;
 
-ErrorLogger* ErrorLogger::m_instance = nullptr;
+InternalMessageLogger* InternalMessageLogger::m_instance = nullptr;
 
-void Hail::ErrorLogger::Initialize()
+void Hail::InternalMessageLogger::Initialize()
 {
 	H_ASSERT(GetIsMainThread(), "Only main thread should create the logger.");
-	m_instance = new ErrorLogger();
+	m_instance = new InternalMessageLogger();
 }
 
-void Hail::ErrorLogger::Deinitialize()
+void Hail::InternalMessageLogger::Deinitialize()
 {
 	H_ASSERT(GetIsMainThread(), "Only main thread should destroy the logger.");
 	SAFEDELETE(m_instance);
 }
 
-void Hail::ErrorLogger::InsertMessage(ErrorMessage message)
+void Hail::InternalMessageLogger::InsertMessage(InternalMessage message)
 {
 	m_signal.Signal();
-	GrowingArray<ErrorMessage>& m_insertMessageList = m_incomingMessages[m_currentIncomingMessageBuffer];
+	GrowingArray<InternalMessage>& m_insertMessageList = m_incomingMessages[m_currentIncomingMessageBuffer];
 	message.m_stringHash = xxh64::hash(message.m_message.Data(), message.m_message.Length(), message.m_message.Length());
 	bool bMessageExists = false;
 	for (uint32 i = 0; i < m_insertMessageList.Size(); i++)
@@ -43,9 +43,11 @@ void Hail::ErrorLogger::InsertMessage(ErrorMessage message)
 	m_signal.Wait();
 }
 
-void Hail::ErrorLogger::Update()
+void Hail::InternalMessageLogger::Update()
 {
+	H_ASSERT(GetIsMainThread(), "Only main thread should update the logger.");
 	AssertLock::Guard assertLock = m_assertLock.AssertLockFunction();
+	m_bHasUpdatedMessageList = false;
 
 	// Fetch and swap the read buffer index.
 	m_signal.Signal();
@@ -53,16 +55,20 @@ void Hail::ErrorLogger::Update()
 	m_currentIncomingMessageBuffer = (m_currentIncomingMessageBuffer + 1) % 2;
 	m_signal.Wait();
 
-	const GrowingArray<ErrorMessage>& m_readMessageList = m_incomingMessages[readBufferIndex];
-	GrowingArray<const ErrorMessage*> messagesToAdd;
+	const GrowingArray<InternalMessage>& m_readMessageList = m_incomingMessages[readBufferIndex];
+
+	m_bHasUpdatedMessageList = m_readMessageList.Size() > 0;
+	GrowingArray<const InternalMessage*> messagesToAdd;
 	for (uint32 i = 0; i < m_readMessageList.Size(); i++)
 	{
 		bool bMessageExists = false;
-		const ErrorMessage& readMessage = m_readMessageList[i];
+		const InternalMessage& readMessage = m_readMessageList[i];
+
+		m_allMessages.Add(readMessage);
 
 		for (uint32 iExistingMessages = 0; iExistingMessages < m_messages.Size(); iExistingMessages++)
 		{
-			ErrorMessage& existingMessage = m_messages[iExistingMessages];
+			InternalMessage& existingMessage = m_messages[iExistingMessages];
 			if (readMessage.m_stringHash == existingMessage.m_stringHash)
 			{
 				existingMessage.m_numberOfOccurences += readMessage.m_numberOfOccurences;
@@ -80,12 +86,17 @@ void Hail::ErrorLogger::Update()
 	m_incomingMessages[readBufferIndex].RemoveAll();
 }
 
-const GrowingArray<ErrorMessage>& Hail::ErrorLogger::GetCurrentMessages() const
+const GrowingArray<InternalMessage>& Hail::InternalMessageLogger::GetUniqueueMessages() const
 {
 	return m_messages;
 }
 
-void Hail::ErrorLogger::ClearMessages()
+const GrowingArray<InternalMessage>& Hail::InternalMessageLogger::GetAllMessages() const
+{
+	return m_allMessages;
+}
+
+void Hail::InternalMessageLogger::ClearMessages()
 {
 	H_ASSERT(GetIsMainThread(), "Only main thread should clear the logger.");
 	m_messages.RemoveAll();

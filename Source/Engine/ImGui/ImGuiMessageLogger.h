@@ -3,10 +3,17 @@
 #include "Containers\StaticArray\StaticArray.h"
 namespace Hail
 {
-	struct ErrorMessage;
+	struct InternalMessage;
+	enum class eMessageLogType : uint8
+	{
+		DrawUniqueueMessages,
+		DrawAllMessages
+	};
 	class ImGuiMessageLogger
 	{
 	public:
+
+
 		ImGuiMessageLogger();
 
 		void RenderImGuiCommands();
@@ -21,11 +28,16 @@ namespace Hail
 			File,
 			Count
 		};
-		void FillAndSortMessageList();
 
+
+		void DrawMessageLog();
+		void FillAndSortMessageList(bool bUpdateMessageList);
+
+
+		eMessageLogType m_logType;
 		eMessageSortingType m_currentSortingType;
 		StaticArray<bool, (uint8)eMessageType::Count> m_visibleTypes;
-		GrowingArray<const ErrorMessage*> m_sortedMessages;
+		GrowingArray<const InternalMessage*> m_sortedMessages;
 	};
 }
 

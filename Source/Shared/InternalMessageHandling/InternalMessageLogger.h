@@ -1,12 +1,12 @@
 #pragma once
-#include "ErrorHandling.h"
+#include "InternalMessageHandling.h"
 #include "Threading.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "Containers\StaticArray\StaticArray.h"
 
 namespace Hail
 {
-	struct ErrorMessage
+	struct InternalMessage
 	{
 		uint64 m_systemTimeLastHappened;
 		uint32 m_numberOfOccurences;
@@ -17,33 +17,40 @@ namespace Hail
 		uint64 m_stringHash;
 	};
 
-	class ErrorLogger
+	class InternalMessageLogger
 	{
 	public:
 		// Operations that should only happen on the main thread, will assert if not followed.
 		static void Initialize();
 		static void Deinitialize();
-		static ErrorLogger& GetInstance() { return *m_instance; }
+		static InternalMessageLogger& GetInstance() { return *m_instance; }
 
 		// Flips the doublebuffers
 		void Update();
-		const GrowingArray<ErrorMessage>& GetCurrentMessages() const;
+		const GrowingArray<InternalMessage>& GetUniqueueMessages() const;
+		const GrowingArray<InternalMessage>& GetAllMessages() const;
 		void ClearMessages();
 
 		// Thread safe operation.
-		void InsertMessage(ErrorMessage message);
+		void InsertMessage(InternalMessage message);
+
+		bool HasRecievedNewMessages() const { return m_bHasUpdatedMessageList; }
 
 	private:
 
-		static ErrorLogger* m_instance;
+		static InternalMessageLogger* m_instance;
+
+		
 
 		//Double buffering insertions of messages to make it threadsafe
 		uint32 m_currentIncomingMessageBuffer{};
-		StaticArray<GrowingArray<ErrorMessage>, 2> m_incomingMessages;
-		GrowingArray<ErrorMessage> m_messages;
+		StaticArray<GrowingArray<InternalMessage>, 2> m_incomingMessages;
+		GrowingArray<InternalMessage> m_messages;
+		GrowingArray<InternalMessage> m_allMessages;
 
 		BinarySemaphore m_signal;
 		AssertLock m_assertLock;
+		bool m_bHasUpdatedMessageList;
 	};
 }
  

@@ -1,6 +1,6 @@
 #pragma once
 #include <initializer_list>
-#include "ErrorHandling\ErrorHandling.h"
+#include "InternalMessageHandling\InternalMessageHandling.h"
 		
 namespace Hail
 {
@@ -35,10 +35,10 @@ namespace Hail
 		inline T& Add();
 		inline void Insert(CountType index, const T& object);
 
-		inline void RemoveCyclic(const T& object);
-		inline void RemoveCyclicAtIndex(CountType itemNumber);
-		inline void RemoveAtIndex(CountType itemNumber);
-		inline void RemoveLast();
+		inline bool RemoveCyclic(const T& object);
+		inline bool RemoveCyclicAtIndex(CountType itemNumber);
+		inline bool RemoveAtIndex(CountType itemNumber);
+		inline bool RemoveLast();
 		inline CountType Find(const T& object);
 
 		inline T& GetLast();
@@ -255,24 +255,25 @@ namespace Hail
 
 
 	template <typename T, typename CountType>
-	void GrowingArray<typename T, typename CountType>::RemoveCyclic(const T& object)
+	bool GrowingArray<typename T, typename CountType>::RemoveCyclic(const T& object)
 	{
 		if (!m_arrayPointer)
-			return;
+			return false;
 
 		const CountType ItemSlot = Find(object);
 		if (ItemSlot != -1)
 		{
 			RemoveCyclicAtIndex(ItemSlot);
 		}
+		return true;
 	}
 
 	template <typename T, typename CountType>
-	void GrowingArray<typename T, typename CountType>::RemoveCyclicAtIndex(CountType itemNumber)
+	bool GrowingArray<typename T, typename CountType>::RemoveCyclicAtIndex(CountType itemNumber)
 	{
 		H_ASSERT(m_arrayPointer, "Uninitialized GrowingArray.");
 		if (!m_arrayPointer)
-			return;
+			return false;
 
 		H_ASSERT(itemNumber < m_elementCount, "Index is out of range.");
 		if (m_elementCount != 1)
@@ -284,30 +285,33 @@ namespace Hail
 		{
 			RemoveAll();
 		}
+		return true;
 	}
 
 	template <typename T, typename CountType>
-	void GrowingArray<T, CountType>::RemoveAtIndex(CountType itemNumber)
+	bool GrowingArray<T, CountType>::RemoveAtIndex(CountType itemNumber)
 	{
 		if (!m_arrayPointer)
-			return;
+			return false;
 		H_ASSERT(itemNumber < m_elementCount, "Index is out of range.");
 		--m_elementCount;
 		for (unsigned int i = itemNumber; i < m_elementCount; ++i)
 		{
 			m_arrayPointer[i] = m_arrayPointer[i + 1];
 		}
+		return true;
 	}
 
 	template<typename T, typename CountType>
-	inline void GrowingArray<T, CountType>::RemoveLast()
+	inline bool GrowingArray<T, CountType>::RemoveLast()
 	{
 		if (!m_arrayPointer)
-			return;
+			return false;
 		if (m_elementCount > 0)
 		{
 			m_elementCount--;
 		}
+		return true;
 	}
 
 	template <typename T, typename CountType>

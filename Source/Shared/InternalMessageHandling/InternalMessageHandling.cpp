@@ -1,6 +1,6 @@
 #include "Shared_PCH.h"
-#include "ErrorHandling.h"
-#include "ErrorLogger.h"
+#include "InternalMessageHandling.h"
+#include "InternalMessageLogger.h"
 #include "Hail_Time.h"
 #include "DebugMacros.h"
 #include "StringUtility.h"
@@ -30,14 +30,14 @@ void Hail::AssertMessage(const char* expr_str, bool expression, const char* file
 
 void Hail::CreateMessage(String256 message, String256 fileName, int line, eMessageType type)
 {
-	ErrorMessage errorMessage;
+	InternalMessage errorMessage;
 	errorMessage.m_type = type;
 	errorMessage.m_fileName = fileName;
 	errorMessage.m_message = message;
 	errorMessage.m_systemTimeLastHappened = GetGlobalTimer()->GetSystemTime();
 	errorMessage.m_numberOfOccurences = 1;
 	errorMessage.m_codeLine = line;
-	ErrorLogger::GetInstance().InsertMessage(errorMessage);
+	InternalMessageLogger::GetInstance().InsertMessage(errorMessage);
 	//TODO: Make a global setting or something for if console should be enabled or not.
 	Debug_PrintConsoleString256(message);
 }
