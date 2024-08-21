@@ -17,32 +17,31 @@ namespace Hail
 		Count
 	};
 
-	void CreateMessage(String256 message, String256 fileName, int line, eMessageType type);
+	void CreateMessage(const char* message, const char* fileName, int line, eMessageType type);
 	
 
 #ifdef DEBUG
-
 	void AssertMessage(const char* expr_str, bool expression, const char* file, int line, const char* message);
-#define H_ASSERT(Condition,Message) AssertMessage(#Condition, Condition, __FILE__, __LINE__, Message );
+#define H_ASSERT(Condition,Message) Hail::AssertMessage(#Condition, Condition, __FILE__, __LINE__, Message );
 
 #define H_ASSERT_LOGMESSAGE(Condition,Message) \
 	H_ASSERT(Condition,Message)\
 	if (!Condition)	\
 	{ \
-	CreateMessage(Message, __FILE__, __LINE__, eMessageType::Fatal); \
+	Hail::CreateMessage(Message, __FILE__, __LINE__, eMessageType::Fatal); \
 } \
 
-#define H_ERROR(Message) CreateMessage(Message, __FILE__, __LINE__, eMessageType::Error);
-#define H_WARNING(Message) CreateMessage(Message, __FILE__, __LINE__, eMessageType::Warning);
-#define H_DEBUGMESSAGE(Message) CreateMessage(Message, __FILE__, __LINE__, eMessageType::LogMessage);
+#define H_ERROR(Message) { Hail::CreateMessage(Message, __FILE__, __LINE__, eMessageType::Error); }
+#define H_WARNING(Message) { Hail::CreateMessage(Message, __FILE__, __LINE__, eMessageType::Warning); }
+#define H_DEBUGMESSAGE(Message) { Hail::CreateMessage(Message, __FILE__, __LINE__, eMessageType::LogMessage); }
 
 
 #else
-#define H_ASSERT(Condition, Message);
-#define H_ASSERT_LOGMESSAGE(Condition, Message);
-#define H_ERROR(Message);
-#define H_WARNING(Message);
-#define H_DEBUGMESSAGE(Message);
+#define H_ASSERT(Condition, Message) {}
+#define H_ASSERT_LOGMESSAGE(Condition, Message) {}
+#define H_ERROR(Message) {}
+#define H_WARNING(Message) {}
+#define H_DEBUGMESSAGE(Message) {}
 #endif
 
 

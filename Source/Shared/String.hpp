@@ -15,36 +15,36 @@ public:
 	{
 		strcpy_s(m_data, "");
 	}
-	String64(const char* const aString)
+	String64(const char* const string)
 	{
-		strcpy_s(m_data, aString);
+		strcpy_s(m_data, string);
 	}
 	String64(const String64& anotherString)
 	{
 		strcpy_s(m_data, anotherString);
 	}
-	String64(String64&& aMoveableString) noexcept
+	String64(String64&& moveableString) noexcept
 	{
-		strcpy_s(m_data, aMoveableString);
+		strcpy_s(m_data, moveableString);
 	}
-	String64(const std::string& aSTLString)
+	String64(const std::string& stlString)
 	{
-		assert(aSTLString.size() < 64);
-		if (aSTLString.size() < 64)
+		assert(stlString.size() < 64);
+		if (stlString.size() < 64)
 		{
-			strcpy_s(m_data, aSTLString.data());
+			strcpy_s(m_data, stlString.data());
 		}
 		else
 		{
 			strcpy_s(m_data, "errors n stuff");
 		}
 	}
-	static String64 Format(const char* const aFormat, ...)
+	static String64 Format(const char* const format, ...)
 	{
 		String64 str;
 		va_list vl;
-		va_start(vl, aFormat);
-		vsprintf_s(str.m_data, aFormat, vl);
+		va_start(vl, format);
+		vsprintf_s(str.m_data, format, vl);
 		va_end(vl);
 		return str;
 	}
@@ -63,15 +63,15 @@ public:
 
 		return *this;
 	}
-	String64& operator=(String64&& aMoveableString) noexcept
+	String64& operator=(String64&& moveableString) noexcept
 	{
-		strcpy_s(m_data, aMoveableString);
+		strcpy_s(m_data, moveableString);
 
 		return *this;
 	}
-	String64& operator=(const char* const aCString)
+	String64& operator=(const char* const pString)
 	{
-		strcpy_s(m_data, aCString);
+		strcpy_s(m_data, pString);
 
 		return *this;
 	}
@@ -94,26 +94,26 @@ private:
 	char m_data[64];
 };
 
-static bool operator<(const String64& aString1, const String64& aString2)
+static bool operator<(const String64& string1, const String64& string2)
 {
-	return strcmp(aString1, aString2) < -0;
+	return strcmp(string1, string2) < -0;
 }
-static bool operator>(const String64& aString1, const String64& aString2)
+static bool operator>(const String64& string1, const String64& string2)
 {
-	return strcmp(aString1, aString2) > 0;
+	return strcmp(string1, string2) > 0;
 }
-static bool operator==(const String64& aString1, const String64& aString2)
+static bool operator==(const String64& string1, const String64& string2)
 {
-	return strcmp(aString1, aString2) == 0;
+	return strcmp(string1, string2) == 0;
 }
-static bool operator!=(const String64& aString1, const String64& aString2)
+static bool operator!=(const String64& string1, const String64& string2)
 {
-	return strcmp(aString1, aString2) != 0;
+	return strcmp(string1, string2) != 0;
 }
-static String64 operator+(const String64& aString1, const String64& aString2)
+static String64 operator+(const String64& string1, const String64& string2)
 {
-	String64 str = aString1;
-	strcat_s(str, 64 - strlen(aString1), aString2);
+	String64 str = string1;
+	strcat_s(str, 64 - strlen(string1), string2);
 	return str;
 }
 
@@ -124,36 +124,36 @@ public:
 	{
 		wcscpy_s(m_data, L"");
 	}
-	WString64(const wchar_t* const aString)
+	WString64(const wchar_t* const string)
 	{
-		wcscpy_s(m_data, aString);
+		wcscpy_s(m_data, string);
 	}
 	WString64(const WString64& anotherString)
 	{
 		wcscpy_s(m_data, anotherString);
 	}
-	WString64(WString64&& aMoveableString) noexcept
+	WString64(WString64&& moveableString) noexcept
 	{
-		wcscpy_s(m_data, aMoveableString);
+		wcscpy_s(m_data, moveableString);
 	}
-	WString64(const std::wstring& aSTLString)
+	WString64(const std::wstring& stlString)
 	{
-		assert(aSTLString.size() < 64);
-		if (aSTLString.size() < 64)
+		assert(stlString.size() < 64);
+		if (stlString.size() < 64)
 		{
-			wcscpy_s(m_data, aSTLString.data());
+			wcscpy_s(m_data, stlString.data());
 		}
 		else
 		{
 			wcscpy_s(m_data, L"errors n stuff");
 		}
 	}
-	static WString64 Format(const wchar_t* const aFormat, ...)
+	static WString64 Format(const wchar_t* const format, ...)
 	{
 		WString64 str;
 		va_list vl;
-		va_start(vl, aFormat);
-		vswprintf_s(str.m_data, aFormat, vl);
+		va_start(vl, format);
+		vswprintf_s(str.m_data, format, vl);
 		va_end(vl);
 		return str;
 	}
@@ -173,15 +173,15 @@ public:
 
 		return *this;
 	}
-	WString64& operator=(WString64&& aMoveableString) noexcept
+	WString64& operator=(WString64&& moveableString) noexcept
 	{
-		wcscpy_s(m_data, aMoveableString);
+		wcscpy_s(m_data, moveableString);
 
 		return *this;
 	}
-	WString64& operator=(const wchar_t* const aCString)
+	WString64& operator=(const wchar_t* const pString)
 	{
-		wcscpy_s(m_data, aCString);
+		wcscpy_s(m_data, pString);
 
 		return *this;
 	}
@@ -202,159 +202,26 @@ private:
 	wchar_t m_data[64];
 };
 
-static bool operator<(const WString64& aString1, const WString64& aString2)
+static bool operator<(const WString64& string1, const WString64& string2)
 {
-	return wcscmp(aString1, aString2) < -0;
+	return wcscmp(string1, string2) < -0;
 }
-static bool operator>(const WString64& aString1, const WString64& aString2)
+static bool operator>(const WString64& string1, const WString64& string2)
 {
-	return wcscmp(aString1, aString2) > 0;
+	return wcscmp(string1, string2) > 0;
 }
-static bool operator==(const WString64& aString1, const WString64& aString2)
+static bool operator==(const WString64& string1, const WString64& string2)
 {
-	return wcscmp(aString1, aString2) == 0;
+	return wcscmp(string1, string2) == 0;
 }
-static bool operator!=(const WString64& aString1, const WString64& aString2)
+static bool operator!=(const WString64& string1, const WString64& string2)
 {
-	return wcscmp(aString1, aString2) != 0;
+	return wcscmp(string1, string2) != 0;
 }
-static WString64 operator+(const WString64& aString1, const WString64& aString2)
+static WString64 operator+(const WString64& string1, const WString64& string2)
 {
-	WString64 str = aString1;
-	wcscat_s(str, 64 - wcslen(aString1), aString2);
-	return str;
-}
-
-class String256
-{
-public:
-	String256()
-	{
-		strcpy_s(m_data, "");
-	}
-	String256(const char* const aString)
-	{
-		strcpy_s(m_data, aString);
-	}
-	String256(const String256& anotherString)
-	{
-		strcpy_s(m_data, anotherString);
-	}
-	String256(String256&& aMoveableString) noexcept
-	{
-		strcpy_s(m_data, aMoveableString);
-	}
-	String256(const std::string& aSTLString)
-	{
-		assert(aSTLString.size() < 256);
-		if (aSTLString.size() < 256)
-		{
-			strcpy_s(m_data, aSTLString.data());
-		}
-		else
-		{
-			strcpy_s(m_data, "errors n stuff");
-		}
-	}
-	static String256 Format(const char* const aFormat, ...)
-	{
-		String256 str;
-		va_list vl;
-		va_start(vl, aFormat);
-		vsprintf_s(str.m_data, aFormat, vl);
-		va_end(vl);
-		return str;
-	}
-
-	operator const char* () const
-	{
-		return m_data;
-	}
-	operator char* ()
-	{
-		return m_data;
-	}
-	String256& operator=(const String256& anotherString)
-	{
-		strcpy_s(m_data, anotherString);
-
-		return *this;
-	}
-	String256& operator=(String256&& aMoveableString) noexcept
-	{
-		strcpy_s(m_data, aMoveableString);
-
-		return *this;
-	}
-	String256& operator=(const char* const aCString)
-	{
-		strcpy_s(m_data, aCString);
-
-		return *this;
-	}
-	String256& operator+=(String256& anotherString) noexcept
-	{
-		const int stringLength = anotherString.Length();
-		const uint32_t existingLength = Length();
-
-		const int remainingLength = 256 - existingLength;
-		const int stringLengthToCopy = stringLength > remainingLength ? remainingLength : stringLength;
-
-		memcpy(&m_data[existingLength], anotherString, stringLengthToCopy);
-		m_data[existingLength + stringLengthToCopy] = 0;
-		return *this;
-	}
-	String256& operator+=(const char* cString) noexcept
-	{
-		const int stringLength = Hail::StringLength(cString);
-		const uint32_t existingLength = Length();
-
-		const int remainingLength = 256 - existingLength;
-		const int stringLengthToCopy = stringLength > remainingLength ? remainingLength : stringLength;
-
-		memcpy(&m_data[existingLength], cString, stringLengthToCopy);
-		m_data[existingLength + stringLengthToCopy] = 0;
-		return *this;
-	}
-	char* Data()
-	{
-		return m_data;
-	}
-	const char* const Data() const
-	{
-		return m_data;
-	}
-
-	bool Empty() const
-	{
-		return m_data[0] == '\0';
-	}
-	const uint32_t Length() const { return strlen(m_data); }
-
-private:
-	char m_data[256];
-};
-
-static bool operator<(const String256& aString1, const String256& aString2)
-{
-	return strcmp(aString1, aString2) < -0;
-}
-static bool operator>(const String256& aString1, const String256& aString2)
-{
-	return strcmp(aString1, aString2) > 0;
-}
-static bool operator==(const String256& aString1, const String256& aString2)
-{
-	return strcmp(aString1, aString2) == 0;
-}
-static bool operator!=(const String256& aString1, const String256& aString2)
-{
-	return strcmp(aString1, aString2) != 0;
-}
-static String256 operator+(const String256& aString1, const String256& aString2)
-{
-	String256 str = aString1;
-	strcat_s(str, 256 - strlen(aString1), aString2);
+	WString64 str = string1;
+	wcscat_s(str, 64 - wcslen(string1), string2);
 	return str;
 }
 
@@ -365,36 +232,36 @@ public:
 	{
 		wcscpy_s(m_data, L"");
 	}
-	WString256(const wchar_t* const aString)
+	WString256(const wchar_t* const string)
 	{
-		wcscpy_s(m_data, aString);
+		wcscpy_s(m_data, string);
 	}
 	WString256(const WString256& anotherString)
 	{
 		wcscpy_s(m_data, anotherString);
 	}
-	WString256(WString256&& aMoveableString) noexcept
+	WString256(WString256&& moveableString) noexcept
 	{
-		wcscpy_s(m_data, aMoveableString);
+		wcscpy_s(m_data, moveableString);
 	}
-	WString256(const std::wstring& aSTLString)
+	WString256(const std::wstring& stlString)
 	{
-		assert(aSTLString.size() < 256);
-		if (aSTLString.size() < 256)
+		assert(stlString.size() < 256);
+		if (stlString.size() < 256)
 		{
-			wcscpy_s(m_data, aSTLString.data());
+			wcscpy_s(m_data, stlString.data());
 		}
 		else
 		{
 			wcscpy_s(m_data, L"errors n stuff");
 		}
 	}
-	static WString256 Format(const wchar_t* const aFormat, ...)
+	static WString256 Format(const wchar_t* const format, ...)
 	{
 		WString256 str;
 		va_list vl;
-		va_start(vl, aFormat);
-		vswprintf_s(str.m_data, aFormat, vl);
+		va_start(vl, format);
+		vswprintf_s(str.m_data, format, vl);
 		va_end(vl);
 		return str;
 	}
@@ -414,15 +281,15 @@ public:
 
 		return *this;
 	}
-	WString256& operator=(WString256&& aMoveableString) noexcept
+	WString256& operator=(WString256&& moveableString) noexcept
 	{
-		wcscpy_s(m_data, aMoveableString);
+		wcscpy_s(m_data, moveableString);
 
 		return *this;
 	}
-	WString256& operator=(const wchar_t* const aCString)
+	WString256& operator=(const wchar_t* const pString)
 	{
-		wcscpy_s(m_data, aCString);
+		wcscpy_s(m_data, pString);
 
 		return *this;
 	}
@@ -457,4 +324,87 @@ static WString256 operator+(const WString256& string1, const WString256& string2
 	WString256 str = string1;
 	wcscat_s(str, 256 - wcslen(string1), string2);
 	return str;
+}
+
+namespace Hail
+{
+	// Long string, used for debug messageing and tools
+	class StringL
+	{
+	public:
+		StringL();
+		StringL(const char* const string);
+		StringL(const StringL& anotherString);
+		StringL(const String64& string64);
+		StringL(StringL&& moveableString);
+		StringL(const std::string& stlString);
+		~StringL();
+
+		static StringL Format(const char* const format, ...);
+
+		operator const char* () const;
+		operator char* ();
+		StringL& operator=(const StringL& anotherString);
+		StringL& operator=(StringL&& moveableString);
+		StringL& operator=(const char* const pString);
+		StringL& operator+=(StringL& anotherString);
+		StringL& operator+=(const char* pString);
+		StringL operator+(const StringL& string1);
+
+		char* Data();
+		const char* const Data() const;
+
+		const uint32 Length() const { return m_length; }
+
+	private:
+
+		union stringMemory
+		{
+			char* m_p;
+			char m_shortString[16];
+		}m_memory;
+		uint32 m_length;
+	};
+
+	// Long wide string, used for all UI. 
+	// TODO, add support for translation and serialization
+	class StringLW
+	{
+	public:
+		StringLW();
+		StringLW(const char* const string);
+		StringLW(const StringL& anotherString);
+		StringLW(const StringLW& anotherWString);
+		StringLW(const String64& string64);
+		StringLW(const WString64& wString64);
+		StringLW(StringLW&& moveableString);
+		~StringLW();
+
+		static StringLW Format(const char* const format, ...);
+		operator const wchar_t* () const;
+		operator wchar_t* ();
+		StringL& operator=(const StringLW& anotherString);
+		StringL& operator=(StringLW&& moveableString);
+		StringL& operator=(const char* const pString);
+		StringL& operator=(const wchar_t* const pWString);
+		StringL& operator+=(StringLW& anotherString);
+		StringL& operator+=(const char* pString);
+		StringL& operator+=(const wchar_t* pWString);
+		StringL operator+(const StringLW& string1);
+
+		wchar_t* Data();
+		const wchar_t* const Data() const;
+
+		// Returns length in number of characters, not byte length.
+		const uint32 Length() const { return m_length; }
+
+	private:
+
+		union stringMemory
+		{
+			wchar_t* m_p;
+			wchar_t m_shortString[8];
+		}m_memory;
+		uint32 m_length;
+	};
 }

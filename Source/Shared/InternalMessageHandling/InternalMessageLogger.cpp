@@ -4,18 +4,19 @@
 #include "Hashing\xxh64_en.hpp"
 using namespace Hail;
 
-InternalMessageLogger* InternalMessageLogger::m_instance = nullptr;
+InternalMessageLogger* InternalMessageLogger::m_pInstance = nullptr;
 
 void Hail::InternalMessageLogger::Initialize()
 {
 	H_ASSERT(GetIsMainThread(), "Only main thread should create the logger.");
-	m_instance = new InternalMessageLogger();
+	H_ASSERT(!m_pInstance, "Can not create the main instance more than once.");
+	m_pInstance = new InternalMessageLogger();
 }
 
 void Hail::InternalMessageLogger::Deinitialize()
 {
 	H_ASSERT(GetIsMainThread(), "Only main thread should destroy the logger.");
-	SAFEDELETE(m_instance);
+	SAFEDELETE(m_pInstance);
 }
 
 void Hail::InternalMessageLogger::InsertMessage(InternalMessage message)

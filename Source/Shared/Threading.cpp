@@ -1,14 +1,21 @@
 #include "Shared_PCH.h"
 #include "Threading.h"
-
 using namespace Hail;
 
 uint64 Hail::g_mainThreadID = MAX_UINT64;
 
 void Hail::BinarySemaphore::Signal()
 {
-	while (m_counter.load(std::memory_order::memory_order_consume) == false);
-	m_counter = m_counter.exchange(false);
+	while (true) 
+	{ 
+		if (m_counter.load() == true)
+		{
+			bool expectedResult = true;
+			const bool didWeAcquireTheLock = m_counter.compare_exchange_strong(expectedResult,false);
+			if (didWeAcquireTheLock)
+				break;
+		}
+	}
 }
 
 void Hail::BinarySemaphore::Wait()

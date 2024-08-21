@@ -10,7 +10,7 @@
 
 // Comment out below define to disable command line
 #ifndef NDEBUG
-//#define USE_CONSOLE_COMMAND
+#define USE_CONSOLE_COMMAND
 #endif
 
 void InitConsole()

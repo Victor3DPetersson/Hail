@@ -192,7 +192,7 @@ namespace
 		bool isANewDefinedType = true;
 	};
 
-	[[nodiscard]] ReflectableMember FindMemberInLine(String256 lineToCheck)
+	[[nodiscard]] ReflectableMember FindMemberInLine(StringL lineToCheck)
 	{
 		int currentCharacterIndex = 0;
 		ReflectableMember returnMember;
@@ -211,7 +211,7 @@ namespace
 					tokenLength = lineToCheck.Length() - currentCharacterIndex;
 				}
 
-				String256 token;
+				StringL token;
 				memcpy(token.Data(), lineToCheck.Data() + previousCharacterIndex, tokenLength);
 				token[tokenLength] = '\0';
 
@@ -267,7 +267,7 @@ namespace
 		GrowingArray<ReflectableStructure> structuresInFile;
 	};
 
-	[[nodiscard]] FileReflectableStructures GetStructuresFromFile(const GrowingArray<String256>& lines, const Hail::FilePath& currentPath)
+	[[nodiscard]] FileReflectableStructures GetStructuresFromFile(const GrowingArray<StringL>& lines, const Hail::FilePath& currentPath)
 	{
 		String64 fileName;
 		wcstombs(fileName, currentPath.Object().Name(), currentPath.Object().Name().Length() + 1);
@@ -284,7 +284,7 @@ namespace
 
 		for (size_t i = 0; i < lines.Size(); i++)
 		{
-			const String256& line = lines[i];
+			const StringL& line = lines[i];
 			if (Hail::StringContains(line.Data(), REFLECTABLE_CLASS_TO_LOOK_FOR))
 			{
 				lineWhereClassTokenWillBeFound = i + 1;
@@ -418,7 +418,7 @@ namespace
 		return reflectableStructuresInFile;
 	}
 
-	void WriteToCPPFile(Hail::FilePath pathToParseToo, unsigned int lastIncludeLine, const GrowingArray<String256>& lines, FileReflectableStructures& fileStructures)
+	void WriteToCPPFile(Hail::FilePath pathToParseToo, unsigned int lastIncludeLine, const GrowingArray<StringL>& lines, FileReflectableStructures& fileStructures)
 	{
 		Hail::InOutStream outStream;
 		if (!outStream.OpenFile(pathToParseToo, Hail::FILE_OPEN_TYPE::WRITE, false))
@@ -444,7 +444,7 @@ namespace
 		{
 			ReflectableStructure& currentStructure = fileStructures.structuresInFile[structureIndex];
 			{
-				String256 structureName;
+				StringL structureName;
 				while (currentStructure.parentNames.Size() > 0)
 				{
 					String64 parentName = currentStructure.parentNames.Pop();
@@ -452,19 +452,19 @@ namespace
 					Hail::AddToString(structureName.Data(), "::", 256);
 				}
 				Hail::AddToString(structureName.Data(), currentStructure.structName, 256);
-				String256 beginAttributesLine = String256::Format("\tBEGIN_ATTRIBUTES_FOR(%s)\n", structureName.Data());
+				StringL beginAttributesLine = StringL::Format("\tBEGIN_ATTRIBUTES_FOR(%s)\n", structureName.Data());
 				outStream.Write(beginAttributesLine.Data(), sizeof(char), beginAttributesLine.Length());
 			}
 			for (size_t memberVariableIndex = 0; memberVariableIndex < currentStructure.members.Size(); memberVariableIndex++)
 			{
 				ReflectableMember currentMemberVariable = currentStructure.members[memberVariableIndex];
-				String256 reflectableMemberString = String256::Format("\tDEFINE_MEMBER(%s, %s)\n",
+				StringL reflectableMemberString = StringL::Format("\tDEFINE_MEMBER(%s, %s)\n",
 					currentMemberVariable.name.Data(),
 					currentMemberVariable.type.Data());
 				outStream.Write(reflectableMemberString.Data(), sizeof(char), reflectableMemberString.Length());
 			}
 			{
-				String256 endAttributesLine = "\tEND_ATTRIBUTES\n";
+				String64 endAttributesLine = "\tEND_ATTRIBUTES\n";
 				outStream.Write(endAttributesLine.Data(), sizeof(char), endAttributesLine.Length());
 			}
 		}
@@ -488,7 +488,7 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 	GrowingArray<FileReflectableStructures> filesWithStructures(6);
 	Debug_PrintConsoleConstChar("Searching for reflection defines in header files");
 	{
-		String256 projectDirectory = SOURCE_DIR;
+		StringL projectDirectory = SOURCE_DIR;
 		projectDirectory = projectDirectory + ("/") + projectToParse + ("/");
 		RecursiveFileIterator* iterator = new RecursiveFileIterator(projectDirectory.Data());
 		while (iterator->IterateOverFolderRecursively())
@@ -511,8 +511,8 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 			char character = 1;
 			uint32_t sizeofchar = sizeof(char);
 			stream.Read(readData.Data(), stream.GetFileSize(), 1);
-			GrowingArray<String256> lines(128);
-			String256 currentLine;
+			GrowingArray<StringL> lines(128);
+			StringL currentLine;
 			size_t newLineStart = 0;
 			for (size_t i = 0; i < stream.GetFileSize(); i++)
 			{
@@ -556,7 +556,7 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 		//Move to new function
 		if (filesWithStructures[i].structuresInFile.Size() > 0)
 		{
-			GrowingArray<String256> lines(64);
+			GrowingArray<StringL> lines(64);
 			const FileObject fileObjectsHeader = filesWithStructures[i].file.Object(); 
 			FileIterator iterator = FileIterator(filesWithStructures[i].file.Parent());
 			unsigned int lineWhereIncludesStop = 0;
@@ -586,7 +586,7 @@ void Hail::ParseAndGenerateCodeForProjects(const char* projectToParse)
 				GrowingArray<char> readData(stream.GetFileSize(), 0);
 
 				stream.Read(readData.Data(), stream.GetFileSize(), 1);
-				String256 currentLine;
+				StringL currentLine;
 				size_t newLineStart = 0;
 				uint32 lineWhereReflectionNamespaceWasFound = 0xffffffff;
 				bool foundNamespaceOpeningBracket = false;

@@ -34,24 +34,24 @@ namespace Hail
 	class ImGuiCommandRecorder
 	{
 	public:
-		bool AddBeginCommand(const String256& windowName, uint32_t responseIndex);
+		bool AddBeginCommand(const String64& windowName, uint32_t responseIndex);
 		void AddCloseCommand();
 
-		void AddCheckbox(const String256& name, uint32_t responseIndex, bool value);
+		void AddCheckbox(const String64& name, uint32_t responseIndex, bool value);
 		void AddSameLine();
 		void AddSeperator();
 
-		bool AddTreeNode(const String256& name, uint32_t responseIndex);
+		bool AddTreeNode(const String64& name, uint32_t responseIndex);
 		void AddTreeNodeEnd();
-		bool AddTabBar(const String256& name, uint32_t responseIndex);
+		bool AddTabBar(const String64& name, uint32_t responseIndex);
 		void AddTabBarEnd();
-		bool AddTabItem(const String256& name, uint32_t responseIndex);
+		bool AddTabItem(const String64& name, uint32_t responseIndex);
 		void AddTabItemEnd();
 
-		void AddFloatSlider(const String256& name, uint32_t responseIndex, float value);
-		void AddIntSlider(const String256& name, uint32_t responseIndex, int value);
-		bool AddButton(const String256& name, uint32_t responseIndex);
-		bool AddTextInput(const String256& name, uint32_t responseIndex, const String256& textValue);
+		void AddFloatSlider(const String64& name, uint32_t responseIndex, float value);
+		void AddIntSlider(const String64& name, uint32_t responseIndex, int value);
+		bool AddButton(const String64& name, uint32_t responseIndex);
+		bool AddTextInput(const String64& name, uint32_t responseIndex, const StringL& textValue);
 		void OpenFileBrowser(ImGuiFileBrowserData* fileBrowserDataToFill);
 		void OpenMaterialEditor();
 		template<typename Type>
@@ -63,7 +63,7 @@ namespace Hail
 		StaticArray<ImGuiCommand<bool>, MAX_NUMBER_OF_IMGUI_RESPONSES> m_bools;
 		StaticArray<ImGuiCommand<float>, MAX_NUMBER_OF_IMGUI_RESPONSES> m_floats;
 		StaticArray<ImGuiCommand<int>, MAX_NUMBER_OF_IMGUI_RESPONSES> m_ints;
-		StaticArray<ImGuiCommand<String256>, MAX_NUMBER_OF_IMGUI_RESPONSES> m_strings;
+		StaticArray<ImGuiCommand<StringL>, MAX_NUMBER_OF_IMGUI_RESPONSES> m_strings;
 		enum class IMGUI_TYPES : uint32_t
 		{
 			WINDOW,
@@ -92,7 +92,7 @@ namespace Hail
 		struct ImGuiCommand
 		{
 			IMGUI_TYPES commandType;
-			String256 name;
+			String64 name;
 			uint32_t responseIndex;
 		};
 		GrowingArray<ImGuiCommand> m_commands;
@@ -166,7 +166,7 @@ namespace Hail
 	}
 
 	template<>
-	inline String256 ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
+	inline StringL& ImGuiCommandRecorder::GetResponseValue(uint32 responseIndex)
 	{
 		return m_strings[responseIndex].GetResponseValue();
 	}

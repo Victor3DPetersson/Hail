@@ -124,7 +124,7 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 
 		if (!ReadStreamInternal(compiledTextureData, inStream, metaData))
 		{
-			H_ERROR(String256::Format("Failed to import ImGui Texture: %", filepath.Object().Name()));
+			H_ERROR(StringL::Format("Failed to import ImGui Texture: %", filepath.Object().Name()));
 			return nullptr;
 		}
 

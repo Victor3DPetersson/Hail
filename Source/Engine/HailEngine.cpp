@@ -12,6 +12,7 @@
 #include "ThreadSynchronizer.h"
 
 #include "InternalMessageHandling\InternalMessageLogger.h"
+#include "StringMemoryAllocator.h"
 
 #include <iostream>
 #include "imgui.h"
@@ -76,6 +77,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 {
 	SetMainThread();
 	InternalMessageLogger::Initialize();
+	StringMemoryAllocator::Initialize();
 
 	g_engineData = new EngineData();
 	SetGlobalTimer(&g_engineData->timer);
@@ -258,7 +260,7 @@ void Hail::ProcessApplicationThread()
 	AngelScript::Runner asScriptRunner;
 	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine());
 
-	String256 firstScriptPath = ANGELSCRIPT_DIR;
+	StringL firstScriptPath = ANGELSCRIPT_DIR;
 	firstScriptPath += "FirstScript.as";
 	asScriptRunner.ImportAndBuildScript(firstScriptPath.Data(), "FirstScript");
 
@@ -300,4 +302,5 @@ void Hail::Cleanup()
 	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
 	InternalMessageLogger::Deinitialize();
+	StringMemoryAllocator::Deinitialize();
 }

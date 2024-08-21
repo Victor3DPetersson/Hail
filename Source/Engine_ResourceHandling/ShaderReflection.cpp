@@ -234,7 +234,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 
 	spirv_cross::ShaderResources res = comp.get_shader_resources();
 
-	Debug_PrintConsoleString256(String256::Format("\nShader: %s\n", shaderName));
+	Debug_PrintConsoleStringL(StringL::Format("\nShader: %s\n", shaderName));
 
 	// Get all sampled images in the shader.
 	for (auto& resource : res.stage_inputs)
@@ -242,7 +242,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		unsigned location = comp.get_decoration(resource.id, spv::DecorationLocation);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleString256(String256::Format("Input %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
+		Debug_PrintConsoleStringL(StringL::Format("Input %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
@@ -257,7 +257,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		unsigned location = comp.get_decoration(resource.id, spv::DecorationLocation);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleString256(String256::Format("Output %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
+		Debug_PrintConsoleStringL(StringL::Format("Output %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
 		if (type.basetype == spirv_cross::SPIRType::Struct)
 		{
 			// TODO: Throw error 
@@ -277,7 +277,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleString256(String256::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
@@ -299,7 +299,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		unsigned binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleString256(String256::Format("Uniform Buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		Debug_PrintConsoleStringL(StringL::Format("Uniform Buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
@@ -320,7 +320,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		unsigned binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleString256(String256::Format("Storage buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		Debug_PrintConsoleStringL(StringL::Format("Storage buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
@@ -343,7 +343,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
 
-		Debug_PrintConsoleString256(String256::Format("Push constant %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		Debug_PrintConsoleStringL(StringL::Format("Push constant %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;

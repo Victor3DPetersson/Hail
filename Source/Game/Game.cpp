@@ -114,7 +114,7 @@ namespace Hail
 
 	bool g_bTest = false;
 	float g_fTest = 0.0f;
-	String256 g_sTest = "";
+	String64 g_sTest = "";
 
 
 	void GameApplication::Update(double totalTime, float deltaTime, Hail::ApplicationFrameData& recievedFrameData)
@@ -123,7 +123,7 @@ namespace Hail
 		g_2DCamera.SetResolution(frameData.renderPool->camera2D.GetResolution());
 		//Make Gawme ^^
 		g_fTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(3);
-		g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<String256>(4);
+		g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<StringL>(4);
 		if (recievedFrameData.imguiCommandRecorder->AddBeginCommand("ImGui From Game Thread", 0))
 		{
 			if (recievedFrameData.imguiCommandRecorder->AddButton("File Browser", 1))

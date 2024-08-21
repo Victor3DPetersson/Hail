@@ -155,7 +155,7 @@ void Hail::ImGuiMessageLogger::DrawMessageLog()
                 time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
                 ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
                 ImGui::TableNextColumn();
-                ImGuiHelpers::TextWithHoverHint(String256::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
+                ImGuiHelpers::TextWithHoverHint(StringL::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
                 ImGui::TableNextColumn();
             }
             ImGui::EndTable();
@@ -196,7 +196,7 @@ void Hail::ImGuiMessageLogger::DrawMessageLog()
                 time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
                 ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
                 ImGui::TableNextColumn();
-                ImGuiHelpers::TextWithHoverHint(String256::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
+                ImGuiHelpers::TextWithHoverHint(StringL::Format("%s Line : %i", message.m_fileName.Data(), message.m_codeLine));
                 ImGui::TableNextColumn();
             }
             ImGui::EndTable();

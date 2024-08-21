@@ -19,7 +19,7 @@ namespace Hail
 			m_renderTargetResolution.x = m_windowResolution.x;
 			m_renderTargetResolution.y = m_windowResolution.x / aspectRatio16x9;
 		}
-		Debug_PrintConsoleString256(String256::Format("Window Res X: %i Window Res y: %i\nRender Target Res X: %i Render Target Res y: %i", m_windowResolution.x, m_windowResolution.y, m_renderTargetResolution.x, m_renderTargetResolution.y));
+		Debug_PrintConsoleStringL(StringL::Format("Window Res X: %i Window Res y: %i\nRender Target Res X: %i Render Target Res y: %i", m_windowResolution.x, m_windowResolution.y, m_renderTargetResolution.x, m_renderTargetResolution.y));
 	}
 	SwapChain::SwapChain()
 	{

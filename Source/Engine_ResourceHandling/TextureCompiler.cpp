@@ -82,8 +82,8 @@ bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredT
 		if (currentPath.IsFile())
 		{
 			const FileObject& currentFileObject = currentPath.Object();
-			String256 filenameStr;
-			FromWCharToConstChar(currentFileObject.Name(), filenameStr, 256);
+			String64 filenameStr;
+			FromWCharToConstChar(currentFileObject.Name(), filenameStr, 64);
 			for (uint32_t i = 0; i < numberOfRequiredTextures; i++)
 			{
 				if (StringCompare(requiredTextures[i], filenameStr)
@@ -174,7 +174,6 @@ FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 
 	if (!tgaFile.OpenFile(filePath, FILE_OPEN_TYPE::READ, true))
 	{
-		//Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
 		return FilePath();
 	}
 
@@ -383,13 +382,10 @@ FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t*
 	
 	if (!textureExporter.OpenFile(finalPath, FILE_OPEN_TYPE::WRITE, true))
 	{
-		//Debug_PrintConsoleString256(String256::Format("Error opening: %s", path));
 		return FilePath();
 	}
 	String64 nameCString;
 	FromWCharToConstChar(textureName.Name(), nameCString, 64);
-	//Debug_PrintConsoleString256(String256::Format("\nExporting Texture:\n%s:", nameCString));
-	//Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureHeader.width, textureHeader.height, "\n"));
 
 	textureExporter.Write((char*)&textureHeader, sizeof(textureHeader), 1);
 

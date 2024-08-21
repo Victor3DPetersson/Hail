@@ -28,7 +28,7 @@ void Hail::AssertMessage(const char* expr_str, bool expression, const char* file
 }
 #endif
 
-void Hail::CreateMessage(String256 message, String256 fileName, int line, eMessageType type)
+void Hail::CreateMessage(const char* message, const char* fileName, int line, eMessageType type)
 {
 	InternalMessage errorMessage;
 	errorMessage.m_type = type;
@@ -39,5 +39,5 @@ void Hail::CreateMessage(String256 message, String256 fileName, int line, eMessa
 	errorMessage.m_codeLine = line;
 	InternalMessageLogger::GetInstance().InsertMessage(errorMessage);
 	//TODO: Make a global setting or something for if console should be enabled or not.
-	Debug_PrintConsoleString256(message);
+	Debug_PrintConsoleConstChar(message);
 }

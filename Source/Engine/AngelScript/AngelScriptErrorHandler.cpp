@@ -17,7 +17,7 @@ void AngelScript::ErrorHandler::SetScriptEngine(asIScriptEngine* pScriptEngine)
 
 void AngelScript::MessageCallback(const asSMessageInfo* msg, void* param)
 {
-	String256 message = String256::Format("%s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
+	StringL message = StringL::Format("%s (%d, %d) : %s\n", msg->section, msg->row, msg->col, msg->message);
 	if (msg->type == asMSGTYPE_WARNING)
 		H_WARNING(message)
 	else if (msg->type == asMSGTYPE_INFORMATION)

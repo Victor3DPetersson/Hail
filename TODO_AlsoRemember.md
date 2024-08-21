@@ -1,4 +1,4 @@
-# TODO:
+# First todo's when starting out:
 [x] Complete Tutorial
 [x] Implement ImGui
 [x] Implement a mesh in a basic way
@@ -20,7 +20,9 @@
 [x] Improve growing array
 [] Memory allocators & memory pool
 [] Red-black tree and hashmap
-[] Long string class
+[x] Long string class
+[] Long Wide string class and send that to the renderer
+[] Font rendering
 [x] Make asserts and error Handling
 [x] Update the input handler and create an input to action map
 [] Threaded loading, make it safe to load from game thread
@@ -34,8 +36,7 @@
 [] Implement Mip-Mapping
 [] Implement a File watcher
 [] Make resource registry thread safe, could be done by locking it on write operations and waiting on read
-[] Font rendering
-[] 2D camera for the 2D rendering
+[x] 2D camera for the 2D rendering
 [] Resource registration Init Check if current path does not match the meta resource project path, and make a function to clean that up.
 [] Implement batch rendering of sprites
 [] Spline objects
@@ -43,7 +44,7 @@
 [] Angelscript, implement array
 [] Angelscript, replace std::string with our own string class
 [] Angelscript, add debugging support in VS code
-[] Angelscript, implement the input handler and debug commands to the scripts
+[x] Angelscript, implement the input handler and debug commands to the scripts
 [] Fix broken reloading of GPU resources and then make hot reloading 
 
 ## Important Notes

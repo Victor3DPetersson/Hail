@@ -1,35 +1,18 @@
 #pragma once
 #include "Utility\FilePath.hpp"
 #include "Containers\GrowingArray\GrowingArray.h"
+#include "AngelScriptDebuggerTypes.h"
 
 class asIScriptEngine;
 class asIScriptContext;
-class CDebugger;
 
 namespace Hail
 {
 	class FilePath;
 	namespace AngelScript
 	{
-		enum class eScriptLoadStatus
-		{
-			NoError,
-			FailedToLoad,
-			FailedToReload
-		};
-		struct Script
-		{
-			FilePath m_filePath;
-			uint64 m_lastWriteTime;
-			asIScriptContext* m_pScriptContext;
-			String64 m_name;
-			eScriptLoadStatus loadStatus;
-
-			uint32 m_reloadDelay;
-			bool m_isDirty;
-
-			// growing array included filepaths, add to filewatcher, callback fetches and fills dis
-		};
+		class ScriptDebugger;
+		class DebuggerServer;
 
 		class Runner
 		{
@@ -52,8 +35,8 @@ namespace Hail
 			void ReloadScript(Script& scriptToReload);
 
 			asIScriptEngine* m_pScriptEngine;
+			DebuggerServer* m_pDebuggerServer;
 			GrowingArray<Script> m_scripts;
-			CDebugger* m_pDebugger;
 		};
 
 	}

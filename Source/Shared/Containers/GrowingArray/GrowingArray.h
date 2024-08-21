@@ -39,7 +39,7 @@ namespace Hail
 		inline bool RemoveCyclicAtIndex(CountType itemNumber);
 		inline bool RemoveAtIndex(CountType itemNumber);
 		inline bool RemoveLast();
-		inline CountType Find(const T& object);
+		inline int Find(const T& object);
 
 		inline T& GetLast();
 		inline const T& GetLast() const;
@@ -315,7 +315,7 @@ namespace Hail
 	}
 
 	template <typename T, typename CountType>
-	CountType GrowingArray<typename T, typename CountType>::Find(const T& object)
+	int GrowingArray<typename T, typename CountType>::Find(const T& object)
 	{
 		if (!m_arrayPointer)
 			return -1;
@@ -396,7 +396,6 @@ namespace Hail
 		{
 			m_arrayPointer[m_elementCount] = tempPointer[m_elementCount];
 		}
-
 
 		delete[] tempPointer;
 		tempPointer = nullptr;

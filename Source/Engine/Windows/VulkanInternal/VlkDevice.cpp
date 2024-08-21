@@ -191,7 +191,7 @@ bool VlkDevice::CheckValidationLayerSupport()
 				break;
 			}
 		}
-		Debug_PrintConsoleString256(String256::Format("\t%s", availableLayers[foundLayer].layerName));
+		Debug_PrintConsoleStringL(StringL::Format("\t%s", availableLayers[foundLayer].layerName));
 	}
 
 	if (layersFound != VALIDATIONLAYERCOUNT) {
@@ -226,7 +226,7 @@ bool VlkDevice::CheckRequiredExtensions()
 				break;
 			}
 		}
-		Debug_PrintConsoleString256(String256::Format("\t%s", extensions[extension].extensionName));
+		Debug_PrintConsoleStringL(StringL::Format("\t%s", extensions[extension].extensionName));
 	}
 	if (foundCounter != REQUIREDEXTENSIONCOUNT)
 	{
@@ -326,7 +326,7 @@ bool VlkDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device)
 				break;
 			}
 		}
-		Debug_PrintConsoleString256(String256::Format("\t%s", availableExtensions[extension].extensionName));
+		Debug_PrintConsoleStringL(StringL::Format("\t%s", availableExtensions[extension].extensionName));
 	}
 	if (foundCounter != DEVICEEXTENSIONCOUNT)
 	{

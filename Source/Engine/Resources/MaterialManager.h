@@ -40,7 +40,7 @@ namespace Hail
 		bool LoadMaterialFromSerializeableInstanceGUID(const GUID guid);
 
 		// Resource handling functionality
-		FilePath CreateMaterial(const FilePath& outPath, const String256& name, eMaterialType type) const;
+		FilePath CreateMaterial(const FilePath& outPath, const String64& name, eMaterialType type) const;
 		void ExportMaterial(MaterialResourceContextObject& materialToExport);
 		static void LoadMaterialMetaData(const FilePath& materialPath, MetaResource& resourceToFill);
 		static SerializeableMaterial LoadMaterialSerializeableInstance(const FilePath& materialPath);

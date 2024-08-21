@@ -534,7 +534,7 @@ namespace Hail
 		uint32 materialIndex = LoadMaterialFromSerializedData(matData);
 		if (materialIndex == MAX_UINT)
 		{
-			H_ERROR(String256::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid)));
+			H_ERROR(StringL::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid)));
 			return false;
 		}
 
@@ -593,7 +593,7 @@ namespace Hail
 			}
 		}
 
-		String256 inPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
+		StringL inPath = StringL::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
 
 		InOutStream inStream;
 
@@ -617,7 +617,7 @@ namespace Hail
 			if (!m_compiler->CompileSpecificShader(shaderName, shaderType))
 			{
 				DeInitCompiler();
-				H_ERROR(String256::Format("Failed to load shader: %s", shaderName));
+				H_ERROR(StringL::Format("Failed to load shader: %s", shaderName));
 				return nullptr;
 			}
 		}
@@ -690,7 +690,7 @@ namespace Hail
 		}
 	}
 
-	FilePath MaterialManager::CreateMaterial(const FilePath& outPath, const String256& name, eMaterialType type) const
+	FilePath MaterialManager::CreateMaterial(const FilePath& outPath, const String64& name, eMaterialType type) const
 	{
 		FilePath finalPath = outPath + FileObject(name.Data(), "mat", outPath);
 		InOutStream outStream;
@@ -720,7 +720,7 @@ namespace Hail
 		case Hail::eMaterialType::DEBUG_LINES2D:
 		case Hail::eMaterialType::DEBUG_LINES3D:
 		case Hail::eMaterialType::COUNT:
-			H_ERROR(String256::Format("Create material type is incorrect for material: %s", name));
+			H_ERROR(StringL::Format("Create material type is incorrect for material: %s", name));
 			break;
 		default:
 			break;

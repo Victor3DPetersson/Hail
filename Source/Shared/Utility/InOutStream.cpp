@@ -142,7 +142,7 @@ bool Hail::InOutStream::Read(void* readOutData, size_t sizeOfData, size_t number
     {
         const size_t remainingSize = m_fileSize - m_currentPosition;
 
-        H_WARNING(String256::Format("Reading longer by: %i than file length: %i with file object: %s", sizeOfData * numberOfElements - remainingSize, m_fileSize, m_objectThatOpenedStream.Name().CharString()))
+        H_WARNING(StringL::Format("Reading longer by: %i than file length: %i with file object: %s", sizeOfData * numberOfElements - remainingSize, m_fileSize, m_objectThatOpenedStream.Name().CharString()))
 
         m_currentPosition = m_fileSize;
         fread(readOutData, remainingSize, 1, (FILE*)m_fileHandle);
@@ -167,7 +167,7 @@ bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)
 {
     if (IsReading())
     {
-        H_ASSERT(m_currentPosition + sizeOfData * numberOfElements < m_fileSize, String256::Format("Seeking outside range in file object: %s", m_objectThatOpenedStream.Name().CharString()))
+        H_ASSERT(m_currentPosition + sizeOfData * numberOfElements < m_fileSize, StringL::Format("Seeking outside range in file object: %s", m_objectThatOpenedStream.Name().CharString()))
         if (m_currentPosition + sizeOfData * numberOfElements > m_fileSize)
             return false;
 
@@ -178,7 +178,7 @@ bool Hail::InOutStream::Seek(int64 sizeOfData, int64 numberOfElements)
             return true;
         }
     }
-    H_WARNING(String256::Format("Trying to seek in Writing file object: %s", m_objectThatOpenedStream.Name().CharString()))
+    H_WARNING(StringL::Format("Trying to seek in Writing file object: %s", m_objectThatOpenedStream.Name().CharString()))
     return false;
 }
 

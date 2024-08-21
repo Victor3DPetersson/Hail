@@ -58,7 +58,7 @@ namespace Hail
                     Debug_PrintConsoleConstChar("Type not declared");
                     continue;
                 }
-                Debug_PrintConsoleString256(String256::Format("Size: %i Typename: %s Field offset: %i", field.type->size, field.type->name.Data(), field.offset));
+                Debug_PrintConsoleStringL(StringL::Format("Size: %i Typename: %s Field offset: %i", field.type->size, field.type->name.Data(), field.offset));
                 if (field.type->usesCustomSerializer)
                 {
                     SerializeableObjectCustom* source = reinterpret_cast<SerializeableObjectCustom*>(&outClass) + field.offset;

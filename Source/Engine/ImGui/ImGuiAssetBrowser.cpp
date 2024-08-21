@@ -78,7 +78,7 @@ namespace
 		return false;
 	}
 
-	bool CreateMaterialPopup(const Hail::FilePath& currentPath, String256& assetName, uint32& materialType)
+	bool CreateMaterialPopup(const Hail::FilePath& currentPath, String64& assetName, uint32& materialType)
 	{
 		ImGui::OpenPopup("Creation Window");
 		if (ImGui::BeginPopupModal("Creation Window"))

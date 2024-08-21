@@ -65,9 +65,9 @@ void Hail::InputActionMap::Init(InputHandler* pInputHandler)
 		inOutObject.CloseFile();
 
 		//Get lines
-		GrowingArray<String256> lines(16);
+		GrowingArray<String64> lines(16);
 		{
-			String256 currentLine;
+			String64 currentLine;
 			uint32 currentCharCount = 0;
 			for (size_t i = 0; i < characterStream.Size(); i++)
 			{
@@ -77,7 +77,7 @@ void Hail::InputActionMap::Init(InputHandler* pInputHandler)
 					currentLine[currentCharCount] = 0;
 					lines.Add(currentLine);
 					currentLine[0] = 0;
-					memset(currentLine.Data(), 0, 256);
+					memset(currentLine.Data(), 0, 64);
 					currentCharCount = 0;
 					continue;
 				}
@@ -89,7 +89,7 @@ void Hail::InputActionMap::Init(InputHandler* pInputHandler)
 		// Line to value 
 		for (size_t i = 0; i < lines.Size(); i++)
 		{
-			String256& line = lines[i];
+			String64& line = lines[i];
 			int8 currentCharacter = line[0];
 			uint32 currentCharacterCounter = 1;
 			uint32 lastCommaPosition = 0;

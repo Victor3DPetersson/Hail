@@ -51,7 +51,7 @@ namespace Hail
 		ResourceManager* m_resourceManager;
 		bool m_openedFileBrowser;
 		bool m_creatingMaterial;
-		String256 m_createResourceName;
+		String64 m_createResourceName;
 		uint32 m_createMaterialType;
 	};
 

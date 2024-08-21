@@ -53,7 +53,7 @@ namespace Hail
 	{
 		Transform2D transform;
 		glm::vec3 color;
-		String256 text;
+		StringL text;
 		uint32_t materialInstanceID;
 		uint16_t index;
 		bool lerpCommand;

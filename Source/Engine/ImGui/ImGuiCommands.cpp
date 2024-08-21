@@ -19,7 +19,7 @@ namespace Hail
 }
 
 
-bool Hail::ImGuiCommandRecorder::AddBeginCommand(const String256& windowName, uint32_t responseIndex)
+bool Hail::ImGuiCommandRecorder::AddBeginCommand(const String64& windowName, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::WINDOW, windowName, responseIndex };
 	m_commands.Add(command);
@@ -32,7 +32,7 @@ void Hail::ImGuiCommandRecorder::AddCloseCommand()
 	m_commands.Add(command);
 }
 
-bool Hail::ImGuiCommandRecorder::AddTreeNode(const String256& name, uint32_t responseIndex)
+bool Hail::ImGuiCommandRecorder::AddTreeNode(const String64& name, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TREENODE, name, responseIndex };
 	m_commands.Add(command);
@@ -45,7 +45,7 @@ void Hail::ImGuiCommandRecorder::AddTreeNodeEnd()
 	m_commands.Add(command);
 }
 
-bool Hail::ImGuiCommandRecorder::AddTabBar(const String256& name, uint32_t responseIndex)
+bool Hail::ImGuiCommandRecorder::AddTabBar(const String64& name, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TAB_BAR, name, responseIndex };
 	m_commands.Add(command);
@@ -58,7 +58,7 @@ void Hail::ImGuiCommandRecorder::AddTabBarEnd()
 	m_commands.Add(command);
 }
 
-bool Hail::ImGuiCommandRecorder::AddTabItem(const String256& name, uint32_t responseIndex)
+bool Hail::ImGuiCommandRecorder::AddTabItem(const String64& name, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::BEGIN_TAB_ITEM, name, responseIndex };
 	m_commands.Add(command);
@@ -90,35 +90,35 @@ void Hail::ImGuiCommandRecorder::AddSeperator()
 	m_commands.Add(command);
 }
 
-void Hail::ImGuiCommandRecorder::AddCheckbox(const String256& name, uint32_t responseIndex, bool value)
+void Hail::ImGuiCommandRecorder::AddCheckbox(const String64& name, uint32_t responseIndex, bool value)
 {
 	ImGuiCommand command = { IMGUI_TYPES::CHECKBOX, name, responseIndex };
 	m_commands.Add(command);
 	m_bools[responseIndex].SetValue(value);
 }
 
-void Hail::ImGuiCommandRecorder::AddFloatSlider(const String256& name, uint32_t responseIndex, float value)
+void Hail::ImGuiCommandRecorder::AddFloatSlider(const String64& name, uint32_t responseIndex, float value)
 {
 	ImGuiCommand command = { IMGUI_TYPES::SLIDERF, name, responseIndex };
 	m_commands.Add(command);
 	m_floats[responseIndex].SetValue(value);
 }
 
-void Hail::ImGuiCommandRecorder::AddIntSlider(const String256& name, uint32_t responseIndex, int value)
+void Hail::ImGuiCommandRecorder::AddIntSlider(const String64& name, uint32_t responseIndex, int value)
 {
 	ImGuiCommand command = { IMGUI_TYPES::SLIDERI, name, responseIndex };
 	m_commands.Add(command);
 	m_ints[responseIndex].SetValue(value);
 }
 
-bool Hail::ImGuiCommandRecorder::AddButton(const String256& name, uint32_t responseIndex)
+bool Hail::ImGuiCommandRecorder::AddButton(const String64& name, uint32_t responseIndex)
 {
 	ImGuiCommand command = { IMGUI_TYPES::BUTTON, name, responseIndex };
 	m_commands.Add(command);
 	return m_bools[responseIndex].GetResponseValue();
 }
 
-bool Hail::ImGuiCommandRecorder::AddTextInput(const String256& name, uint32_t responseIndex, const String256& textValue)
+bool Hail::ImGuiCommandRecorder::AddTextInput(const String64& name, uint32_t responseIndex, const StringL& textValue)
 {
 	ImGuiCommand command = { IMGUI_TYPES::TEXT_INPUT, name, responseIndex };
 	m_commands.Add(command);
@@ -444,7 +444,6 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 	case ImGuiCommandRecorder::IMGUI_TYPES::WINDOW:
 		if (m_numberOfOpenWindows != 0)
 		{
-			//Debug_PrintConsoleString256(String256::Format("Pop Window"));
 			m_numberOfOpenWindows--;
 		}
 		ImGui::End();
@@ -452,7 +451,6 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 	case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TREENODE:
 		if (m_numberOfOpenTreeNodes != 0)
 		{
-			//Debug_PrintConsoleString256(String256::Format("Pop TreeNode"));
 			ImGui::TreePop();
 			m_numberOfOpenTreeNodes--;
 		}
@@ -460,7 +458,6 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 	case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_BAR:
 		if (m_numberOfOpenTabBars != 0)
 		{
-			//Debug_PrintConsoleString256(String256::Format("Pop TabBar"));
 			ImGui::EndTabBar();
 			m_numberOfOpenTabBars--;
 		}
@@ -468,7 +465,6 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 	case ImGuiCommandRecorder::IMGUI_TYPES::BEGIN_TAB_ITEM:
 		if (m_numberOfOpenTabItems != 0)
 		{
-			//Debug_PrintConsoleString256(String256::Format("Pop TabItem"));
 			ImGui::EndTabItem();
 			m_numberOfOpenTabItems--;
 		}

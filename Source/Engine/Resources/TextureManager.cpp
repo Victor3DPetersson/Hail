@@ -158,7 +158,7 @@ bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameI
 CompiledTexture TextureManager::LoadTextureInternal(const char* textureName, MetaResource& metaResourceToFill, bool reloadTexture)
 {
 	CompiledTexture returnTexture;
-	String256 inPath = String256::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
+	StringL inPath = StringL::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
 
 	InOutStream inStream;
 
@@ -207,7 +207,6 @@ TextureResource* Hail::TextureManager::LoadTextureInternalPath(const FilePath& p
 bool Hail::TextureManager::ReadStreamInternal(CompiledTexture& textureToFill, InOutStream& inStream, MetaResource& metaResourceToFill) const
 {
 	inStream.Read((char*)&textureToFill.header, sizeof(TextureHeader));
-	//Debug_PrintConsoleString256(String256::Format("Texture Width:%i Heigth:%i :%s", textureToFill.m_compiledTextureData.header.width, textureToFill.m_compiledTextureData.header.height, "\n"));
 	switch (ToEnum<TEXTURE_TYPE>(textureToFill.header.textureType))
 	{
 	case TEXTURE_TYPE::R8G8B8A8_SRGB:
@@ -308,7 +307,7 @@ bool TextureManager::CompileTexture(const char* textureName)
 	bool foundTexture = false;
 
 	FilePath currentPath;
-	String256 filenameStr;
+	String64 filenameStr;
 	while (fileIterator.IterateOverFolderRecursively())
 	{
 		currentPath = fileIterator.GetCurrentPath();
@@ -316,7 +315,7 @@ bool TextureManager::CompileTexture(const char* textureName)
 		{
 			currentPath = fileIterator.GetCurrentPath();
 			const FileObject& currentFileObject = currentPath.Object();
-			FromWCharToConstChar(currentFileObject.Name(), filenameStr, 256);
+			FromWCharToConstChar(currentFileObject.Name(), filenameStr, 64);
 			if (StringCompare(filenameStr, textureName) 
 				&& StringCompare(L"tga", currentFileObject.Extension()) 
 				|| StringCompare(L"TGA", currentFileObject.Extension()))
@@ -329,7 +328,7 @@ bool TextureManager::CompileTexture(const char* textureName)
 
 	if (!foundTexture)
 	{
-		Debug_PrintConsoleConstChar(String256::Format("Could not find texture : %s", textureName));
+		Debug_PrintConsoleConstChar(StringL::Format("Could not find texture : %s", textureName));
 		return false;
 	}
 	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(currentPath);

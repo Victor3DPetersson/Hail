@@ -13,8 +13,7 @@ std::cout << string << std::endl;
 #endif 
 }
 
-
-inline void Debug_PrintConsoleString256([[maybe_unused]] String256 string)
+inline void Debug_PrintConsoleStringL([[maybe_unused]] Hail::StringL& string)
 {
 #ifdef DEBUG 
 	std::cout << string.Data() << std::endl;

@@ -53,7 +53,6 @@ namespace Hail
 			{
 				if (StringCompare(wShaderName, currentPath.Object().Name()))
 				{
-					//DEBUG_PRINT_CONSOLE_STRING(String256::Format("%s%s", "\tfile: ", filenameStr.c_str()));
 					if (StringCompare(currentPath.Object().Extension(), extension))
 					{
 						filePath = currentPath;
@@ -148,13 +147,11 @@ namespace Hail
 
 	bool LocalExportCompiledShader(const char* shaderName, const char* compiledShaderData, ShaderHeader shaderHeader, MetaResource metaResource)
 	{
-		//Debug_PrintConsoleString256(String256::Format("\nExporting Shader:\n%s:", shaderName));
-		//Debug_PrintConsoleString256(String256::Format("Shader Size:%i:%s", shaderHeader.sizeOfShaderData, "\n"));
 		{
 			FilePath filePath(SHADER_DIR_OUT);
 			filePath.CreateFileDirectory();
 		}
-		FilePath outPath = String256::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
+		FilePath outPath = StringL::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
 
 		InOutStream readStream;
 		if (readStream.OpenFile(outPath, FILE_OPEN_TYPE::READ, true))

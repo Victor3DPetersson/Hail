@@ -72,15 +72,15 @@ namespace
 	//TODO: replace with cusotm string class
 	void localPrint(std::string& stringToPrint)
 	{
-		H_DEBUGMESSAGE(stringToPrint);
+		H_DEBUGMESSAGE(stringToPrint.c_str());
 	}
 	void localPrintError(std::string& stringToPrint)
 	{
-		H_ERROR(stringToPrint);
+		H_ERROR(stringToPrint.c_str());
 	}
 	void localPrintWarning(std::string& stringToPrint)
 	{
-		H_WARNING(stringToPrint);
+		H_WARNING(stringToPrint.c_str());
 	}
 
 	// All non normalized functions work in pixel coordinates.

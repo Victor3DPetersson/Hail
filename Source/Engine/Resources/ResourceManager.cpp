@@ -171,7 +171,7 @@ void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 	{
 		// TODO: Add resource load error type for registry.
 		//reg.SetResourceLoadError
-		H_ERROR(String256::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid).Data()));
+		H_ERROR(StringL::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid).Data()));
 	}
 }
 
