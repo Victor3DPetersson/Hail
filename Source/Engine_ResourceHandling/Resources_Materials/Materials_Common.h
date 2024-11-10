@@ -20,10 +20,11 @@ namespace Hail
 	enum class eMaterialType : uint8
 	{
 		SPRITE,
-		FULLSCREEN_PRESENT_LETTERBOX,
+		FULLSCREEN_PRESENT_LETTERBOX, // TODO: Move to Custom material type
 		MODEL3D,
 		DEBUG_LINES2D,
 		DEBUG_LINES3D,
+		CUSTOM, // Used for anything that is not batched unlike standardized sprite and mesh rendering.
 		COUNT
 	};
 
@@ -45,8 +46,8 @@ namespace Hail
 	};
 
 	// Each set corresponds to the update frequency of the data to the GPU
-	// Global gets updated once per frame
-	// Material is uploaded for a material domain, like sprites, debug lines and the like
+	// Global gets updated once per frame and are owned by the engine
+	// Material is uploaded for a material domain, like sprites, debug lines and custom pipelines.
 	// Instance is uploaded on a per draw-call frequency
 	enum eDecorationSets
 	{

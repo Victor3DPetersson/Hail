@@ -23,6 +23,7 @@ namespace Hail
 		void AllocateString(const wchar_t* const pString, uint32 length, wchar_t** pOwningPointer);
 
 		void MoveStringAllocator(char** pFrom, char** pToo);
+		void MoveStringAllocator(wchar_t** pFrom, wchar_t** pToo);
 
 		void DeallocateString(char** pToDeAllocate);
 		void DeallocateString(wchar_t** pToDeAllocate);

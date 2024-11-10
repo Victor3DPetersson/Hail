@@ -71,8 +71,6 @@ namespace Hail
 	void Cleanup();
 }
 
-
-
 bool Hail::InitEngine(StartupAttributes startupData)
 {
 	SetMainThread();
@@ -116,6 +114,12 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
+	if (!g_engineData->renderer->Initialize())
+	{
+		Cleanup();
+		return false;
+	}
+
 	ResourceInterface::InitializeResourceInterface(*g_engineData->resourceManager);
 
 	g_engineData->inputActionMap.Init(g_engineData->inputHandler);

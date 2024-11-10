@@ -7,6 +7,8 @@ namespace Hail
 {
 	class VlkFrameBufferTexture;
 	class VlkMaterial;
+	class VlkMaterialTypeObject;
+	class VlkPipeline;
 
 	class VlkMaterialManager : public MaterialManager
 	{
@@ -15,23 +17,28 @@ namespace Hail
 		void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain) override;
 
 	private:
+		void BindPipelineToContext(Pipeline* pPipeline, RenderContext* pRenderContext) override;
 
 		void BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial) override;
 		bool InitMaterialInternal(Material* pMaterial, uint32 frameInFlight) override;
+		bool InitMaterialPipelineInternal(MaterialPipeline* pMaterialPipeline, uint32 frameInFlight) override;
 		bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance) override;
 		void ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight) override;
 		Material* CreateUnderlyingMaterial() override;
-		bool CreateFramebuffers(VlkMaterial& vlkMaterial, uint32 frameInFlight);
+		MaterialPipeline* CreateUnderlyingMaterialPipeline() override;
+		Pipeline* CreateUnderlyingPipeline() override;
+		bool CreateFramebuffers(VlkPipeline& vlkPipeline, uint32 frameInFlight);
 		// TODO: Fix this one to not be hard-coded when making a render-graph / setting up dependencies of materials.
-		bool CreateRenderpass(VlkMaterial& vlkMaterial);
-		bool CreateMaterialTypeDescriptor(Material* pMaterial) override;
+		bool CreateRenderpass(VlkPipeline& vlkPipeline, bool bSpecialCase);
+		bool CreateMaterialTypeObject(Pipeline* pPipeline) override;
 		// The pipeline holds all the Sets layouts.
-		bool CreatePipelineLayout(Material* pMaterial);
-		bool CreateGraphicsPipeline(VlkMaterial& vlkMaterial);
+		bool CreatePipelineLayout(VlkPipeline& vlkPipeline, VlkMaterial* pMaterial);
+		bool CreateGraphicsPipeline(VlkPipeline& vlkPipeline);
 		//bool CreateComputePipeline(VlkMaterial& vlkMaterial);
 
+		// TODO, remove function and make this go through the context
 		// Assigns the buffers and samplers that are registered to the material, so not instance descriptors.
-		void AllocateTypeDescriptors(VlkMaterial& vlkMaterial, uint32 frameInFlight);
+		void AllocateTypeDescriptors(VlkPipeline& vlkPipeline, uint32 frameInFlight);
 
 		VlkFrameBufferTexture* m_passesFrameBufferTextures[(uint32)(eMaterialType::COUNT)];
 	};

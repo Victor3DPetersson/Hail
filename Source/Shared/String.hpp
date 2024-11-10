@@ -373,6 +373,7 @@ namespace Hail
 	public:
 		StringLW();
 		StringLW(const char* const string);
+		StringLW(const wchar_t* const string);
 		StringLW(const StringL& anotherString);
 		StringLW(const StringLW& anotherWString);
 		StringLW(const String64& string64);
@@ -380,17 +381,17 @@ namespace Hail
 		StringLW(StringLW&& moveableString);
 		~StringLW();
 
-		static StringLW Format(const char* const format, ...);
+		static StringLW Format(const wchar_t* const format, ...);
 		operator const wchar_t* () const;
 		operator wchar_t* ();
-		StringL& operator=(const StringLW& anotherString);
-		StringL& operator=(StringLW&& moveableString);
-		StringL& operator=(const char* const pString);
-		StringL& operator=(const wchar_t* const pWString);
-		StringL& operator+=(StringLW& anotherString);
-		StringL& operator+=(const char* pString);
-		StringL& operator+=(const wchar_t* pWString);
-		StringL operator+(const StringLW& string1);
+		StringLW& operator=(const StringLW& anotherString);
+		StringLW& operator=(StringLW&& moveableString);
+		StringLW& operator=(const char* const pString);
+		StringLW& operator=(const wchar_t* const pWString);
+		StringLW& operator+=(StringLW& anotherString);
+		StringLW& operator+=(const char* pString);
+		StringLW& operator+=(const wchar_t* pWString);
+		StringLW operator+(const StringLW& string1);
 
 		wchar_t* Data();
 		const wchar_t* const Data() const;

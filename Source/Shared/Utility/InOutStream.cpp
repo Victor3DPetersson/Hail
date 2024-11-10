@@ -148,8 +148,11 @@ bool Hail::InOutStream::Read(void* readOutData, size_t sizeOfData, size_t number
         fread(readOutData, remainingSize, 1, (FILE*)m_fileHandle);
         return true;
     }
-    m_currentPosition += sizeOfData * numberOfElements;
-    fread(readOutData, sizeOfData, numberOfElements, (FILE*)m_fileHandle);
+    if (sizeOfData * numberOfElements > 0) 
+    {
+        m_currentPosition += sizeOfData * numberOfElements;
+        fread(readOutData, sizeOfData, numberOfElements, (FILE*)m_fileHandle);
+    }
     return true;
 }
 

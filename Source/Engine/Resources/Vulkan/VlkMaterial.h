@@ -22,10 +22,10 @@ namespace Hail
 		VkInternalMaterialDescriptorSet m_instanceData;
 	};
 
-	class VlkMaterialTypeDescriptor : public MaterialTypeDescriptor
+	class VlkMaterialTypeObject : public MaterialTypeObject
 	{
 	public:
-		VlkMaterialTypeDescriptor();
+		VlkMaterialTypeObject();
 
 		void CleanupResource(RenderingDevice& device) override;
 
@@ -35,13 +35,12 @@ namespace Hail
 		VkDescriptorSet m_globalDescriptors[MAX_FRAMESINFLIGHT];
 	};
 
-	class VlkMaterial : public Material
+	class VlkPipeline : public Pipeline
 	{
 	public:
 
 		void CleanupResource(RenderingDevice& device) override;
 		void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) override;
-
 		VlkFrameBufferTexture* m_frameBufferTextures = nullptr;
 		uint32 numberOfFrameBufferTextures = 0;
 
@@ -50,14 +49,32 @@ namespace Hail
 		VkPipeline m_pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 
-		VkDescriptorSetLayout m_instanceSetLayout = VK_NULL_HANDLE;
-
-		GrowingArray<VkInternalMaterialDescriptorSet> m_instanceDescriptors;
-
 		bool m_ownsFrameBuffer = true;
 		VkFramebuffer m_frameBuffer[MAX_FRAMESINFLIGHT];
 	};
 
+	class VlkMaterial : public Material
+	{
+	public:
+
+		void CleanupResource(RenderingDevice& device) override;
+		void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) override;
+
+		VkDescriptorSetLayout m_instanceSetLayout = VK_NULL_HANDLE;
+
+		GrowingArray<VkInternalMaterialDescriptorSet> m_instanceDescriptors;
+
+
+	};
+
+	class VlkMaterialPipeline : public MaterialPipeline
+	{
+	public:
+		void CleanupResource(RenderingDevice& device) override;
+		void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) override;
+
+		
+	};
 
 
 }

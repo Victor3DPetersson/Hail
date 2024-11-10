@@ -76,9 +76,11 @@ namespace Hail
 
 		const BufferProperties& GetProperties() { return m_properties; }
 		const uint32 GetBufferSize() const;
-
+		const uint32 GetID() const { return m_id; }
 	protected:
 		BufferProperties m_properties;
+		uint32 m_id = UINT_MAX;
+		static uint32 g_idCounter;
 	};
 
 }

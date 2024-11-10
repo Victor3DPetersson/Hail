@@ -27,11 +27,12 @@ namespace Hail
 
 		// Creates the memory on the heap for X amount of items, if it already has that capacity nothing happens.
 		void Prepare(CountType numberOfItemsToInit);
+		void PrepareAndFill(CountType numberOfItemsToInit);
 
 		inline T& operator[](const CountType& index);
 		inline const T& operator[](const CountType& index) const;
 
-		inline void Add(const T& object);
+		inline T& Add(const T& object);
 		inline T& Add();
 		inline void Insert(CountType index, const T& object);
 
@@ -40,6 +41,13 @@ namespace Hail
 		inline bool RemoveAtIndex(CountType itemNumber);
 		inline bool RemoveLast();
 		inline int Find(const T& object);
+		// Search condition have to be a lambda with input argument (const T& a), return state [ return bool }
+		template<class SearchCondition>
+		int FindCustomCondition(SearchCondition searchCondition);
+
+		// Search condition have to be a lambda with input argument (const T& a, const T&b), return a < b;
+		template<class Comparer>
+		void Sort(Comparer compareFunc);
 
 		inline T& GetLast();
 		inline const T& GetLast() const;
@@ -166,6 +174,13 @@ namespace Hail
 	}
 
 	template<typename T, typename CountType>
+	inline void GrowingArray<T, CountType>::PrepareAndFill(CountType numberOfItemsToInit)
+	{
+		Prepare(numberOfItemsToInit);
+		m_elementCount = numberOfItemsToInit;
+	}
+
+	template<typename T, typename CountType>
 	inline void GrowingArray<T, CountType>::Fill()
 	{
 		m_elementCount = m_capacity;
@@ -215,7 +230,7 @@ namespace Hail
 	}
 
 	template <typename T, typename CountType>
-	void GrowingArray<typename T, typename CountType>::Add(const T& object)
+	T& GrowingArray<typename T, typename CountType>::Add(const T& object)
 	{
 		if (!m_arrayPointer)
 			Prepare(m_capacity != 0 ? m_capacity : 8);
@@ -225,6 +240,7 @@ namespace Hail
 
 		m_arrayPointer[m_elementCount] = object;
 		++m_elementCount;
+		return GetLast();
 	}
 
 	template <typename T, typename CountType>
@@ -329,7 +345,6 @@ namespace Hail
 		}
 
 		return -1;
-
 	}
 
 	template <typename T, typename CountType>
@@ -412,4 +427,46 @@ namespace Hail
 		m_capacity = 0;
 		RemoveAll();
 	}
+
+	template<typename T, typename CountType>
+	template<class SearchCondition>
+	inline int GrowingArray<T, CountType>::FindCustomCondition(SearchCondition searchCondition)
+	{
+		if (!m_elementCount)
+			return -1;
+
+		for (int i = 0; i < m_elementCount; i++)
+		{
+			if (searchCondition(m_arrayPointer[i]))
+				return i;
+		}
+
+		return -1;
+	}
+
+	template<typename T, typename CountType>
+	template<class Comparer>
+	inline void GrowingArray<T, CountType>::Sort(Comparer compareFunc)
+	{
+		// currently implemented with a Bubble sort from online, I will update this later with a linear sort if below 128 entries, otherwise it should be a quicksort
+		CountType n = m_elementCount;
+
+		// Outer loop that corresponds to the number of elements to be sorted
+		for (int i = 0; i < n - 1; i++) 
+		{
+			// Last i elements are already in place
+			for (int j = 0; j < n - i - 1; j++) 
+			{
+				// Comparing adjacent elements
+				if (compareFunc(m_arrayPointer[j], m_arrayPointer[j + 1]))
+				{
+					// Should maybe be done with stl::swap especially if T is an expensive object to create a copy of and should be moved, but ehh, fuck stl amiright? 
+					const T jVal = m_arrayPointer[j];
+					m_arrayPointer[j] = m_arrayPointer[j + 1];
+					m_arrayPointer[j + 1] = jVal;
+				}
+			}
+		}
+	}
+
 }

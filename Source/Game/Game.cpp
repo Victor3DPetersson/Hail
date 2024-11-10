@@ -243,7 +243,7 @@ namespace Hail
 			H_WARNING("Warning frome game");
 		}
 
-		player.color.r = sinf(totalTime) * 0.5 + 0.5f;
+		player.color.x = sinf(totalTime) * 0.5 + 0.5f;
 
 		for (uint32_t i = 1; i < 5; i++)
 		{

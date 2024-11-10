@@ -272,13 +272,13 @@ bool Hail::ResourceRegistry::GetIsResourceLoadedInternal(const GrowingArray<Meta
 
 bool Hail::ResourceRegistry::IsResourceOutOfDateInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
 {
-	for (size_t i = 0; i < m_textureResources.Size(); i++)
+	for (size_t i = 0; i < list.Size(); i++)
 	{
 		if (list[i].m_resource.GetGUID() == resourceGuid)
 		{
 			CommonFileData sourceCurrentFileData = list[i].m_resource.GetSourceFilePath().GetFilePath().Object().GetFileData();
 			const CommonFileData& serializedSourceFileData = list[i].m_resource.GetSourceFileData();
-			return sourceCurrentFileData.m_lastWriteTime.m_highDateTime != serializedSourceFileData.m_lastWriteTime.m_highDateTime && 
+			return sourceCurrentFileData.m_lastWriteTime.m_highDateTime != serializedSourceFileData.m_lastWriteTime.m_highDateTime || 
 				sourceCurrentFileData.m_lastWriteTime.m_lowDateTime != serializedSourceFileData.m_lastWriteTime.m_lowDateTime;
 		}
 	}

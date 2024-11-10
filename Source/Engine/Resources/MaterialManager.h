@@ -7,14 +7,16 @@
 
 namespace Hail
 {
-	class ShaderCompiler;
-	class FrameBufferTexture;
-	class RenderingDevice;
-	class TextureManager;
-	class RenderingResourceManager;
-	class SwapChain;
 	class FilePath;
+	class FrameBufferTexture;
 	class MetaResource;
+	class RenderContext;
+	class RenderingDevice;
+	class RenderingResourceManager;
+	class ShaderCompiler;
+	class SwapChain;
+	class TextureManager;
+
 	struct MaterialResourceContextObject;
 
 	class MaterialManager
@@ -25,6 +27,9 @@ namespace Hail
 		// Loads the base default materials for each type.
 		bool InitDefaultMaterial(eMaterialType  type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight);
 		Material* GetMaterial(eMaterialType materialType, uint32 materialIndex);
+		
+		MaterialPipeline* CreateMaterialPipeline(MaterialCreationProperties props);
+
 		const MaterialInstance& GetMaterialInstance(uint32_t instanceID, eMaterialType materialType);
 		// Creates a material Instance from a materialType and materialSortKey which corresponds to a Shader Blend mode Key.
 		bool InitMaterialInstance(eMaterialType materialType, MaterialInstance instanceData);
@@ -38,6 +43,10 @@ namespace Hail
 		void InitDefaultMaterialInstances();
 		
 		bool LoadMaterialFromSerializeableInstanceGUID(const GUID guid);
+
+		MaterialTypeObject* GetTypeData(Pipeline* pPipeline);
+
+		virtual void BindPipelineToContext(Pipeline* pPipeline, RenderContext* pRenderContext) = 0;
 
 		// Resource handling functionality
 		FilePath CreateMaterial(const FilePath& outPath, const String64& name, eMaterialType type) const;
@@ -59,13 +68,15 @@ namespace Hail
 		uint32 LoadMaterialFromSerializedData(const SerializeableMaterial& loadedMaterial);
 		virtual void BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial) = 0;
 		virtual bool InitMaterialInternal(Material* pMaterial, uint32 frameInFlight) = 0;
+		virtual bool InitMaterialPipelineInternal(MaterialPipeline* pMaterial, uint32 frameInFlight) = 0;
 		virtual bool InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance) = 0;
 		virtual void ClearMaterialInternal(Material* pMaterial, uint32 frameInFlight) = 0;
 		// Creates the material that is based on the underlying API
 		virtual Material* CreateUnderlyingMaterial() = 0;
-
+		virtual MaterialPipeline* CreateUnderlyingMaterialPipeline() = 0;
+		virtual Pipeline* CreateUnderlyingPipeline() = 0;
 		// Setting up the material type, or binds the already created type definition to the material
-		virtual bool CreateMaterialTypeDescriptor(Material* pMaterial) = 0;
+		virtual bool CreateMaterialTypeObject(Pipeline* pPipelinel) = 0;
 
 		void ClearHighLevelMaterial(Material* pMaterial, uint32 frameInFlight);
 		void CheckMaterialInstancesToReload(uint32 frameInFlight);
@@ -87,7 +98,7 @@ namespace Hail
 		ShaderCompiler* m_compiler = nullptr;
 
 		StaticArray<GrowingArray<Material*>, (uint32)eMaterialType::COUNT> m_materials;
-		StaticArray<MaterialTypeDescriptor*, (uint32)eMaterialType::COUNT> m_materialTypeDescriptors;
+		StaticArray<MaterialTypeObject*, (uint32)eMaterialType::COUNT> m_MaterialTypeObjects;
 
 		// TODO: maybe join these together in to one object
 		GrowingArray<MaterialInstance> m_materialsInstanceData;

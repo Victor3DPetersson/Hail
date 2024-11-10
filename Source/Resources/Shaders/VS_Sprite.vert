@@ -113,7 +113,7 @@ void main()
 	vertexPos.x *= ratio;
 	vertexPos.xy += instanceData.position_scale.xy * 2.0 - 1.0; // add input position
 
-	gl_Position = vec4(vertexPos.xy, 0.01, 1.0);
+	gl_Position = vec4(vertexPos.xy, 0.00, 1.0);
 	outTexCoord = vec2(finalUV.x, finalUV.y);
 	outColor = instanceData.color;
 	outCutoutThreshold = instanceData.scaleMultiplier_effectData_cutoutThreshold_padding.z;

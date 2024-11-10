@@ -17,7 +17,7 @@ namespace Hail
 
 	void MaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain)
 	{
-		m_materialTypeDescriptors.Fill(nullptr);
+		m_MaterialTypeObjects.Fill(nullptr);
 		m_renderDevice = renderingDevice;
 		m_textureManager = textureResourceManager;
 		m_swapChain = swapChain;
@@ -73,31 +73,26 @@ namespace Hail
 			switch (type)
 			{
 			case eMaterialType::SPRITE:
-				pMaterial->m_pShaders.Add(LoadShader("VS_Sprite", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pShaders.Add(LoadShader("FS_Sprite", eShaderType::Fragment, reloadShader));
-				pMaterial->m_type = eMaterialType::SPRITE;
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_Sprite", eShaderType::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_Sprite", eShaderType::Fragment, reloadShader));
 				break;
 			case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-				pMaterial->m_pShaders.Add(LoadShader("VS_fullscreenPass", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pShaders.Add(LoadShader("FS_fullscreenPass", eShaderType::Fragment, reloadShader));
-				pMaterial->m_type = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_fullscreenPass", eShaderType::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_fullscreenPass", eShaderType::Fragment, reloadShader));
 				break;
 			case eMaterialType::MODEL3D:
-				pMaterial->m_pShaders.Add(LoadShader("VS_triangle", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pShaders.Add(LoadShader("FS_triangle", eShaderType::Fragment, reloadShader));
-				pMaterial->m_type = eMaterialType::MODEL3D;
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_triangle", eShaderType::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_triangle", eShaderType::Fragment, reloadShader));
 				break;
 			case eMaterialType::DEBUG_LINES2D:
-				pMaterial->m_pShaders.Add(LoadShader("VS_DebugLines2D", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pShaders.Add(LoadShader("FS_DebugLines", eShaderType::Fragment, reloadShader));
-				pMaterial->m_type = eMaterialType::DEBUG_LINES2D;
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_DebugLines2D", eShaderType::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_DebugLines", eShaderType::Fragment, reloadShader));
 				break;
 			case eMaterialType::DEBUG_LINES3D:
 				return true;
 				// TODO:
-				pMaterial->m_pShaders.Add(LoadShader("VS_DebugLines", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pShaders.Add(LoadShader("FS_DebugLines", eShaderType::Fragment, reloadShader));
-				pMaterial->m_type = eMaterialType::DEBUG_LINES3D;
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_DebugLines", eShaderType::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_DebugLines", eShaderType::Fragment, reloadShader));
 				break;
 			case eMaterialType::COUNT:
 				break;
@@ -107,25 +102,28 @@ namespace Hail
 			CompiledShader* shaders[2];
 			shaders[0] = nullptr;
 			shaders[1] = nullptr;
-			for (size_t i = 0; i < pMaterial->m_pShaders.Size(); i++)
+			for (size_t i = 0; i < pMaterial->m_pPipeline->m_pShaders.Size(); i++)
 			{
-				if (!pMaterial->m_pShaders[i])
+				if (!pMaterial->m_pPipeline->m_pShaders[i])
 				{
 					H_ASSERT(false, "Failed to load default shader.");
 					return false;
 				}
-				if (pMaterial->m_pShaders[i]->loadState != eShaderLoadState::LoadedToRAM)
+				if (pMaterial->m_pPipeline->m_pShaders[i]->loadState != eShaderLoadState::LoadedToRAM)
 				{
 					H_ASSERT(false, "Failed to load default shader.");
 					return false;
 				}
-				shaders[i] = pMaterial->m_pShaders[i];
-				m_defaultShaders[(uint32)type].Add(pMaterial->m_pShaders[i]);
+				shaders[i] = pMaterial->m_pPipeline->m_pShaders[i];
+				m_defaultShaders[(uint32)type].Add(pMaterial->m_pPipeline->m_pShaders[i]);
 			}
 			uint32 combinedShaderHash = LocalGetCombinedShaderHash(shaders[0], shaders[1]);
-			const uint64 materialSortKey = GetMaterialSortValue(pMaterial->m_type, pMaterial->m_blendMode, combinedShaderHash);
-			pMaterial->m_sortKey = materialSortKey;
-			pMaterial->m_type = type;
+			const uint64 materialSortKey = GetMaterialSortValue(pMaterial->m_pPipeline->m_type, pMaterial->m_pPipeline->m_blendMode, combinedShaderHash);
+			pMaterial->m_pPipeline->m_sortKey = materialSortKey;
+			pMaterial->m_pPipeline->m_type = type;
+			pMaterial->m_pPipeline->m_typeRenderPass = type;
+			pMaterial->m_pPipeline->m_bUseTypePasses = true;
+			pMaterial->m_pPipeline->m_bUseTypeRenderPasses = true;
 			m_materials[(uint32_t)type].Add(pMaterial);
 		}
 
@@ -159,7 +157,7 @@ namespace Hail
 
 	struct ShaderMetaData
 	{
-		SerializeableMaterial::ShaderType m_serializeableType;
+		ShaderProperties m_serializeableType;
 		String64 m_name;
 	};
 
@@ -202,7 +200,7 @@ namespace Hail
 		switch (matType)
 		{
 		case Hail::eMaterialType::SPRITE:
-			shaderString = "VS_Sprite" ;
+			shaderString = "VS_Sprite";
 			break;
 		case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 			shaderString = "VS_fullscreenPass";
@@ -258,10 +256,10 @@ namespace Hail
 			return LocalGetDefaultFragmentShaderForMaterial(matType);
 		case Hail::eShaderType::Fragment:
 			return LocalGetDefaultVertexShaderForMaterial(matType);
-			break;
+		case Hail::eShaderType::Mesh:
+			return LocalGetDefaultFragmentShaderForMaterial(matType);
 		case Hail::eShaderType::Compute:
 		case Hail::eShaderType::Amplification:
-		case Hail::eShaderType::Mesh:
 		case Hail::eShaderType::None:
 			break;
 		default:
@@ -271,30 +269,34 @@ namespace Hail
 		return { eShaderType::None, GuidZero, "" };
 	}
 
-	uint32 MaterialManager::LoadMaterialFromSerializedData(const SerializeableMaterial& loadedMaterialInstance)
+	VectorOnStack<ShaderMetaData, 2> LocalGetShadersForMaterial(eMaterialType materialType, ShaderProperties shader1, ShaderProperties shader2, bool createDefaultMaterial)
 	{
-		// Get Shader pair or individual shader for the material.
 		VectorOnStack<ShaderMetaData, 2> shaders;
-		if (loadedMaterialInstance.m_shaders[0].m_id == GuidZero && loadedMaterialInstance.m_shaders[1].m_id == GuidZero)
+		if (shader1.m_id == GuidZero && shader2.m_id == GuidZero)
 		{
-			shaders = LocalGetDefaultShadersFromType(loadedMaterialInstance.m_baseMaterialType);
+			if (!createDefaultMaterial)
+			{
+				H_ERROR("creating an incomplete material without shaders.");
+				return shaders;
+			}
+			shaders = LocalGetDefaultShadersFromType(materialType);
 		}
 		else
 		{
 			ResourceRegistry& resourceRegistry = GetResourceRegistry();
-			if (loadedMaterialInstance.m_shaders[0].m_id != GuidZero && resourceRegistry.GetIsResourceImported(ResourceType::Shader, loadedMaterialInstance.m_shaders[0].m_id))
+			if (shader1.m_id != GuidZero && resourceRegistry.GetIsResourceImported(ResourceType::Shader, shader1.m_id))
 			{
-				shaders.Add({ loadedMaterialInstance.m_shaders[0].m_type, loadedMaterialInstance.m_shaders[0].m_id, resourceRegistry.GetResourceName(ResourceType::Shader, loadedMaterialInstance.m_shaders[0].m_id)});
+				shaders.Add({ shader1.m_type, shader1.m_id, resourceRegistry.GetResourceName(ResourceType::Shader, shader1.m_id) });
 			}
-			if (loadedMaterialInstance.m_shaders[1].m_id != GuidZero && resourceRegistry.GetIsResourceImported(ResourceType::Shader, loadedMaterialInstance.m_shaders[1].m_id))
+			if (shader2.m_id != GuidZero && resourceRegistry.GetIsResourceImported(ResourceType::Shader, shader2.m_id))
 			{
-				shaders.Add({ loadedMaterialInstance.m_shaders[1].m_type, loadedMaterialInstance.m_shaders[1].m_id, resourceRegistry.GetResourceName(ResourceType::Shader, loadedMaterialInstance.m_shaders[1].m_id) });
+				shaders.Add({ shader2.m_type, shader2.m_id, resourceRegistry.GetResourceName(ResourceType::Shader, shader2.m_id) });
 			}
 		}
 
-		if (shaders.Size() == 1 && LocalDoesTypeRequire2Shaders(loadedMaterialInstance.m_baseMaterialType))
+		if (shaders.Size() == 1 && LocalDoesTypeRequire2Shaders(materialType))
 		{
-			shaders.Add(LocalGetDefaultPairShaderFromShaderMaterialTypePair(shaders[0].m_serializeableType.m_type, loadedMaterialInstance.m_baseMaterialType));
+			shaders.Add(LocalGetDefaultPairShaderFromShaderMaterialTypePair(shaders[0].m_serializeableType.m_type, materialType));
 
 			if (shaders[0].m_serializeableType.m_type == eShaderType::Fragment)
 			{
@@ -303,6 +305,15 @@ namespace Hail
 				shaders[1] = fragmentShader;
 			}
 		}
+		return shaders;
+	}
+
+
+
+	uint32 MaterialManager::LoadMaterialFromSerializedData(const SerializeableMaterial& loadedMaterialInstance)
+	{
+		// Get Shader pair or individual shader for the material.
+		VectorOnStack<ShaderMetaData, 2> shaders = LocalGetShadersForMaterial(loadedMaterialInstance.m_baseMaterialType, loadedMaterialInstance.m_shaders[0], loadedMaterialInstance.m_shaders[1], true);
 
 		if (shaders.Empty())
 		{
@@ -315,7 +326,7 @@ namespace Hail
 		for (size_t i = 0; i < m_materials[(uint8)loadedMaterialInstance.m_baseMaterialType].Size(); i++)
 		{
 			Material& loadedMaterial = *m_materials[(uint8)loadedMaterialInstance.m_baseMaterialType][i];
-			if (loadedMaterial.m_sortKey == materialSortKey)
+			if (loadedMaterial.m_pPipeline->m_sortKey == materialSortKey)
 			{
 				return i;
 			}
@@ -323,14 +334,16 @@ namespace Hail
 
 		// Otherwise we create a new material
 		Material* pMaterial = CreateUnderlyingMaterial();
-		pMaterial->m_sortKey = materialSortKey;
-		pMaterial->m_type = loadedMaterialInstance.m_baseMaterialType;
-		pMaterial->m_blendMode = loadedMaterialInstance.m_blendMode;
-
+		pMaterial->m_pPipeline->m_sortKey = materialSortKey;
+		pMaterial->m_pPipeline->m_type = loadedMaterialInstance.m_baseMaterialType;
+		pMaterial->m_pPipeline->m_typeRenderPass = loadedMaterialInstance.m_baseMaterialType;
+		pMaterial->m_pPipeline->m_blendMode = loadedMaterialInstance.m_blendMode;
+		pMaterial->m_pPipeline->m_bUseTypePasses = true;
+		pMaterial->m_pPipeline->m_bUseTypeRenderPasses = true;
 		for (size_t i = 0; i < shaders.Size(); i++)
 		{
-			pMaterial->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
-			if (pMaterial->m_pShaders[i] == nullptr)
+			pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
+			if (pMaterial->m_pPipeline->m_pShaders[i] == nullptr)
 			{
 				SAFEDELETE(pMaterial);
 				return MAX_UINT;
@@ -365,6 +378,62 @@ namespace Hail
 	Material* MaterialManager::GetMaterial(eMaterialType materialType, uint32 materialIndex)
 	{
 		return m_materials[(uint32)materialType][materialIndex];
+	}
+
+	MaterialPipeline* MaterialManager::CreateMaterialPipeline(MaterialCreationProperties props)
+	{
+		// Get Shader pair or individual shader for the material.
+		VectorOnStack<ShaderMetaData, 2> shaders = LocalGetShadersForMaterial(props.m_typeRenderPass, props.m_shaders[0], props.m_shaders[1], false);
+
+		if (shaders.Empty())
+		{
+			return nullptr;
+		}
+
+		uint64 combinedShaderHash = LocalGetCombinedShaderHash(shaders[0].m_name, shaders.Size() == 1 ? "" : shaders[1].m_name);
+		const uint64 materialSortKey = GetMaterialSortValue(props.m_baseMaterialType, props.m_blendMode, combinedShaderHash);
+
+		MaterialPipeline* pMatPipeline = CreateUnderlyingMaterialPipeline();
+		Pipeline* pPipeline = pMatPipeline->m_pPipeline;
+		pPipeline->m_sortKey = materialSortKey;
+		pPipeline->m_type = props.m_baseMaterialType;
+		pPipeline->m_blendMode = props.m_blendMode;
+		for (size_t i = 0; i < shaders.Size(); i++)
+		{
+			pPipeline->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
+			if (pPipeline->m_pShaders[i] == nullptr)
+			{
+				SAFEDELETE(pPipeline);
+				return nullptr;
+			}
+		}
+		pPipeline->m_bIsCompute = props.m_shaders[0].m_type == eShaderType::Compute;
+		pPipeline->m_bUseTypePasses = props.m_bUsesMaterialTypeData;
+		pPipeline->m_bUseTypeRenderPasses = true;
+		pPipeline->m_typeRenderPass = props.m_typeRenderPass;
+
+		bool result = true;
+		for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
+		{
+			//TODO: Fortsätt att kolla här! :D 
+			if (InitMaterialPipelineInternal(pMatPipeline, i))
+			{
+				pMatPipeline->m_validator.ClearFrameData(i);
+			}
+			else
+			{
+				result &= false;
+				pMatPipeline->CleanupResource(*m_renderDevice);
+				break;
+			}
+		}
+
+		if (!result)
+		{
+			SAFEDELETE(pMatPipeline);
+			return nullptr;
+		}
+		return pMatPipeline;
 	}
 
 	const MaterialInstance& MaterialManager::GetMaterialInstance(uint32_t instanceID, eMaterialType materialType)
@@ -572,6 +641,17 @@ namespace Hail
 		return true;
 	}
 
+	MaterialTypeObject* MaterialManager::GetTypeData(Pipeline* pPipeline)
+	{
+		H_ASSERT(pPipeline, "Invalid pipeline");
+
+		if (pPipeline->m_bUseTypePasses)
+		{
+			return m_MaterialTypeObjects[(int)pPipeline->m_type];
+		}
+		return pPipeline->m_pTypeDescriptor;
+	}
+
 	//TODO: Add relative path support in the shader output
 	CompiledShader* MaterialManager::LoadShader(const char* shaderName, eShaderType shaderType, bool reloadShader, const char* shaderExtension)
 	{
@@ -677,10 +757,10 @@ namespace Hail
 	{
 		for (uint32 i = 0; i < (uint32)eMaterialType::COUNT; i++)
 		{
-			if (m_materialTypeDescriptors[i])
+			if (m_MaterialTypeObjects[i])
 			{
-				m_materialTypeDescriptors[i]->CleanupResource(*m_renderDevice);
-				SAFEDELETE(m_materialTypeDescriptors[i]);
+				m_MaterialTypeObjects[i]->CleanupResource(*m_renderDevice);
+				SAFEDELETE(m_MaterialTypeObjects[i]);
 			}
 
 			for (uint32 iMat = 0; iMat < m_materials[i].Size(); iMat++)

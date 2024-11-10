@@ -20,3 +20,4 @@ namespace Hail
 	void DrawCircle2D(RenderCommandPool& poolToFill, glm::vec2 pos, float radius, bool bAffectedBy2DCamera, glm::vec4 color = Vec4One, bool drawPixelSpace = false);
 	void DrawCircle2DPixelSpace(RenderCommandPool& poolToFill, glm::vec2 pos, float radius, bool bAffectedBy2DCamera, glm::vec4 color = Vec4One);
 }
+

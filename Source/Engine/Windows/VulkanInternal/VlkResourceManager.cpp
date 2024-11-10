@@ -82,26 +82,18 @@ void* VlkRenderingResourceManager::GetRenderingResources()
 	return &m_resources;
 }
 
-void VlkRenderingResourceManager::MapMemoryToBuffer(BufferObject* pBuffer, void* dataToMap, uint32_t sizeOfData)
+void VlkRenderingResourceManager::MapMemoryToBuffer(BufferObject* pBuffer, void* dataToMap, uint32_t sizeOfData, uint32 offset)
 {
-	// TODO assert here on pBuffer
+	H_ASSERT(pBuffer, "Invalid buffer mapped");
 	VlkBufferObject* pVlkBuffer = (VlkBufferObject*)pBuffer;
-	// TODO: Assert on size of data on the properties of the buffer
+	H_ASSERT(pBuffer->GetBufferSize() >= sizeOfData + offset, "Invalid offset or size of mapped data");
 	memcpy(pVlkBuffer->GetMappedMemory(m_swapChain->GetFrameInFlight()), dataToMap, sizeOfData);
 }
 
-void VlkRenderingResourceManager::CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor)
+BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor)
 {
 	// TODO assert on type::
 	VlkBufferObject* vlkBuffer = new VlkBufferObject();
 	vlkBuffer->Init(m_renderDevice, properties);
-	// TODO: add error on failure of buffer creation
-	if (properties.type == eBufferType::structured)
-	{
-		m_structuredBuffers[setToCreateBufferFor].Add(vlkBuffer);
-	}
-	else if (properties.type == eBufferType::uniform)
-	{
-		m_uniformBuffers[setToCreateBufferFor].Add(vlkBuffer);
-	}
+	return vlkBuffer;
 }

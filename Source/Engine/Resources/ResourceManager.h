@@ -6,10 +6,8 @@
 #include "BufferResource.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
 
-
 namespace Hail
 {
-	class Timer;
 	struct RenderCommandPool;
 	class FrameBufferTexture;
 	class MaterialManager;
@@ -17,6 +15,7 @@ namespace Hail
 	class RenderingResourceManager;
 	class SwapChain;
 	class TextureManager;
+	class Timer;
 
 	class ResourceManager
 	{
@@ -60,6 +59,8 @@ namespace Hail
 		MaterialManager* m_materialManager = nullptr;
 		TextureManager* m_textureManager = nullptr;
 		SwapChain* m_swapChain = nullptr;
+
+		// Resources
 
 		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
 

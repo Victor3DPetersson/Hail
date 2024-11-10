@@ -3,7 +3,7 @@
 #include "Resources_Materials\ShaderBufferList.h"
 using namespace Hail;
 
-BufferObject* Hail::RenderingResourceManager::GetBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint)
+BufferObject* Hail::RenderingResourceManager::GetGlobalBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint)
 {
 	// TODO: add asserts to this function 
 	if (bufferType == eBufferType::uniform)
@@ -41,32 +41,51 @@ BufferObject* Hail::RenderingResourceManager::GetBuffer(eDecorationSets setToGet
 bool Hail::RenderingResourceManager::InternalInit()
 {
     // TODO use a Macro definition from the ShaderBufferList and decipher that to remove the hard-coded aspect of this:
+
+    auto assignBuffer = [=](BufferObject* pBuffer,  eDecorationSets setToCreateBufferFor) {
+        if (pBuffer->GetProperties().type == eBufferType::structured)
+        {
+            m_structuredBuffers[setToCreateBufferFor].Add(pBuffer);
+        }
+        else if (pBuffer->GetProperties().type == eBufferType::uniform)
+        {
+            m_uniformBuffers[setToCreateBufferFor].Add(pBuffer);
+        }
+    };
+
     BufferProperties properties;
     for (size_t i = 0; i < (uint32)eGlobalUniformBuffers::count; i++)
     {
         properties.type = eBufferType::uniform;
         properties.numberOfElements = 1;
         properties.offset = 0;
+        properties.numberOfElements = 0;
+        properties.elementByteSize = 0;
         switch ((eGlobalUniformBuffers)i)
         {
         case Hail::eGlobalUniformBuffers::frameData:
+            properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(PerFrameUniformBuffer);
             break;
         case Hail::eGlobalUniformBuffers::viewData:
+            properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(PerCameraUniformBuffer);
             break;
         case Hail::eGlobalUniformBuffers::count:
         default:
-            // TODO: ASSERT
             break;
         }
-        CreateBuffer(properties, eDecorationSets::GlobalDomain);
+        if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
+            continue;
+        assignBuffer(CreateBuffer(properties, eDecorationSets::GlobalDomain), eDecorationSets::GlobalDomain);
     }
     for (size_t i = 0; i < (uint32)eGlobalStructuredBuffers::count; i++)
     {
         properties.type = eBufferType::structured;
         properties.numberOfElements = 1;
         properties.offset = 0;
+        properties.numberOfElements = 0;
+        properties.elementByteSize = 0;
         switch ((eGlobalStructuredBuffers)i)
         {
         case Hail::eGlobalStructuredBuffers::count:
@@ -74,7 +93,9 @@ bool Hail::RenderingResourceManager::InternalInit()
             // TODO: ASSERT
             break;
         }
-        CreateBuffer(properties, eDecorationSets::GlobalDomain);
+        if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
+            continue;
+        assignBuffer(CreateBuffer(properties, eDecorationSets::GlobalDomain), eDecorationSets::GlobalDomain);
     }
 
     for (size_t i = 0; i < (uint32)eMaterialUniformBuffers::count; i++)
@@ -82,6 +103,8 @@ bool Hail::RenderingResourceManager::InternalInit()
         properties.type = eBufferType::uniform;
         properties.numberOfElements = 0;
         properties.offset = 0;
+        properties.numberOfElements = 0;
+        properties.elementByteSize = 0;
         switch ((eMaterialUniformBuffers)i)
         {
         case Hail::eMaterialUniformBuffers::vulkanTutorialUniformBUffer:
@@ -93,13 +116,17 @@ bool Hail::RenderingResourceManager::InternalInit()
             // TODO: ASSERT
             break;
         }
-        CreateBuffer(properties, eDecorationSets::MaterialTypeDomain);
+        if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
+            continue;
+        assignBuffer(CreateBuffer(properties, eDecorationSets::MaterialTypeDomain), eDecorationSets::MaterialTypeDomain);
     }
 
     for (size_t i = 0; i < (uint32)eMaterialBuffers::count; i++)
     {
         properties.type = eBufferType::structured;
         properties.offset = 0;
+        properties.numberOfElements = 0;
+        properties.elementByteSize = 0;
         switch ((eMaterialBuffers)i)
         {
         case Hail::eMaterialBuffers::spriteInstanceBuffer:
@@ -112,10 +139,12 @@ bool Hail::RenderingResourceManager::InternalInit()
             break;
         case Hail::eMaterialBuffers::count:
         default:
-            // TODO: ASSERT
             break;
         }
-        CreateBuffer(properties, eDecorationSets::MaterialTypeDomain);
+        if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
+            continue;
+
+        assignBuffer(CreateBuffer(properties, eDecorationSets::MaterialTypeDomain), eDecorationSets::MaterialTypeDomain);
     }
 
 	return true;

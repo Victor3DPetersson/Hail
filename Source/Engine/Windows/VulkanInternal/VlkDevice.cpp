@@ -21,10 +21,20 @@
 
 #include "VlkVertex_Descriptor.h"
 
+/* Put this in a single .cpp file that's vulkan related: */
+PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_ = nullptr;
+
 using namespace Hail;
 
-constexpr uint32_t DEVICEEXTENSIONCOUNT = 1;
-const char* deviceExtensions[DEVICEEXTENSIONCOUNT] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+constexpr uint32_t DEVICEEXTENSIONCOUNT = 6;
+// VK_KHR_SPIRV_1_4_EXTENSION_NAME, "VK_KHR_shader_float_controls" are both required by the mesh shader extension
+const char* deviceExtensions[DEVICEEXTENSIONCOUNT] = { 
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	, VK_EXT_MESH_SHADER_EXTENSION_NAME
+	, VK_KHR_SPIRV_1_4_EXTENSION_NAME
+	, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME
+	, VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME
+	, VK_KHR_MAINTENANCE_4_EXTENSION_NAME };
 
 
 #ifdef NDEBUG
@@ -130,11 +140,11 @@ bool VlkDevice::CreateInstance()
 	}
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	appInfo.pApplicationName = "Hail Triangle";
-	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	appInfo.pApplicationName = "Hail";
+	appInfo.applicationVersion = VK_MAKE_VERSION(1, 3, 0);
 	appInfo.pEngineName = "Hail Engine";
-	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_0;
+	appInfo.engineVersion = VK_MAKE_VERSION(1, 3, 0);
+	appInfo.apiVersion = VK_API_VERSION_1_3;
 
 	VkInstanceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -163,6 +173,9 @@ bool VlkDevice::CreateInstance()
 	PickPhysicalDevice();
 	CreateLogicalDevice();
 
+	/* Put this in your code that initializes Vulkan (after you create your VkInstance and VkDevice): */
+	vkCmdDrawMeshTasksEXT_ = (PFN_vkCmdDrawMeshTasksEXT)vkGetDeviceProcAddr(m_device, "vkCmdDrawMeshTasksEXT"); // It depends on the function whether you want to use vkGetInstanceProcAddr or vkGetDeviceProcAdd
+
 	Hail::QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
 	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_graphicsQueue);
 	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_computeQueue);
@@ -182,7 +195,7 @@ bool VlkDevice::CheckValidationLayerSupport()
 	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers);
 
 	uint32_t layersFound = 0;
-	//Debug_PrintConsoleConstChar("Available layers:");
+	Debug_PrintConsoleConstChar("Available validation layers:");
 	for (uint32_t foundLayer = 0; foundLayer < layerCount; foundLayer++)
 	{
 		for (uint32_t validationLayer = 0; validationLayer < VALIDATIONLAYERCOUNT; validationLayer++) {
@@ -215,7 +228,7 @@ bool VlkDevice::CheckRequiredExtensions()
 
 	uint32_t foundCounter = 0;
 
-	//Debug_PrintConsoleConstChar("Available vKInstance extensions:");
+	Debug_PrintConsoleConstChar("Available vKInstance extensions:");
 	for (uint32_t extension = 0; extension < extensionCount; extension++)
 	{
 		for (uint32_t reqExtension = 0; reqExtension < REQUIREDEXTENSIONCOUNT; reqExtension++)
@@ -315,7 +328,7 @@ bool VlkDevice::CheckDeviceExtensionSupport(VkPhysicalDevice device)
 	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.Data());
 
 	uint32_t foundCounter = 0;
-	//Debug_PrintConsoleConstChar("available device extensions:");
+	Debug_PrintConsoleConstChar("Available device extensions:");
 	for (uint32_t extension = 0; extension < extensionCount; extension++)
 	{
 		for (uint32_t reqExtension = 0; reqExtension < DEVICEEXTENSIONCOUNT; reqExtension++)
@@ -390,7 +403,8 @@ void VlkDevice::CreateLogicalDevice()
 	deviceFeatures.samplerAnisotropy = VK_TRUE;
 	//TODO: Add an If debug
 	deviceFeatures.fillModeNonSolid = VK_TRUE;
-
+	deviceFeatures.wideLines = VK_TRUE;
+	
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.pQueueCreateInfos = queueCreateInfos.Data();
@@ -399,6 +413,33 @@ void VlkDevice::CreateLogicalDevice()
 
 	createInfo.enabledExtensionCount = DEVICEEXTENSIONCOUNT;
 	createInfo.ppEnabledExtensionNames = deviceExtensions;
+
+	// Adding mesh shader extension to our device.
+	VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderExtension{};
+	meshShaderExtension.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
+	meshShaderExtension.taskShader = VK_TRUE;
+	meshShaderExtension.meshShader = VK_TRUE;
+	meshShaderExtension.primitiveFragmentShadingRateMeshShader = VK_TRUE;
+	createInfo.pNext = (void*)&meshShaderExtension;
+
+	//VkPhysicalDeviceMeshShaderPropertiesEXT meshShaderProperties{};
+	//meshShaderProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
+	//meshShaderProperties.prefersCompactPrimitiveOutput = false;
+	//meshShaderExtension.pNext = &meshShaderProperties;
+
+
+	// Barycentric coords
+	VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR requested_fragment_shader_barycentric_features{};
+	requested_fragment_shader_barycentric_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
+	requested_fragment_shader_barycentric_features.fragmentShaderBarycentric = VK_TRUE;
+	meshShaderExtension.pNext = &requested_fragment_shader_barycentric_features;
+
+	VkPhysicalDeviceMaintenance4Features maintenance4Features{};
+	maintenance4Features.maintenance4 = VK_TRUE;
+	maintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
+	requested_fragment_shader_barycentric_features.pNext = &maintenance4Features;
+	maintenance4Features.pNext = nullptr;
+
 
 	if (enableValidationLayers) 
 	{

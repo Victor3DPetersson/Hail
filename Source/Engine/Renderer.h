@@ -15,16 +15,22 @@
 struct CompiledShader;
 namespace Hail
 {
+	struct RenderCommandPool;
+	struct RenderCommand_Mesh;
+	struct RenderCommand_Sprite;
+	
+	class FontRenderer;
+	class FrameBufferTexture;
+	class RenderContext;
 	class RenderingDevice;
 	class ResourceManager;
-	struct RenderCommandPool;
-	class FrameBufferTexture;
-	struct RenderCommand_Sprite;
-	struct RenderCommand_Mesh;
 	class Timer;
+	
 	class Renderer
 	{
 	public:
+
+		bool Initialize();
 
 		virtual bool InitDevice(Timer* timer) = 0;
 		virtual bool InitGraphicsEngine(ResourceManager* resourceManager) = 0;
@@ -43,15 +49,17 @@ namespace Hail
 		//virtual void FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;
 		//virtual void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) = 0;
 
-		virtual void BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame) = 0;
+		virtual void BindMaterialPipeline(Pipeline* pipelineToBind, bool bFirstMaterialInFrame) = 0;
 		virtual void EndMaterialPass() = 0;
 		virtual void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) = 0;
 		virtual void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
 		virtual void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) = 0;
 		virtual void RenderDebugLines3D(uint32 numberOfLinesToRender) = 0;
 		virtual void RenderLetterBoxPass() = 0;
+		virtual void RenderMeshlets(glm::uvec3 dispatchSize) = 0;
 
 		RenderingDevice* GetRenderingDevice() { return m_renderDevice; }
+		RenderContext* GetCurrentContext() { return m_pContext; }
 
 		void WindowSizeUpdated();
 	protected:
@@ -61,8 +69,12 @@ namespace Hail
 		ResourceManager* m_resourceManager = nullptr;
 		Timer* m_timer = nullptr;
 
+		// TODO: Should this be here? Figure out where we place our renderers and how to structure it properly.
+		FontRenderer* m_pFontRenderer = nullptr;
+
 		RenderingDevice* m_renderDevice = nullptr;
 		RenderCommandPool* m_commandPoolToRender;
-		uint64 m_currentlyBoundMaterial{};
+		RenderContext* m_pContext = nullptr;
+		uint64 m_currentlyBoundPipeline{};
 	};
 }

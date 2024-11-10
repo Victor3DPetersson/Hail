@@ -48,6 +48,55 @@ namespace Hail
 
 #define SAFEDELETE(ptr) if(ptr) { delete ptr; ptr = nullptr; }
 #define SAFEDELETE_ARRAY(ptr) if(ptr) { delete[] ptr; ptr = nullptr; }
+
+	inline bool IsSystemBigEndian()
+	{
+		union {
+			uint32_t i;
+			char c[4];
+		} endianInt = { 0x01020304 };
+
+		return endianInt.c[0] == 1;
+	}
+
+	template <typename T>
+	void SwapEndian(T& u)
+	{
+		static_assert (CHAR_BIT == 8, "CHAR_BIT != 8");
+
+		union
+		{
+			T u;
+			unsigned char u8[sizeof(T)];
+		} source, dest;
+
+		source.u = u;
+
+		for (size_t k = 0; k < sizeof(T); k++)
+			dest.u8[k] = source.u8[sizeof(T) - k - 1];
+
+		u = dest.u;
+	}
+	
+	static bool IsBitSet(uint8 byte, int bitIndex)
+	{
+		return ((byte >> bitIndex) & 1) == 1;
+	}
+
+	static bool IsBitSet(uint16 byte, int bitIndex)
+	{
+		return ((byte >> bitIndex) & 1) == 1;
+	}
+
+	static bool IsBitSet(uint32 byte, int bitIndex)
+	{
+		return ((byte >> bitIndex) & 1) == 1;
+	}
+
+	static bool IsBitSet(uint64 byte, int bitIndex)
+	{
+		return ((byte >> bitIndex) & 1) == 1;
+	}
 }
 
 

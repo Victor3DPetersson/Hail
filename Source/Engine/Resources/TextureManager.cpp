@@ -92,7 +92,7 @@ bool Hail::TextureManager::LoadTexture(const char* textureName)
 	if (compiledTextureData.loadState == TEXTURE_LOADSTATE::LOADED_TO_RAM)
 	{
 		TextureResource* textureResource = CreateTextureInternal(textureName, compiledTextureData);
-		textureResource->index = m_loadedTextures.Size();
+		textureResource->m_index = TextureResource::g_idCounter++;
 		textureResource->m_metaResource = metaData;
 		m_loadedTextures.Add(textureResource);
 		if (textureResource)
@@ -120,10 +120,10 @@ uint32 Hail::TextureManager::LoadTexture(GUID textureID)
 	TextureResource* pTexture = LoadTextureInternalPath(GetResourceRegistry().GetProjectPath(ResourceType::Texture, textureID));
 	if (pTexture)
 	{
-		pTexture->index = m_loadedTextures.Size();
+		pTexture->m_index = TextureResource::g_idCounter++;
 		m_loadedTextures.Add(pTexture);
 		GetResourceRegistry().SetResourceLoaded(ResourceType::Texture, pTexture->m_metaResource.GetGUID());
-		return pTexture->index;
+		return pTexture->m_index;
 	}
 	GetResourceRegistry().SetResourceUnloaded(ResourceType::Texture, textureID);
 	return INVALID_TEXTURE_HANDLE;
@@ -342,7 +342,13 @@ bool TextureManager::CompileTexture(const char* textureName)
 
 TextureResource* Hail::TextureManager::GetTexture(uint32_t index)
 {
-	return m_loadedTextures[index];
+	for (size_t i = 0; i < m_loadedTextures.Size(); i++)
+	{
+		if (m_loadedTextures[i]->m_index == index)
+			return m_loadedTextures[i];
+	}
+
+	return nullptr;
 }
 
 TextureResource* Hail::TextureManager::GetEngineTexture(eDecorationSets setDomainToGet, uint32_t bindingIndex, uint32 frameInFlight)
@@ -452,5 +458,5 @@ void Hail::TextureManager::CreateDefaultTexture()
 		}
 	}
 	m_defaultTexture = CreateTextureInternal("Default Texture", compiledTextureData);
-	m_defaultTexture->index = MAX_UINT;
+	m_defaultTexture->m_index = MAX_UINT;
 }

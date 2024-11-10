@@ -104,8 +104,6 @@ bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredT
 		return false;
 	}
 
-	//TODO replace with new long string once implemented
-	char finalEntry[1024];
 	for (uint32_t i = 0; i < numberOfRequiredTextures; i++)
 	{
 		if (!CompileSpecificTGATexture(texturesToCompile[i]))

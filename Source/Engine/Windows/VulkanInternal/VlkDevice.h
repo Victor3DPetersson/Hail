@@ -4,6 +4,11 @@
 #include "StartupAttributes.h"
 #define VK_USE_PLATFORM_WIN32_KHR
 #include "vulkan\vulkan.h"
+/* Put this somewhere in a header file and include it alongside (and after) vulkan.h: */
+extern PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_;
+// This #define lets you call the function the same way as if it was coming from the vulkan.h header
+#define vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_
+
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "Rendering\RenderDevice.h"
 namespace Hail

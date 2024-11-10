@@ -28,7 +28,6 @@ namespace Hail
 		void SetTextureFormat(TEXTURE_FORMAT format) { m_textureFormat = format; }
 		void SetDepthFormat(TEXTURE_DEPTH_FORMAT format) { m_depthFormat = format; }
 		void SetResolution(glm::uvec2 resolution) { m_resolution = resolution; }
-		void SetBindingPoint(uint32 bindingPoint) { m_bindingPoint = bindingPoint; }
 		void SetClearColor(glm::vec3 clearColor) { m_clearColor = clearColor; }
 
 		bool HasDepthAttachment() { return (m_depthFormat != TEXTURE_DEPTH_FORMAT::UNDEFINED); }
@@ -41,8 +40,6 @@ namespace Hail
 		virtual void CreateTextureResources(bool bIsColorTexture) = 0;
 
 		String64 m_bufferName;
-		bool m_isBoundAsTarget = false;
-		uint32 m_bindingPoint = UINT_MAX;
 		TEXTURE_FORMAT m_textureFormat = TEXTURE_FORMAT::UNDEFINED;
 		TEXTURE_DEPTH_FORMAT m_depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED;
 		glm::uvec2 m_resolution;

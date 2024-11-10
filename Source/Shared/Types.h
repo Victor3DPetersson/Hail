@@ -62,5 +62,4 @@ namespace Hail
         res360,
         Count
     };
-
 }

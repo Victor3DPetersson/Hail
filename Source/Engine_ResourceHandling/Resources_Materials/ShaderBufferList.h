@@ -2,7 +2,7 @@
 
 namespace Hail
 {
-	// TODO make some kind of macro to define these and their buffer sizes, as they are defined by the engine and are fixed size
+	// TODO flytta ut så att det endast är globala buffrar och texturer som hänger här, inte pass specific data som tex sprite buffer osv.
 	// Set 0 
 	enum class eGlobalUniformBuffers
 	{

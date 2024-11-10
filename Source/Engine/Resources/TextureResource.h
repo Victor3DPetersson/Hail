@@ -13,12 +13,14 @@ namespace Hail
 	public:
 		virtual void CleanupResource(RenderingDevice* device) = 0;
 		virtual void CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth) = 0;
-	//private:
+
 		String64 textureName;
-		uint32_t index = 0;
+		uint32_t m_index;
 		CompiledTexture m_compiledTextureData;
 		ResourceValidator m_validator;
 		MetaResource m_metaResource;
+
+		static uint32 g_idCounter;
 	};
 
 	// Only use for ImGui data

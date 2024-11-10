@@ -41,7 +41,6 @@
 
 using namespace Hail;
 
-
 bool VlkRenderer::InitDevice(Timer* timer)
 {
 	m_timer = timer;
@@ -218,23 +217,41 @@ void Hail::VlkRenderer::EndFrame()
 	m_boundMaterialType = eMaterialType::COUNT;
 }
 
-void Hail::VlkRenderer::BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame)
+VectorOnStack< VkDescriptorSet, 3> localGetMaterialDescriptors(ResourceManager* pResourceManager, VlkPipeline* pVlkPipeline, uint32 frameInFlightIndex)
 {
-	if (m_currentlyBoundMaterial != materialToBind.m_sortKey && !bFirstMaterialInFrame)
+	VectorOnStack< VkDescriptorSet, 3> descriptorSets;
+	VlkMaterialTypeObject* pMaterialType = (VlkMaterialTypeObject*)pResourceManager->GetMaterialManager()->GetTypeData(pVlkPipeline);;
+
+	if (pMaterialType->m_globalSetLayout != VK_NULL_HANDLE)
+	{
+		descriptorSets.Add(pMaterialType->m_globalDescriptors[frameInFlightIndex]);
+	}
+	if (pMaterialType->m_typeSetLayout != VK_NULL_HANDLE)
+	{
+		descriptorSets.Add(pMaterialType->m_typeDescriptors[frameInFlightIndex]);
+	}
+
+	return descriptorSets;
+}
+
+void Hail::VlkRenderer::BindMaterialPipeline(Pipeline* pPipelineToBind, bool bFirstMaterialInFrame)
+{
+	H_ASSERT(pPipelineToBind, "Material bound without a valid pipeline.");
+
+	if (m_currentlyBoundPipeline != pPipelineToBind->m_sortKey && !bFirstMaterialInFrame)
 	{
 		EndMaterialPass();
 	}
-	if (m_currentlyBoundMaterial == materialToBind.m_sortKey)
+	if (m_currentlyBoundPipeline == pPipelineToBind->m_sortKey)
 	{
 		return;
 	}
-	m_currentlyBoundMaterial = materialToBind.m_sortKey;
+	m_currentlyBoundPipeline = pPipelineToBind->m_sortKey;
 
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
-	MaterialTypeDescriptor* pMaterialTypeDescriptor = materialToBind.m_pTypeDescriptor;
-	VlkMaterial& vlkMaterial = *((VlkMaterial*)&materialToBind);
+	MaterialTypeObject* pMaterialTypeObject = pPipelineToBind->m_pTypeDescriptor;
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-
+	VlkPipeline* pVlkPipeline = (VlkPipeline*)pPipelineToBind;
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = 0; // Optional
@@ -251,15 +268,15 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind, bool bFirstMateri
 		m_commandBufferBound = true;
 	}
 
-	const glm::uvec2 passResolution = vlkMaterial.m_frameBufferTextures->GetResolution();
+	const glm::uvec2 passResolution = pVlkPipeline->m_frameBufferTextures->GetResolution();
 	VkExtent2D extent = { passResolution.x, passResolution.y };
 	VkRenderPassBeginInfo renderPassInfo{};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	//TEMP: Will remove once we set up reload from resource manager
-	if (materialToBind.m_type != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
+	if (pVlkPipeline->m_type != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
-		renderPassInfo.renderPass = vlkMaterial.m_renderPass;
-		renderPassInfo.framebuffer = vlkMaterial.m_frameBuffer[frameInFlightIndex];
+		renderPassInfo.renderPass = pVlkPipeline->m_renderPass;
+		renderPassInfo.framebuffer = pVlkPipeline->m_frameBuffer[frameInFlightIndex];
 	}
 	else
 	{
@@ -269,7 +286,7 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind, bool bFirstMateri
 	renderPassInfo.renderArea.offset = { 0, 0 };
 	renderPassInfo.renderArea.extent = extent;
 
-	const glm::vec3 mainClearColor = vlkMaterial.m_frameBufferTextures->GetClearColor();
+	const glm::vec3 mainClearColor = pVlkPipeline->m_frameBufferTextures->GetClearColor();
 	VkClearValue mainClearColors[2];
 	mainClearColors[0].color = { mainClearColor.x, mainClearColor.y, mainClearColor.z, 1.0f };
 	mainClearColors[1].depthStencil = { 1.0f, 0 };
@@ -291,24 +308,15 @@ void Hail::VlkRenderer::BindMaterial(Material& materialToBind, bool bFirstMateri
 	mainScissor.extent = extent;
 	vkCmdSetScissor(commandBuffer, 0, 1, &mainScissor);
 
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkMaterial.m_pipeline);
-}
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pVlkPipeline->m_pipeline);
 
-VectorOnStack< VkDescriptorSet, 3> localGetMaterialDescriptors(VlkMaterial& vlkMaterial, uint32 frameInFlightIndex)
-{
-	VectorOnStack< VkDescriptorSet, 3> descriptorSets;
-	VlkMaterialTypeDescriptor* pMaterialType = (VlkMaterialTypeDescriptor*)vlkMaterial.m_pTypeDescriptor;
-
-	if (pMaterialType->m_globalSetLayout != VK_NULL_HANDLE)
+	if (pVlkPipeline->m_type == eMaterialType::CUSTOM)
 	{
-		descriptorSets.Add(pMaterialType->m_globalDescriptors[frameInFlightIndex]);
-	}
-	if (pMaterialType->m_typeSetLayout != VK_NULL_HANDLE)
-	{
-		descriptorSets.Add(pMaterialType->m_typeDescriptors[frameInFlightIndex]);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, pVlkPipeline, frameInFlightIndex);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pVlkPipeline->m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
+		m_boundMaterialType = eMaterialType::CUSTOM;
 	}
 
-	return descriptorSets;
 }
 
 void Hail::VlkRenderer::EndMaterialPass()
@@ -320,19 +328,20 @@ void Hail::VlkRenderer::EndMaterialPass()
 void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance)
 {
 	const MaterialInstance& materialInstance = m_resourceManager->GetMaterialManager()->GetMaterialInstance(m_commandPoolToRender->spriteCommands[spriteInstance].materialInstanceID, eMaterialType::SPRITE);
-	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex), false);
+	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex)->m_pPipeline, false);
 
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex);
+	VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::SPRITE)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(vlkMaterial, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
 		VkDeviceSize spriteOffsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_spriteVertexBuffer, spriteOffsets);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkMaterial.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::SPRITE;
 	}
 
@@ -340,8 +349,8 @@ void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandTo
 	glm::uvec4 pushConstants_instanceID_padding = { spriteInstance, 0, 0, 0 };
 	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID, eMaterialType::SPRITE);
 
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkMaterial.m_pipelineLayout, 2, 1, &vlkMaterial.m_instanceDescriptors[instanceMaterialData.m_gpuResourceInstance].descriptors[frameInFlightIndex], 0, nullptr);
-	vkCmdPushConstants(commandBuffer, vlkMaterial.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 2, 1, &vlkMaterial.m_instanceDescriptors[instanceMaterialData.m_gpuResourceInstance].descriptors[frameInFlightIndex], 0, nullptr);
+	vkCmdPushConstants(commandBuffer, vlkPipeline.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
 	vkCmdDraw(commandBuffer, 6, 1, 0, 0);
 }
 
@@ -350,16 +359,17 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkMaterial& material = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0);
+	VlkPipeline& vlkPipeline = *(VlkPipeline*)material.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::MODEL3D)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(material, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
 		if (material.m_instanceSetLayout != VK_NULL_HANDLE)
 		{
 			descriptorSets.Add(material.m_instanceDescriptors[0].descriptors[frameInFlightIndex]);
 		}
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, material.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::MODEL3D;
 	}
 
@@ -377,12 +387,13 @@ void Hail::VlkRenderer::RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0);
+	VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::DEBUG_LINES2D)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(vlkMaterial, frameInFlightIndex);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkMaterial.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::DEBUG_LINES2D;
 	}
 
@@ -400,15 +411,16 @@ void Hail::VlkRenderer::RenderDebugLines3D(uint32 numberOfLinesToRender)
 
 void Hail::VlkRenderer::RenderLetterBoxPass()
 {
-	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
+	const uint32 frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
 	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0);
+	VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(vlkMaterial, frameInFlightIndex);
-		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkMaterial.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 	}
 
@@ -428,6 +440,14 @@ void Hail::VlkRenderer::RenderLetterBoxPass()
 #endif
 	}
 	m_commandBufferBound = false;
+}
+
+void Hail::VlkRenderer::RenderMeshlets(glm::uvec3 dispatchSize)
+{
+	const uint32 frameInFlightIndex = m_swapChain->GetFrameInFlight();
+	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
+
+	vkCmdDrawMeshTasksEXT(commandBuffer, dispatchSize.x, dispatchSize.y, dispatchSize.z);
 }
 
 

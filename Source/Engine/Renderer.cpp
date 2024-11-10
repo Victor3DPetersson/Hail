@@ -4,11 +4,23 @@
 #include "RenderCommands.h"
 #include "Resources\ResourceManager.h"
 #include "Resources\MaterialManager.h"
-
+#include "Rendering\FontRenderer.h"
+#include "Rendering\RenderContext.h"
 
 void Hail::Renderer::WindowSizeUpdated()
 {
 	m_framebufferResized = true;
+}
+
+bool Hail::Renderer::Initialize()
+{
+	m_pContext = new RenderContext(m_resourceManager);
+
+	bool initializationResult = true;
+	m_pFontRenderer = new FontRenderer(this, m_resourceManager);
+	initializationResult &= m_pFontRenderer->Initialize();
+
+	return initializationResult;
 }
 
 void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
@@ -25,7 +37,7 @@ void Hail::Renderer::EndFrame()
 
 void Hail::Renderer::Render()
 {
-	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0), true);
+	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0)->m_pPipeline, true);
 	if (!m_commandPoolToRender->meshCommands.Empty())
 	{
 		RenderMesh(m_commandPoolToRender->meshCommands[0], 0);
@@ -39,10 +51,12 @@ void Hail::Renderer::Render()
 		RenderSprite(m_commandPoolToRender->spriteCommands[sprite], sprite);
 	}
 
-	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0), false);
+	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0)->m_pPipeline, false);
 	const uint32_t numberOfLines = m_commandPoolToRender->debugLineCommands.Size() * 2;
 	RenderDebugLines2D(numberOfLines, 0);
 
-	BindMaterial(*m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0), false);
+	m_pFontRenderer->Render();
+
+	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0)->m_pPipeline, false);
 	RenderLetterBoxPass();
 }

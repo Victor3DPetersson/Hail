@@ -78,6 +78,9 @@ bool Hail::VlkBufferObject::Init(RenderingDevice* device, BufferProperties prope
 		}
 		vkMapMemory(vlkDevice.GetDevice(), m_bufferMemory[i], properties.offset, properties.elementByteSize * properties.numberOfElements, 0, &m_bufferMapped[i]);
 	}
+
+	m_id = g_idCounter++;
+
 	return true;
 }
 

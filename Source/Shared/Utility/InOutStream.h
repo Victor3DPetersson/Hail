@@ -14,6 +14,7 @@ namespace Hail
 		READ_APPEND, //Opens a file for reading and appending.
 		NONE
 	};
+
 	class InOutStream
 	{
 	public:

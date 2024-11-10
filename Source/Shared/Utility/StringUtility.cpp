@@ -188,7 +188,7 @@ namespace Hail
 		if (inWCharLength >= outCharMaxlength)
 		{
 			wcstombs(outChar, inWChar, outCharMaxlength);
-			outChar[outCharMaxlength - 1] = '\0';
+			outChar[outCharMaxlength] = '\0';
 		}
 		else
 		{
@@ -202,7 +202,7 @@ namespace Hail
 		if (inCharLength >= outCharMaxlength)
 		{
 			mbstowcs(outChar, inChar, outCharMaxlength);
-			outChar[outCharMaxlength - 1] = '\0';
+			outChar[outCharMaxlength] = '\0';
 		}
 		else
 		{

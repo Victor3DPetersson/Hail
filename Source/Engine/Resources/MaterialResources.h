@@ -17,6 +17,24 @@ namespace Hail
 
 	constexpr uint8 MATERIAL_VERSION = 1;
 
+	struct ShaderProperties
+	{
+		eShaderType m_type = eShaderType::None;
+		GUID m_id = GuidZero;
+	};
+
+	struct MaterialCreationProperties
+	{
+		eMaterialType m_baseMaterialType{}; // Which type descriptor domain the pipeline will be using
+		eMaterialType m_typeRenderPass{}; // Which renderpass the popeline will be using
+		eBlendMode m_blendMode{};
+
+		// Add depth state and the like
+
+		ShaderProperties m_shaders[2];
+		bool m_bUsesMaterialTypeData{};
+	};
+
 	struct SerializeableMaterial
 	{
 		eMaterialType m_baseMaterialType{};
@@ -24,12 +42,7 @@ namespace Hail
 		uint16 m_extraData{};
 		StaticArray<GUID, MAX_TEXTURE_HANDLES> m_textureHandles;
 		glm::vec4 m_instanceFloatParameters;
-		struct ShaderType
-		{
-			eShaderType m_type = eShaderType::None;
-			GUID m_id = GuidZero;
-		};
-		ShaderType m_shaders[2];
+		ShaderProperties m_shaders[2];
 	};
 
 	// TODO: Add support for shader names in material instances
@@ -53,13 +66,15 @@ namespace Hail
 	uint64 GetMaterialSortValue(eMaterialType type, eBlendMode blend, uint64 shaderValues);
 
 	// Owns common data for a specific material type, so common textures and descriptors Set 1 and 0 data
-	class MaterialTypeDescriptor
+	class MaterialTypeObject
 	{
 	public:
 		virtual void CleanupResource(RenderingDevice& device) = 0;
 		eMaterialType m_type = eMaterialType::COUNT;
 		ResourceValidator m_typeDataValidator;
 		VectorOnStack<ReflectedShaderData, 2> m_expectedShaderData;
+
+		StaticArray<bool, MAX_FRAMESINFLIGHT> m_bBoundTypeData = false;
 	};
 	
 	// Descriptors unique to one material, Set 2 data
@@ -71,6 +86,22 @@ namespace Hail
 		ResourceValidator m_instanceDataValidator;
 	};
 
+	class Pipeline
+	{
+	public:
+		virtual void CleanupResource(RenderingDevice& device) = 0;
+		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
+		eMaterialType m_type = eMaterialType::COUNT;
+		VectorOnStack<CompiledShader*, 2> m_pShaders;
+		eBlendMode m_blendMode = eBlendMode::None;
+		uint64 m_sortKey = MAX_UINT;
+		bool m_bUseTypePasses = false;
+		bool m_bUseTypeRenderPasses = false;
+		eMaterialType m_typeRenderPass = eMaterialType::COUNT;
+		bool m_bIsCompute = false;
+		MaterialTypeObject* m_pTypeDescriptor = nullptr;
+	};
+
 	// The material owns the shader, has a pointer to the shared type data and owns the instance descriptors
 	class Material
 	{
@@ -79,18 +110,23 @@ namespace Hail
 		virtual void CleanupResource(RenderingDevice& device) = 0;
 		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
 
-		VectorOnStack<CompiledShader*, 2> m_pShaders;
-
-		eBlendMode m_blendMode = eBlendMode::None;
-		eMaterialType m_type = eMaterialType::COUNT;
-		uint64 m_sortKey = MAX_UINT;
 		ResourceValidator m_validator;
 
 		GrowingArray<MaterialInstanceDescriptor*> m_pInstanceDescriptors;
-		MaterialTypeDescriptor* m_pTypeDescriptor = nullptr;
+		Pipeline* m_pPipeline = nullptr;
 	};
 
+	// A full pipeline state object that owns its own type descriptor. Can not be instanced. 
+	class MaterialPipeline
+	{
+	public:
 
+		virtual void CleanupResource(RenderingDevice& device) = 0;
+		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
+
+		ResourceValidator m_validator;
+		Pipeline* m_pPipeline = nullptr;
+	};
 
 
 }

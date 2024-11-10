@@ -35,7 +35,7 @@ namespace Hail
 			extension = L"amp";
 			break;
 		case Hail::eShaderType::Mesh:
-			extension = L"msh";
+			extension = L"mesh";
 			break;
 		case Hail::eShaderType::Fragment:
 			extension = L"frag";
@@ -67,7 +67,7 @@ namespace Hail
 		}
 
 		shaderc_compile_options_t compileOptions = shaderc_compile_options_initialize();
-		shaderc_compile_options_set_target_env(compileOptions, shaderc_target_env::shaderc_target_env_vulkan, 0);
+		shaderc_compile_options_set_target_env(compileOptions, shaderc_target_env::shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
 
 		InOutStream stream;
 		if (!stream.OpenFile(filePath, FILE_OPEN_TYPE::READ, false))
@@ -106,6 +106,7 @@ namespace Hail
 		case eShaderType::Amplification:
 			break;
 		case eShaderType::Mesh:
+			compiledShader = shaderc_compile_into_spv(shaderCCompiler, shaderData.Data(), shaderData.Size(), shaderc_shader_kind::shaderc_glsl_mesh_shader, shaderName, "main", compileOptions);
 			break;
 		case eShaderType::Fragment:
 			compiledShader = shaderc_compile_into_spv(shaderCCompiler, shaderData.Data(), shaderData.Size(), shaderc_shader_kind::shaderc_glsl_fragment_shader, shaderName, "main", compileOptions);
@@ -185,6 +186,10 @@ namespace Hail
 		else if (strcmp(shaderExtension, "frag") == 0)
 		{
 			return eShaderType::Fragment;
+		}
+		else if (strcmp(shaderExtension, "mesh") == 0)
+		{
+			return eShaderType::Mesh;
 		}
 		return eShaderType::None;
 	}

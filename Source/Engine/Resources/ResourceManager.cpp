@@ -219,7 +219,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		spriteInstance.sizeMultiplier_effectData_cutoutThreshold_padding = { spriteSizeMultiplier.x, spriteSizeMultiplier.y, cutoutThreshhold, 0 };
 		m_spriteInstanceData.Add(spriteInstance);
 	}
-	BufferObject* spriteInstanceBuffer = m_renderingResourceManager->GetBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteInstanceBuffer);
+	BufferObject* spriteInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteInstanceBuffer);
 	m_renderingResourceManager->MapMemoryToBuffer(spriteInstanceBuffer, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
 	
 	//Debug Lines___
@@ -238,7 +238,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		line.color = debugLine.color2;
 		m_debugLineData.Add(line);
 	}
-	BufferObject* lineInstanceBuffer = m_renderingResourceManager->GetBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::lineInstanceBuffer);
+	BufferObject* lineInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::lineInstanceBuffer);
 	m_renderingResourceManager->MapMemoryToBuffer(lineInstanceBuffer, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
 
 	//Common GPU buffers___
@@ -252,7 +252,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	perFrameData.totalTime_horizonLevel.y = 0.0f;
 	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
 	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
-	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
+	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
 	m_renderingResourceManager->MapMemoryToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
 
 	TutorialUniformBufferObject ubo{};
@@ -263,13 +263,13 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		(float)(perFrameData.mainRenderResolution.x) / (float)(perFrameData.mainRenderResolution.y), 
 		renderPool.camera3D.GetNear(), renderPool.camera3D.GetFar());
 	ubo.proj[1][1] *= -1;
-	BufferObject* modelViewProjectionBuffer = m_renderingResourceManager->GetBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::uniform, (uint32)eInstanceUniformBuffer::modelViewProjectionData);
+	BufferObject* modelViewProjectionBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::uniform, (uint32)eInstanceUniformBuffer::modelViewProjectionData);
 	m_renderingResourceManager->MapMemoryToBuffer(modelViewProjectionBuffer, &ubo, sizeof(ubo));
 
 	PerCameraUniformBuffer perCameraData{};
 	perCameraData.proj = ubo.proj;
 	perCameraData.view = ubo.view;
-	BufferObject* perViewDataBuffer = m_renderingResourceManager->GetBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::viewData);
+	BufferObject* perViewDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::viewData);
 	m_renderingResourceManager->MapMemoryToBuffer(perViewDataBuffer, &perCameraData, sizeof(perCameraData));
 }
 

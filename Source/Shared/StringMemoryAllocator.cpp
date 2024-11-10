@@ -33,7 +33,7 @@ void Hail::StringMemoryAllocator::AllocateString(const char* const pString, uint
 	m_charBlock.AllocateString(length, pOwningPointer);
 	if (pString)
 	{
-		memcpy(*pOwningPointer, pString, length);
+		memcpy(*pOwningPointer, pString, length * sizeof(char));
 		(*pOwningPointer)[length] = 0;
 	}
 
@@ -44,7 +44,7 @@ void Hail::StringMemoryAllocator::AllocateString(const wchar_t* const pString, u
 	m_wCharBlock.AllocateString(length, pOwningPointer);
 	if (pString)
 	{
-		memcpy(*pOwningPointer, pString, length);
+		memcpy(*pOwningPointer, pString, length * sizeof(wchar_t));
 		(*pOwningPointer)[length] = 0;
 	}
 }
@@ -54,6 +54,11 @@ void Hail::StringMemoryAllocator::MoveStringAllocator(char** pFrom, char** pToo)
 	m_charBlock.MoveStringAllocator(pFrom, pToo);
 }
 
+void Hail::StringMemoryAllocator::MoveStringAllocator(wchar_t** pFrom, wchar_t** pToo)
+{
+	m_wCharBlock.MoveStringAllocator(pFrom, pToo);
+}
+
 void Hail::StringMemoryAllocator::DeallocateString(char** pToDeAllocate)
 {
 	m_charBlock.DeallocateString(pToDeAllocate);
@@ -61,5 +66,6 @@ void Hail::StringMemoryAllocator::DeallocateString(char** pToDeAllocate)
 
 void Hail::StringMemoryAllocator::DeallocateString(wchar_t** pToDeAllocate)
 {
+	m_wCharBlock.DeallocateString(pToDeAllocate);
 }
 

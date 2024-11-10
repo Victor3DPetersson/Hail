@@ -1,0 +1,83 @@
+#version 450
+#extension GL_EXT_mesh_shader : require
+
+layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
+{
+    uvec2 renderResolution;
+    uvec2 screenResolution;
+	vec2 totalTime_HorizonPosition;
+} constantVariables;
+
+layout(binding = 0, set = 1, std140) buffer GlyphVertexBuffer
+{
+   	vec4 glyphVerts[];
+};
+
+layout(binding = 1, set = 1, std140) buffer GlyphPrimitiveBuffers
+{
+   	uvec4 glyphPrimitives[];// xyz indices, w for flags.
+};
+
+struct RenderInstance
+{
+    vec2 pos;
+    float PixelSize;
+    uint glyphletColor;
+
+    uint vertexOffset;
+    uint indexOffset;
+    uint numberOfTrianglesNumberOfVertices; // 16 bits Tri count | << 16 bits vert count
+    uint padding;
+};
+
+layout(binding = 2, set = 1, std140) buffer InstanceBuffer
+{
+   	RenderInstance renderInstances[];
+};
+
+layout (location = 0) perprimitiveEXT out uint outTriangleType[];
+layout (location = 1) perprimitiveEXT out uint outTriangleID[];
+
+layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+layout(max_vertices=128, max_primitives=128) out;
+
+layout(triangles) out;
+
+void main()
+{   
+    uint tid = gl_LocalInvocationIndex.x; 
+    uint nVerts = 10;
+    uint nPrims = 10;
+    
+    RenderInstance glyphletInstance = renderInstances[gl_WorkGroupID.x];
+
+    uint numberOfVertices = (glyphletInstance.numberOfTrianglesNumberOfVertices >> 16) & 0xffff;
+    uint numberOfPrimitives = glyphletInstance.numberOfTrianglesNumberOfVertices & 0xffff;
+
+    SetMeshOutputsEXT(numberOfVertices, numberOfPrimitives);
+    
+    vec2 renderRes = vec2(constantVariables.renderResolution);
+    float resolutionRatio = renderRes.y / renderRes.x;
+    vec2 pixelSize = vec2((1.0 / renderRes.y) * glyphletInstance.PixelSize, (1.0 / renderRes.y) * glyphletInstance.PixelSize);
+
+    if (tid < numberOfPrimitives)
+    {
+        uint primID = glyphletInstance.indexOffset + tid;
+        uvec4 indicesAndPrimFlag = glyphPrimitives[primID];
+        gl_PrimitiveTriangleIndicesEXT[tid] = uvec3(indicesAndPrimFlag.xyz - glyphletInstance.vertexOffset);
+        outTriangleType[tid] = indicesAndPrimFlag.w;
+        outTriangleID[tid] = tid;
+    }
+    if (tid < numberOfVertices)
+    {
+        uint vertID = glyphletInstance.vertexOffset + tid;
+        uint vertXOrY = (vertID % 2);
+        vertID = vertID / 2;
+        vec2 vertPos = vertXOrY == 0 ? glyphVerts[vertID].xy : glyphVerts[vertID].zw;
+
+        vec2 vertPosFlippedY = vec2(vertPos.x, 1.0 - vertPos.y) * pixelSize;
+        vec2 vertPosNormalized = (vertPosFlippedY) + glyphletInstance.pos;
+
+        gl_MeshVerticesEXT[tid].gl_Position = vec4(vertPosNormalized * 2.0 - 1.0, 0.001, 1.0);
+    }
+}

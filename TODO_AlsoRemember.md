@@ -21,8 +21,8 @@
 [] Memory allocators & memory pool
 [] Red-black tree and hashmap
 [x] Long string class
-[] Long Wide string class and send that to the renderer
-[] Font rendering
+[] Text render commands
+[x] Font rendering
 [x] Make asserts and error Handling
 [x] Update the input handler and create an input to action map
 [] Threaded loading, make it safe to load from game thread
@@ -45,7 +45,11 @@
 [] Angelscript, replace std::string with our own string class
 [] Angelscript, add debugging support in VS code
 [x] Angelscript, implement the input handler and debug commands to the scripts
-[] Fix broken reloading of GPU resources and then make hot reloading 
+[] Fix broken reloading of GPU resources and then remake hot reloading 
+[] Context upload once function for buffers to all buffers in Flight
+[] Depth Sorting of sprites
+[] Explicit setting of Framebuffer bind state through the context object. Make materials have a bind state thjat is not set at Init, and manually set framebuffer state.
+[] Bindless texturing
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.

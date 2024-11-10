@@ -23,13 +23,15 @@ namespace Hail
 		void InitImGui() override;
 		void WaitForGPU() override;
 
-		void BindMaterial(Material& materialToBind, bool bFirstMaterialInFrame) override;
+		void BindMaterialPipeline(Pipeline* pPipelineToBind, bool bFirstMaterialInFrame) override;
+
 		void EndMaterialPass() override;
 		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) override;
 		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) override;
 		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) override;
 		void RenderDebugLines3D(uint32 numberOfLinesToRender) override;
 		void RenderLetterBoxPass() override;
+		void RenderMeshlets(glm::uvec3 dispatchSize) override;
 
 	private:
 
