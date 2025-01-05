@@ -16,6 +16,8 @@ namespace Hail
 	ResourceRegistry& GetResourceRegistry();
 
 	bool IsRunning();
+	// A getter for locking operations to see if the engine or window has been terminated from an OS command.
+	bool IsApplicationTerminated();
 	void HandleApplicationMessage(ApplicationMessage message);
 	ApplicationWindow* GetApplicationWIndow();
 }

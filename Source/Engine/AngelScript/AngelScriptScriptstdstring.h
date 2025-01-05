@@ -8,6 +8,14 @@
 // not cause any problem for most applications.
 //
 
+namespace Hail
+{
+	namespace AngelScript
+	{
+		class TypeRegistry;
+	}
+}
+
 #ifndef SCRIPTSTDSTRING_H
 #define SCRIPTSTDSTRING_H
 
@@ -45,7 +53,7 @@
 
 BEGIN_AS_NAMESPACE
 
-void RegisterStdString(asIScriptEngine *engine);
+void RegisterStdString(asIScriptEngine *engine, Hail::AngelScript::TypeRegistry* pTypeRegistry);
 
 END_AS_NAMESPACE
 

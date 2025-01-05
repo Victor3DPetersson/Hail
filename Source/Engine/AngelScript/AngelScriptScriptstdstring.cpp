@@ -1,5 +1,10 @@
 #include "Engine_PCH.h"
 #include "AngelScriptScriptstdstring.h"
+
+#include "AngelScriptTypeRegistry.h"
+
+#include "String.hpp"
+
 #include <assert.h> // assert()
 #include <sstream>  // std::stringstream
 #include <string.h> // strstr()
@@ -741,7 +746,26 @@ static bool StringEquals(const std::string& lhs, const std::string& rhs)
 	return lhs == rhs;
 }
 
-void RegisterStdString_Native(asIScriptEngine *engine)
+static Hail::AngelScript::Variable GetStringData(void* pObj)
+{
+	const string& stringObject = *(string*)pObj;
+	Hail::AngelScript::Variable variableToReturn;
+	variableToReturn.m_type = "string";
+	variableToReturn.m_value = stringObject.c_str();
+
+	//Variable& memberX = variableToReturn.m_members.Add();
+	//memberX.m_name = "x";
+	//memberX.m_type = "float";
+	//memberX.m_value = StringL::Format("%f", vector.GetX());
+	//Variable& memberY = variableToReturn.m_members.Add();
+	//memberY.m_name = "y";
+	//memberY.m_type = "float";
+	//memberY.m_value = StringL::Format("%f", vector.GetY());
+
+	return variableToReturn;
+}
+
+void RegisterStdString_Native(asIScriptEngine *engine, Hail::AngelScript::TypeRegistry* pTypeRegistry)
 {
 	int r = 0;
 	UNUSED_VAR(r);
@@ -749,10 +773,14 @@ void RegisterStdString_Native(asIScriptEngine *engine)
 	// Register the string type
 #if AS_CAN_USE_CPP11
 	// With C++11 it is possible to use asGetTypeTraits to automatically determine the correct flags to use
-	r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asGetTypeTraits<string>()); assert( r >= 0 );
+	//r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asGetTypeTraits<string>()); assert( r >= 0 );
+	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asGetTypeTraits<string>()); assert(r >= 0);
 #else
-	r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert( r >= 0 );
+	//r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert( r >= 0 );
+	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert(r >= 0);
 #endif
+
+	r = pTypeRegistry->RegisterVariableFunction("string", &GetStringData); assert(r >= 0);
 
 	r = engine->RegisterStringFactory("string", GetStdStringFactorySingleton());
 
@@ -1276,13 +1304,16 @@ static void StringSubString_Generic(asIScriptGeneric *gen)
 	new(gen->GetAddressOfReturnLocation()) string(StringSubString(start, count, *str));
 }
 
-void RegisterStdString_Generic(asIScriptEngine *engine)
+void RegisterStdString_Generic(asIScriptEngine *engine, Hail::AngelScript::TypeRegistry* pTypeRegistry)
 {
 	int r = 0;
 	UNUSED_VAR(r);
 
 	// Register the string type
-	r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert( r >= 0 );
+	//r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert( r >= 0 );
+
+	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert(r >= 0);
+	r = pTypeRegistry->RegisterVariableFunction("string", &GetStringData); assert(r >= 0);
 
 	r = engine->RegisterStringFactory("string", GetStdStringFactorySingleton());
 
@@ -1359,12 +1390,12 @@ void RegisterStdString_Generic(asIScriptEngine *engine)
 	r = engine->RegisterGlobalFunction("double parseFloat(const string &in, uint &out byteCount = 0)", asFUNCTION(parseFloat_Generic), asCALL_GENERIC); assert(r >= 0);
 }
 
-void RegisterStdString(asIScriptEngine * engine)
+void RegisterStdString(asIScriptEngine * engine, Hail::AngelScript::TypeRegistry* pTypeRegistry)
 {
 	if (strstr(asGetLibraryOptions(), "AS_MAX_PORTABILITY"))
-		RegisterStdString_Generic(engine);
+		RegisterStdString_Generic(engine, pTypeRegistry);
 	else
-		RegisterStdString_Native(engine);
+		RegisterStdString_Native(engine, pTypeRegistry);
 }
 
 END_AS_NAMESPACE

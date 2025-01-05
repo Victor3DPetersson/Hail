@@ -13,6 +13,7 @@ namespace Hail
 	{
 		class ScriptDebugger;
 		class DebuggerServer;
+		class TypeRegistry;
 
 		class Runner
 		{
@@ -20,7 +21,7 @@ namespace Hail
 
 			void ImportAndBuildScript(const FilePath& filePath, String64 scriptName);
 
-			void Initialize(asIScriptEngine* pScriptEngine);
+			void Initialize(asIScriptEngine* pScriptEngine, TypeRegistry* pTypeRegistry);
 
 			void RunScript(String64 scriptName);
 			// Will iterate over the loaded scripts and reload the ones that are out of date.
@@ -30,12 +31,13 @@ namespace Hail
 
 		private:
 			// Will return true if the creation is succesfull 
-			bool CreateScript(const FilePath& filePath, String64 scriptName, Script& scriptToFill);
+			bool CreateScript(String64 scriptName, Script& scriptToFill);
 
 			void ReloadScript(Script& scriptToReload);
 
 			asIScriptEngine* m_pScriptEngine;
 			DebuggerServer* m_pDebuggerServer;
+			TypeRegistry* m_pTypeRegistry;
 			GrowingArray<Script> m_scripts;
 		};
 

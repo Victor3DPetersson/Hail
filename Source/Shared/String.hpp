@@ -353,6 +353,7 @@ namespace Hail
 
 		char* Data();
 		const char* const Data() const;
+		void Reserve(uint32 numOfChars);
 
 		const uint32 Length() const { return m_length; }
 
@@ -364,6 +365,7 @@ namespace Hail
 			char m_shortString[16];
 		}m_memory;
 		uint32 m_length;
+		uint32 m_allocatedLength;
 	};
 
 	// Long wide string, used for all UI. 
@@ -395,6 +397,8 @@ namespace Hail
 
 		wchar_t* Data();
 		const wchar_t* const Data() const;
+
+		StringL ToCharString();
 
 		// Returns length in number of characters, not byte length.
 		const uint32 Length() const { return m_length; }

@@ -214,6 +214,17 @@ namespace Hail
 	{
 		return strtol(charToRead + startPosition, nullptr, 10);
 	}
+
+	int32 StringUtility::FindFirstOfSymbol(const char* charToRead, char symbolToFind)
+	{
+		const size_t length = StringLength(charToRead);
+		for (size_t i = 0; i < length; i++)
+		{
+			if (charToRead[i] == symbolToFind)
+				return (int32)i;
+		}
+		return -1;
+	}
 }
 
 

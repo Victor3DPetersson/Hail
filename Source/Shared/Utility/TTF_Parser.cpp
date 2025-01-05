@@ -1130,7 +1130,7 @@ TTF_FontStruct Hail::TTF_ParseFontFile(const char* aFileToParse)
 
 		uint8 tagString[5]{0};
 		memcpy(tagString, tableToRead.tag.un.c, sizeof(uint32));
-		H_DEBUGMESSAGE(StringL::Format("Table Entry %i: Tag: %s, offset: %u, length: %u", i, tagString, tableToRead.offset, tableToRead.length));
+		//H_DEBUGMESSAGE(StringL::Format("Table Entry %i: Tag: %s, offset: %u, length: %u", i, tagString, tableToRead.offset, tableToRead.length));
 	}
 
 	int16 glyphDataFormat = 0;

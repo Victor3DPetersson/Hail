@@ -165,12 +165,18 @@ Hail::ResourceRegistry& Hail::GetResourceRegistry()
 
 bool Hail::IsRunning()
 {
-	return g_engineData->runApplication;
+	return g_engineData->runApplication.load();
+}
+
+bool Hail::IsApplicationTerminated()
+{
+	return g_engineData->terminateApplication.load();
 }
 
 void Hail::HandleApplicationMessage(ApplicationMessage message)
 {
-	g_engineData->appWindow->SetApplicationSettings(message);
+	if (g_engineData)
+		g_engineData->appWindow->SetApplicationSettings(message);
 }
 
 Hail::ApplicationWindow* Hail::GetApplicationWIndow()
@@ -262,7 +268,7 @@ void Hail::ProcessApplicationThread()
 	float applicationTime = 0.0;
 
 	AngelScript::Runner asScriptRunner;
-	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine());
+	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine(), g_engineData->asHandler.GetTypeRegistry());
 
 	StringL firstScriptPath = ANGELSCRIPT_DIR;
 	firstScriptPath += "FirstScript.as";

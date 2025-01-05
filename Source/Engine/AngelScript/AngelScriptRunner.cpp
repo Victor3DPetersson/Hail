@@ -9,9 +9,10 @@ using namespace Hail;
 #include <sstream>
 
 
-void Hail::AngelScript::Runner::Initialize(asIScriptEngine* pScriptEngine)
+void Hail::AngelScript::Runner::Initialize(asIScriptEngine* pScriptEngine, TypeRegistry* pTypeRegistry)
 {
 	m_pScriptEngine = pScriptEngine;
+	m_pTypeRegistry = pTypeRegistry;
 	m_pDebuggerServer = new DebuggerServer();
 }
 
@@ -23,20 +24,10 @@ void Hail::AngelScript::Runner::ImportAndBuildScript(const FilePath& filePath, S
 			return;
 	}
 
-	Script newScript;
+	Script newScript(filePath);
 
-	if (CreateScript(filePath, scriptName, newScript))
-	{
-		m_scripts.Add(newScript);
-	}
-	else
-	{
-		if (m_pDebuggerServer)
-		{
-			//TODO: send error messages to connected clients if there are any
-		}
-	}
-
+	CreateScript(scriptName, newScript);
+	m_scripts.Add(newScript);
 }
 
 void Hail::AngelScript::Runner::RunScript(String64 scriptName)
@@ -114,22 +105,22 @@ void Hail::AngelScript::Runner::Update()
 		Script& script = m_scripts[i];
 
 		//Adding a delay to the reloading, as there can be a frame or two where the filesystem is still saving the script. Leading to a load error.
-		if (!script.m_isDirty)
+		if (!script.m_bIsDirty)
 		{
 			if (script.m_lastWriteTime != m_scripts[i].m_filePath.GetCurrentLastWriteFileTime())
 			{
-				script.m_isDirty = true;
+				script.m_bIsDirty = true;
 				script.m_reloadDelay = 0;
 			}
 		}
 
-		if (script.m_isDirty)
+		if (script.m_bIsDirty)
 		{
 			if (script.m_reloadDelay > 10)
 			{
 				ReloadScript(script);
 				script.m_lastWriteTime = m_scripts[i].m_filePath.GetCurrentLastWriteFileTime();
-				script.m_isDirty = false;
+				script.m_bIsDirty = false;
 			}
 			else
 				script.m_reloadDelay++;
@@ -155,9 +146,12 @@ void Hail::AngelScript::Runner::Cleanup()
 #endif
 }
 
-bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 scriptName, Script& scriptToFill)
+bool Hail::AngelScript::Runner::CreateScript(String64 scriptName, Script& scriptToFill)
 {
-	if (!filePath.IsValid())
+	H_ASSERT(!scriptToFill.m_filePath.IsEmpty(), "Script must have been created with a filepath");
+
+	scriptToFill.m_lastWriteTime = scriptToFill.m_filePath.GetCurrentLastWriteFileTime();
+	if (!scriptToFill.m_filePath.IsValid())
 	{
 		H_ERROR("Invalid script path");
 		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
@@ -178,7 +172,7 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 	}
 	// TODO add all files that are parts of the script
 	char filePathAsChar[1024];
-	FromWCharToConstChar(filePath.Data(), filePathAsChar, 1024);
+	FromWCharToConstChar(scriptToFill.m_filePath.Data(), filePathAsChar, 1024);
 	r = builder.AddSectionFromFile(filePathAsChar);
 	if (r < 0)
 	{
@@ -194,9 +188,10 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 	{
 		// An error occurred. Instruct the script writer to fix the 
 		// compilation errors that were listed in the output stream.
-		std::stringstream stream;
-		auto streamBuf = std::cout.rdbuf();
+		//std::stringstream stream;
+		//auto streamBuf = std::cout.rdbuf();
 		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
+
 		return false;
 	}
 
@@ -213,42 +208,57 @@ bool Hail::AngelScript::Runner::CreateScript(const FilePath& filePath, String64 
 	scriptToFill.m_fileNames.RemoveAll();
 
 	//TODO add all script fileNames
-	scriptToFill.m_fileNames.Add(filePath.Object().Name().CharString());
+	scriptToFill.m_fileNames.Add(scriptToFill.m_filePath.Object().Name().CharString());
 
 	// Create our context, prepare it, and then execute
 	asIScriptContext* pCtx = m_pScriptEngine->CreateContext();
-	scriptToFill.m_filePath = filePath;
-	scriptToFill.m_lastWriteTime = filePath.GetCurrentLastWriteFileTime();
 	scriptToFill.m_pScriptContext = pCtx;
 	scriptToFill.m_name = scriptName;
 	scriptToFill.loadStatus = eScriptLoadStatus::NoError;
 	scriptToFill.m_reloadDelay = 0;
-	scriptToFill.m_isDirty = false;
+	scriptToFill.m_bIsDirty = false;
 	// Set some setting or way to toggle the debugger off.
-	scriptToFill.m_pDebugger = new ScriptDebugger(pCtx);
-
+	if (scriptToFill.m_pDebugger)
+	{
+		scriptToFill.m_pDebugger->SetContext(pCtx);
+		scriptToFill.m_pDebugger->ClearLineCallback();
+	}
+	else
+		scriptToFill.m_pDebugger = new ScriptDebugger(pCtx, m_pDebuggerServer, m_pTypeRegistry);
 	return true;
 }
 
 void Hail::AngelScript::Runner::ReloadScript(Script& scriptToReload)
 {
-	if (scriptToReload.m_pScriptContext)
+	Script newScript(scriptToReload.m_filePath);
+	bool scriptWasUsedForDebugging = false;
+	if (scriptToReload.m_pScriptContext || scriptToReload.m_pDebugger)
 	{
-		scriptToReload.m_pScriptContext->Release();
+		if (scriptToReload.m_pScriptContext)
+			scriptToReload.m_pScriptContext->Release();
+
 		scriptToReload.m_pScriptContext = nullptr;
+
 		if (m_pDebuggerServer && m_pDebuggerServer->GetActiveScript() == &scriptToReload)
+		{
 			m_pDebuggerServer->SetScriptToDebug(nullptr);
-		SAFEDELETE(scriptToReload.m_pDebugger);
+			scriptWasUsedForDebugging = true;
+		}
+
+		newScript.m_pDebugger = scriptToReload.m_pDebugger;
 	}
-	Script newScript;
-	if (CreateScript(scriptToReload.m_filePath, scriptToReload.m_name, newScript))
+
+	if (CreateScript(scriptToReload.m_name, newScript))
 	{
 		scriptToReload = newScript;
 		H_DEBUGMESSAGE("Reload A_OK! c:");
+		if (scriptWasUsedForDebugging)
+			m_pDebuggerServer->SetScriptToDebug(&scriptToReload);
 	}
-	else
+	else if (scriptToReload.loadStatus != eScriptLoadStatus::FailedToReload)
 	{
 		scriptToReload.loadStatus = eScriptLoadStatus::FailedToReload;
+		scriptToReload.m_reloadDelay = 0;
 		H_ERROR(StringL::Format("Failed to reload script %s", scriptToReload.m_name));
 	}
 

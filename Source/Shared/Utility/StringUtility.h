@@ -30,7 +30,10 @@ namespace Hail
 	namespace StringUtility
 	{
 		int32 IntFromConstChar(const char* charToRead, uint32 startPosition);
+		// returns - 1 if symbol does not exist
+		int32 FindFirstOfSymbol(const char* charToRead, char symbolToFind);
 	}
 
+	
 
 }

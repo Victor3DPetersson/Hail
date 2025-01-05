@@ -10,6 +10,7 @@ namespace Hail
 
 	namespace AngelScript
 	{
+		class TypeRegistry;
 		struct Vec2
 		{
 			Vec2();
@@ -59,6 +60,7 @@ namespace Hail
 		public:
 			void Init(InputActionMap* pInputActionMap, ThreadSyncronizer* pThreadSyncronizer);
 			asIScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
+			TypeRegistry* GetTypeRegistry() { return m_pTypeRegistry; }
 		private:
 
 			void RegisterGlobalMessages();
@@ -66,6 +68,7 @@ namespace Hail
 
 			asIScriptEngine* m_pScriptEngine;
 			ErrorHandler m_errorHandler;
+			TypeRegistry* m_pTypeRegistry;
 		};
 	}
 }

@@ -1,4 +1,4 @@
-# First todo's when starting out:
+# First todo's when starting out: (keeping them here as it is quite cute to keep)
 [x] Complete Tutorial
 [x] Implement ImGui
 [x] Implement a mesh in a basic way
@@ -18,7 +18,7 @@
 # TODO: unspecified order
 
 [x] Improve growing array
-[] Memory allocators & memory pool
+[] Memory allocators & memory pool (check out the Arena memory allocator strategy)
 [] Red-black tree and hashmap
 [x] Long string class
 [] Text render commands
@@ -41,18 +41,23 @@
 [] Implement batch rendering of sprites
 [] Spline objects
 [] Implement VMA on the Vulkan backend
-[] Angelscript, implement array
+[x] Angelscript, implement array
 [] Angelscript, replace std::string with our own string class
-[] Angelscript, add debugging support in VS code
+[x] Angelscript, add debugging support in VS code
 [x] Angelscript, implement the input handler and debug commands to the scripts
+[] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
 [] Fix broken reloading of GPU resources and then remake hot reloading 
 [] Context upload once function for buffers to all buffers in Flight
 [] Depth Sorting of sprites
 [] Explicit setting of Framebuffer bind state through the context object. Make materials have a bind state thjat is not set at Init, and manually set framebuffer state.
 [] Bindless texturing
+[] RawInput instead of Windows input
+[] Input queue to make input more predictable
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.
 Iterators for for-each loops on all container types
 
 
+## Known bugs:
+Compound glyphs can get the wrong horizontal alignment, repo case, Roboto-Medium ':'

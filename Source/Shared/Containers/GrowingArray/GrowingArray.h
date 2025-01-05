@@ -34,13 +34,14 @@ namespace Hail
 
 		inline T& Add(const T& object);
 		inline T& Add();
+		inline void AddN(uint32 numberOfItemsToAdd);
 		inline void Insert(CountType index, const T& object);
 
 		inline bool RemoveCyclic(const T& object);
 		inline bool RemoveCyclicAtIndex(CountType itemNumber);
 		inline bool RemoveAtIndex(CountType itemNumber);
 		inline bool RemoveLast();
-		inline int Find(const T& object);
+		inline int Find(const T& object) const;
 		// Search condition have to be a lambda with input argument (const T& a), return state [ return bool }
 		template<class SearchCondition>
 		int FindCustomCondition(SearchCondition searchCondition);
@@ -251,6 +252,21 @@ namespace Hail
 	}
 
 	template <typename T, typename CountType>
+	void GrowingArray<typename T, typename CountType>::AddN(uint32 numberOfItemsToAdd)
+	{
+		if (!m_arrayPointer)
+			Prepare(m_capacity != 0 ? m_capacity : 8);
+
+		if (m_elementCount + numberOfItemsToAdd > (m_capacity))
+			GrowArray(m_elementCount + numberOfItemsToAdd * 2);
+
+		for (size_t i = m_elementCount; i < m_capacity; i++)
+			m_arrayPointer[m_elementCount] = {};
+
+		m_elementCount += numberOfItemsToAdd;
+	}
+
+	template <typename T, typename CountType>
 	void GrowingArray<typename T, typename CountType>::Insert(CountType index, const T& object)
 	{
 		if (!m_arrayPointer)
@@ -331,7 +347,7 @@ namespace Hail
 	}
 
 	template <typename T, typename CountType>
-	int GrowingArray<typename T, typename CountType>::Find(const T& object)
+	int GrowingArray<typename T, typename CountType>::Find(const T& object) const
 	{
 		if (!m_arrayPointer)
 			return -1;

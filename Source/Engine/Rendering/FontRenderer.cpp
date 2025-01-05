@@ -34,8 +34,9 @@ namespace Hail
 
 	bool FontRenderer::Initialize()
 	{
-		StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/JetBrainsMono-Bold.ttf");
-		//StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/Roboto-Medium.ttf");
+		//StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/JetBrainsMono-Bold.ttf");
+		//StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/Pine.ttf");
+		StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/Roboto-Medium.ttf");
 		m_fontData = TTF_ParseFontFile(fontFileDir);
 
 		BufferProperties fontVertexBufferProperties;
@@ -120,10 +121,10 @@ namespace Hail
 
 
 		// Temp code below, should be driven by render commands.
-		const wchar_t* helloWorld = L"Papyrus är en söt liten Derp!_";
+		const wchar_t* helloWorld = L"En katt är ett litet små djur! :}";
 
 		glm::vec2 glyphPosition = { 0.0, 0.5 };
-		uint32 fontSize = 24; // the font size is relative to the height of 1080p
+		uint32 fontSize = 48; // the font size is relative to the height of 1080p
 		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetRenderTargetResolution();
 
 		glm::vec2 resolutionToFontRatio = glm::vec2((float)resolution.x / 1920.f, (float)resolution.y / 1080.f);

@@ -97,7 +97,7 @@ namespace Hail
 		sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
 
-		sprites[1].transform.SetPosition({ -200, -200 });
+		sprites[1].transform.SetPosition({ -400, -200 });
 		sprites[2].transform.SetPosition({ 200, 200 });
 		sprites[3].transform.SetPosition({ -200, 200 });
 		sprites[4].transform.SetPosition({ 200, -200 });

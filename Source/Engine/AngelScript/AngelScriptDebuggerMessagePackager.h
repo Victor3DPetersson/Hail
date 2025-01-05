@@ -1,5 +1,6 @@
 #pragma once
 #include "Types.h"
+#include "AngelScriptDebuggerTypes.h"
 
 //This file and its struct must match the Angelscript extensions structs and data for packing and unpacking. 
 
@@ -12,13 +13,19 @@ namespace Hail
 		enum class eDebuggerMessageType : int16
 		{
 			Disconnect = 0,
+			StopExecution,
 			HitBreakpoint, 
-			// Below are sent from VS-Code to Hail, above sent from Hail
 			StartDebugSession,
 			CreateBreakpoints,
+			Paused,
 			Stopped,
 			Continued,
-			Step,
+			CallStack, // If sent from VS code it is a callstack request, if from Client it is a package with callstack information
+			VariableRequest,
+			EvaluateRequest,
+			StepIn,
+			StepOver,
+			StepOut,
 			End
 		};
 
@@ -28,11 +35,29 @@ namespace Hail
 			eDebuggerMessageType type;
 		};
 
+		struct MessageData
+		{
+		public:
+			char* GetMessageData();
+			void FillMessageBuffer(void* dataToFillWith, uint32 numberOfBytesToFill);
+		private:
+			uint32 m_dataAmount{ 0u };
+			char m_message[1024];
+			GrowingArray<char> m_extendableMessage;
+		};
+
 		struct DebuggerMessage
 		{
 			MessageHeader m_header;
-			char m_message[1024];
+			MessageData m_data;
 		};
+
+		DebuggerMessage CreateStopDebugSessionMessage();
+		DebuggerMessage CreateHitBreakpointMessage(int line, const StringL& file);
+		DebuggerMessage CreateCallstackMessage(const GrowingArray<StackFrame>& callstackToSend);
+		DebuggerMessage CreateVariablesMessage(const GrowingArray<Variable>* variableScopeToSend);
+		DebuggerMessage CreateVariableMessage(const Variable* variableToSend);
+		DebuggerMessage CreateStopExecutionMessage();
 
 		void HandleDebuggerMessage(DebuggerServer* pDebugger, uint32 messageLength, void* messageStream);
 	}

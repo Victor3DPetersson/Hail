@@ -1,10 +1,12 @@
 #include "Types.h"
 #include "Containers\VectorOnStack\VectorOnStack.h"
+#include "Containers\StaticArray\StaticArray.h"
 
 #include "AngelScriptDebuggerTypes.h"
 #include "AngelScriptDebuggerMessagePackager.h"
 class asIScriptEngine;
 class asIScriptContext;
+class asITypeInfo;
 
 namespace Hail
 {
@@ -15,38 +17,75 @@ namespace Hail
 	typedef int H_Socket;
 #endif
 
-
 	namespace AngelScript
 	{
-		struct Script;
+		class DebuggerServer;
+		class TypeRegistry;
+
+		Variable ASTypeToVariable(void* value, uint32 typeId, int expandMembers, asIScriptEngine* engine, TypeRegistry* pTypeRegistry);
 
 		class ScriptDebugger
 		{
 		public:
-			ScriptDebugger(asIScriptContext* pContext);
 
-			void SetScriptContext(asIScriptContext* pContext);
+			ScriptDebugger();
+			ScriptDebugger(asIScriptContext* pContext, DebuggerServer* pDebugServer, TypeRegistry* pTypeRegistry);
+			void SetContext(asIScriptContext* pContext);
+
 			// Line callback invoked by context
 			void LineCallback(asIScriptContext* pContext);
-
 			void SetLineCallback();
-			void StopDebugging();
+			void ClearLineCallback();
+
+			void StopDebuggingScript();
 			void AddBreakpoints(const FileBreakPoints& breakPoints);
 			void RemoveBreakpoints(const FileBreakPoints& breakPoints);
 			void RemoveBreakpoints();
-			void SetExecutionStatus(eScriptExecutionStatus status) { m_executionStatus = status; }
+			void SetExecutionStatus(eScriptExecutionStatus status);
+			bool GetIsDebugging() const { return m_bIsDebugging; }
 			eScriptExecutionStatus GetStatus() const { return m_executionStatus; }
 
 			GrowingArray<DebuggerMessage>& GetMessages() { return m_messages; }
+			void SendGeneratedCallstack();
+			void SendErrorMessage(const char* section, int row, const char* message);
+			void SendWarningMessage(const char* section, int row, const char* message);
+			void SendVariables(eCallStack callStackToSend);
+			void SendVariable(eCallStack callStackToSend, StringL variableRequested);
+
+			TypeRegistry* GetTypeRegistry() { return m_pTypeRegistry; }
 
 		private:
-			DebuggerMessage CreateHitBreakpointMessage(int line, StringL file);
+
+			friend class DebuggerServer;
+
+			void CreateCallstack(asIScriptContext* pContext, const char* pFileName);
+			void CreateVariables(asIScriptContext* pContext);
+
 			bool m_bIsDebugging;
 			asIScriptContext* m_pScriptContext;
 			// TODO add these breakpoints to a hashmap
 			GrowingArray<FileBreakPoints> m_breakPoints;
 			eScriptExecutionStatus m_executionStatus;
+			int m_currentLine;
+
 			GrowingArray<DebuggerMessage> m_messages;
+			bool m_bGeneratedStackData;
+			GrowingArray<StackFrame> m_callStack;
+			bool m_bGeneratedVariables;
+			StaticArray<GrowingArray<Variable>, (uint32)eCallStack::count> m_variables;
+
+			// TODO: make a map to add this too
+			GrowingArray<asITypeInfo*> m_registeredObjects;
+			DebuggerServer* m_pDebuggerServer;
+			TypeRegistry* m_pTypeRegistry;
+
+			struct Client
+			{
+				bool m_bConnected;
+				bool m_bDisconnected;
+				H_Socket m_socket;
+			};
+			Client m_clientData;
 		};
 
 		class DebuggerServer
@@ -57,30 +96,36 @@ namespace Hail
 			~DebuggerServer();
 
 			void Update();
+
+			// This is the while loop that holds the exectuion of a script while debugging.
+			void UpdateDuringScriptExecution();
+
 			void SetScriptToDebug(Script* pScript) { m_pActiveScript = pScript; }
 			Script* GetActiveScript() const { return m_pActiveScript; }
 
 			void StartDebugging();
 			void StopDebugging();
 			void AddBreakpoints(const FileBreakPoints& breakpointsToAdd);
+			void SendVariables(eCallStack callStackType);
+			void FindVariable(eCallStack callStackType, StringL variableToFind);
 			void ContinueDebugging();
-			
+			void PauseDebugging();
+			void StepIn();
+			void StepOver();
+			void StepOut();
+			void SendCallstack();
 
 		private:
 
 			void SendDebuggerMessage(DebuggerMessage& messageToSend);
 			void ListenToMessages();
 
-			struct Client
-			{
-				bool m_bConnected;
-				H_Socket m_socket;
-			};
-			VectorOnStack<Client, MAX_ATTACHED_DEBUGGERS> m_clients;
+			VectorOnStack<ScriptDebugger, MAX_ATTACHED_DEBUGGERS> m_clients;
 			Script* m_pActiveScript;
 			H_Socket m_socketHandle;
 			uint32 m_currentClient;
 			bool m_bIsDebugging;
+
 		};
 
 	}

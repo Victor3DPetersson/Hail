@@ -22,7 +22,7 @@ void Hail::StringMemoryAllocator::Initialize()
 void Hail::StringMemoryAllocator::Deinitialize()
 {
 	H_ASSERT(GetIsMainThread(), "Only main thread should destroy the allocator.");
-	H_ASSERT(!m_pInstance, "Programming error, deleting a non valid instance.");
+	H_ASSERT(m_pInstance, "Programming error, deleting a non valid instance.");
 	SAFEDELETE_ARRAY(m_pInstance->m_charBlock.m_pBuffer);
 	SAFEDELETE_ARRAY(m_pInstance->m_wCharBlock.m_pBuffer);
 	SAFEDELETE(m_pInstance);

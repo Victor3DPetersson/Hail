@@ -2,7 +2,9 @@
 #include "AngelScriptHandler.h"
 #include "angelscript.h"
 #include "AngelScriptScriptstdstring.h"
+#include "AngelScriptArray.h"
 #include "AngelScriptMath.h"
+#include "AngelScriptTypeRegistry.h"
 #include "Input\InputActionList.h"
 #include <new>
 #include "Input\InputActionMap.h"
@@ -244,6 +246,25 @@ void Hail::AngelScript::Handler::RegisterGlobalMessages()
 // AngelScript functions
 //-----------------------
 
+static Variable GetVec2VariableData(void* pObj)
+{
+	Vec2 vector = *(Vec2*)pObj;
+	Variable variableToReturn;
+	variableToReturn.m_type = "Vec2";
+	variableToReturn.m_value = StringL::Format("x : %f, y : %f", vector.GetX(), vector.GetY());
+
+	Variable& memberX = variableToReturn.m_members.Add();
+	memberX.m_name = "x";
+	memberX.m_type = "float";
+	memberX.m_value = StringL::Format("%f", vector.GetX());
+	Variable& memberY = variableToReturn.m_members.Add();
+	memberY.m_name = "y";
+	memberY.m_type = "float";
+	memberY.m_value = StringL::Format("%f", vector.GetY());
+
+	return variableToReturn;
+}
+
 static void Vec2DefaultConstructor(Vec2* self)
 {
 	new(self) Vec2();
@@ -275,8 +296,9 @@ void Hail::AngelScript::Handler::RegisterAngelScriptVectorType()
 	// Register a primitive type, that doesn't need any special management of the content
 
 	// Register the type
-	r = m_pScriptEngine->RegisterObjectType("Vec2", sizeof(Vec2), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CAK | asOBJ_APP_CLASS_ALLFLOATS); assert(r >= 0);
-
+	
+	r = m_pTypeRegistry->RegisterType("Vec2", sizeof(Vec2), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CAK | asOBJ_APP_CLASS_ALLFLOATS); assert(r >= 0);
+	r = m_pTypeRegistry->RegisterVariableFunction("Vec2", &GetVec2VariableData); assert(r >= 0);
 	// Register the object properties
 	r = m_pScriptEngine->RegisterObjectProperty("Vec2", "float x", asOFFSET(Vec2, m_vec.x)); H_ASSERT(r >= 0, "Failed to register Vec2 func");
 	r = m_pScriptEngine->RegisterObjectProperty("Vec2", "float y", asOFFSET(Vec2, m_vec.y)); H_ASSERT(r >= 0, "Failed to register Vec2 func");
@@ -455,6 +477,8 @@ void Hail::AngelScript::Handler::Init(InputActionMap* pInputActionMap, ThreadSyn
 	m_pScriptEngine = asCreateScriptEngine();
 	H_ASSERT(m_pScriptEngine, "Failed to create angelscript engine.");
 	m_errorHandler.SetScriptEngine(m_pScriptEngine);
-	RegisterStdString(m_pScriptEngine);
+	m_pTypeRegistry = new TypeRegistry(m_pScriptEngine);
+	RegisterScriptArray(m_pTypeRegistry, true);
+	RegisterStdString(m_pScriptEngine, m_pTypeRegistry);
 	RegisterGlobalMessages();
 }

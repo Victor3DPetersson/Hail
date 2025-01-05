@@ -3,6 +3,11 @@
 #include "AngelScriptDebuggerMessagePackager.h"
 #include <angelscript.h>
 
+#include "AngelScriptTypeRegistry.h"
+#include "AngelScriptHandler.h"
+
+#include "HailEngine.h"
+
 #include <fcntl.h>
 
 #ifdef _WIN32
@@ -22,6 +27,155 @@
 #endif
 
 #include "MathUtils.h"
+
+namespace Hail
+{
+    StringL RemoveTypeInformationFromDeclaration(const char* stringToPrune)
+    {
+        int32 firstSpaceIndex = StringUtility::FindFirstOfSymbol(stringToPrune, ' ');
+        if (firstSpaceIndex < 0)
+        {
+            H_ERROR(StringL::Format("Invalid declaration: %s", stringToPrune));
+            return StringL{ "InvalidType" };
+        }
+        return (stringToPrune + firstSpaceIndex + 1);
+    }
+
+    namespace AngelScript
+    {
+        Variable ASTypeToVariable(void* value, uint32 typeId, int expandMembers, asIScriptEngine* engine, TypeRegistry* pTypeRegistry)
+        {
+            Variable returnVariable;
+            if (value == 0)
+            {
+                returnVariable.m_value = "null";
+            }
+
+            if (typeId == asTYPEID_VOID)
+            {
+                returnVariable.m_type = "void";
+            }
+            else if (typeId == asTYPEID_BOOL)
+            {
+                returnVariable.m_type = "bool";
+                returnVariable.m_value = (*(bool*)value) ? StringL("true") : StringL("false");
+            }
+            else if (typeId == asTYPEID_INT8)
+            {
+                returnVariable.m_type = "int8";
+                returnVariable.m_value = StringL::Format("%i", *(int8*)value);
+            }
+            else if (typeId == asTYPEID_INT16)
+            {
+                returnVariable.m_type = "int16";
+                returnVariable.m_value = StringL::Format("%i", *(int16*)value);
+            }
+            else if (typeId == asTYPEID_INT32)
+            {
+                returnVariable.m_type = "int32";
+                int32 intValue = *(int32*)value;
+                returnVariable.m_value = StringL::Format("%i", *(int*)value);
+            }
+            else if (typeId == asTYPEID_INT64)
+            {
+                returnVariable.m_type = "int64";
+                returnVariable.m_value = StringL::Format("%i", *(int64*)value);
+            }
+            else if (typeId == asTYPEID_UINT8)
+            {
+                returnVariable.m_type = "uint8";
+                returnVariable.m_value = StringL::Format("%u", *(uint8*)value);
+            }
+            else if (typeId == asTYPEID_UINT16)
+            {
+                returnVariable.m_type = "uint16";
+                returnVariable.m_value = StringL::Format("%u", *(uint16*)value);
+            }
+            else if (typeId == asTYPEID_UINT32)
+            {
+                returnVariable.m_type = "uint32";
+                returnVariable.m_value = StringL::Format("%u", *(uint32*)value);
+            }
+            else if (typeId == asTYPEID_UINT64)
+            {
+                returnVariable.m_type = "uint64";
+                returnVariable.m_value = StringL::Format("%u", *(uint64*)value);
+            }
+            else if (typeId == asTYPEID_FLOAT)
+            {
+                returnVariable.m_type = "float";
+                float actualValue = *(float*)value;
+                returnVariable.m_value = StringL::Format("%f", *(float*)value);
+            }
+            else if (typeId == asTYPEID_DOUBLE)
+            {
+                returnVariable.m_type = "double";
+                returnVariable.m_value = StringL::Format("%d", *(double*)value);
+            }
+            else if ((typeId & asTYPEID_MASK_OBJECT) == 0)
+            {
+                // The type is an enum
+                returnVariable.m_value = StringL::Format("%u", *(asUINT*)value);
+                returnVariable.m_type = "enum";
+                // Check if the value matches one of the defined enums
+                if (engine)
+                {
+                    asITypeInfo* t = engine->GetTypeInfoById(typeId);
+                    for (int n = t->GetEnumValueCount(); n-- > 0; )
+                    {
+                        int enumVal;
+                        const char* enumName = t->GetEnumValueByIndex(n, &enumVal);
+                        if (enumVal == *(int*)value)
+                        {
+                            returnVariable.m_name = enumName;
+                            break;
+                        }
+                    }
+                }
+            }
+            else if (typeId & asTYPEID_SCRIPTOBJECT)
+            {
+                // Dereference handles, so we can see what it points to
+                if (typeId & asTYPEID_OBJHANDLE)
+                    value = *(void**)value;
+
+                asIScriptObject* obj = (asIScriptObject*)value;
+
+                // Print the address of the object
+                //s += StringL::Format("{%u}", obj);
+
+                // Print the members
+                if (obj && expandMembers > 0)
+                {
+                    asITypeInfo* type = obj->GetObjectType();
+                    for (asUINT n = 0; n < obj->GetPropertyCount(); n++)
+                    {
+                        Variable& member = returnVariable.m_members.Add();
+                        member = ASTypeToVariable(obj->GetAddressOfProperty(n), obj->GetPropertyTypeId(n), expandMembers - 1, type->GetEngine(), pTypeRegistry);
+                        member.m_name = RemoveTypeInformationFromDeclaration(type->GetPropertyDeclaration(n));
+                    }
+                }
+            }
+            else
+            {
+                // Dereference handles, so we can see what it points to
+                if (typeId & asTYPEID_OBJHANDLE)
+                    value = *(void**)value;
+
+                // Print the address for reference types so it will be
+                // possible to see when handles point to the same object
+                if (engine && value)
+                {
+                    returnVariable = pTypeRegistry->GetVariableFromCallback(typeId, value);
+                }
+            }
+            return returnVariable;
+        }
+    }
+}
+
+using namespace Hail;
+using namespace AngelScript;
 
 namespace
 {
@@ -56,8 +210,8 @@ namespace
         int status = 0;
 
 #ifdef _WIN32
-        status = shutdown(socketHandle, SD_BOTH);
-        if (status == 0) 
+        status = shutdown(socketHandle, SD_SEND);
+        if (status == SOCKET_ERROR)
         { 
             status = closesocket(socketHandle); 
         }
@@ -119,10 +273,6 @@ namespace
 }
 
 
-using namespace Hail;
-using namespace AngelScript;
-
-
 DebuggerServer::DebuggerServer()
 : m_socketHandle(InvalidSocket)
 , m_currentClient(MAX_UINT)
@@ -139,24 +289,45 @@ DebuggerServer::DebuggerServer()
 
 DebuggerServer::~DebuggerServer()
 {
+    SendDebuggerMessage(CreateStopDebugSessionMessage());
+
     H_ASSERT(SocketClose(m_socketHandle) == 0, "Failed to close socket properly");
     //Close Winsock / socket use.
     SockQuit();
 }
 
-Hail::AngelScript::ScriptDebugger::ScriptDebugger(asIScriptContext* pContext)
+Hail::AngelScript::ScriptDebugger::ScriptDebugger()
+    : m_bIsDebugging(false)
+    , m_pScriptContext(nullptr)
+    , m_executionStatus(eScriptExecutionStatus::Normal)
+    , m_bGeneratedStackData(false)
+    , m_bGeneratedVariables(false)
+    , m_currentLine(0)
+    , m_pDebuggerServer(nullptr)
+    , m_pTypeRegistry(nullptr)
+{
+    m_clientData.m_socket = InvalidSocket;
+    m_clientData.m_bConnected = false;
+    m_clientData.m_bDisconnected = true;
+}
+
+Hail::AngelScript::ScriptDebugger::ScriptDebugger(asIScriptContext* pContext, DebuggerServer* pDebugServer, TypeRegistry* pTypeRegistry)
     : m_bIsDebugging(false)
     , m_pScriptContext(pContext)
     , m_executionStatus(eScriptExecutionStatus::Normal)
+    , m_bGeneratedStackData(false)
+    , m_bGeneratedVariables(false)
+    , m_currentLine(0)
+    , m_pDebuggerServer(pDebugServer)
+    , m_pTypeRegistry(pTypeRegistry)
 {
+    m_clientData.m_socket = InvalidSocket;
+    m_clientData.m_bConnected = false;
+    m_clientData.m_bDisconnected = true;
 }
 
-void Hail::AngelScript::ScriptDebugger::SetScriptContext(asIScriptContext* pContext)
+void Hail::AngelScript::ScriptDebugger::SetContext(asIScriptContext* pContext)
 {
-    if (pContext && m_pScriptContext != pContext)
-    {
-        H_ERROR("Removing script context from debugger with a new context.");
-    }
     m_pScriptContext = pContext;
 }
 
@@ -167,34 +338,86 @@ void ScriptDebugger::LineCallback(asIScriptContext* pContext)
 
     const char *file = 0;
 	int lineNbr = pContext->GetLineNumber(0, 0, &file);
+
+    if (m_executionStatus == eScriptExecutionStatus::StoppedExecution || lineNbr == m_currentLine)
+        return;
+
+    m_currentLine = lineNbr;
     const FilePath scriptObjectPath = file;
     FileBreakPoints* pFileBreakPoints = nullptr;
     for (uint16 i = 0; i < m_breakPoints.Size(); i++)
     {
-        if (StringCompare(m_breakPoints[i].fileName.Data(), scriptObjectPath.Object().Name().CharString()))
+        if (StringCompareCaseInsensitive(m_breakPoints[i].fileName.Data(), scriptObjectPath.Object().Name().CharString()))
         {
             pFileBreakPoints = &m_breakPoints[i];
             break;
         }
     }
 
-    // no active file with breakpoints to check.
-    if (!pFileBreakPoints)
-        return;
-
-    for (size_t i = 0; i < pFileBreakPoints->breakPoints.Size(); i++)
+    bool bHitBreakpoint = false;
+    if (pFileBreakPoints)
     {
-        if (pFileBreakPoints->breakPoints[i].line == lineNbr)
+        for (size_t i = 0; i < pFileBreakPoints->breakPoints.Size(); i++)
         {
-            H_DEBUGMESSAGE("Hit breakpoint in file");
-            m_executionStatus = eScriptExecutionStatus::HitBreakpoint;
-            m_messages.Add(CreateHitBreakpointMessage(lineNbr, scriptObjectPath.Object().Name().CharString().Data()));
-            break;
+            if (pFileBreakPoints->breakPoints[i].line == lineNbr)
+            {
+                H_DEBUGMESSAGE("Hit breakpoint in file");
+                m_executionStatus = eScriptExecutionStatus::StoppedExecution;
+                bHitBreakpoint = true;
+                break;
+            }
         }
     }
 
-	StringL declaration = pContext->GetFunction()->GetDeclaration();
+    if (m_executionStatus == eScriptExecutionStatus::Normal)
+        return;
 
+    // If we have just stepped, stop on the next callback
+    if (m_executionStatus == eScriptExecutionStatus::StepIn || m_executionStatus == eScriptExecutionStatus::PausedExecution)
+    {
+        m_executionStatus = eScriptExecutionStatus::StoppedExecution;
+    }
+    // if stepping over, we need to check the callstack size to see if we actually stop
+    if (m_executionStatus == eScriptExecutionStatus::StepOver)
+    {
+        if (pContext->GetCallstackSize() <= m_callStack.Size())
+        {
+            m_executionStatus = eScriptExecutionStatus::StoppedExecution;
+        }
+    }
+    if (m_executionStatus == eScriptExecutionStatus::StepOut)
+    {
+        if (pContext->GetCallstackSize() == 1 || pContext->GetCallstackSize() < m_callStack.Size())
+        {
+            m_executionStatus = eScriptExecutionStatus::StoppedExecution;
+        }
+    }
+
+
+    if (m_executionStatus == eScriptExecutionStatus::StoppedExecution)
+    {
+        m_bGeneratedStackData = false;
+        CreateCallstack(pContext, file);
+        m_bGeneratedVariables = false;
+        CreateVariables(pContext);
+
+        if (bHitBreakpoint)
+        {
+            StringLW fileName = scriptObjectPath.Data();
+            m_messages.Add(CreateHitBreakpointMessage(lineNbr, fileName.ToCharString()));
+            H_DEBUGMESSAGE("Sending hit breakpoint message.");
+        }
+        else
+        {
+            m_messages.Add(CreateStopExecutionMessage());
+            H_DEBUGMESSAGE("Sending stop execution message.");
+        }
+
+        pContext->Suspend();
+    }
+
+    // Will halt execution
+    m_pDebuggerServer->UpdateDuringScriptExecution();
 }
 
 void Hail::AngelScript::ScriptDebugger::SetLineCallback()
@@ -210,18 +433,45 @@ void Hail::AngelScript::ScriptDebugger::SetLineCallback()
     m_bIsDebugging = true;
 }
 
-void Hail::AngelScript::ScriptDebugger::StopDebugging()
+void Hail::AngelScript::ScriptDebugger::ClearLineCallback()
+{
+    if (!m_bIsDebugging)
+    {
+        H_ERROR("Debugger is not set for debugging, potential code error.");
+        return;
+    }
+    m_pScriptContext->ClearLineCallback();
+    m_bIsDebugging = false;
+}
+
+void Hail::AngelScript::ScriptDebugger::StopDebuggingScript()
 {
     if (!m_bIsDebugging)
     {
         H_ERROR("Debugger is not set for debugging, potential code error.");
     }
-    m_bIsDebugging = false;
-    m_pScriptContext->ClearLineCallback();
+    if (m_executionStatus != eScriptExecutionStatus::Normal)
+        SetExecutionStatus(eScriptExecutionStatus::Normal);
+    ClearLineCallback();
+    m_registeredObjects.RemoveAll();
+    m_breakPoints.RemoveAll();
+    m_bGeneratedVariables = false;
+    m_bGeneratedStackData = false;
+
+    H_DEBUGMESSAGE("Stop debugging");
 }
 
 void Hail::AngelScript::ScriptDebugger::AddBreakpoints(const FileBreakPoints& breakPoints)
 {
+    for (int i = m_breakPoints.Size(); i > 0; i--)
+    {
+        if (StringCompareCaseInsensitive(breakPoints.fileName, m_breakPoints[i - 1].fileName))
+        {
+            m_breakPoints.RemoveCyclicAtIndex(i - 1);
+            break;
+        }
+    }
+
     m_breakPoints.Add(breakPoints);
 }
 
@@ -240,16 +490,304 @@ void Hail::AngelScript::ScriptDebugger::RemoveBreakpoints(const FileBreakPoints&
 void Hail::AngelScript::ScriptDebugger::RemoveBreakpoints()
 {
     m_breakPoints.RemoveAll();
+    H_DEBUGMESSAGE("Remove breakpoints");
 }
 
-DebuggerMessage Hail::AngelScript::ScriptDebugger::CreateHitBreakpointMessage(int line, StringL file)
+void Hail::AngelScript::ScriptDebugger::SetExecutionStatus(eScriptExecutionStatus status)
 {
-    DebuggerMessage message;
-    MessageHeader header;
-    message.m_header.messageLength = file.Length();
-    message.m_header.type = eDebuggerMessageType::HitBreakpoint;
-    memcpy(message.m_message, file.Data(), file.Length());
-    return message;
+    if (status == m_executionStatus)
+    {
+        H_ERROR("Possible programming error, sending same status as already active on debugger");
+        return;
+    }
+    m_bGeneratedStackData = false;
+    m_bGeneratedVariables = false;
+    m_executionStatus = status;
+}
+
+void Hail::AngelScript::ScriptDebugger::SendGeneratedCallstack()
+{
+    if (!m_bGeneratedStackData)
+    {
+        // no existing callstack, send error
+        return;
+    }
+
+    m_messages.Add(CreateCallstackMessage(m_callStack));
+    H_DEBUGMESSAGE("Sending callstack.");
+}
+
+void Hail::AngelScript::ScriptDebugger::SendVariables(eCallStack callStackToSend)
+{
+
+    if (!m_bGeneratedVariables)
+    {
+        // Send empty message
+        m_messages.Add(CreateVariablesMessage(nullptr));
+    }
+    else
+    {
+        m_messages.Add(CreateVariablesMessage(&m_variables[(uint32)callStackToSend]));
+    }
+    H_DEBUGMESSAGE("Sending variables message.");
+}
+
+void Hail::AngelScript::ScriptDebugger::SendVariable(eCallStack callStackToSend, StringL variableRequested)
+{
+    const Variable* pVarToSend = nullptr;
+    if (m_bGeneratedVariables)
+    {
+        for (size_t i = 0; i < m_variables[(uint32)callStackToSend].Size(); i++)
+        {
+            const Variable& var = m_variables[(uint32)callStackToSend][i];
+            if (StringCompare(var.m_name, variableRequested))
+            {
+                pVarToSend = &var;
+                break;
+            }
+        }
+        if (!pVarToSend)
+        {
+            // Also search local scope
+            for (size_t i = 0; i < m_variables[(uint32)eCallStack::local].Size(); i++)
+            {
+                const Variable& var = m_variables[(uint32)eCallStack::local][i];
+                if (StringCompare(var.m_name, variableRequested))
+                {
+                    pVarToSend = &var;
+                    break;
+                }
+            }
+        }
+    }
+    H_DEBUGMESSAGE("Sending specific variable message.");
+    m_messages.Add(CreateVariableMessage(pVarToSend));
+}
+
+void Hail::AngelScript::ScriptDebugger::CreateCallstack(asIScriptContext* pContext, const char* pFileName)
+{
+    if (m_bGeneratedStackData)
+        return;
+
+    m_callStack.RemoveAll();
+    // Create Callstack
+    if (!m_bGeneratedStackData)
+    {
+        for (asUINT n = 0; n < pContext->GetCallstackSize(); n++)
+        {
+            int32 stackLineNbr = 0;
+            stackLineNbr = pContext->GetLineNumber(n, 0, &pFileName);
+            StackFrame& frame = m_callStack.Add();
+            frame.m_line = stackLineNbr;
+            frame.m_functionName = pContext->GetFunction(n)->GetDeclaration();
+            frame.m_sourceFile = pFileName;
+        }
+        m_bGeneratedStackData = true;
+    }
+}
+
+void Hail::AngelScript::ScriptDebugger::CreateVariables(asIScriptContext* pContext)
+{
+    if (m_bGeneratedVariables)
+        return;
+    // Tokenize the input string to get the variable scope and name
+    //asUINT len = 0;
+    //string scope;
+    //StringL name;
+    //StringL str = expr;
+    //asETokenClass t = engine->ParseToken(str.c_str(), 0, &len);
+    //while( t == asTC_IDENTIFIER || (t == asTC_KEYWORD && len == 2 && str.compare(0, 2, "::") == 0) )
+    //{
+    //	if( t == asTC_KEYWORD )
+    //	{
+    //		if( scope == "" && name == "" )
+    //			scope = "::";			// global scope
+    //		else if( scope == "::" || scope == "" )
+    //			scope = name;			// namespace
+    //		else
+    //			scope += "::" + name;	// nested namespace
+    //		name = "";
+    //	}
+    //	else if( t == asTC_IDENTIFIER )
+    //		name.assign(str.c_str(), len);
+
+    //	// Skip the parsed token and get the next one
+    //	str = str.substr(len);
+    //	t = engine->ParseToken(str.c_str(), 0, &len);
+    //}
+
+    asIScriptModule* mod = pContext->GetFunction()->GetModule();
+    if (!mod) return;
+    //if( name.size() )
+    //{
+    //	// Find the variable
+    //void *ptr = 0;
+    //int typeId = 0;
+
+    asIScriptFunction* localFunc = pContext->GetFunction();
+    if (!localFunc) return;
+
+    //	// skip local variables if a scope was informed
+    //	if( scope == "" )
+    //	{
+    //		// We start from the end, in case the same name is reused in different scopes
+    //		for( asUINT n = func->GetVarCount(); n-- > 0; )
+    //		{
+    //			const char* varName = 0;
+    //			ctx->GetVar(n, 0, &varName, &typeId);
+    //			if( ctx->IsVarInScope(n) && varName != 0 && name == varName )
+    //			{
+    //				ptr = ctx->GetAddressOfVar(n);
+    //				break;
+    //			}
+    //		}
+
+    // Look for class members, if we're in a class method
+    //if (!ptr && localFunc->GetObjectType())
+    {
+        //if (name == "this")
+        //{
+        //    ptr = pContext->GetThisPointer();
+        //    typeId = pContext->GetThisTypeId();
+        //}
+        //else
+        //{
+            //asITypeInfo* type = engine->GetTypeInfoById(pContext->GetThisTypeId());
+            //for (asUINT n = 0; n < type->GetPropertyCount(); n++)
+            //{
+            //    const char* propName = 0;
+            //    int offset = 0;
+            //    bool isReference = 0;
+            //    int compositeOffset = 0;
+            //    bool isCompositeIndirect = false;
+            //    type->GetProperty(n, &propName, &typeId, 0, 0, &offset, &isReference, 0, &compositeOffset, &isCompositeIndirect);
+            //    if (name == propName)
+            //    {
+            //        ptr = (void*)(((asBYTE*)pContext->GetThisPointer()) + compositeOffset);
+            //        if (isCompositeIndirect) ptr = *(void**)ptr;
+            //        ptr = (void*)(((asBYTE*)ptr) + offset);
+            //        if (isReference) ptr = *(void**)ptr;
+            //        break;
+            //    }
+            //}
+        //}
+    }
+    //	}
+
+    //	// Look for global variables
+    //	if( !ptr )
+    //	{
+    //		if( scope == "" )
+    //		{
+    //			// If no explicit scope was informed then use the namespace of the current function by default
+    //			scope = func->GetNamespace();
+    //		}
+    //		else if( scope == "::" )
+    //		{
+    //			// The global namespace will be empty
+    //			scope = "";
+    //		}
+
+    //		asIScriptModule *mod = func->GetModule();
+    //		if( mod )
+    //		{
+    //			for( asUINT n = 0; n < mod->GetGlobalVarCount(); n++ )
+    //			{
+    //				const char *varName = 0, *nameSpace = 0;
+    //				mod->GetGlobalVar(n, &varName, &nameSpace, &typeId);
+
+    //				// Check if both name and namespace match
+    //				if( name == varName && scope == nameSpace )
+    //				{
+    //					ptr = mod->GetAddressOfGlobalVar(n);
+    //					break;
+    //				}
+    //			}
+    //		}
+    //	}
+
+    //	if( ptr )
+    //	{
+    //		// TODO: If there is a . after the identifier, check for members
+    //		// TODO: If there is a [ after the identifier try to call the 'opIndex(expr) const' method 
+    //		if( str != "" )
+    //		{
+    //			Output("Invalid expression. Expression doesn't end after symbol\n");
+    //		}
+    //		else
+    //		{
+    //			stringstream s;
+    //			// TODO: Allow user to set if members should be expanded
+    //			// Expand members by default to 3 recursive levels only
+    //			s << ToString(ptr, typeId, 3, engine) << endl;
+    //			Output(s.str());
+    //		}
+    //	}
+    //	else
+    //	{
+    //		Output("Invalid expression. No matching symbol\n");
+    //	}
+    //}
+    //else
+    //{
+    //	Output("Invalid expression. Expected identifier\n");
+    //}
+    //ListMemberProperties
+    m_variables[(int)eCallStack::self].RemoveAll();
+    void* ptr = pContext->GetThisPointer();
+    if (ptr)
+    {
+        // TODO: Allow user to define if members should be expanded or not
+        // Expand members by default to 3 recursive levels only
+        Variable& thisVariable = m_variables[(int)eCallStack::self].Add();
+        thisVariable = ASTypeToVariable(ptr, pContext->GetThisTypeId(), 3, pContext->GetEngine(), GetTypeRegistry());
+        thisVariable.m_name = "this";
+    }
+
+    //}
+
+    //ListGlobalVariables
+
+    m_variables[(int)eCallStack::global].RemoveAll();
+    for (asUINT n = 0; n < mod->GetGlobalVarCount(); n++)
+    {
+        int typeId = 0;
+        mod->GetGlobalVar(n, 0, 0, &typeId);
+        // TODO: Allow user to set how many recursive expansions should be done
+        // Expand members by default to 3 recursive levels only
+        Variable& globalVariable = m_variables[(int)eCallStack::global].Add();
+        globalVariable = ASTypeToVariable(mod->GetAddressOfGlobalVar(n), typeId, 3, pContext->GetEngine(), GetTypeRegistry());
+        globalVariable.m_name = RemoveTypeInformationFromDeclaration(mod->GetGlobalVarDeclaration(n));
+
+    }
+
+    //ListLocalVariables
+    m_variables[(int)eCallStack::local].RemoveAll();
+    if (localFunc)
+    {
+        for (asUINT n = 0; n < localFunc->GetVarCount(); n++)
+        {
+            // Skip temporary variables
+            // TODO: Should there be an option to view temporary variables too?
+            const char* name;
+            localFunc->GetVar(n, &name);
+            if (name == 0 || StringLength(name) == 0)
+                continue;
+
+            if (pContext->IsVarInScope(n))
+            {
+                // TODO: Allow user to set if members should be expanded or not
+                // Expand members by default to 3 recursive levels only
+                int typeId;
+                pContext->GetVar(n, 0, 0, &typeId);
+                Variable& localVariable = m_variables[(int)eCallStack::local].Add();
+                localVariable = ASTypeToVariable(pContext->GetAddressOfVar(n), typeId, 3, pContext->GetEngine(), GetTypeRegistry());
+                localVariable.m_name = RemoveTypeInformationFromDeclaration(localFunc->GetVarDecl(n));
+            }
+        }
+    }
+
+    m_bGeneratedVariables = true;
 }
 
 void Hail::AngelScript::DebuggerServer::Update()
@@ -259,10 +797,10 @@ void Hail::AngelScript::DebuggerServer::Update()
         const H_Socket connectingSocket = accept(m_socketHandle, nullptr, nullptr);
         if (connectingSocket != InvalidSocket)
         {
-            Client newClient;
-            newClient.m_socket = connectingSocket;
-            newClient.m_bConnected = false;
-            m_clients.Add(newClient);
+            ScriptDebugger& newClient = m_clients.Add();
+            newClient.m_clientData.m_socket = connectingSocket;
+            newClient.m_clientData.m_bConnected = false;
+            newClient.m_clientData.m_bDisconnected = false;
         }
     }
 
@@ -270,33 +808,47 @@ void Hail::AngelScript::DebuggerServer::Update()
     if (m_bIsDebugging && m_pActiveScript)
     {
         GrowingArray<DebuggerMessage>& debuggerMessages = m_pActiveScript->m_pDebugger->GetMessages();
-
         for (size_t iDebugMessage = 0; iDebugMessage < debuggerMessages.Size(); iDebugMessage++)
         {
             SendDebuggerMessage(debuggerMessages[iDebugMessage]);
         }
         debuggerMessages.RemoveAll();
-        while (m_pActiveScript->m_pDebugger->GetStatus() != eScriptExecutionStatus::Normal)
-        {
-            ListenToMessages();
-        }
     }
 
+}
+
+void Hail::AngelScript::DebuggerServer::UpdateDuringScriptExecution()
+{
+    if (m_bIsDebugging && m_pActiveScript)
+    {
+        while (m_pActiveScript->m_pDebugger->GetStatus() == eScriptExecutionStatus::StoppedExecution && !IsApplicationTerminated())
+        {
+            ListenToMessages();
+
+            GrowingArray<DebuggerMessage>& debuggerMessages = m_pActiveScript->m_pDebugger->GetMessages();
+            for (size_t iDebugMessage = 0; iDebugMessage < debuggerMessages.Size(); iDebugMessage++)
+            {
+                SendDebuggerMessage(debuggerMessages[iDebugMessage]);
+            }
+            debuggerMessages.RemoveAll();
+        }
+    }
 }
 
 void Hail::AngelScript::DebuggerServer::StartDebugging()
 {
     H_ASSERT(m_currentClient != MAX_UINT, "Must start debugging on a valid client.");
-    Client& client = m_clients[m_currentClient];
-    client.m_bConnected = true;
+    ScriptDebugger& client = m_clients[m_currentClient];
+    client.m_clientData.m_bConnected = true;
     H_DEBUGMESSAGE(StringL::Format("Client nr %d connected for debugging.", m_currentClient + 1));
 }
 
 void Hail::AngelScript::DebuggerServer::StopDebugging()
 {
     H_ASSERT(m_currentClient != MAX_UINT, "Must stop debugging on a valid client.");
-    Client& client = m_clients[m_currentClient];
-    client.m_bConnected = false;
+    ScriptDebugger& client = m_clients[m_currentClient];
+    client.m_clientData.m_bDisconnected = true;
+    H_DEBUGMESSAGE(StringL::Format("Client nr %d stopped debugging.", m_currentClient + 1));
 }
 
 void Hail::AngelScript::DebuggerServer::AddBreakpoints(const FileBreakPoints& breakpointsToAdd)
@@ -320,16 +872,68 @@ void Hail::AngelScript::DebuggerServer::ContinueDebugging()
 {
     if (m_pActiveScript)
         m_pActiveScript->m_pDebugger->SetExecutionStatus(eScriptExecutionStatus::Normal);
+    H_DEBUGMESSAGE("Continue debugging.");
+}
+
+void Hail::AngelScript::DebuggerServer::PauseDebugging()
+{
+    if (m_pActiveScript)
+        m_pActiveScript->m_pDebugger->SetExecutionStatus(eScriptExecutionStatus::PausedExecution);
+    H_DEBUGMESSAGE("Paused debugging.");
+}
+
+void Hail::AngelScript::DebuggerServer::StepIn()
+{
+    if (m_pActiveScript)
+        m_pActiveScript->m_pDebugger->SetExecutionStatus(eScriptExecutionStatus::StepIn);
+    H_DEBUGMESSAGE("Step in.");
+}
+
+void Hail::AngelScript::DebuggerServer::StepOver()
+{
+    if (m_pActiveScript)
+        m_pActiveScript->m_pDebugger->SetExecutionStatus(eScriptExecutionStatus::StepOver);
+    H_DEBUGMESSAGE("Step over.");
+}
+
+void Hail::AngelScript::DebuggerServer::StepOut()
+{
+    if (m_pActiveScript)
+        m_pActiveScript->m_pDebugger->SetExecutionStatus(eScriptExecutionStatus::StepOut);
+    H_DEBUGMESSAGE("Step over.");
+}
+
+void Hail::AngelScript::DebuggerServer::SendVariables(eCallStack callStackToGet)
+{
+    if (m_pActiveScript)
+        m_pActiveScript->m_pDebugger->SendVariables(callStackToGet);
+}
+
+void Hail::AngelScript::DebuggerServer::FindVariable(eCallStack callStackType, StringL variableToFind)
+{
+    if (m_pActiveScript)
+        m_pActiveScript->m_pDebugger->SendVariable(callStackType, variableToFind);
+}
+
+void Hail::AngelScript::DebuggerServer::SendCallstack()
+{
+    if (m_pActiveScript)
+    {
+        H_DEBUGMESSAGE("Send Generated Callstack Request");
+        m_pActiveScript->m_pDebugger->SendGeneratedCallstack();
+    }
+    // else do error stuff
 }
 
 void Hail::AngelScript::DebuggerServer::SendDebuggerMessage(DebuggerMessage& messageToSend)
 {
     for (uint32 i = 0; i < m_clients.Size(); i++)
     {
-        if (m_clients[i].m_bConnected)
+        if (m_clients[i].m_clientData.m_bConnected)
         {
-            int iSendResult = send(m_clients[i].m_socket, (const char*)(&messageToSend.m_header), sizeof(MessageHeader), 0);
-            iSendResult = send(m_clients[i].m_socket, (messageToSend.m_message), messageToSend.m_header.messageLength, 0);
+            int iSendResult = send(m_clients[i].m_clientData.m_socket, (const char*)(&messageToSend.m_header), sizeof(MessageHeader), 0);
+            if (messageToSend.m_header.messageLength)
+                iSendResult = send(m_clients[i].m_clientData.m_socket, (messageToSend.m_data.GetMessageData()), messageToSend.m_header.messageLength, 0);
             if (iSendResult == SOCKET_ERROR) {
                 H_ERROR(StringL::Format("send failed: %d\n", WSAGetLastError()));
             }
@@ -348,41 +952,40 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
     for (uint32 i = 0; i < m_clients.Size(); i++)
     {
         buffer[0] = 0;
-        const int iResult = recv(m_clients[i].m_socket, buffer, sizeof(buffer), 0);
+        ScriptDebugger& script = m_clients[i];
+        const int iResult = recv(script.m_clientData.m_socket, buffer, sizeof(buffer), 0);
         m_currentClient = i;
         if (iResult > 0)
         {
-            //char singleMessageBuffer[128];
-            //memcpy(singleMessageBuffer, buffer, Math::Min(iResult, 128));
-            //H_DEBUGMESSAGE(String256::Format("Server recieved this many bytes: %d Message: %s", Math::Min(iResult, 128), singleMessageBuffer));
             HandleDebuggerMessage(this, iResult, buffer);
-            //iSendResult = send(ClientSocket, recvbuf, iResult, 0);
-            //if (iSendResult == SOCKET_ERROR) {
-            //    printf("send failed: %d\n", WSAGetLastError());
-            //    closesocket(ClientSocket);
-            //    WSACleanup();
-            //}
         }
         else if (iResult == 0)
         {
             H_DEBUGMESSAGE("Client connection closing...");
             disconnectingSockets.Add(i);
         }
-        else
+        if (script.m_clientData.m_bConnected)
         {
-            // No messages, no one loves you :(
-            //H_ERROR("Socket error encountered when recieving message.");
-        }
-        if (m_clients[i].m_bConnected)
-        {
-            m_bIsDebugging = true;
-            if (!wasDebugging && m_pActiveScript)
+            if (m_pActiveScript && m_pActiveScript->m_pDebugger->GetIsDebugging() == false)
             {
                 m_pActiveScript->m_pDebugger->SetLineCallback();
             }
+
+            if (script.m_clientData.m_bDisconnected)
+            {
+                script.m_clientData.m_bDisconnected = false;
+                GrowingArray<DebuggerMessage>& debuggerMessages = script.GetMessages();
+                for (size_t iDebugMessage = 0; iDebugMessage < debuggerMessages.Size(); iDebugMessage++)
+                {
+                    SendDebuggerMessage(debuggerMessages[iDebugMessage]);
+                }
+                debuggerMessages.RemoveAll();
+                script.m_clientData.m_bConnected = false;
+                disconnectingSockets.Add(i);
+            }
             else
             {
-                // Gather messages to send back
+                m_bIsDebugging = true;
             }
         }
     }
@@ -390,11 +993,15 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
     // Removing highest indices first to keep the order. 
     for (int i = disconnectingSockets.Size(); i > 0; --i)
     {
+        H_Socket socket = m_clients[disconnectingSockets[i - 1]].m_clientData.m_socket;
+        m_clients[disconnectingSockets[i - 1]].m_clientData.m_socket = InvalidSocket;
+        const int iResult = recv(socket, buffer, sizeof(buffer), 0);
+        closesocket(socket);
         m_clients.RemoveCyclicAtIndex(disconnectingSockets[i - 1]);
     }
     if (wasDebugging && !m_bIsDebugging && m_pActiveScript)
     {
-        m_pActiveScript->m_pDebugger->StopDebugging();
+        m_pActiveScript->m_pDebugger->StopDebuggingScript();
     }
 }
 
@@ -422,141 +1029,7 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
 //	SetEngine(0);
 //}
 //
-//string CDebugger::ToString(void *value, asUINT typeId, int expandMembers, asIScriptEngine *engine)
-//{
-//	if( value == 0 )
-//		return "<null>";
-//
-//	// If no engine pointer was provided use the default
-//	if( engine == 0 )
-//		engine = m_engine;
-//
-//	stringstream s;
-//	if( typeId == asTYPEID_VOID )
-//		return "<void>";
-//	else if( typeId == asTYPEID_BOOL )
-//		return *(bool*)value ? "true" : "false";
-//	else if( typeId == asTYPEID_INT8 )
-//		s << (int)*(signed char*)value;
-//	else if( typeId == asTYPEID_INT16 )
-//		s << (int)*(signed short*)value;
-//	else if( typeId == asTYPEID_INT32 )
-//		s << *(signed int*)value;
-//	else if( typeId == asTYPEID_INT64 )
-//#if defined(_MSC_VER) && _MSC_VER <= 1200
-//		s << "{...}"; // MSVC6 doesn't like the << operator for 64bit integer
-//#else
-//		s << *(asINT64*)value;
-//#endif
-//	else if( typeId == asTYPEID_UINT8 )
-//		s << (unsigned int)*(unsigned char*)value;
-//	else if( typeId == asTYPEID_UINT16 )
-//		s << (unsigned int)*(unsigned short*)value;
-//	else if( typeId == asTYPEID_UINT32 )
-//		s << *(unsigned int*)value;
-//	else if( typeId == asTYPEID_UINT64 )
-//#if defined(_MSC_VER) && _MSC_VER <= 1200
-//		s << "{...}"; // MSVC6 doesn't like the << operator for 64bit integer
-//#else
-//		s << *(asQWORD*)value;
-//#endif
-//	else if( typeId == asTYPEID_FLOAT )
-//		s << *(float*)value;
-//	else if( typeId == asTYPEID_DOUBLE )
-//		s << *(double*)value;
-//	else if( (typeId & asTYPEID_MASK_OBJECT) == 0 )
-//	{
-//		// The type is an enum
-//		s << *(asUINT*)value;
-//
-//		// Check if the value matches one of the defined enums
-//		if( engine )
-//		{
-//			asITypeInfo *t = engine->GetTypeInfoById(typeId);
-//			for( int n = t->GetEnumValueCount(); n-- > 0; )
-//			{
-//				int enumVal;
-//				const char *enumName = t->GetEnumValueByIndex(n, &enumVal);
-//				if( enumVal == *(int*)value )
-//				{
-//					s << ", " << enumName;
-//					break;
-//				}
-//			}
-//		}
-//	}
-//	else if( typeId & asTYPEID_SCRIPTOBJECT )
-//	{
-//		// Dereference handles, so we can see what it points to
-//		if( typeId & asTYPEID_OBJHANDLE )
-//			value = *(void**)value;
-//
-//		asIScriptObject *obj = (asIScriptObject *)value;
-//		
-//		// Print the address of the object
-//		s << "{" << obj << "}";
-//
-//		// Print the members
-//		if( obj && expandMembers > 0 )
-//		{
-//			asITypeInfo *type = obj->GetObjectType();
-//			for( asUINT n = 0; n < obj->GetPropertyCount(); n++ )
-//			{
-//				if( n == 0 )
-//					s << " ";
-//				else
-//					s << ", ";
-//
-//				s << type->GetPropertyDeclaration(n) << " = " << ToString(obj->GetAddressOfProperty(n), obj->GetPropertyTypeId(n), expandMembers - 1, type->GetEngine());
-//			}
-//		}
-//	}
-//	else
-//	{
-//		// Dereference handles, so we can see what it points to
-//		if( typeId & asTYPEID_OBJHANDLE )
-//			value = *(void**)value;
-//
-//		// Print the address for reference types so it will be
-//		// possible to see when handles point to the same object
-//		if( engine )
-//		{
-//			asITypeInfo *type = engine->GetTypeInfoById(typeId);
-//			if( type->GetFlags() & asOBJ_REF )
-//				s << "{" << value << "}";
-//
-//			if( value )
-//			{
-//				// Check if there is a registered to-string callback
-//				map<const asITypeInfo*, ToStringCallback>::iterator it = m_toStringCallbacks.find(type);
-//				if( it == m_toStringCallbacks.end() )
-//				{
-//					// If the type is a template instance, there might be a
-//					// to-string callback for the generic template type
-//					if( type->GetFlags() & asOBJ_TEMPLATE )
-//					{
-//						asITypeInfo *tmplType = engine->GetTypeInfoByName(type->GetName());
-//						it = m_toStringCallbacks.find(tmplType);
-//					}
-//				}
-//
-//				if( it != m_toStringCallbacks.end() )
-//				{
-//					if( type->GetFlags() & asOBJ_REF )
-//						s << " ";
-//
-//					// Invoke the callback to get the string representation of this type
-//					string str = it->second(value, expandMembers, this);
-//					s << str;
-//				}
-//			}
-//		}
-//		else
-//			s << "{no engine}";
-//	}
-//
-//	return s.str();
-//}
+
 //
 //void CDebugger::RegisterToStringCallback(const asITypeInfo *ot, ToStringCallback callback)
 //{
