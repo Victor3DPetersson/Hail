@@ -11,6 +11,8 @@
 
 #include "Resources\Vulkan\VlkBufferResource.h"
 
+#include "vk_mem_alloc.h"
+
 using namespace Hail;
 bool VlkRenderingResourceManager::Init(RenderingDevice* renderingDevice, SwapChain* swapChain)
 {
@@ -50,11 +52,8 @@ bool VlkRenderingResourceManager::Init(RenderingDevice* renderingDevice, SwapCha
 
 void VlkRenderingResourceManager::ClearAllResources()
 {
-	if (!m_renderDevice)
-	{
-		//TODO: Add an assert here
-		return;
-	}
+	H_ASSERT(m_renderDevice);
+
 	VlkDevice* device = (VlkDevice*)m_renderDevice;
 	vkDestroySampler(device->GetDevice(), m_resources.m_linearTextureSampler, nullptr);
 	vkDestroySampler(device->GetDevice(), m_resources.m_pointTextureSampler, nullptr);
@@ -82,18 +81,33 @@ void* VlkRenderingResourceManager::GetRenderingResources()
 	return &m_resources;
 }
 
-void VlkRenderingResourceManager::MapMemoryToBuffer(BufferObject* pBuffer, void* dataToMap, uint32_t sizeOfData, uint32 offset)
+void VlkRenderingResourceManager::UploadMemoryToBuffer(BufferObject* pBuffer, void* dataToMap, uint32_t sizeOfData, uint32 offset)
 {
 	H_ASSERT(pBuffer, "Invalid buffer mapped");
 	VlkBufferObject* pVlkBuffer = (VlkBufferObject*)pBuffer;
 	H_ASSERT(pBuffer->GetBufferSize() >= sizeOfData + offset, "Invalid offset or size of mapped data");
-	memcpy(pVlkBuffer->GetMappedMemory(m_swapChain->GetFrameInFlight()), dataToMap, sizeOfData);
+	VlkDevice* device = (VlkDevice*)m_renderDevice;
+	const uint32 frameInFlight = m_swapChain->GetFrameInFlight();
+	if (pVlkBuffer->UsesFrameInFlight())
+	{
+		void* pMappedData = pVlkBuffer->GetAllocationMappedMemory(frameInFlight).pMappedData;
+		memcpy((void*)((uint8*)pMappedData + offset), dataToMap, sizeOfData);
+	}
+	else
+	{
+		vmaCopyMemoryToAllocation(device->GetMemoryAllocator(), dataToMap, pVlkBuffer->GetAllocation(frameInFlight), offset, sizeOfData);
+	}
+	VkResult result = vmaFlushAllocation(device->GetMemoryAllocator(), pVlkBuffer->GetAllocation(frameInFlight), 0, VK_WHOLE_SIZE);
+	H_ASSERT(result == VK_SUCCESS);
+	//memcpy(pVlkBuffer->GetMappedMemory(m_swapChain->GetFrameInFlight()), dataToMap, sizeOfData);
 }
 
 BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor)
 {
-	// TODO assert on type::
 	VlkBufferObject* vlkBuffer = new VlkBufferObject();
-	vlkBuffer->Init(m_renderDevice, properties);
-	return vlkBuffer;
+	if (vlkBuffer->Init(m_renderDevice, properties))
+		return vlkBuffer;
+
+	vlkBuffer->CleanupResource(m_renderDevice);
+	return nullptr;
 }

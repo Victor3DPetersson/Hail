@@ -20,6 +20,9 @@
 #include "Resources\ResourceManager.h"
 
 #include "VlkVertex_Descriptor.h"
+#include "VlkVmaUsage.h"
+
+#include "vk_mem_alloc.h"
 
 /* Put this in a single .cpp file that's vulkan related: */
 PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_ = nullptr;
@@ -110,6 +113,8 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 
 void VlkDevice::DestroyDevice()
 {
+	vmaDestroyAllocator(m_vmaAllocator);
+
 	vkDestroyDevice(m_device, nullptr);
 #ifdef DEBUG
 	if (enableValidationLayers) {
@@ -378,8 +383,6 @@ QueueFamilyIndices VlkDevice::FindQueueFamilies(VkPhysicalDevice device)
 	return indices;
 }
 
-
-
 void VlkDevice::CreateLogicalDevice()
 {
 	QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
@@ -456,6 +459,19 @@ void VlkDevice::CreateLogicalDevice()
 #ifdef DEBUG
 		throw std::runtime_error("failed to create logical device!");
 #endif
+	}
+
+	VmaAllocatorCreateInfo vlkVmaCreateInfo{};
+
+	vlkVmaCreateInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+	vlkVmaCreateInfo.device = m_device;
+	vlkVmaCreateInfo.physicalDevice = m_physicalDevice;
+	vlkVmaCreateInfo.preferredLargeHeapBlockSize = 0u;
+	vlkVmaCreateInfo.instance = m_vkInstance;
+
+	if (vmaCreateAllocator(&vlkVmaCreateInfo, &m_vmaAllocator) != VK_SUCCESS)
+	{
+		throw std::runtime_error("failed to create memory allocator.");
 	}
 }
 

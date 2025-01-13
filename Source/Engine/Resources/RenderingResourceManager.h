@@ -22,7 +22,7 @@ namespace Hail
 		virtual void* GetRenderingResources() = 0;
 
 		virtual void ClearAllResources() = 0;
-		virtual void MapMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) = 0;
+		virtual void UploadMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) = 0;
 
 		BufferObject* GetGlobalBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint);
 		virtual BufferObject* CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor) = 0;

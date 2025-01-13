@@ -15,7 +15,7 @@ namespace Hail
 	{
 	public:
 		bool InitDevice(Timer* timer) override;
-		bool InitGraphicsEngine(ResourceManager* resourceManager) override;
+		bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) override;
 		void StartFrame(RenderCommandPool& renderPool) override;
 		void Render() override;
 		void EndFrame() override;

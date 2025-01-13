@@ -220,7 +220,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		m_spriteInstanceData.Add(spriteInstance);
 	}
 	BufferObject* spriteInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteInstanceBuffer);
-	m_renderingResourceManager->MapMemoryToBuffer(spriteInstanceBuffer, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	m_renderingResourceManager->UploadMemoryToBuffer(spriteInstanceBuffer, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
 	
 	//Debug Lines___
 	//TODO: Add proper support for 3D lines and sort this list
@@ -239,7 +239,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		m_debugLineData.Add(line);
 	}
 	BufferObject* lineInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::lineInstanceBuffer);
-	m_renderingResourceManager->MapMemoryToBuffer(lineInstanceBuffer, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
+	m_renderingResourceManager->UploadMemoryToBuffer(lineInstanceBuffer, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
 
 	//Common GPU buffers___
 
@@ -253,7 +253,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
 	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
 	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
-	m_renderingResourceManager->MapMemoryToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
+	m_renderingResourceManager->UploadMemoryToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
 
 	TutorialUniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -264,13 +264,13 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		renderPool.camera3D.GetNear(), renderPool.camera3D.GetFar());
 	ubo.proj[1][1] *= -1;
 	BufferObject* modelViewProjectionBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::uniform, (uint32)eInstanceUniformBuffer::modelViewProjectionData);
-	m_renderingResourceManager->MapMemoryToBuffer(modelViewProjectionBuffer, &ubo, sizeof(ubo));
+	m_renderingResourceManager->UploadMemoryToBuffer(modelViewProjectionBuffer, &ubo, sizeof(ubo));
 
 	PerCameraUniformBuffer perCameraData{};
 	perCameraData.proj = ubo.proj;
 	perCameraData.view = ubo.view;
 	BufferObject* perViewDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::viewData);
-	m_renderingResourceManager->MapMemoryToBuffer(perViewDataBuffer, &perCameraData, sizeof(perCameraData));
+	m_renderingResourceManager->UploadMemoryToBuffer(perViewDataBuffer, &perCameraData, sizeof(perCameraData));
 }
 
 void Hail::ResourceManager::ClearFrameData()

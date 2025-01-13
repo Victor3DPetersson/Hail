@@ -35,7 +35,7 @@ namespace Hail
 
 		void* GetRenderingResources() override;
 
-		void MapMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) override;
+		void UploadMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) override;
 
 		BufferObject* CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor) override;
 

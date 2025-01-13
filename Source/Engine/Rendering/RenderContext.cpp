@@ -9,8 +9,10 @@
 
 using namespace Hail;
 
-Hail::RenderContext::RenderContext(ResourceManager* pResourceManager)
-	: m_pResourceManager(pResourceManager)
+Hail::RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pResourceManager)
+	: m_pDevice(device)
+	, m_pResourceManager(pResourceManager)
+	, m_currentState(eContextState::TransitionBetweenStates)
 {
 	m_pBoundTextures.Fill(nullptr);
 	m_pBoundStructuredBuffers.Fill(nullptr);
@@ -62,5 +64,37 @@ Hail::BufferObject* Hail::RenderContext::GetBoundUniformBufferAtSlot(uint32 slot
 
 void Hail::RenderContext::UploadDataToBuffer(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData)
 {
-	m_pResourceManager->GetRenderingResourceManager()->MapMemoryToBuffer(pBuffer, pDataToUpload, sizeOfUploadedData);
+    UploadDataToBufferInternal(pBuffer, pDataToUpload, sizeOfUploadedData);
+}
+
+Hail::CommandBuffer::CommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer, bool bIsTempCommandBuffer) :
+	m_bIsTempCommandBuffer(bIsTempCommandBuffer),
+	m_contextState(contextStateForCommandBuffer),
+	m_pDevice(pDevice),
+	m_bIsInitialized(true)
+{
+}
+
+Hail::CommandBuffer::~CommandBuffer()
+{
+	H_ASSERT(m_bIsInitialized, "Bug in system");
+	m_bIsInitialized = false;
+}
+
+// Transfer pass uses a short lived command buffer, might be a dedicated command buffer in the future
+void Hail::RenderContext::StartTransferPass()
+{
+	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "End the current pass before starting a new one.");
+	m_currentState = eContextState::Transfer;
+
+	m_pCurrentCommandBuffer = CreateCommandBufferInternal(m_pDevice, eContextState::Transfer, true);
+}
+
+void Hail::RenderContext::EndTransferPass()
+{
+	H_ASSERT(m_pCurrentCommandBuffer);
+	H_ASSERT(m_currentState == eContextState::Transfer);
+	m_pCurrentCommandBuffer->EndBuffer();
+	SAFEDELETE(m_pCurrentCommandBuffer);
+	m_currentState = eContextState::TransitionBetweenStates;
 }

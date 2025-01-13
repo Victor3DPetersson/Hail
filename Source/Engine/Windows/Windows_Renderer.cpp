@@ -30,6 +30,7 @@
 #include "VulkanInternal/VlkBufferCreationFunctions.h"
 #include "VulkanInternal/VlkSingleTimeCommand.h"
 #include "VulkanInternal/VlkFrameBufferTexture.h"
+#include "VulkanInternal/VlkRenderContext.h"
 #include "Resources\Vulkan\VlkMaterial.h"
 
 #define GLM_FORCE_RADIANS
@@ -46,15 +47,15 @@ bool VlkRenderer::InitDevice(Timer* timer)
 	m_timer = timer;
 	m_renderDevice = new VlkDevice();
 	m_renderDevice->CreateInstance();
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 
 	return true;
 }
 
-bool Hail::VlkRenderer::InitGraphicsEngine(ResourceManager* resourceManager)
+bool Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager)
 {
 	m_resourceManager = resourceManager;
 	m_swapChain = (VlkSwapChain*)m_resourceManager->GetSwapChain();
+	m_pContext = new VlkRenderContext(m_renderDevice, m_resourceManager);
 
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 

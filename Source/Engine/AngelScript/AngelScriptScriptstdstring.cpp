@@ -753,15 +753,6 @@ static Hail::AngelScript::Variable GetStringData(void* pObj)
 	variableToReturn.m_type = "string";
 	variableToReturn.m_value = stringObject.c_str();
 
-	//Variable& memberX = variableToReturn.m_members.Add();
-	//memberX.m_name = "x";
-	//memberX.m_type = "float";
-	//memberX.m_value = StringL::Format("%f", vector.GetX());
-	//Variable& memberY = variableToReturn.m_members.Add();
-	//memberY.m_name = "y";
-	//memberY.m_type = "float";
-	//memberY.m_value = StringL::Format("%f", vector.GetY());
-
 	return variableToReturn;
 }
 

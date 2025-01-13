@@ -3,6 +3,10 @@
 #include "VlkDevice.h"
 #include "VlkSingleTimeCommand.h"
 
+#include "vk_mem_alloc.h"
+
+// TODO remove this file
+
 namespace Hail
 {
 	bool CreateBuffer(VlkDevice& device, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory)
@@ -12,6 +16,13 @@ namespace Hail
 		bufferInfo.size = size;
 		bufferInfo.usage = usage;
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		VmaAllocationCreateInfo vmaInfo{};
+		vmaInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		
+		vmaInfo.flags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+		vmaInfo.preferredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+		vmaInfo.pool = VK_NULL_HANDLE;
 
 		if (vkCreateBuffer(device.GetDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
 		{

@@ -66,10 +66,16 @@ bool Hail::RenderingResourceManager::InternalInit()
         case Hail::eGlobalUniformBuffers::frameData:
             properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(PerFrameUniformBuffer);
+            properties.domain = eShaderBufferDomain::CpuToGpu;
+            properties.usage = eShaderBufferUsage::Read;
+            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
             break;
         case Hail::eGlobalUniformBuffers::viewData:
             properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(PerCameraUniformBuffer);
+            properties.domain = eShaderBufferDomain::CpuToGpu;
+            properties.usage = eShaderBufferUsage::Read;
+            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
             break;
         case Hail::eGlobalUniformBuffers::count:
         default:
@@ -110,6 +116,10 @@ bool Hail::RenderingResourceManager::InternalInit()
         case Hail::eMaterialUniformBuffers::vulkanTutorialUniformBUffer:
             properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(TutorialUniformBufferObject);
+            properties.domain = eShaderBufferDomain::CpuToGpu;
+            properties.usage = eShaderBufferUsage::Read;
+            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+
             break;
         case Hail::eMaterialUniformBuffers::count:
         default:
@@ -132,10 +142,16 @@ bool Hail::RenderingResourceManager::InternalInit()
         case Hail::eMaterialBuffers::spriteInstanceBuffer:
             properties.numberOfElements = MAX_NUMBER_OF_SPRITES;
             properties.elementByteSize = sizeof(SpriteInstanceData);
+            properties.domain = eShaderBufferDomain::CpuToGpu;
+            properties.usage = eShaderBufferUsage::Read;
+            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
             break;
         case Hail::eMaterialBuffers::lineInstanceBuffer:
             properties.numberOfElements = MAX_NUMBER_OF_DEBUG_LINES;
             properties.elementByteSize = sizeof(DebugLineData);
+            properties.domain = eShaderBufferDomain::CpuToGpu;
+            properties.usage = eShaderBufferUsage::Read;
+            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
             break;
         case Hail::eMaterialBuffers::count:
         default:

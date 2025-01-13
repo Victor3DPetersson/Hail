@@ -3,8 +3,17 @@
 #include "VlkDevice.h"
 #include "VlkSingleTimeCommand.h"
 
+using namespace Hail;
+
+// TODO remove this file
+
+uint32 g_singleTimeCommandCounter = 0u;
+
 VkCommandBuffer Hail::BeginSingleTimeCommands(VlkDevice& device, VkCommandPool commandPool)
 {
+	H_ASSERT(g_singleTimeCommandCounter == 0, "Must end a command buffer before continuing with a new one.");
+	g_singleTimeCommandCounter++;
+
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -36,4 +45,6 @@ void Hail::EndSingleTimeCommands(VlkDevice& device, VkCommandBuffer commandBuffe
 	vkQueueWaitIdle(queue);
 
 	vkFreeCommandBuffers(device.GetDevice(), commandPool, 1, &commandBuffer);
+	g_singleTimeCommandCounter--;
+	H_ASSERT(g_singleTimeCommandCounter == 0, "Must end a command buffer before continuing with a new one.");
 }

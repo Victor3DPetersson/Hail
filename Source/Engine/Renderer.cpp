@@ -14,8 +14,6 @@ void Hail::Renderer::WindowSizeUpdated()
 
 bool Hail::Renderer::Initialize()
 {
-	m_pContext = new RenderContext(m_resourceManager);
-
 	bool initializationResult = true;
 	m_pFontRenderer = new FontRenderer(this, m_resourceManager);
 	initializationResult &= m_pFontRenderer->Initialize();

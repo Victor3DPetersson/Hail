@@ -44,6 +44,9 @@ namespace Hail
 		fontVertexBufferProperties.numberOfElements = m_fontData.m_renderVerts.Size();
 		fontVertexBufferProperties.offset = 0;
 		fontVertexBufferProperties.type = eBufferType::structured;
+		fontVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+		fontVertexBufferProperties.usage = eShaderBufferUsage::Read;
+		fontVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
 		m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontVertexBufferProperties, eDecorationSets::MaterialTypeDomain);
 
 		BufferProperties triangleListBufferProperties;
@@ -51,6 +54,9 @@ namespace Hail
 		triangleListBufferProperties.numberOfElements = m_fontData.m_glyphData.m_triangles.Size();
 		triangleListBufferProperties.offset = 0;
 		triangleListBufferProperties.type = eBufferType::structured;
+		triangleListBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+		triangleListBufferProperties.usage = eShaderBufferUsage::Read;
+		triangleListBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
 		m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(triangleListBufferProperties, eDecorationSets::MaterialTypeDomain);
 
 		BufferProperties glyphletInstanceListProps;
@@ -58,6 +64,9 @@ namespace Hail
 		glyphletInstanceListProps.numberOfElements = 1024;
 		glyphletInstanceListProps.offset = 0;
 		glyphletInstanceListProps.type = eBufferType::structured;
+		glyphletInstanceListProps.domain = eShaderBufferDomain::CpuToGpu;
+		glyphletInstanceListProps.usage = eShaderBufferUsage::Read;
+		glyphletInstanceListProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
 		m_pGlyphletBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(glyphletInstanceListProps, eDecorationSets::MaterialTypeDomain);
 
 		ResourceRegistry& reg = GetResourceRegistry();
@@ -81,10 +90,11 @@ namespace Hail
 		m_pFontPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
 		// TODO: Fix so that this can be uploaded once and not per frame.
-		//RenderContext* pContext = m_pRenderer->GetCurrentContext();
-		//pContext->UploadDataToBuffer(m_pVertexBuffer, m_fontData.m_verts.Data(), m_fontData.m_verts.Size() * sizeof(glm::vec2));
-		//pContext->UploadDataToBuffer(m_pIndexBuffer, m_fontData.m_triangles.Data(), m_fontData.m_triangles.Size() * sizeof(GlyphTri));
-		//pContext->UploadDataToBuffer(m_pRenderData, &m_fontData.m_glyphs[27], sizeof(Glyph));
+		RenderContext* pContext = m_pRenderer->GetCurrentContext();
+		pContext->StartTransferPass();
+		pContext->UploadDataToBuffer(m_pVertexBuffer, m_fontData.m_renderVerts.Data(), m_fontData.m_renderVerts.Size() * sizeof(glm::vec2));
+		pContext->UploadDataToBuffer(m_pIndexBuffer, m_fontData.m_glyphData.m_triangles.Data(), m_fontData.m_glyphData.m_triangles.Size() * sizeof(GlyphTri));
+		pContext->EndTransferPass();
 
 		return m_pFontPipeline;
 	}
@@ -115,10 +125,6 @@ namespace Hail
 			return;
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
-
-		pContext->UploadDataToBuffer(m_pVertexBuffer, m_fontData.m_renderVerts.Data(), m_fontData.m_renderVerts.Size() * sizeof(glm::vec4));
-		pContext->UploadDataToBuffer(m_pIndexBuffer, m_fontData.m_glyphData.m_triangles.Data(), m_fontData.m_glyphData.m_triangles.Size() * sizeof(GlyphTri));
-
 
 		// Temp code below, should be driven by render commands.
 		const wchar_t* helloWorld = L"En katt är ett litet små djur! :}";
@@ -179,7 +185,9 @@ namespace Hail
 				glyphPosition.x += advanceWidth + glyphSize;
 			}
 		}
+		pContext->StartTransferPass();
 		pContext->UploadDataToBuffer(m_pGlyphletBuffer, glyphletsToRender.Data(), glyphletsToRender.Size() * sizeof(RenderGlypghlet));
+		pContext->EndTransferPass();
 		// End of temp code.
 
 		pContext->SetBufferAtSlot(m_pVertexBuffer, 0);

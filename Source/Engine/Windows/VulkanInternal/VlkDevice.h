@@ -2,6 +2,10 @@
 #pragma once
 
 #include "StartupAttributes.h"
+
+#include "Containers\GrowingArray\GrowingArray.h"
+#include "Rendering\RenderDevice.h"
+
 #define VK_USE_PLATFORM_WIN32_KHR
 #include "vulkan\vulkan.h"
 /* Put this somewhere in a header file and include it alongside (and after) vulkan.h: */
@@ -9,8 +13,9 @@ extern PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_;
 // This #define lets you call the function the same way as if it was coming from the vulkan.h header
 #define vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_
 
-#include "Containers\GrowingArray\GrowingArray.h"
-#include "Rendering\RenderDevice.h"
+struct VmaAllocator_T;
+VK_DEFINE_HANDLE(VmaAllocator)
+
 namespace Hail
 {
 	struct QueueFamilyIndices
@@ -47,6 +52,8 @@ namespace Hail
 		VkQueue GetPresentQueue() { return m_presentQueue; }
 		VkQueue GetComputeQueue() { return m_computeQueue; }
 
+		VmaAllocator GetMemoryAllocator() { return m_vmaAllocator; }
+
 	private:
 		bool CheckValidationLayerSupport();
 		bool CheckRequiredExtensions();
@@ -69,9 +76,11 @@ namespace Hail
 		VkQueue m_computeQueue = VK_NULL_HANDLE;
 		VkCommandPool m_commandPool = VK_NULL_HANDLE;
 
-//#ifdef DEBUG
+		VmaAllocator m_vmaAllocator;
+
+#ifdef DEBUG
 		VkDebugUtilsMessengerEXT m_debugMessenger = VK_NULL_HANDLE;
-//#endif
+#endif
 
 	};
 

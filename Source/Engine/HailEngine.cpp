@@ -109,7 +109,7 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->InitGraphicsEngine(g_engineData->resourceManager))
+	if (!g_engineData->renderer->InitGraphicsEngineAndContext(g_engineData->resourceManager))
 	{
 		Cleanup();
 		return false;

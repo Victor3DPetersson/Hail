@@ -21,10 +21,12 @@ void main()
 {
     gameTime += 0.1;
     Vec2 direction = GetDirectionInput(PlayerMoveJoystickL, 0);
+    direction.y = direction.y * -1.0;
     playerPosition += direction * movementSpeed;
+    
     //direction.x += gameTime * 0.15;
     string inputOutputText = "Triggered input from AS and fetched a String! Number: ";
-    DrawLineNormalized(Vec2(0), Vec2(0.5));
+    //DrawLineNormalized(Vec2(0), Vec2(0.5));
     DrawLineNormalizedScreenAlligned(Vec2(0.5), (direction * 0.5) + 0.5);
     DrawCircleNormalized(playerPosition, 0.05);
     int numberFromAFunction = GetAMathematicalNumber(gameTime);
