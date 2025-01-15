@@ -43,6 +43,7 @@ namespace Hail
 		index,
 		uniform,
 		structured, 
+		staging
 	};
 
 	struct TutorialUniformBufferObject {

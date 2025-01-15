@@ -37,7 +37,7 @@ namespace Hail
 
 		void UploadMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) override;
 
-		BufferObject* CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor) override;
+		BufferObject* CreateBuffer(BufferProperties properties) override;
 
 
 	private:

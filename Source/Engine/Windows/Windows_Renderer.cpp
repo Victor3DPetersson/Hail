@@ -32,6 +32,7 @@
 #include "VulkanInternal/VlkFrameBufferTexture.h"
 #include "VulkanInternal/VlkRenderContext.h"
 #include "Resources\Vulkan\VlkMaterial.h"
+#include "Resources\Vulkan\VlkBufferResource.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -53,22 +54,25 @@ bool VlkRenderer::InitDevice(Timer* timer)
 
 bool Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager)
 {
-	m_resourceManager = resourceManager;
-	m_swapChain = (VlkSwapChain*)m_resourceManager->GetSwapChain();
-	m_pContext = new VlkRenderContext(m_renderDevice, m_resourceManager);
+	m_pResourceManager = resourceManager;
+	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
+	m_pContext = new VlkRenderContext(m_renderDevice, m_pResourceManager);
 
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 
-
+	//Create initial buffers
+	m_pContext->StartTransferPass();
 	CreateFullscreenVertexBuffer();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateDebugLineVertexBuffer();
+	CreateSpriteVertexBuffer();
+	m_pContext->EndTransferPass();
+
 	CreateCommandBuffers();
 	CreateSyncObjects();
 	InitImGui();
 
-	CreateSpriteVertexBuffer();
 
 	return true;
 }
@@ -313,7 +317,7 @@ void Hail::VlkRenderer::BindMaterialPipeline(Pipeline* pPipelineToBind, bool bFi
 
 	if (pVlkPipeline->m_type == eMaterialType::CUSTOM)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, pVlkPipeline, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_pResourceManager, pVlkPipeline, frameInFlightIndex);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pVlkPipeline->m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::CUSTOM;
 	}
@@ -328,27 +332,27 @@ void Hail::VlkRenderer::EndMaterialPass()
 
 void Hail::VlkRenderer::RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance)
 {
-	const MaterialInstance& materialInstance = m_resourceManager->GetMaterialManager()->GetMaterialInstance(m_commandPoolToRender->spriteCommands[spriteInstance].materialInstanceID, eMaterialType::SPRITE);
-	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex)->m_pPipeline, false);
+	const MaterialInstance& materialInstance = m_pResourceManager->GetMaterialManager()->GetMaterialInstance(m_commandPoolToRender->spriteCommands[spriteInstance].materialInstanceID, eMaterialType::SPRITE);
+	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex)->m_pPipeline, false);
 
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex);
+	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex);
 	VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::SPRITE)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_pResourceManager, &vlkPipeline, frameInFlightIndex);
 		VkDeviceSize spriteOffsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_spriteVertexBuffer, spriteOffsets);
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_pSpriteVertexBuffer->GetBuffer(0), spriteOffsets);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::SPRITE;
 	}
 
 	// TODO: use the reflected push constants
 	glm::uvec4 pushConstants_instanceID_padding = { spriteInstance, 0, 0, 0 };
-	const MaterialInstance& instanceMaterialData = m_resourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID, eMaterialType::SPRITE);
+	const MaterialInstance& instanceMaterialData = m_pResourceManager->GetMaterialManager()->GetMaterialInstance(spriteCommandToRender.materialInstanceID, eMaterialType::SPRITE);
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 2, 1, &vlkMaterial.m_instanceDescriptors[instanceMaterialData.m_gpuResourceInstance].descriptors[frameInFlightIndex], 0, nullptr);
 	vkCmdPushConstants(commandBuffer, vlkPipeline.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
@@ -359,13 +363,13 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkMaterial& material = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0);
+	VlkMaterial& material = *(VlkMaterial*)m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0);
 	VlkPipeline& vlkPipeline = *(VlkPipeline*)material.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::MODEL3D)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_pResourceManager, &vlkPipeline, frameInFlightIndex);
 		if (material.m_instanceSetLayout != VK_NULL_HANDLE)
 		{
 			descriptorSets.Add(material.m_instanceDescriptors[0].descriptors[frameInFlightIndex]);
@@ -375,30 +379,30 @@ void Hail::VlkRenderer::RenderMesh(const RenderCommand_Mesh& meshCommandToRender
 	}
 
 	//Todo: Make sure to fix vertex binding and that kind of stuff later and make the resources be held outside of renderer
-	VkBuffer mainVertexBuffers[] = { m_vertexBuffer };
+	VkBuffer mainVertexBuffers[] = { m_pVertexBuffer->GetBuffer(0) };
 	VkDeviceSize mainOffsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, mainVertexBuffers, mainOffsets);
-	vkCmdBindIndexBuffer(commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+	vkCmdBindIndexBuffer(commandBuffer, m_pIndexBuffer->GetBuffer(0), 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_resourceManager->m_unitCube.indices.Size()), 1, 0, 0, 0);
+	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_pResourceManager->m_unitCube.indices.Size()), 1, 0, 0, 0);
 }
 
 void Hail::VlkRenderer::RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines)
 {
 	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0);
+	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0);
 	VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::DEBUG_LINES2D)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_pResourceManager, &vlkPipeline, frameInFlightIndex);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::DEBUG_LINES2D;
 	}
 
-	VkBuffer mainVertexBuffers[] = { m_debugLineVertexBuffer };
+	VkBuffer mainVertexBuffers[] = { m_pDebugLineVertexBuffer->GetBuffer(0)};
 	VkDeviceSize mainOffsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, mainVertexBuffers, mainOffsets);
 
@@ -414,18 +418,18 @@ void Hail::VlkRenderer::RenderLetterBoxPass()
 {
 	const uint32 frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VkCommandBuffer& commandBuffer = m_commandBuffers[frameInFlightIndex];
-	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0);
+	VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0);
 	VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
 
 	//binding pass data first round
 	if (m_boundMaterialType != eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
-		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_resourceManager, &vlkPipeline, frameInFlightIndex);
+		VectorOnStack< VkDescriptorSet, 3> descriptorSets = localGetMaterialDescriptors(m_pResourceManager, &vlkPipeline, frameInFlightIndex);
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
 		m_boundMaterialType = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 	}
 
-	VkBuffer vertexBuffers[] = { m_fullscreenVertexBuffer };
+	VkBuffer vertexBuffers[] = { m_pFullscreenVertexBuffer->GetBuffer(0) };
 	VkDeviceSize offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
@@ -454,28 +458,27 @@ void Hail::VlkRenderer::RenderMeshlets(glm::uvec3 dispatchSize)
 
 void VlkRenderer::Cleanup()
 {
+	Renderer::Cleanup();
+
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	vkDeviceWaitIdle(device.GetDevice());	  
 
 	vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
 	ImGui_ImplVulkan_Shutdown();
 
-	m_resourceManager->ClearAllResources();
+	m_pResourceManager->ClearAllResources();
 	m_swapChain->DestroySwapChain((VlkDevice*)(m_renderDevice));
 
-	vkDestroyBuffer(device.GetDevice(), m_fullscreenVertexBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), m_fullscreenVertexBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.GetDevice(), m_spriteVertexBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), m_spriteVertexBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.GetDevice(), m_debugLineVertexBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), m_debugLineVertexBufferMemory, nullptr);
-
-	vkDestroyBuffer(device.GetDevice(), m_indexBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), m_indexBufferMemory, nullptr);
-	vkDestroyBuffer(device.GetDevice(), m_vertexBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), m_vertexBufferMemory, nullptr);
+	m_pFullscreenVertexBuffer->CleanupResource(m_renderDevice);
+	m_pSpriteVertexBuffer->CleanupResource(m_renderDevice);
+	m_pVertexBuffer->CleanupResource(m_renderDevice);
+	m_pIndexBuffer->CleanupResource(m_renderDevice);
+	m_pDebugLineVertexBuffer->CleanupResource(m_renderDevice);
+	SAFEDELETE(m_pFullscreenVertexBuffer);
+	SAFEDELETE(m_pSpriteVertexBuffer);
+	SAFEDELETE(m_pVertexBuffer);
+	SAFEDELETE(m_pIndexBuffer);
+	SAFEDELETE(m_pDebugLineVertexBuffer);
 
 	for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
@@ -530,102 +533,72 @@ void VlkRenderer::CreateSyncObjects()
 void VlkRenderer::CreateVertexBuffer()
 {
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	VkDeviceSize bufferSize = sizeof(VertexModel) * m_resourceManager->m_unitCube.vertices.Size();
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer, stagingBufferMemory);
+	BufferProperties vertexBufferProperties;
+	vertexBufferProperties.elementByteSize = sizeof(VertexModel);
+	vertexBufferProperties.numberOfElements = m_pResourceManager->m_unitCube.vertices.Size();
+	vertexBufferProperties.offset = 0;
+	vertexBufferProperties.type = eBufferType::vertex;
+	vertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+	vertexBufferProperties.usage = eShaderBufferUsage::Read;
+	vertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
+	m_pVertexBuffer = (VlkBufferObject*)m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(vertexBufferProperties);
 
-	void* data;
-	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_resourceManager->m_unitCube.vertices.Data(), (size_t)bufferSize);
-	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
-
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		m_vertexBuffer, m_vertexBufferMemory);
-
-	CopyBuffer(device, stagingBuffer, m_vertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
-	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
+	m_pContext->UploadDataToBuffer(m_pVertexBuffer, m_pResourceManager->m_unitCube.vertices.Data(), sizeof(VertexModel) * m_pResourceManager->m_unitCube.vertices.Size());
 }
 
 void Hail::VlkRenderer::CreateFullscreenVertexBuffer()
 {
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	VkDeviceSize bufferSize = sizeof(uint32_t) * 3;
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer, stagingBufferMemory);
 	uint32_t vertices[3] = { 0, 1, 2 };
-	void* data;
-	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertices, (size_t)bufferSize);
-	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_fullscreenVertexBuffer, m_fullscreenVertexBufferMemory);
+	BufferProperties fullscreenVertexBufferProperties;
+	fullscreenVertexBufferProperties.elementByteSize = sizeof(uint32);
+	fullscreenVertexBufferProperties.numberOfElements = 3;
+	fullscreenVertexBufferProperties.offset = 0;
+	fullscreenVertexBufferProperties.type = eBufferType::vertex;
+	fullscreenVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+	fullscreenVertexBufferProperties.usage = eShaderBufferUsage::Read;
+	fullscreenVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
+	m_pFullscreenVertexBuffer = (VlkBufferObject*)m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fullscreenVertexBufferProperties);
 
-	CopyBuffer(device, stagingBuffer, m_fullscreenVertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
-	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
-
+	m_pContext->UploadDataToBuffer(m_pFullscreenVertexBuffer, vertices, 3 * sizeof(uint32));
 }
 
 void Hail::VlkRenderer::CreateSpriteVertexBuffer()
 {
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	VkDeviceSize spriteBufferSize = sizeof(uint32_t) * 6;
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(device, spriteBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer, stagingBufferMemory);
+
 	uint32_t vertices[6] = { 0, 1, 2, 3, 4, 5 };
-	void* data;
-	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, spriteBufferSize, 0, &data);
-	memcpy(data, vertices, (size_t)spriteBufferSize);
-	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
 
-	CreateBuffer(device, spriteBufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_spriteVertexBuffer, m_spriteVertexBufferMemory);
+	BufferProperties spriteVertexBufferProperties;
+	spriteVertexBufferProperties.elementByteSize = sizeof(uint32_t);
+	spriteVertexBufferProperties.numberOfElements = 6;
+	spriteVertexBufferProperties.offset = 0;
+	spriteVertexBufferProperties.type = eBufferType::vertex;
+	spriteVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+	spriteVertexBufferProperties.usage = eShaderBufferUsage::Read;
+	spriteVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
+	m_pSpriteVertexBuffer = (VlkBufferObject*)m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(spriteVertexBufferProperties);
 
-	CopyBuffer(device, stagingBuffer, m_spriteVertexBuffer, spriteBufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
-	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
+	m_pContext->UploadDataToBuffer(m_pSpriteVertexBuffer, vertices, sizeof(uint32_t) * 6);
 }
 
 void VlkRenderer::CreateIndexBuffer()
 {
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	VkDeviceSize bufferSize = sizeof(uint32_t) * m_resourceManager->m_unitCube.indices.Size();
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		stagingBuffer, stagingBufferMemory);
-
-	void* data;
-	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, m_resourceManager->m_unitCube.indices.Data(), (size_t)bufferSize);
-	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
-
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_indexBuffer, m_indexBufferMemory);
-
-	CopyBuffer(device, stagingBuffer, m_indexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
-
-	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
+	BufferProperties indexBufferProperties;
+	indexBufferProperties.elementByteSize = sizeof(uint32_t);
+	indexBufferProperties.numberOfElements = m_pResourceManager->m_unitCube.indices.Size();
+	indexBufferProperties.offset = 0;
+	indexBufferProperties.type = eBufferType::index;
+	indexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+	indexBufferProperties.usage = eShaderBufferUsage::Read;
+	indexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
+	m_pIndexBuffer = (VlkBufferObject*)m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(indexBufferProperties);
+	m_pContext->UploadDataToBuffer(m_pIndexBuffer, m_pResourceManager->m_unitCube.indices.Data(), sizeof(uint32_t) * m_pResourceManager->m_unitCube.indices.Size());
 }
 
 void Hail::VlkRenderer::CreateDebugLineVertexBuffer()
@@ -636,24 +609,14 @@ void Hail::VlkRenderer::CreateDebugLineVertexBuffer()
 		debugLineVertices[i] = i;
 	}
 
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-	const VkDeviceSize bufferSize = sizeof(uint32_t) * MAX_NUMBER_OF_DEBUG_LINES;
-
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		stagingBuffer, stagingBufferMemory);
-	void* data;
-	vkMapMemory(device.GetDevice(), stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, debugLineVertices.Data(), (size_t)bufferSize);
-	vkUnmapMemory(device.GetDevice(), stagingBufferMemory);
-
-	CreateBuffer(device, bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		m_debugLineVertexBuffer, m_debugLineVertexBufferMemory);
-
-	CopyBuffer(device, stagingBuffer, m_debugLineVertexBuffer, bufferSize, device.GetGraphicsQueue(), device.GetCommandPool());
-	vkDestroyBuffer(device.GetDevice(), stagingBuffer, nullptr);
-	vkFreeMemory(device.GetDevice(), stagingBufferMemory, nullptr);
+	BufferProperties debugLineBufferProperties;
+	debugLineBufferProperties.elementByteSize = sizeof(uint32_t);
+	debugLineBufferProperties.numberOfElements = MAX_NUMBER_OF_DEBUG_LINES;
+	debugLineBufferProperties.offset = 0;
+	debugLineBufferProperties.type = eBufferType::vertex;
+	debugLineBufferProperties.domain = eShaderBufferDomain::GpuOnly;
+	debugLineBufferProperties.usage = eShaderBufferUsage::Read;
+	debugLineBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
+	m_pDebugLineVertexBuffer = (VlkBufferObject*)m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(debugLineBufferProperties);
+	m_pContext->UploadDataToBuffer(m_pDebugLineVertexBuffer, debugLineVertices.Data(), sizeof(uint32_t) * MAX_NUMBER_OF_DEBUG_LINES);
 }

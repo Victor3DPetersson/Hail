@@ -29,7 +29,7 @@ namespace Hail
 	class Renderer
 	{
 	public:
-
+		~Renderer();
 		bool Initialize();
 
 		virtual bool InitDevice(Timer* timer) = 0;
@@ -38,7 +38,7 @@ namespace Hail
 		virtual void StartFrame(RenderCommandPool& renderPool);
 		virtual void EndFrame();
 		virtual void Render();
-		virtual void Cleanup() = 0;
+		virtual void Cleanup();
 		virtual void InitImGui() = 0; 
 		// Blocking operation for executing thread.
 		virtual void WaitForGPU() = 0;
@@ -66,7 +66,7 @@ namespace Hail
 
 		bool m_shadersRecompiled = false;
 		bool m_framebufferResized = false;
-		ResourceManager* m_resourceManager = nullptr;
+		ResourceManager* m_pResourceManager = nullptr;
 		Timer* m_timer = nullptr;
 
 		// TODO: Should this be here? Figure out where we place our renderers and how to structure it properly.

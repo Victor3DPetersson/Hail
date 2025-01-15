@@ -14,8 +14,10 @@ namespace Hail
 	class FontRenderer
 	{
 	public:
+		~FontRenderer();
 		explicit FontRenderer(Renderer* pRenderer, ResourceManager* pResourceManager);
 		bool Initialize();
+		void Cleanup();
 
 		void Render();
 

@@ -17,7 +17,6 @@ namespace Hail
 
 		// Creates the internal buffers
 		virtual bool Init(RenderingDevice* renderingDevice, SwapChain* swapChain) = 0;
-
 		//overloaded function that gets the udnerlying resources from the platform version
 		virtual void* GetRenderingResources() = 0;
 
@@ -25,7 +24,7 @@ namespace Hail
 		virtual void UploadMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) = 0;
 
 		BufferObject* GetGlobalBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint);
-		virtual BufferObject* CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor) = 0;
+		virtual BufferObject* CreateBuffer(BufferProperties properties) = 0;
 
 	protected:
 		// Creates the common buffers, gets called from the virtual init function

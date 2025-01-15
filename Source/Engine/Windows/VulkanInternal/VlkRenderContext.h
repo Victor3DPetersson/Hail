@@ -26,8 +26,6 @@ namespace Hail
 
 	private:
 
-
-
 	};
 
 }

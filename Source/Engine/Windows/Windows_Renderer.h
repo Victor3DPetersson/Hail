@@ -10,6 +10,7 @@
 
 namespace Hail
 {
+	class VlkBufferObject;
 	class VlkSwapChain;
 	class VlkRenderer : public Renderer 
 	{
@@ -38,33 +39,22 @@ namespace Hail
 		void CreateCommandBuffers();
 		void CreateSyncObjects();
 
+		// TODO: move out of the Vulkan renderer and have it in the main renderer.
 		void CreateVertexBuffer();
 		void CreateFullscreenVertexBuffer();
 		void CreateSpriteVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateDebugLineVertexBuffer();
 
+		VlkBufferObject* m_pFullscreenVertexBuffer = nullptr;
+		VlkBufferObject* m_pSpriteVertexBuffer = nullptr;
+		VlkBufferObject* m_pVertexBuffer = nullptr;
+		VlkBufferObject* m_pIndexBuffer = nullptr;
+		VlkBufferObject* m_pDebugLineVertexBuffer = nullptr;
 	
 		VlkSwapChain* m_swapChain = nullptr;
 
 		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
-
-		
-		VkBuffer m_fullscreenVertexBuffer = VK_NULL_HANDLE;
-		VkDeviceMemory m_fullscreenVertexBufferMemory = VK_NULL_HANDLE;
-
-		VkBuffer m_spriteVertexBuffer = VK_NULL_HANDLE;
-		VkDeviceMemory m_spriteVertexBufferMemory = VK_NULL_HANDLE;
-
-		//Vertex and index buffer for cube
-		VkBuffer m_vertexBuffer = VK_NULL_HANDLE;
-		VkDeviceMemory m_vertexBufferMemory = VK_NULL_HANDLE;
-		VkBuffer m_indexBuffer = VK_NULL_HANDLE;
-		VkDeviceMemory m_indexBufferMemory = VK_NULL_HANDLE;
-
-		//Debug line buffers
-		VkBuffer m_debugLineVertexBuffer = VK_NULL_HANDLE;
-		VkDeviceMemory m_debugLineVertexBufferMemory = VK_NULL_HANDLE;
 
 		eMaterialType m_boundMaterialType = eMaterialType::COUNT;
 		bool m_commandBufferBound = false;

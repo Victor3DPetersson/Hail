@@ -12,10 +12,15 @@ void Hail::Renderer::WindowSizeUpdated()
 	m_framebufferResized = true;
 }
 
+Hail::Renderer::~Renderer()
+{
+	H_ASSERT(m_pFontRenderer == nullptr, "Never cleaned up the Renderer, Add the virtual Cleanup function to the inherited renderer")
+}
+
 bool Hail::Renderer::Initialize()
 {
 	bool initializationResult = true;
-	m_pFontRenderer = new FontRenderer(this, m_resourceManager);
+	m_pFontRenderer = new FontRenderer(this, m_pResourceManager);
 	initializationResult &= m_pFontRenderer->Initialize();
 
 	return initializationResult;
@@ -24,18 +29,18 @@ bool Hail::Renderer::Initialize()
 void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 {
 	m_commandPoolToRender = &renderPool;
-	m_resourceManager->ReloadResources();
-	m_resourceManager->UpdateRenderBuffers(renderPool, m_timer);
+	m_pResourceManager->ReloadResources();
+	m_pResourceManager->UpdateRenderBuffers(renderPool, m_timer);
 }
 
 void Hail::Renderer::EndFrame()
 {
-	m_resourceManager->ClearFrameData();
+	m_pResourceManager->ClearFrameData();
 }
 
 void Hail::Renderer::Render()
 {
-	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0)->m_pPipeline, true);
+	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0)->m_pPipeline, true);
 	if (!m_commandPoolToRender->meshCommands.Empty())
 	{
 		RenderMesh(m_commandPoolToRender->meshCommands[0], 0);
@@ -49,12 +54,19 @@ void Hail::Renderer::Render()
 		RenderSprite(m_commandPoolToRender->spriteCommands[sprite], sprite);
 	}
 
-	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0)->m_pPipeline, false);
+	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0)->m_pPipeline, false);
 	const uint32_t numberOfLines = m_commandPoolToRender->debugLineCommands.Size() * 2;
 	RenderDebugLines2D(numberOfLines, 0);
 
 	m_pFontRenderer->Render();
 
-	BindMaterialPipeline(m_resourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0)->m_pPipeline, false);
+	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0)->m_pPipeline, false);
 	RenderLetterBoxPass();
+}
+
+void Hail::Renderer::Cleanup()
+{
+	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.")
+	m_pFontRenderer->Cleanup();
+	SAFEDELETE(m_pFontRenderer);
 }

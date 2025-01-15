@@ -97,4 +97,11 @@ void Hail::RenderContext::EndTransferPass()
 	m_pCurrentCommandBuffer->EndBuffer();
 	SAFEDELETE(m_pCurrentCommandBuffer);
 	m_currentState = eContextState::TransitionBetweenStates;
+
+	for (uint32 i = 0; i < m_stagingBuffers.Size(); i++)
+	{
+		m_stagingBuffers[i]->CleanupResource(m_pDevice);
+		SAFEDELETE(m_stagingBuffers[i]);
+	}
+	m_stagingBuffers.RemoveAll();
 }

@@ -2,6 +2,7 @@
 #include "Types.h"
 
 #include "Containers\StaticArray\StaticArray.h"
+#include "Containers\GrowingArray\GrowingArray.h"
 
 namespace Hail
 {
@@ -63,7 +64,6 @@ namespace Hail
 
 		virtual CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer, bool bIsTempCommandBuffer) = 0;
 		virtual void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) = 0;
-
 		StaticArray<TextureResource*, 16> m_pBoundTextures;
 		StaticArray<BufferObject*, 16> m_pBoundStructuredBuffers;
 		StaticArray<BufferObject*, 16> m_pBoundUniformBuffers;
@@ -73,5 +73,7 @@ namespace Hail
 
 		RenderingDevice* m_pDevice;
 		ResourceManager* m_pResourceManager;
+
+		GrowingArray<BufferObject*> m_stagingBuffers;
 	};
 }

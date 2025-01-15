@@ -7,6 +7,7 @@
 
 using namespace Hail;
 
+uint32 g_numberOfRegisteredBuffers = 0u;
 namespace
 {
 	void ClearTexture(VlkTextureData& textureData, VlkDevice& vlkDevice)
@@ -28,7 +29,7 @@ namespace
 		textureData.textureImageMemory = VK_NULL_HANDLE;
 	}
 
-	VkResult CreateBufferInternal(VlkDevice& device, VkMemoryPropertyFlags bufferType, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VmaAllocation& allocation, BufferProperties& bufferProps, VmaAllocationInfo* pAllocationInfo)
+	VkResult CreateBufferInternal(VlkDevice& device, VkMemoryPropertyFlags bufferType, VkBuffer& buffer, VmaAllocation& allocation, BufferProperties& bufferProps, VmaAllocationInfo* pAllocationInfo)
 	{
 		VkDeviceSize size = bufferProps.elementByteSize * bufferProps.numberOfElements;
 		VkBufferCreateInfo bufferInfo{};
@@ -61,12 +62,20 @@ namespace
 		}
 		else if (bufferProps.domain == eShaderBufferDomain::CpuToGpu)
 		{
-			vmaInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-				VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT;
-			if (bufferProps.updateFrequency == eShaderBufferUpdateFrequency::PerFrame)
-				vmaInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+			if (bufferProps.type == eBufferType::staging)
+			{
+				vmaInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+					VMA_ALLOCATION_CREATE_MAPPED_BIT;
+			}
+			else
+			{
+				vmaInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+					VMA_ALLOCATION_CREATE_HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT;
+				if (bufferProps.updateFrequency == eShaderBufferUpdateFrequency::PerFrame)
+					vmaInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
-			usage |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+				usage |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+			}
 		}
 
 		bufferInfo.usage |= usage;
@@ -99,6 +108,7 @@ namespace
 		for mapping memory VMA_ALLOCATION_CREATE_MAPPED_BIT
 
 		*/
+		g_numberOfRegisteredBuffers++;
 		return vmaCreateBuffer(device.GetMemoryAllocator(), &bufferInfo, &vmaInfo, &buffer, &allocation, pAllocationInfo);
 	}
 
@@ -133,31 +143,25 @@ void Hail::VlkBufferObject::CleanupResource(RenderingDevice* device)
 	{
 		for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
 		{
-			if (m_buffer[i] != VK_NULL_HANDLE)
+			if (m_buffer[i] != VK_NULL_HANDLE && m_allocation[i])
 			{
-				if (m_allocation)
-					vmaDestroyBuffer(vkDevice.GetMemoryAllocator(), m_buffer[i], m_allocation[i]);
-				vkDestroyBuffer(vkDevice.GetDevice(), m_buffer[i], nullptr);
-			}
-			if (m_bufferMemory[i] != VK_NULL_HANDLE)
-			{
-				vkFreeMemory(vkDevice.GetDevice(), m_bufferMemory[i], nullptr);
+				vmaDestroyBuffer(vkDevice.GetMemoryAllocator(), m_buffer[i], m_allocation[i]);
 			}
 			m_buffer[i] = VK_NULL_HANDLE;
-			m_bufferMemory[i] = VK_NULL_HANDLE;
+			m_allocation[i] = VK_NULL_HANDLE;
+			g_numberOfRegisteredBuffers--;
 		}
 
 	}
 	else
 	{
-		if (m_buffer[0] != VK_NULL_HANDLE)
+		if (m_buffer[0] != VK_NULL_HANDLE && m_allocation[0])
 		{
-			if (m_allocation)
-				vmaDestroyBuffer(vkDevice.GetMemoryAllocator(), m_buffer[0], m_allocation[0]);
-			vkDestroyBuffer(vkDevice.GetDevice(), m_buffer[0], nullptr);
+			vmaDestroyBuffer(vkDevice.GetMemoryAllocator(), m_buffer[0], m_allocation[0]);
 		}
-		if (m_bufferMemory[0] != VK_NULL_HANDLE)
-			vkFreeMemory(vkDevice.GetDevice(), m_bufferMemory[0], nullptr);
+		m_buffer[0] = VK_NULL_HANDLE;
+		m_allocation[0] = VK_NULL_HANDLE;
+		g_numberOfRegisteredBuffers--;
 	}
 	m_properties = {};
 }
@@ -216,6 +220,18 @@ bool Hail::VlkBufferObject::InternalInit(RenderingDevice* pDevice)
 	{
 		typeFlag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	}
+	else if (m_properties.type == eBufferType::index)
+	{
+		typeFlag = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	}
+	else if (m_properties.type == eBufferType::vertex)
+	{
+		typeFlag = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	}
+	else if (m_properties.type == eBufferType::staging)
+	{
+		typeFlag = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	}
 	else
 	{
 		H_ASSERT(false);
@@ -224,7 +240,7 @@ bool Hail::VlkBufferObject::InternalInit(RenderingDevice* pDevice)
 
 	if (m_properties.updateFrequency == eShaderBufferUpdateFrequency::Once || m_properties.updateFrequency == eShaderBufferUpdateFrequency::Never)
 	{
-		if (CreateBufferInternal(vlkDevice, typeFlag, m_buffer[0], m_bufferMemory[0], m_allocation[0], m_properties, nullptr) != VK_SUCCESS)
+		if (CreateBufferInternal(vlkDevice, typeFlag, m_buffer[0], m_allocation[0], m_properties, nullptr) != VK_SUCCESS)
 		{
 			return false;
 		}
@@ -233,7 +249,7 @@ bool Hail::VlkBufferObject::InternalInit(RenderingDevice* pDevice)
 	{
 		for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
 		{
-			if (CreateBufferInternal(vlkDevice, typeFlag, m_buffer[i], m_bufferMemory[i], m_allocation[i], m_properties, &m_allocationInfo[i]) != VK_SUCCESS)
+			if (CreateBufferInternal(vlkDevice, typeFlag, m_buffer[i], m_allocation[i], m_properties, &m_allocationInfo[i]) != VK_SUCCESS)
 			{
 				return false;
 			}

@@ -83,7 +83,7 @@ bool Hail::RenderingResourceManager::InternalInit()
         }
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
-        assignBuffer(CreateBuffer(properties, eDecorationSets::GlobalDomain), eDecorationSets::GlobalDomain);
+        assignBuffer(CreateBuffer(properties), eDecorationSets::GlobalDomain);
     }
     for (size_t i = 0; i < (uint32)eGlobalStructuredBuffers::count; i++)
     {
@@ -101,7 +101,7 @@ bool Hail::RenderingResourceManager::InternalInit()
         }
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
-        assignBuffer(CreateBuffer(properties, eDecorationSets::GlobalDomain), eDecorationSets::GlobalDomain);
+        assignBuffer(CreateBuffer(properties), eDecorationSets::GlobalDomain);
     }
 
     for (size_t i = 0; i < (uint32)eMaterialUniformBuffers::count; i++)
@@ -128,7 +128,7 @@ bool Hail::RenderingResourceManager::InternalInit()
         }
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
-        assignBuffer(CreateBuffer(properties, eDecorationSets::MaterialTypeDomain), eDecorationSets::MaterialTypeDomain);
+        assignBuffer(CreateBuffer(properties), eDecorationSets::MaterialTypeDomain);
     }
 
     for (size_t i = 0; i < (uint32)eMaterialBuffers::count; i++)
@@ -160,7 +160,7 @@ bool Hail::RenderingResourceManager::InternalInit()
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
 
-        assignBuffer(CreateBuffer(properties, eDecorationSets::MaterialTypeDomain), eDecorationSets::MaterialTypeDomain);
+        assignBuffer(CreateBuffer(properties), eDecorationSets::MaterialTypeDomain);
     }
 
 	return true;

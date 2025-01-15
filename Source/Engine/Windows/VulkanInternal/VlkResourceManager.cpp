@@ -99,10 +99,9 @@ void VlkRenderingResourceManager::UploadMemoryToBuffer(BufferObject* pBuffer, vo
 	}
 	VkResult result = vmaFlushAllocation(device->GetMemoryAllocator(), pVlkBuffer->GetAllocation(frameInFlight), 0, VK_WHOLE_SIZE);
 	H_ASSERT(result == VK_SUCCESS);
-	//memcpy(pVlkBuffer->GetMappedMemory(m_swapChain->GetFrameInFlight()), dataToMap, sizeOfData);
 }
 
-BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties, eDecorationSets setToCreateBufferFor)
+BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties)
 {
 	VlkBufferObject* vlkBuffer = new VlkBufferObject();
 	if (vlkBuffer->Init(m_renderDevice, properties))

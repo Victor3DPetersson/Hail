@@ -25,6 +25,13 @@ namespace Hail
 		uint32 padding; // add fun data here
 	};
 
+	FontRenderer::~FontRenderer()
+	{
+		H_ASSERT(m_pVertexBuffer == nullptr);
+		H_ASSERT(m_pIndexBuffer == nullptr);
+		H_ASSERT(m_pGlyphletBuffer == nullptr);
+	}
+
 	FontRenderer::FontRenderer(Renderer* pRenderer, ResourceManager* pResourceManager)
 		: m_pRenderer(pRenderer)
 		, m_pResourceManager(pResourceManager) 
@@ -47,7 +54,7 @@ namespace Hail
 		fontVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
 		fontVertexBufferProperties.usage = eShaderBufferUsage::Read;
 		fontVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-		m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontVertexBufferProperties, eDecorationSets::MaterialTypeDomain);
+		m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontVertexBufferProperties);
 
 		BufferProperties triangleListBufferProperties;
 		triangleListBufferProperties.elementByteSize = sizeof(GlyphTri);
@@ -57,7 +64,7 @@ namespace Hail
 		triangleListBufferProperties.domain = eShaderBufferDomain::GpuOnly;
 		triangleListBufferProperties.usage = eShaderBufferUsage::Read;
 		triangleListBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-		m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(triangleListBufferProperties, eDecorationSets::MaterialTypeDomain);
+		m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(triangleListBufferProperties);
 
 		BufferProperties glyphletInstanceListProps;
 		glyphletInstanceListProps.elementByteSize = sizeof(RenderGlypghlet);
@@ -67,7 +74,7 @@ namespace Hail
 		glyphletInstanceListProps.domain = eShaderBufferDomain::CpuToGpu;
 		glyphletInstanceListProps.usage = eShaderBufferUsage::Read;
 		glyphletInstanceListProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-		m_pGlyphletBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(glyphletInstanceListProps, eDecorationSets::MaterialTypeDomain);
+		m_pGlyphletBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(glyphletInstanceListProps);
 
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
@@ -97,6 +104,19 @@ namespace Hail
 		pContext->EndTransferPass();
 
 		return m_pFontPipeline;
+	}
+
+	void FontRenderer::Cleanup()
+	{
+		H_ASSERT(m_pVertexBuffer);
+		m_pVertexBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pVertexBuffer);
+		H_ASSERT(m_pIndexBuffer);
+		m_pIndexBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pIndexBuffer);
+		H_ASSERT(m_pGlyphletBuffer);
+		m_pGlyphletBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pGlyphletBuffer);
 	}
 
 	void localGetCompoundRenderGlyphlet(const TTF_FontStruct& fontData, GrowingArray<RenderGlypghlet>& listToFill, RenderGlypghlet glyphlet, const Glyph& glyph)

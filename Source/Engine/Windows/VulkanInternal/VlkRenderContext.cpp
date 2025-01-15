@@ -53,24 +53,23 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
     else
     {
         // Allocation ended up in a non-mappable memory - a transfer using a staging buffer is required.
-        VkBufferCreateInfo stagingBufCreateInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
-        stagingBufCreateInfo.size = pBuffer->GetBufferSize();
-        stagingBufCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        VmaAllocator allocator = p_vlkDevice->GetMemoryAllocator();
 
-        VmaAllocationCreateInfo stagingAllocCreateInfo = {};
-        stagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-        stagingAllocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-            VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        VlkBufferObject* vlkBuffer = new VlkBufferObject();
 
-        VkBuffer stagingBuf;
-        VmaAllocation stagingAlloc;
-        VmaAllocationInfo stagingAllocInfo;
-        VkResult result = vmaCreateBuffer(p_vlkDevice->GetMemoryAllocator(), &stagingBufCreateInfo, &stagingAllocCreateInfo,
-            &stagingBuf, &stagingAlloc, &stagingAllocInfo);
-        H_ASSERT(result == VK_SUCCESS);
+        BufferProperties stagingBufProperties{};
+        stagingBufProperties.elementByteSize = pBuffer->GetBufferSize();
+        stagingBufProperties.numberOfElements = 1;
+        stagingBufProperties.usage = eShaderBufferUsage::ReadWrite;
+        stagingBufProperties.domain = eShaderBufferDomain::CpuToGpu;
+        stagingBufProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
+        stagingBufProperties.type = eBufferType::staging;
 
-        memcpy(stagingAllocInfo.pMappedData, pDataToUpload, sizeOfUploadedData);
-        result = vmaFlushAllocation(p_vlkDevice->GetMemoryAllocator(), stagingAlloc, 0, VK_WHOLE_SIZE);
+        H_ASSERT(vlkBuffer->Init(m_pDevice, stagingBufProperties), "Failed to create staging buffer, should not happen");
+        
+        m_pResourceManager->GetRenderingResourceManager()->UploadMemoryToBuffer(vlkBuffer, pDataToUpload, sizeOfUploadedData);
+
+        VkResult result = vmaFlushAllocation(allocator, vlkBuffer->GetAllocation(0), 0, VK_WHOLE_SIZE);
         H_ASSERT(result == VK_SUCCESS);
 
         VkBufferMemoryBarrier bufMemBarrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
@@ -78,7 +77,7 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
         bufMemBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         bufMemBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         bufMemBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        bufMemBarrier.buffer = stagingBuf;
+        bufMemBarrier.buffer = vlkBuffer->GetBuffer(0);
         bufMemBarrier.offset = 0;
         bufMemBarrier.size = VK_WHOLE_SIZE;
 
@@ -91,11 +90,11 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
             sizeOfUploadedData, // size
         };
 
-        vkCmdCopyBuffer(cmdBuffer, stagingBuf, ((VlkBufferObject*)pBuffer)->GetBuffer(frameInFlight), 1, &bufCopy);
+        vkCmdCopyBuffer(cmdBuffer, vlkBuffer->GetBuffer(0), ((VlkBufferObject*)pBuffer)->GetBuffer(frameInFlight), 1, &bufCopy);
 
         VkBufferMemoryBarrier bufMemBarrier2 = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
         bufMemBarrier2.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        bufMemBarrier2.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT; // We created a uniform buffer
+        bufMemBarrier2.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
         bufMemBarrier2.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         bufMemBarrier2.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         bufMemBarrier2.buffer = ((VlkBufferObject*)pBuffer)->GetBuffer(frameInFlight);
@@ -104,6 +103,8 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
 
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
             0, 0, nullptr, 1, &bufMemBarrier2, 0, nullptr);
+
+        m_stagingBuffers.Add(vlkBuffer);
     }
 }
 
