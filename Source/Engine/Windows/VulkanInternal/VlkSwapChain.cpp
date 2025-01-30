@@ -1,29 +1,34 @@
 #include "Engine_PCH.h"
 #include "VlkSwapChain.h"
-#include "VlkTextureCreationFunctions.h"
 #include "MathUtils.h"
 
 #include "DebugMacros.h"
 #include "../Windows_ApplicationWindow.h"
+#include "Resources\TextureManager.h"
+#include "Resources\Vulkan\VlkTextureResource.h"
 #include "VlkDevice.h"
 #include "HailEngine.h"
 
 using namespace Hail;
 
 
-Hail::VlkSwapChain::VlkSwapChain() : SwapChain()
+Hail::VlkSwapChain::VlkSwapChain(TextureManager* pTextureManager) : SwapChain(pTextureManager)
 {
 	m_swapChainImageFormat = VK_FORMAT_UNDEFINED;
+	memset(m_vkImages, 0, sizeof(VK_NULL_HANDLE) * MAX_FRAMESINFLIGHT * 2u);
+	m_pFrameBufferTexture = new VlkFrameBufferTexture(glm::vec2(0.f, 0.f));
+	//memset(m_vkImageViews, 0, sizeof(VK_NULL_HANDLE) * MAX_FRAMESINFLIGHT * 2u);
 }
 
 void Hail::VlkSwapChain::Init(RenderingDevice* renderDevice)
 {
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(renderDevice);
-	m_frameBufferTexture.SetName("SwapchainFrameBuffer");
+	//m_frameBufferTexture.SetName("SwapchainFrameBuffer");
 	CreateSwapChain(device);
 	CreateImageViews(device);
 	CreateRenderPass(device);
 	CreateFramebuffers(device);
+
 }
 
 bool VlkSwapChain::FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores)
@@ -91,11 +96,12 @@ void Hail::VlkSwapChain::DestroySwapChain(RenderingDevice* renderDevice)
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(renderDevice);
 	CleanupSwapchain(device);
 	vkDestroyRenderPass(device.GetDevice(), m_finalRenderPass, nullptr);
+	SAFEDELETE(m_pFrameBufferTexture);
 }
 
-FrameBufferTexture* Hail::VlkSwapChain::GetFrameBufferTexture()
+TextureView* Hail::VlkSwapChain::GetSwapchainView()
 {
-	return &m_frameBufferTexture;
+	return nullptr;
 }
 
 void VlkSwapChain::CleanupSwapchain(VlkDevice& device)
@@ -106,7 +112,6 @@ void VlkSwapChain::CleanupSwapchain(VlkDevice& device)
 	}
 	vkDestroySwapchainKHR(device.GetDevice(), m_swapChain, nullptr);
 	m_swapChainFramebuffers.DeleteAll();
-	m_frameBufferTexture.ClearResources(&device, true);
 }
 
 void VlkSwapChain::CreateSwapChain(VlkDevice& device)
@@ -160,14 +165,15 @@ void VlkSwapChain::CreateSwapChain(VlkDevice& device)
 #endif
 	}
 	vkGetSwapchainImagesKHR(device.GetDevice(), m_swapChain, &imageCount, nullptr);
-	vkGetSwapchainImagesKHR(device.GetDevice(), m_swapChain, &imageCount, m_frameBufferTexture.m_textureImage);
+	vkGetSwapchainImagesKHR(device.GetDevice(), m_swapChain, &imageCount, m_vkImages);
 	m_imageCount = imageCount;
 	m_swapChainImageFormat = surfaceFormat.format;
-	m_frameBufferTexture.SetTextureFormat(ToInternalFromVkFormat(m_swapChainImageFormat));
 	m_swapChainExtent = extent;
 	m_windowResolution = { extent.width, extent.height };
-	m_frameBufferTexture.SetResolution(m_windowResolution);
 	CalculateRenderResolution();
+
+	m_pFrameBufferTexture->SetTextureFormat(ToInternalFromVkFormat(m_swapChainImageFormat));
+	m_pFrameBufferTexture->SetResolution(m_windowResolution); ;
 }
 
 VkSurfaceFormatKHR VlkSwapChain::ChooseSwapSurfaceFormat(const GrowingArray<VkSurfaceFormatKHR>& availableFormats)
@@ -252,10 +258,29 @@ VkFormat Hail::VlkSwapChain::FindDepthFormat(VlkDevice& device)
 
 void VlkSwapChain::CreateImageViews(VlkDevice& device)
 {
+	if (m_imageCount != m_pTextureViews.Size())
+	{
+		for (uint32 i = 0; i < m_pTextureViews.Size(); i++)
+		{
+			m_pTextureViews[i]->CleanupResource(&device);
+			SAFEDELETE(m_pTextureViews[i]);
+		}
+		m_pTextureViews.PrepareAndFill(m_imageCount);
+	}
+
+	VlkTextureResource* pTempTexture = (VlkTextureResource*)m_pTextureManager->CreateTextureInternalNoLoad();
+	pTempTexture->m_properties.format = ToInternalFromVkFormat(m_swapChainImageFormat);
 	for (size_t i = 0; i < m_imageCount; i++)
 	{
-		m_frameBufferTexture.m_textureView[i] = CreateImageView(device, m_frameBufferTexture.m_textureImage[i], m_swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		pTempTexture->GetVlkTextureData().textureImage = m_vkImages[i];
+		m_pTextureViews[i] = m_pTextureManager->CreateTextureView();
+
+		TextureViewProperties props;
+		props.pTextureToView = pTempTexture;
+		props.viewUsage = eTextureUsage::FramebufferColor;
+		m_pTextureViews[i]->InitView(&device, props);
 	}
+	SAFEDELETE(pTempTexture);
 }
 
 
@@ -265,7 +290,7 @@ void VlkSwapChain::CreateFramebuffers(VlkDevice& device)
 	m_swapChainFramebuffers.Fill();
 	for (size_t i = 0; i < m_imageCount; i++)
 	{
-		VkImageView attachments[1] = { m_frameBufferTexture.m_textureView[i] };
+		VkImageView attachments[1] = { ((VlkTextureView*)m_pTextureViews[i])->GetVkImageView() };
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -276,12 +301,7 @@ void VlkSwapChain::CreateFramebuffers(VlkDevice& device)
 		framebufferInfo.height = m_swapChainExtent.height;
 		framebufferInfo.layers = 1;
 
-		if (vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) != VK_SUCCESS) 
-		{
-#ifdef DEBUG
-			throw std::runtime_error("failed to create framebuffer!");
-#endif
-		}
+		H_ASSERT(vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) == VK_SUCCESS);
 	}
 }
 
@@ -325,11 +345,6 @@ void Hail::VlkSwapChain::CreateRenderPass(VlkDevice& device)
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &m_finalRenderPass) != VK_SUCCESS)
-	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create render pass!");
-#endif
-	}
+	H_ASSERT(vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &m_finalRenderPass) == VK_SUCCESS);
 }
 

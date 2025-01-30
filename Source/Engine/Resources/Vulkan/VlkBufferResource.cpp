@@ -10,25 +10,6 @@ using namespace Hail;
 uint32 g_numberOfRegisteredBuffers = 0u;
 namespace
 {
-	void ClearTexture(VlkTextureData& textureData, VlkDevice& vlkDevice)
-	{
-		if (textureData.textureImageView != VK_NULL_HANDLE)
-		{
-			vkDestroyImageView(vlkDevice.GetDevice(), textureData.textureImageView, nullptr);
-		}
-		if (textureData.textureImage != VK_NULL_HANDLE)
-		{
-			vkDestroyImage(vlkDevice.GetDevice(), textureData.textureImage, nullptr);
-		}
-		if (textureData.textureImageMemory != VK_NULL_HANDLE)
-		{
-			vkFreeMemory(vlkDevice.GetDevice(), textureData.textureImageMemory, nullptr);
-		}
-		textureData.textureImageView = VK_NULL_HANDLE;
-		textureData.textureImage = VK_NULL_HANDLE;
-		textureData.textureImageMemory = VK_NULL_HANDLE;
-	}
-
 	VkResult CreateBufferInternal(VlkDevice& device, VkMemoryPropertyFlags bufferType, VkBuffer& buffer, VmaAllocation& allocation, BufferProperties& bufferProps, VmaAllocationInfo* pAllocationInfo)
 	{
 		VkDeviceSize size = bufferProps.elementByteSize * bufferProps.numberOfElements;
@@ -112,27 +93,6 @@ namespace
 		return vmaCreateBuffer(device.GetMemoryAllocator(), &bufferInfo, &vmaInfo, &buffer, &allocation, pAllocationInfo);
 	}
 
-}
-
-
-void VlkTextureResource::CleanupResource(RenderingDevice* device)
-{
-	m_validator.MarkResourceAsDirty(0);
-	ClearTexture(m_unloadingTextureData, *(VlkDevice*)device);
-	ClearTexture(m_textureData, *(VlkDevice*)device);
-}
-
-void Hail::VlkTextureResource::CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth)
-{
-	if (!m_validator.GetIsResourceDirty())
-	{
-		m_validator.MarkResourceAsDirty(frameInFligth);
-		m_unloadingTextureData = m_textureData;
-	}
-	else
-	{
-		ClearTexture(m_unloadingTextureData, *(VlkDevice*)device);
-	}
 }
 
 void Hail::VlkBufferObject::CleanupResource(RenderingDevice* device)

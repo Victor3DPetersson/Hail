@@ -31,7 +31,7 @@ namespace Hail
 	{
 		ImGuiTextureResource* m_texture;
 		SelectAbleFileObject m_fileObject;
-		TextureHeader m_textureHeader;
+		TextureProperties m_TextureProperties;
 
 		bool operator==(const TextureContextAsset& other) const;
 	};

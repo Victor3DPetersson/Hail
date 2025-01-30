@@ -24,6 +24,9 @@ namespace Hail
 	public:
 
 		virtual void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain);
+		
+		void Update();
+
 		// Loads the base default materials for each type.
 		bool InitDefaultMaterial(eMaterialType  type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight);
 		Material* GetMaterial(eMaterialType materialType, uint32 materialIndex);
@@ -43,6 +46,7 @@ namespace Hail
 		void InitDefaultMaterialInstances();
 		
 		bool LoadMaterialFromSerializeableInstanceGUID(const GUID guid);
+		bool StaggeredMaterialLoad(const GUID guid);
 
 		MaterialTypeObject* GetTypeData(Pipeline* pPipeline);
 
@@ -104,6 +108,13 @@ namespace Hail
 		GrowingArray<MaterialInstance> m_materialsInstanceData;
 		GrowingArray<ResourceValidator> m_materialsInstanceValidationData;
 		
+		struct MaterialLoadRequest
+		{
+			StaticArray<GUID, MAX_TEXTURE_HANDLES> textureHandles;
+			MaterialInstance materialInstance;
+			uint32 numberOfTexturesInMaterial;
+		};
+		GrowingArray<MaterialLoadRequest> m_loadRequests;
 
 		MaterialInstance m_defaultSpriteMaterialInstance;
 		ResourceValidator m_defaultSpriteMaterialsInstanceValidationData;

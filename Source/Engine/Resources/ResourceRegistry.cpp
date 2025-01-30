@@ -6,10 +6,6 @@
 #include "TextureManager.h"
 using namespace Hail;
 
-namespace
-{
-}
-
 void ResourceRegistry::Init()
 {
 	RecursiveFileIterator fileIterator(FilePath::GetCurrentWorkingDirectory());
@@ -22,7 +18,7 @@ void ResourceRegistry::Init()
 		const FileObject& currentFileObject = currentFilePath.Object();
 
 		MetaData resource;
-		resource.bIsLoaded = false;
+		resource.m_state = eResourceState::Unloaded;
 
 		if (StringCompare(currentFileObject.Extension(), L"txr"))
 		{
@@ -31,7 +27,6 @@ void ResourceRegistry::Init()
 
 			if (resourceToFill.GetGUID() == GUID())
 				continue;
-
 
 			resource.m_resource = resourceToFill;
 			m_textureResources.Add(resource);
@@ -60,7 +55,7 @@ void ResourceRegistry::Init()
 void Hail::ResourceRegistry::AddToRegistry(const FilePath& resourcePath, ResourceType type)
 {
 	MetaData resource;
-	resource.bIsLoaded = false;
+	resource.m_state = eResourceState::Unloaded;
 	MetaResource resourceToFill;
 
 	if (type == ResourceType::Texture)
@@ -171,6 +166,17 @@ bool Hail::ResourceRegistry::GetIsResourceLoaded(ResourceType type, GUID resourc
 	return false;
 }
 
+eResourceState Hail::ResourceRegistry::GetResourceState(ResourceType type, GUID resourceGuid) const
+{
+	if (type == ResourceType::Texture)
+		return GetResourceStateInternal(m_textureResources, resourceGuid);
+	if (type == ResourceType::Material)
+		return GetResourceStateInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		return GetResourceStateInternal(m_shaderResources, resourceGuid);
+	return eResourceState::Invalid;
+}
+
 void Hail::ResourceRegistry::SetResourceLoaded(ResourceType type, GUID resourceGuid)
 {
 	if (type == ResourceType::Texture)
@@ -189,6 +195,16 @@ void Hail::ResourceRegistry::SetResourceUnloaded(ResourceType type, GUID resourc
 		SetIsResourceUnloadedInternal(m_materialResources, resourceGuid);
 	if (type == ResourceType::Shader)
 		SetIsResourceUnloadedInternal(m_shaderResources, resourceGuid);
+}
+
+void Hail::ResourceRegistry::SetResourceLoadFailed(ResourceType type, GUID resourceGuid)
+{
+	if (type == ResourceType::Texture)
+		SetIsResourceLoadFailedInternal(m_textureResources, resourceGuid);
+	if (type == ResourceType::Material)
+		SetIsResourceLoadFailedInternal(m_materialResources, resourceGuid);
+	if (type == ResourceType::Shader)
+		SetIsResourceLoadFailedInternal(m_shaderResources, resourceGuid);
 }
 
 String64 Hail::ResourceRegistry::GetResourceName(ResourceType type, GUID resourceGUID) const
@@ -266,7 +282,7 @@ bool Hail::ResourceRegistry::GetIsResourceLoadedInternal(const GrowingArray<Meta
 {
 	for (size_t i = 0; i < list.Size(); i++)
 		if (list[i].m_resource.GetGUID() == resourceGuid)
-			return list[i].bIsLoaded;
+			return list[i].m_state == eResourceState::Loaded;
 	return false;
 }
 
@@ -291,7 +307,7 @@ void Hail::ResourceRegistry::SetIsResourceLoadedInternal(GrowingArray<MetaData>&
 	{
 		if (list[i].m_resource.GetGUID() == resourceGuid)
 		{
-			list[i].bIsLoaded = true;
+			list[i].m_state = eResourceState::Loaded;
 			return;
 		}
 	}
@@ -303,7 +319,19 @@ void Hail::ResourceRegistry::SetIsResourceUnloadedInternal(GrowingArray<MetaData
 	{
 		if (list[i].m_resource.GetGUID() == resourceGuid)
 		{
-			list[i].bIsLoaded = false;
+			list[i].m_state = eResourceState::Unloaded;
+			return;
+		}
+	}
+}
+
+void Hail::ResourceRegistry::SetIsResourceLoadFailedInternal(GrowingArray<MetaData>& list, const GUID& resourceGuid)
+{
+	for (size_t i = 0; i < m_textureResources.Size(); i++)
+	{
+		if (list[i].m_resource.GetGUID() == resourceGuid)
+		{
+			list[i].m_state = eResourceState::Invalid;
 			return;
 		}
 	}
@@ -327,4 +355,15 @@ const Hail::MetaResource* Hail::ResourceRegistry::GetMetaResourceInternal(const 
 	}
 
 	return nullptr;
+}
+
+eResourceState Hail::ResourceRegistry::GetResourceStateInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const
+{
+	for (size_t i = 0; i < list.Size(); i++)
+	{
+		for (size_t i = 0; i < list.Size(); i++)
+			if (list[i].m_resource.GetGUID() == resourceGuid)
+				return list[i].m_state;
+	}
+	return eResourceState::Invalid;
 }

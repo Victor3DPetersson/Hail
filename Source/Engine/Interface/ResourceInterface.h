@@ -16,6 +16,8 @@ namespace Hail
 
 		static void InitializeResourceInterface(ResourceManager& resourceManager);
 
+		static eResourceState GetMaterialResourceState(GUID guid);
+
 	private:
 		static ResourceInterface* m_instance;
 		ResourceManager& m_resourceManager;

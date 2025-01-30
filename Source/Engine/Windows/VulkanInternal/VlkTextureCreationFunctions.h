@@ -16,8 +16,8 @@ namespace Hail
 	void TransitionImageLayout(VlkDevice& device, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkCommandPool commandPool, VkQueue queue);
 	void CopyBufferToImage(VlkDevice& device, VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, VkCommandPool commandPool, VkQueue queue);
 
-	VkFormat ToVkFormat(TEXTURE_FORMAT format);
-	TEXTURE_FORMAT ToInternalFromVkFormat(VkFormat format);
+	VkFormat ToVkFormat(eTextureFormat format);
+	eTextureFormat ToInternalFromVkFormat(VkFormat format);
 	VkFormat ToVkFormat(TEXTURE_DEPTH_FORMAT format);
 }
 

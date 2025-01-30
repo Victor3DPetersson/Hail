@@ -79,15 +79,13 @@ bool Hail::InitEngine(StartupAttributes startupData)
 
 	g_engineData = new EngineData();
 	SetGlobalTimer(&g_engineData->timer);
+
 #ifdef PLATFORM_WINDOWS
-	 
 	g_engineData->appWindow = new Windows_ApplicationWindow();
 	g_engineData->inputHandler = new Windows_InputHandler();
 	g_engineData->renderer = new VlkRenderer();
-
-#elif PLATFORM_OSX
-
 #endif
+
 	g_engineData->inputHandler->InitInputMapping();
 	if(!g_engineData->appWindow->Init(startupData, g_engineData->inputHandler))
 	{
@@ -102,18 +100,19 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	g_engineData->resourceRegistry.Init();
 
 	g_engineData->resourceManager = new ResourceManager();
-	g_engineData->resourceManager->SetTargetResolution(startupData.renderTargetResolution);
-	g_engineData->resourceManager->SetWindowResolution(startupData.startupWindowResolution);
-	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice()))
-	{
-		Cleanup();
-		return false;
-	}
+
 	if (!g_engineData->renderer->InitGraphicsEngineAndContext(g_engineData->resourceManager))
 	{
 		Cleanup();
 		return false;
 	}
+	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice(), 
+		g_engineData->renderer->GetCurrentContext(), startupData.renderTargetResolution, startupData.startupWindowResolution))
+	{
+		Cleanup();
+		return false;
+	}
+	// Dependent on resources of the resource manager
 	if (!g_engineData->renderer->Initialize())
 	{
 		Cleanup();
@@ -191,6 +190,7 @@ void Hail::MainLoop()
 	while (engineData.runMainThread)
 	{
 		engineData.timer.FrameStart();
+
 		// Updates window state and checks for input messages from OS
 		engineData.appWindow->ApplicationUpdateLoop();
 		const glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();

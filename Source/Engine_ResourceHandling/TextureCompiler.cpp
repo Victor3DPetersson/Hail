@@ -65,9 +65,9 @@ void TextureCompiler::CompileAllTextures()
 
 }
 
-FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors);
-FilePath ExportCompiled16BitTexture(const FilePath& originalTexturePath, uint16_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors) { return FilePath(); };
-FilePath ExportCompiled32BitTexture(const FilePath& originalTexturePath, uint32_t* compiledTextureData, TextureHeader shaderHeader, uint32_t numberOfColors){ return FilePath(); };
+FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors);
+FilePath ExportCompiled16BitTexture(const FilePath& originalTexturePath, uint16_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors) { return FilePath(); };
+FilePath ExportCompiled32BitTexture(const FilePath& originalTexturePath, uint32_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors){ return FilePath(); };
 
 bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32 numberOfRequiredTextures)
 {
@@ -114,43 +114,43 @@ bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredT
 	return true;
 }
 
-bool TextureCompiler::CompileInternalTexture(TextureHeader header, const char* textureName)
+bool TextureCompiler::CompileInternalTexture(TextureProperties header, const char* textureName)
 {
 	uint32_t sizeOfColor, numberOfColors;
-	switch (ToEnum<TEXTURE_TYPE>(header.textureType))
+	switch (ToEnum<eTextureSerializeableType>(header.textureType))
 	{
-	case TEXTURE_TYPE::R8G8B8A8_SRGB:
+	case eTextureSerializeableType::R8G8B8A8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 4;
 		break;
-	case TEXTURE_TYPE::R8G8B8_SRGB:
+	case eTextureSerializeableType::R8G8B8_SRGB:
 		sizeOfColor = 1;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R16G16B16A16:
+	case eTextureSerializeableType::R16G16B16A16:
 		sizeOfColor = 2;
 		numberOfColors = 4;
 		break;
-	case TEXTURE_TYPE::R16G16B16:
+	case eTextureSerializeableType::R16G16B16:
 		sizeOfColor = 2;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R16:
+	case eTextureSerializeableType::R16:
 		sizeOfColor = 2;
 		numberOfColors = 1;
 		break;
-	case TEXTURE_TYPE::R32G32B32A32F:
-	case TEXTURE_TYPE::R32G32B32A32:
+	case eTextureSerializeableType::R32G32B32A32F:
+	case eTextureSerializeableType::R32G32B32A32:
 		sizeOfColor = 4;
 		numberOfColors = 4;
 		break;
-	case TEXTURE_TYPE::R32G32B32F:
-	case TEXTURE_TYPE::R32G32B32:
+	case eTextureSerializeableType::R32G32B32F:
+	case eTextureSerializeableType::R32G32B32:
 		sizeOfColor = 4;
 		numberOfColors = 3;
 		break;
-	case TEXTURE_TYPE::R32F:
-	case TEXTURE_TYPE::R32:
+	case eTextureSerializeableType::R32F:
+	case eTextureSerializeableType::R32:
 		sizeOfColor = 4;
 		numberOfColors = 1;
 		break;
@@ -340,16 +340,16 @@ FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 	}
 	tgaFile.CloseFile();
 
-	TextureHeader compileHeader;
+	TextureProperties compileHeader;
 	uint32_t numberOfColors = 0;
 	if (tgaHeader.bitsPerPixel / 8 == 3)
 	{
-		compileHeader.textureType = (uint16)(Hail::TEXTURE_TYPE::R8G8B8);
+		compileHeader.textureType = (uint16)(Hail::eTextureSerializeableType::R8G8B8);
 		numberOfColors = 3;
 	}
 	else if (tgaHeader.bitsPerPixel / 8 == 4)
 	{
-		compileHeader.textureType = (uint16)(Hail::TEXTURE_TYPE::R8G8B8A8);
+		compileHeader.textureType = (uint16)(Hail::eTextureSerializeableType::R8G8B8A8);
 		numberOfColors = 4;
 	}
 	compileHeader.height = tgaHeader.height;
@@ -371,7 +371,7 @@ void TextureCompiler::Init()
 }
 
 
-FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureHeader textureHeader, uint32_t numberOfColors)
+FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties TextureProperties, uint32_t numberOfColors)
 {
 	FileObject textureName = originalTexturePath.Object();
 	InOutStream textureExporter;
@@ -385,9 +385,9 @@ FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t*
 	String64 nameCString;
 	FromWCharToConstChar(textureName.Name(), nameCString, 64);
 
-	textureExporter.Write((char*)&textureHeader, sizeof(textureHeader), 1);
+	textureExporter.Write((char*)&TextureProperties, TextureHeaderSize, 1);
 
-	for (uint32_t i = 0; i < textureHeader.width * textureHeader.height * numberOfColors; i+= numberOfColors)
+	for (uint32_t i = 0; i < TextureProperties.width * TextureProperties.height * numberOfColors; i+= numberOfColors)
 	{
 		switch (numberOfColors)
 		{
@@ -413,7 +413,7 @@ FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t*
 			break;
 		}
 	}
-	//outStream.write((char*)&compiledTextureData, textureHeader.width * textureHeader.height * sizeOfColor * numberOfColors);
+	//outStream.write((char*)&compiledTextureData, TextureProperties.width * TextureProperties.height * sizeOfColor * numberOfColors);
 
 	// TODO: check if resource exist if we overwrite it, and get its GUID
 	MetaResource textureMetaResource;

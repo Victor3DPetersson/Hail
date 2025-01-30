@@ -2,6 +2,8 @@
 #include "ResourceInterface.h"
 
 #include "Resources\ResourceManager.h"
+#include "HailEngine.h"
+#include "Resources\ResourceRegistry.h"
 
 namespace Hail
 {
@@ -38,6 +40,14 @@ namespace Hail
 			return;
 
 		m_instance = new ResourceInterface(resourceManager);
+	}
+
+	eResourceState ResourceInterface::GetMaterialResourceState(GUID guid)
+	{
+		if (!m_instance)
+			return eResourceState::Invalid;
+
+		return GetResourceRegistry().GetResourceState(ResourceType::Material, guid);
 	}
 
 }

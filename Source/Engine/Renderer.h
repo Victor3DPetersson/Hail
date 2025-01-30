@@ -30,8 +30,8 @@ namespace Hail
 	{
 	public:
 		~Renderer();
-		bool Initialize();
-
+		// TODO: Clean up the initialization order of all the rendering systems, this is a mess atm.
+		virtual bool Initialize();
 		virtual bool InitDevice(Timer* timer) = 0;
 		virtual bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
 		//Always call virtual version of this function after swapchain has finished the previous frame
@@ -43,7 +43,7 @@ namespace Hail
 		// Blocking operation for executing thread.
 		virtual void WaitForGPU() = 0;
 
-		//virtual FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, TEXTURE_FORMAT format = TEXTURE_FORMAT::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED) = 0;
+		//virtual FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, eTextureFormat format = eTextureFormat::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED) = 0;
 		//virtual void FrameBufferTexture_ClearFrameBuffer(FrameBufferTexture& frameBuffer) = 0;
 		//virtual void FrameBufferTexture_BindAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;
 		//virtual void FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;

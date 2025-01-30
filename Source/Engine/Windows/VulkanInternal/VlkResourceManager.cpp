@@ -81,26 +81,6 @@ void* VlkRenderingResourceManager::GetRenderingResources()
 	return &m_resources;
 }
 
-void VlkRenderingResourceManager::UploadMemoryToBuffer(BufferObject* pBuffer, void* dataToMap, uint32_t sizeOfData, uint32 offset)
-{
-	H_ASSERT(pBuffer, "Invalid buffer mapped");
-	VlkBufferObject* pVlkBuffer = (VlkBufferObject*)pBuffer;
-	H_ASSERT(pBuffer->GetBufferSize() >= sizeOfData + offset, "Invalid offset or size of mapped data");
-	VlkDevice* device = (VlkDevice*)m_renderDevice;
-	const uint32 frameInFlight = m_swapChain->GetFrameInFlight();
-	if (pVlkBuffer->UsesFrameInFlight())
-	{
-		void* pMappedData = pVlkBuffer->GetAllocationMappedMemory(frameInFlight).pMappedData;
-		memcpy((void*)((uint8*)pMappedData + offset), dataToMap, sizeOfData);
-	}
-	else
-	{
-		vmaCopyMemoryToAllocation(device->GetMemoryAllocator(), dataToMap, pVlkBuffer->GetAllocation(frameInFlight), offset, sizeOfData);
-	}
-	VkResult result = vmaFlushAllocation(device->GetMemoryAllocator(), pVlkBuffer->GetAllocation(frameInFlight), 0, VK_WHOLE_SIZE);
-	H_ASSERT(result == VK_SUCCESS);
-}
-
 BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties)
 {
 	VlkBufferObject* vlkBuffer = new VlkBufferObject();

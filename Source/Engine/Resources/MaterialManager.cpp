@@ -8,6 +8,7 @@
 #include "Utility\InOutStream.h"
 #include "HailEngine.h"
 #include "ResourceRegistry.h"
+#include "Rendering\SwapChain.h"
 
 #include "ImGui\ImGuiContext.h"
 #include "Hashing\xxh64_en.hpp"
@@ -22,6 +23,70 @@ namespace Hail
 		m_textureManager = textureResourceManager;
 		m_swapChain = swapChain;
 		m_renderingResourceManager = renderingResourceManager;
+	}
+
+	void MaterialManager::Update()
+	{
+		ResourceRegistry& reg = GetResourceRegistry();
+		const uint32 frameInFlight = m_swapChain->GetFrameInFlight();
+		uint32 i = 0u;
+		for (; i < m_loadRequests.Size(); ++i)
+		{
+
+			uint32 numberOfTexturesAreHandled = 0u;
+			for (uint32 iTexture = 0u; iTexture < MAX_TEXTURE_HANDLES; iTexture++)
+			{
+				if (m_loadRequests[i].textureHandles[iTexture] != GuidZero)
+				{
+					bool bIsTextureHandled = false;
+					const eResourceState state = reg.GetResourceState(ResourceType::Texture, m_loadRequests[i].textureHandles[iTexture]);
+
+					if (state == eResourceState::Invalid)
+					{
+						m_loadRequests[i].materialInstance.m_textureHandles[iTexture] = INVALID_TEXTURE_HANDLE;
+						H_ASSERT(m_loadRequests[i].numberOfTexturesInMaterial != 0u);
+						m_loadRequests[i].numberOfTexturesInMaterial--;
+					}
+					else if (state == eResourceState::Loaded)
+					{
+						bIsTextureHandled = true;
+					}
+
+					if (bIsTextureHandled)
+						numberOfTexturesAreHandled++;
+				}
+			}
+
+			// We check if all textures are handled that the instance care about
+			if (numberOfTexturesAreHandled != m_loadRequests[i].numberOfTexturesInMaterial)
+				continue;
+
+			m_loadRequests[i].materialInstance.m_instanceIdentifier = m_materialsInstanceData.Size();
+			m_materialsInstanceData.Add(m_loadRequests[i].materialInstance);
+			ResourceValidator instanceValidator = ResourceValidator();
+			instanceValidator.MarkResourceAsDirty(frameInFlight);
+			m_materialsInstanceValidationData.Add(instanceValidator);
+			if (InitMaterialInstance(m_loadRequests[i].materialInstance.m_materialType, m_loadRequests[i].materialInstance))
+			{
+				reg.SetResourceLoaded(ResourceType::Material, m_loadRequests[i].materialInstance.m_id);
+			}
+			else
+			{
+				m_materialsInstanceValidationData.RemoveLast();
+				m_materialsInstanceData.RemoveLast();
+				reg.SetResourceLoadFailed(ResourceType::Material, m_loadRequests[i].materialInstance.m_id);
+			}
+
+			m_loadRequests.RemoveCyclicAtIndex(i);
+			i--;
+		}
+
+		//if (bFinishedLoadingMaterial)
+		//{
+		//	m_loadRequests.RemoveCyclicAtIndex(i);
+		//	i--;
+		//	bFinishedLoadingMaterial = false;
+		//}
 	}
 
 	uint64 LocalGetShaderHash(String64 shader)
@@ -544,11 +609,11 @@ namespace Hail
 	void MaterialManager::CheckMaterialInstancesToReload(uint32 frameInFlight)
 	{
 		//TODO: potentionally quite slow, but is this a problem as it is only done for reload? 
-		const GrowingArray<TextureResource*>& textures = m_textureManager->GetLoadedTextures();
+		const GrowingArray<TextureManager::TextureWithView>& textures = m_textureManager->GetLoadedTextures();
 		for (size_t textureID = 0; textureID < textures.Size(); textureID++)
 		{
 			//If the texture is marked dirty this frame
-			if (textures[textureID]->m_validator.GetIsResourceDirty())
+			if (textures[textureID].m_pTexture->m_validator.GetIsResourceDirty())
 			{
 				for (uint32 instance = 0; instance < m_materialsInstanceData.Size(); instance++)
 				{
@@ -621,7 +686,7 @@ namespace Hail
 		for (uint32 i = 0; i < MAX_TEXTURE_HANDLES; i++)
 		{
 			if (matData.m_textureHandles[i] != GuidZero)
-				instance.m_textureHandles[i] = m_textureManager->LoadTexture(matData.m_textureHandles[i]);
+				instance.m_textureHandles[i] = m_textureManager->StagerredTextureLoad(matData.m_textureHandles[i]);
 		}
 
 		instance.m_instanceIdentifier = m_materialsInstanceData.Size();
@@ -635,10 +700,55 @@ namespace Hail
 		{
 			m_materialsInstanceValidationData.RemoveLast();
 			m_materialsInstanceData.RemoveLast();
-			// Throw error
 			return false;
 		}
 		return true;
+	}
+
+	bool MaterialManager::StaggeredMaterialLoad(const GUID guid)
+	{
+		ResourceRegistry& reg = GetResourceRegistry();
+
+		const SerializeableMaterial matData = LoadMaterialSerializeableInstance(reg.GetProjectPath(ResourceType::Material, guid));
+
+		uint32 materialIndex = LoadMaterialFromSerializedData(matData);
+		if (materialIndex == MAX_UINT)
+		{
+			H_ERROR(StringL::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid)));
+			return false;
+		}
+
+		MaterialInstance instance;
+		instance.m_id = guid;
+		instance.m_materialType = matData.m_baseMaterialType;
+		instance.m_blendMode = matData.m_blendMode;
+		if (matData.m_baseMaterialType == eMaterialType::SPRITE)
+		{
+			instance.m_cutoutThreshold = matData.m_extraData;
+		}
+
+		instance.m_textureHandles.Fill(INVALID_TEXTURE_HANDLE);
+
+		uint32 numberOfTextures = 0u;
+
+		for (uint32 i = 0; i < MAX_TEXTURE_HANDLES; i++)
+		{
+			if (matData.m_textureHandles[i] != GuidZero)
+			{
+				instance.m_textureHandles[i] = m_textureManager->StagerredTextureLoad(matData.m_textureHandles[i]);
+				numberOfTextures++;
+			}
+		}
+
+		instance.m_materialIndex = materialIndex;
+
+		MaterialLoadRequest loadRequest;
+		loadRequest.materialInstance = instance;
+		loadRequest.textureHandles = matData.m_textureHandles;
+		loadRequest.numberOfTexturesInMaterial = numberOfTextures;
+		m_loadRequests.Add(loadRequest);
+
+		reg.SetResourceUnloaded(ResourceType::Material, guid);
 	}
 
 	MaterialTypeObject* MaterialManager::GetTypeData(Pipeline* pPipeline)

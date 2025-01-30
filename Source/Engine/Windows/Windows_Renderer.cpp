@@ -43,6 +43,25 @@
 
 using namespace Hail;
 
+bool Hail::VlkRenderer::Initialize()
+{
+	Renderer::Initialize();
+
+	//Create initial buffers
+	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
+	m_pContext->StartTransferPass();
+	CreateFullscreenVertexBuffer();
+	CreateVertexBuffer();
+	CreateIndexBuffer();
+	CreateDebugLineVertexBuffer();
+	CreateSpriteVertexBuffer();
+	InitImGui();
+	m_pContext->EndTransferPass();
+	////clear font textures from cpu data, so clearing ImGui for Vlk
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
+	return true;
+}
+
 bool VlkRenderer::InitDevice(Timer* timer)
 {
 	m_timer = timer;
@@ -55,24 +74,12 @@ bool VlkRenderer::InitDevice(Timer* timer)
 bool Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager)
 {
 	m_pResourceManager = resourceManager;
-	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
 	m_pContext = new VlkRenderContext(m_renderDevice, m_pResourceManager);
 
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 
-	//Create initial buffers
-	m_pContext->StartTransferPass();
-	CreateFullscreenVertexBuffer();
-	CreateVertexBuffer();
-	CreateIndexBuffer();
-	CreateDebugLineVertexBuffer();
-	CreateSpriteVertexBuffer();
-	m_pContext->EndTransferPass();
-
 	CreateCommandBuffers();
 	CreateSyncObjects();
-	InitImGui();
-
 
 	return true;
 }
@@ -137,17 +144,13 @@ void VlkRenderer::InitImGui()
 
 	ImGui_ImplVulkan_Init(&init_info, m_swapChain->GetRenderPass());
 
-	VkCommandBuffer cmd = BeginSingleTimeCommands(device, device.GetCommandPool());
-
+	VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
+	VkCommandBuffer cmd = pVlkCommandBfr->m_commandBuffer;
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
 	////execute a gpu command to upload imgui font textures
 	//immediate_submit([&](VkCommandBuffer cmd) {
 	//	ImGui_ImplVulkan_CreateFontsTexture(cmd);
 	//	});
-	EndSingleTimeCommands(device, cmd, device.GetGraphicsQueue(), device.GetCommandPool());
-	////clear font textures from cpu data
-	ImGui_ImplVulkan_DestroyFontUploadObjects();
-
 
 	////add the destroy the imgui created structures
 	//_mainDeletionQueue.push_function([=]() {

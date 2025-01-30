@@ -11,6 +11,7 @@ namespace Hail
 	struct RenderCommandPool;
 	class FrameBufferTexture;
 	class MaterialManager;
+	class RenderContext;
 	class RenderingDevice;
 	class RenderingResourceManager;
 	class SwapChain;
@@ -21,7 +22,7 @@ namespace Hail
 	{
 	public:
 		ResourceManager();
-		bool InitResources(RenderingDevice* renderingDevice);
+		bool InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes);
 		void ClearAllResources();
 		MaterialManager* GetMaterialManager() { return m_materialManager; }
 		TextureManager* GetTextureManager() { return m_textureManager; }
@@ -37,7 +38,7 @@ namespace Hail
 		void LoadMaterialResource(GUID guid);
 		uint32 GetMaterialInstanceHandle(GUID guid) const;
 
-		void UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer);
+		void UpdateRenderBuffers(RenderCommandPool& renderPool, RenderContext* pRenderContext, Timer* timer);
 		void ClearFrameData();
 		void SetSwapchainTargetResolution(glm::uvec2 targetResolution);
 

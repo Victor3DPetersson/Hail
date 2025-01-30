@@ -348,9 +348,9 @@ namespace
 			else if (descriptor.decorationType == eDecorationType::SampledImage)
 			{
 				VkDescriptorImageInfo& imageDescriptorInfo = outDescriptorInfos.imageDescriptorInfos.Add();
-				VlkTextureResource* vlkTexture = (VlkTextureResource*)pTextureResourceManager->GetEngineTexture(GlobalDomain, descriptor.bindingPoint, frameInFlight);
+				VlkTextureView* vlkTexture = (VlkTextureView*)pTextureResourceManager->GetEngineTextureView(GlobalDomain, descriptor.bindingPoint, frameInFlight);
 				imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				imageDescriptorInfo.imageView = vlkTexture->GetVlkTextureData().textureImageView;
+				imageDescriptorInfo.imageView = vlkTexture->GetVkImageView();
 				imageDescriptorInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
 				outSetWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeDescriptor.m_globalDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 			}
@@ -413,12 +413,12 @@ void Hail::VlkMaterialManager::BindPipelineToContext(Pipeline* pPipeline, Render
 		else if (descriptor.decorationType == eDecorationType::SampledImage)
 		{
 			VkDescriptorImageInfo& imageDescriptorInfo = descriptorInfos.imageDescriptorInfos.Add();
-			VlkTextureResource* vlkTexture = (VlkTextureResource*)pRenderContext->GetBoundTextureAtSlot(descriptor.bindingPoint);
+			VlkTextureView* vlkTexture = (VlkTextureView*)pRenderContext->GetBoundTextureAtSlot(descriptor.bindingPoint);
 
 			H_ASSERT(vlkTexture, "Nothing bound to the texture context slot.");
 
 			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageDescriptorInfo.imageView = vlkTexture->GetVlkTextureData().textureImageView;
+			imageDescriptorInfo.imageView = vlkTexture->GetVkImageView();
 			imageDescriptorInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
 			setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 		}
@@ -1169,9 +1169,9 @@ void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkPipeline& vlkPipeline,
 		else if (descriptor.decorationType == eDecorationType::SampledImage)
 		{
 			VkDescriptorImageInfo& imageDescriptorInfo = descriptorInfos.imageDescriptorInfos.Add();
-			VlkTextureResource* vlkTexture = (VlkTextureResource*)m_textureManager->GetEngineTexture(MaterialTypeDomain, descriptor.bindingPoint, frameInFlight);
+			VlkTextureView* view = (VlkTextureView*)m_textureManager->GetEngineTextureView(MaterialTypeDomain, descriptor.bindingPoint, frameInFlight);
 			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageDescriptorInfo.imageView = vlkTexture->GetVlkTextureData().textureImageView;
+			imageDescriptorInfo.imageView = view->GetVkImageView();
 			imageDescriptorInfo.sampler = vlkRenderingResources->m_pointTextureSampler;
 			setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 		}
@@ -1202,9 +1202,9 @@ bool VlkMaterialManager::CreateFramebuffers(VlkPipeline& vlkPipeline, uint32 fra
 	else
 	{
 		VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-		FrameBufferTextureData colorTexture = vlkPipeline.m_frameBufferTextures->GetTextureImage(frameInFlight);
-		FrameBufferTextureData depthTexture = vlkPipeline.m_frameBufferTextures->GetDepthTextureImage(frameInFlight);
-		VkImageView attachments[2] = { colorTexture.imageView, depthTexture.imageView };
+		VkImageView colorTexture = ((VlkTextureView*)vlkPipeline.m_frameBufferTextures->GetColorTextureView(frameInFlight))->GetVkImageView();
+		VkImageView depthTexture = ((VlkTextureView*)vlkPipeline.m_frameBufferTextures->GetDepthTextureView(frameInFlight))->GetVkImageView();
+		VkImageView attachments[2] = { colorTexture, depthTexture };
 
 		VkFramebufferCreateInfo framebufferInfo{};
 		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1286,14 +1286,14 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 		else if (descriptor.decorationType == eDecorationType::SampledImage)
 		{
 
-			VlkTextureResource* pVlkTexture = instance.m_textureHandles[textureIndex] != MAX_UINT ? 
-				(VlkTextureResource*)m_textureManager->GetTexture(instance.m_textureHandles[textureIndex]) : 
-				(VlkTextureResource*)m_textureManager->GetDefaultTexture();
+			VlkTextureView* pVlkTexture = instance.m_textureHandles[textureIndex] != MAX_UINT ?
+				(VlkTextureView*)m_textureManager->GetTextureView(instance.m_textureHandles[textureIndex]) :
+				(VlkTextureView*)m_textureManager->GetDefaultTexture().m_pView;
 
 			VkDescriptorImageInfo& imageDescriptorInfo = imageDescriptorInfos.Add();
 
 			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageDescriptorInfo.imageView = pVlkTexture->GetVlkTextureData().textureImageView;
+			imageDescriptorInfo.imageView = pVlkTexture->GetVkImageView();
 			imageDescriptorInfo.sampler = vlkRenderingResources->m_linearTextureSampler;
 
 			VkWriteDescriptorSet& writeDescriptor = descriptorWrites.Add();

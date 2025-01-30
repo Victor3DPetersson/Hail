@@ -8,7 +8,7 @@
 namespace Hail
 {
 
-    enum class TEXTURE_FORMAT : uint32
+    enum class eTextureFormat : uint32
     {
         UNDEFINED = 0,
         R4G4_UNORM_PACK8 = 1,
@@ -136,7 +136,7 @@ namespace Hail
         E5B9G9R9_UFLOAT_PACK32 = 123
 
     };
-    enum class TEXTURE_DEPTH_FORMAT : uint32_t
+    enum class TEXTURE_DEPTH_FORMAT : uint8_t
     {
         UNDEFINED = 0,
         D16_UNORM = 1,
@@ -165,13 +165,13 @@ namespace Hail
         CUBIC_EXT = 2
     };
 
-    enum class TEXTURE_SAMPLER_FILTER_MODE : uint32_t
+    enum class TEXTURE_SAMPLER_FILTER_MODE : uint8_t
     {
         POINT = 0,
         LINEAR = 1
     };
 
-    enum class COMPARE_MODE : uint32_t
+    enum class COMPARE_MODE : uint8_t
     {
         NEVER = 0,
         LESS = 1,
@@ -205,7 +205,7 @@ namespace Hail
         bool anisotropy = true;
     };
 
-	enum class TEXTURE_TYPE : uint16
+	enum class eTextureSerializeableType : uint16
 	{
 		R32G32B32A32F,
 		R32G32B32F,
@@ -221,13 +221,30 @@ namespace Hail
 		R8,
 		R8G8B8A8_SRGB,
 		R8G8B8_SRGB,
+        B8G8R8A8_UNORM,
 	};
 
-	struct TextureHeader
+    enum class eTextureUsage : uint8
+    {
+        Texture,
+        FramebufferColor,
+        FramebufferDepthColor,
+        FramebufferDepthOnly
+    };
+
+    constexpr uint32 TextureHeaderSize = 12u;
+
+	struct TextureProperties
 	{
-		uint32 width = 0;
-		uint32 height = 0;
-		uint32 textureType = 0;
+		uint32 width = 0; // Header information
+		uint32 height = 0; // Header information
+		uint32 textureType = 0; // Header information
+
+        // If adding information here always add it after header data, to not change any serialization of textures. 
+
+        eTextureUsage textureUsage = eTextureUsage::Texture;
+        eTextureFormat format = eTextureFormat::UNDEFINED;
+        TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED; // only used if the texture is a frame buffer attachment
 	};
 
 	enum class TEXTURE_LOADSTATE
@@ -239,19 +256,16 @@ namespace Hail
 
 	struct CompiledTexture
 	{
-		TextureHeader header;
+        TextureProperties properties;
 		void* compiledColorValues = nullptr;
 		TEXTURE_LOADSTATE loadState = TEXTURE_LOADSTATE::UNLOADED;
 	};
 
 	void DeleteCompiledTexture(CompiledTexture& texture);
 
+	uint32_t GetTextureByteSize(TextureProperties header);
 
-	uint32_t GetTextureByteSize(TextureHeader header);
-
-	TEXTURE_FORMAT TextureTypeToTextureFormat(TEXTURE_TYPE type);
-
-	const char* GetTextureTypeAsText(TEXTURE_TYPE type);
-
+    eTextureFormat SerializeableTextureTypeToTextureFormat(eTextureSerializeableType type);
+    const char* GetSerializeableTextureTypeAsText(eTextureSerializeableType type);
 }
 

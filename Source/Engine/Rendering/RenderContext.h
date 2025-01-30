@@ -11,6 +11,7 @@ namespace Hail
 	class ResourceManager;
 	class RenderingDevice;
 	class TextureResource;
+	class TextureView;
 	class Pipeline;
 
 	enum class eContextState
@@ -42,17 +43,19 @@ namespace Hail
 		RenderContext(RenderingDevice* device, ResourceManager* pResourceManager);
 
 		void SetBufferAtSlot(BufferObject* pBuffer, uint32 slot);
-		void SetTextureAtSlot(TextureResource* pTexture, uint32 slot);
+		void SetTextureAtSlot(TextureView* pTexture, uint32 slot);
 
 		// Creates a complete state for a pipeline if it does not exist, this pipeline will be with the bound resources. 
 		void SetPipelineState(Pipeline* pPipeline);
 
-		TextureResource* GetBoundTextureAtSlot(uint32 slot);
+		TextureView* GetBoundTextureAtSlot(uint32 slot);
 		BufferObject* GetBoundStructuredBufferAtSlot(uint32 slot);
 		BufferObject* GetBoundUniformBufferAtSlot(uint32 slot);
 
 		void UploadDataToBuffer(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData);
+		void UploadDataToTexture(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 
+		CommandBuffer* GetCurrentCommandBuffer() { return m_pCurrentCommandBuffer; }
 		//void StartGraphicsPass();
 		//void EndGraphicsPass();
 		//void StartComputePass();
@@ -64,7 +67,8 @@ namespace Hail
 
 		virtual CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer, bool bIsTempCommandBuffer) = 0;
 		virtual void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) = 0;
-		StaticArray<TextureResource*, 16> m_pBoundTextures;
+		virtual void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel) = 0;
+		StaticArray<TextureView*, 16> m_pBoundTextures;
 		StaticArray<BufferObject*, 16> m_pBoundStructuredBuffers;
 		StaticArray<BufferObject*, 16> m_pBoundUniformBuffers;
 

@@ -30,7 +30,7 @@ void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 {
 	m_commandPoolToRender = &renderPool;
 	m_pResourceManager->ReloadResources();
-	m_pResourceManager->UpdateRenderBuffers(renderPool, m_timer);
+	m_pResourceManager->UpdateRenderBuffers(renderPool, m_pContext, m_timer);
 }
 
 void Hail::Renderer::EndFrame()

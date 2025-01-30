@@ -354,6 +354,8 @@ namespace Hail
 		char* Data();
 		const char* const Data() const;
 		void Reserve(uint32 numOfChars);
+		// DeAllocates memory if this string uses a memory pool, and sets length to 0.
+		void Clear();
 
 		const uint32 Length() const { return m_length; }
 

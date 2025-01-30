@@ -62,4 +62,11 @@ namespace Hail
         res360,
         Count
     };
+
+    enum class eResourceState
+    {
+        Loaded,
+        Unloaded, // Pending load
+        Invalid // Failed to load
+    };
 }

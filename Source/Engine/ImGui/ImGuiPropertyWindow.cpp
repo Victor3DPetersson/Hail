@@ -53,8 +53,8 @@ namespace
 		TextureContextAsset& texture = *(TextureContextAsset*)context->GetCurrentContextObject();
 
 		ImGui::Text("Name: %s", texture.m_fileObject.m_fileObject.Name().CharString());
-		ImGui::Text("Texture Format: %s", GetTextureTypeAsText((TEXTURE_TYPE)texture.m_textureHeader.textureType));
-		ImGui::Text("Width: %i Height: %i", texture.m_textureHeader.width, texture.m_textureHeader.height);
+		ImGui::Text("Texture Format: %s", GetSerializeableTextureTypeAsText((eTextureSerializeableType)texture.m_TextureProperties.textureType));
+		ImGui::Text("Width: %i Height: %i", texture.m_TextureProperties.width, texture.m_TextureProperties.height);
 	}
 
 	ImGuiPropertyWindowReturnValue RenderMaterialProperty(Hail::ImGuiContext* context)

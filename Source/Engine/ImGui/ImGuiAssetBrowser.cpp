@@ -359,8 +359,8 @@ void Hail::ImGuiAssetBrowser::InitCommonData()
 	FilePath baseResourcePath = RESOURCE_DIR_OUT;
 	m_fileSystem.SetFilePathAndInit(baseResourcePath, { "txr" });
 
-	m_folderTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(baseResourcePath.Parent() + L"editorResources/folderTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_folderTexture.m_textureHeader);
-	m_materialIconTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(baseResourcePath.Parent() + L"editorResources/materialIconTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_materialIconTexture.m_textureHeader);
+	m_folderTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(baseResourcePath.Parent() + L"editorResources/folderTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_folderTexture.m_TextureProperties);
+	m_materialIconTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(baseResourcePath.Parent() + L"editorResources/materialIconTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_materialIconTexture.m_TextureProperties);
 
 	m_currentFileDirectoryOpened = m_fileSystem.GetCurrentFileDirectoryObject();
 	InitFileBrowser();
@@ -404,7 +404,7 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 		if (fileObject.m_fileObject.IsFile() && StringCompare(fileObject.m_fileObject.Extension(), L"txr"))
 		{
 			TextureContextAsset textureAsset;
-			textureAsset.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager(), &textureAsset.m_textureHeader);
+			textureAsset.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager(), &textureAsset.m_TextureProperties);
 			textureAsset.m_fileObject = fileObject;
 			textureFolder.folderTextures.Add(textureAsset);
 		}

@@ -103,11 +103,7 @@ Hail::StringL::StringL(const std::string& stlString)
 
 Hail::StringL::~StringL()
 {
-	if (m_allocatedLength > 15)
-		StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
-
-	m_memory.m_p = nullptr;
-	m_length = 0;
+	Clear();
 }
 
 StringL Hail::StringL::Format(const char* const format, ...)
@@ -465,6 +461,16 @@ void Hail::StringL::Reserve(uint32 numOfChars)
 	m_length = numOfChars;
 	StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length, &m_memory.m_p);
 	m_allocatedLength = m_length;
+}
+
+void Hail::StringL::Clear()
+{
+	if (m_allocatedLength > 15)
+		StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
+
+	m_memory.m_p = nullptr;
+	m_length = 0;
+	m_allocatedLength = 0u;
 }
 
 Hail::StringLW::StringLW() : m_length(0)

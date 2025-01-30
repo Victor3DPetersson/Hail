@@ -4,6 +4,17 @@
 
 namespace Hail
 {
+	SwapChain::SwapChain(TextureManager* pTextureManager) : m_pTextureManager(pTextureManager)
+	{
+		// start with a 16/9 Aspect ratio, TODO: make configurable
+		m_horizontalAspectRatio = 16.0f / 9.0f;
+		m_bResizeSwapChain = false;
+		m_windowResolution = { 0, 0 };
+		m_renderTargetResolution = { 0, 0 };
+		m_targetResolution = { 720, 480 };
+		m_pFrameBufferTexture = nullptr;
+	}
+
 	void SwapChain::CalculateRenderResolution()
 	{
 		const float aspectRatio16x9 = (float)m_targetResolution.x / (float)m_targetResolution.y;
@@ -20,15 +31,6 @@ namespace Hail
 			m_renderTargetResolution.y = m_windowResolution.x / aspectRatio16x9;
 		}
 		Debug_PrintConsoleStringL(StringL::Format("Window Res X: %i Window Res y: %i\nRender Target Res X: %i Render Target Res y: %i", m_windowResolution.x, m_windowResolution.y, m_renderTargetResolution.x, m_renderTargetResolution.y));
-	}
-	SwapChain::SwapChain()
-	{
-		// start with a 16/9 Aspect ratio, TODO: make configurable
-		m_horizontalAspectRatio = 16.0f / 9.0f;
-		m_bResizeSwapChain = false;
-		m_windowResolution = { 0, 0 };
-		m_renderTargetResolution = { 0, 0 };
-		m_targetResolution = { 720, 480 };
 	}
 
 	void SwapChain::SetTargetResolution(glm::uvec2 targetResolution)

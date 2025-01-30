@@ -13,6 +13,7 @@ Hail::RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pRe
 	: m_pDevice(device)
 	, m_pResourceManager(pResourceManager)
 	, m_currentState(eContextState::TransitionBetweenStates)
+	, m_pCurrentCommandBuffer(nullptr)
 {
 	m_pBoundTextures.Fill(nullptr);
 	m_pBoundStructuredBuffers.Fill(nullptr);
@@ -31,7 +32,7 @@ void Hail::RenderContext::SetBufferAtSlot(BufferObject* pBuffer, uint32 slot)
 	}
 }
 
-void Hail::RenderContext::SetTextureAtSlot(TextureResource* pTexture, uint32 slot)
+void Hail::RenderContext::SetTextureAtSlot(TextureView* pTexture, uint32 slot)
 {
 	m_pBoundTextures[slot] = pTexture;
 }
@@ -47,7 +48,7 @@ void Hail::RenderContext::SetPipelineState(Pipeline* pPipeline)
 	m_pResourceManager->GetMaterialManager()->BindPipelineToContext(pPipeline, this);
 }
 
-Hail::TextureResource* Hail::RenderContext::GetBoundTextureAtSlot(uint32 slot)
+Hail::TextureView* Hail::RenderContext::GetBoundTextureAtSlot(uint32 slot)
 {
 	return m_pBoundTextures[slot];
 }
@@ -65,6 +66,11 @@ Hail::BufferObject* Hail::RenderContext::GetBoundUniformBufferAtSlot(uint32 slot
 void Hail::RenderContext::UploadDataToBuffer(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData)
 {
     UploadDataToBufferInternal(pBuffer, pDataToUpload, sizeOfUploadedData);
+}
+
+void Hail::RenderContext::UploadDataToTexture(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel)
+{
+	UploadDataToTextureInternal(pTexture, pDataToUpload, mipLevel);
 }
 
 Hail::CommandBuffer::CommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer, bool bIsTempCommandBuffer) :

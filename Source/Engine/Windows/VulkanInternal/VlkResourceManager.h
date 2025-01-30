@@ -17,13 +17,10 @@ namespace Hail
 	struct VlkRenderingResources
 	{
 		VkDescriptorPool m_globalDescriptorPool = VK_NULL_HANDLE;
-		//VkDescriptorSetLayout m_globalPerFrameSetLayout = VK_NULL_HANDLE;
-		//VkDescriptorSet m_globalDescriptorSetsPerFrame[MAX_FRAMESINFLIGHT];
 
 		VkSampler m_linearTextureSampler = VK_NULL_HANDLE;
 		VkSampler m_pointTextureSampler = VK_NULL_HANDLE;
 
-		//VlkBufferObject m_buffers[(uint32)(BUFFERS::COUNT)];
 	};
 
 
@@ -35,10 +32,7 @@ namespace Hail
 
 		void* GetRenderingResources() override;
 
-		void UploadMemoryToBuffer(BufferObject* buffer, void* dataToMap, uint32 sizeOfData, uint32 offset = 0) override;
-
 		BufferObject* CreateBuffer(BufferProperties properties) override;
-
 
 	private:
 

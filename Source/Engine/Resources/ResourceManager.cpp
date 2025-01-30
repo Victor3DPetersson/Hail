@@ -10,6 +10,7 @@
 #include "HailEngine.h"
 
 #include "Resources_Materials\ShaderBufferList.h"
+#include "Rendering\RenderContext.h"
 
 #ifdef PLATFORM_WINDOWS
 #include "windows\VulkanInternal\VlkResourceManager.h"
@@ -33,28 +34,30 @@ Hail::ResourceManager::ResourceManager()
 	m_unitCube = CreateUnitCube();
 	m_unitSphere = CreateUnitSphere();
 	m_unitCylinder = CreateUnitCylinder();
-
-#ifdef PLATFORM_WINDOWS
-	m_textureManager = new VlkTextureResourceManager();
-	m_materialManager = new VlkMaterialManager();
-	m_renderingResourceManager = new VlkRenderingResourceManager();
-	m_swapChain = new VlkSwapChain();
-#endif
-
 }
 
-bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice)
+bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes)
 {
 	m_renderDevice = renderingDevice;
+
+#ifdef PLATFORM_WINDOWS
+	m_textureManager = new VlkTextureResourceManager(m_renderDevice);
+	m_materialManager = new VlkMaterialManager();
+	m_renderingResourceManager = new VlkRenderingResourceManager();
+	m_swapChain = new VlkSwapChain(m_textureManager);
+#endif
+	SetTargetResolution(targetRes);
+	SetWindowResolution(startupWindowRes);
+
 	m_swapChain->Init(m_renderDevice);
-	m_textureManager->Init(m_renderDevice);
 	m_renderingResourceManager->Init(m_renderDevice, m_swapChain);
+	m_textureManager->Init(pRenderContext);
 	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain );
-	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), TEXTURE_FORMAT::R8G8B8A8_UNORM, TEXTURE_DEPTH_FORMAT::D16_UNORM);
+	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), eTextureFormat::R8G8B8A8_UNORM, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 	
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		m_textureManager->RegisterEngineTexture(m_mainPassFrameBufferTexture->GetColorTexture(i), eDecorationSets::MaterialTypeDomain, (uint32)eMaterialTextures::FullscreenPassTarget, i);
+		m_textureManager->RegisterEngineTexture(m_mainPassFrameBufferTexture->GetColorTexture(i), m_mainPassFrameBufferTexture->GetColorTextureView(i), eDecorationSets::MaterialTypeDomain, (uint32)eMaterialTextures::FullscreenPassTarget, i);
 	}
 
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
@@ -163,15 +166,16 @@ void Hail::ResourceManager::LoadMaterialResource(GUID guid)
 	if (!reg.GetIsResourceImported(ResourceType::Material, guid))
 		return;
 
-	if (m_materialManager->LoadMaterialFromSerializeableInstanceGUID(guid))
-	{
-		reg.SetResourceLoaded(ResourceType::Material, guid);
-	}
-	else
+	if (!m_materialManager->StaggeredMaterialLoad(guid))
 	{
 		// TODO: Add resource load error type for registry.
 		//reg.SetResourceLoadError
 		H_ERROR(StringL::Format("Failed to load material: %s", reg.GetResourceName(ResourceType::Material, guid).Data()));
+		reg.SetResourceLoadFailed(ResourceType::Material, guid);
+	}
+	else
+	{
+		reg.SetResourceUnloaded(ResourceType::Material, guid);
 	}
 }
 
@@ -180,9 +184,14 @@ Hail::uint32 Hail::ResourceManager::GetMaterialInstanceHandle(GUID guid) const
 	return m_materialManager->GetMaterialInstanceHandle(guid);
 }
 
-void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, Timer* timer)
+void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, RenderContext* pRenderContext, Timer* timer)
 {
-	const TextureResource* defaultTexture = m_textureManager->GetDefaultTexture();
+	// Upload texture data to the GPU
+	pRenderContext->StartTransferPass();
+	m_textureManager->Update(pRenderContext);
+	m_materialManager->Update();
+
+	const TextureResource* defaultTexture = m_textureManager->GetDefaultTexture().m_pTexture;
 	// Move to a sprite handler / renderer
 	const uint32_t numberOfSprites = renderPool.spriteCommands.Size();
 	const glm::vec2 renderResolution = m_swapChain->GetRenderTargetResolution();
@@ -192,8 +201,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		//Get sprite texture size and sort with material and everything here to the correct place. 
 		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID, eMaterialType::SPRITE);
 		const TextureResource& texture = materialInstance.m_textureHandles[0] != INVALID_TEXTURE_HANDLE ? *m_textureManager->GetTexture(materialInstance.m_textureHandles[0]) : *defaultTexture;
-		const float textureAspectRatio = (float)texture.m_compiledTextureData.header.width / (float)texture.m_compiledTextureData.header.height;
-		
+		const float textureAspectRatio = (float)texture.m_properties.width / (float)texture.m_properties.height;
 
 		glm::vec2 spriteScale = spriteCommand.transform.GetScale();
 		const glm::vec2 spriteSizeMultiplier = spriteCommand.bSizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : spriteCommand.transform.GetScale();
@@ -203,7 +211,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		}
 		else
 		{
-			const glm::vec2 scaleMultiplier = glm::vec2(texture.m_compiledTextureData.header.width, texture.m_compiledTextureData.header.height) / renderResolution.y;
+			const glm::vec2 scaleMultiplier = glm::vec2(texture.m_compiledTextureData.properties.width, texture.m_compiledTextureData.properties.height) / renderResolution.y;
 			spriteScale = (spriteScale * 2.0f) * scaleMultiplier;
 		}
 		
@@ -220,7 +228,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		m_spriteInstanceData.Add(spriteInstance);
 	}
 	BufferObject* spriteInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteInstanceBuffer);
-	m_renderingResourceManager->UploadMemoryToBuffer(spriteInstanceBuffer, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	pRenderContext->UploadDataToBuffer(spriteInstanceBuffer, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
 	
 	//Debug Lines___
 	//TODO: Add proper support for 3D lines and sort this list
@@ -239,7 +247,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		m_debugLineData.Add(line);
 	}
 	BufferObject* lineInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::lineInstanceBuffer);
-	m_renderingResourceManager->UploadMemoryToBuffer(lineInstanceBuffer, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
+	pRenderContext->UploadDataToBuffer(lineInstanceBuffer, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
 
 	//Common GPU buffers___
 
@@ -253,7 +261,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
 	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
 	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
-	m_renderingResourceManager->UploadMemoryToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
+	pRenderContext->UploadDataToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
 
 	TutorialUniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), deltaTime * glm::radians(1.0f) + totalTime * 0.15f, glm::vec3(0.0f, 0.0f, 1.0f));
@@ -264,13 +272,14 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, T
 		renderPool.camera3D.GetNear(), renderPool.camera3D.GetFar());
 	ubo.proj[1][1] *= -1;
 	BufferObject* modelViewProjectionBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::uniform, (uint32)eInstanceUniformBuffer::modelViewProjectionData);
-	m_renderingResourceManager->UploadMemoryToBuffer(modelViewProjectionBuffer, &ubo, sizeof(ubo));
+	pRenderContext->UploadDataToBuffer(modelViewProjectionBuffer, &ubo, sizeof(ubo));
 
 	PerCameraUniformBuffer perCameraData{};
 	perCameraData.proj = ubo.proj;
 	perCameraData.view = ubo.view;
 	BufferObject* perViewDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::viewData);
-	m_renderingResourceManager->UploadMemoryToBuffer(perViewDataBuffer, &perCameraData, sizeof(perCameraData));
+	pRenderContext->UploadDataToBuffer(perViewDataBuffer, &perCameraData, sizeof(perCameraData));
+	pRenderContext->EndTransferPass();
 }
 
 void Hail::ResourceManager::ClearFrameData()

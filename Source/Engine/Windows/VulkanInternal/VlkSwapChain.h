@@ -11,14 +11,16 @@ namespace Hail
 	class VlkSwapChain : public SwapChain
 	{
 	public:
-		VlkSwapChain();
-		void Init(RenderingDevice* renderDevice) final;
+		explicit VlkSwapChain(TextureManager* pTextureManager);
+		void Init(RenderingDevice* renderDevice) override;
 		//TODO: make FrameStart and end in to internal overriden virtual functions
 		bool FrameStart(VlkDevice& device, VkFence* inFrameFences, VkSemaphore* imageAvailableSemaphores);
 		void FrameEnd(VkSemaphore* endSemaphore, VkQueue presentQueue);
-		void DestroySwapChain(RenderingDevice* device) final;
-		FrameBufferTexture* GetFrameBufferTexture() final;
-		uint32_t GetFrameInFlight() final { return m_currentFrame; }
+		void DestroySwapChain(RenderingDevice* device) override;
+		//FrameBufferTexture* GetFrameBufferTexture() final;
+		uint32_t GetFrameInFlight() override { return m_currentFrame; }
+
+		TextureView* GetSwapchainView() override;
 
 		VkExtent2D GetSwapChainExtent() { return m_swapChainExtent; }
 		VkFormat GetSwapChainFormat() { return m_swapChainImageFormat; }
@@ -39,7 +41,7 @@ namespace Hail
 		void CreateImageViews(VlkDevice& device);
 		void CreateFramebuffers(VlkDevice& device);
 		void CreateRenderPass(VlkDevice& device);
-		VlkFrameBufferTexture m_frameBufferTexture;
+		//VlkFrameBufferTexture m_frameBufferTexture;
 
 		VkSwapchainKHR m_swapChain = VK_NULL_HANDLE;
 		VkFormat m_swapChainImageFormat;
@@ -52,6 +54,10 @@ namespace Hail
 		uint32_t m_imageCount = 0;
 
 		VkRenderPass m_finalRenderPass = VK_NULL_HANDLE;
+
+		VkImage m_vkImages[MAX_FRAMESINFLIGHT * 2u];
+
+		//VkImageView m_vkImageViews[MAX_FRAMESINFLIGHT * 2u];
 
 	};
 }
