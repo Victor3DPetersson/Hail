@@ -19,7 +19,7 @@ namespace Hail
 		FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, eTextureFormat format, TEXTURE_DEPTH_FORMAT depthFormat) override;
 		TextureView* CreateTextureView() override;
 
-		ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureProperties* headerToFill) override;
+		ImGuiTextureResource* CreateImGuiTextureResource(RenderContext* pRenderContext, const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureProperties* headerToFill) override;
 		void DeleteImGuiTextureResource(ImGuiTextureResource* textureToDelete) override;
 
 	private:

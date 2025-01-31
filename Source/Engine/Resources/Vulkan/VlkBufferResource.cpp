@@ -3,7 +3,6 @@
 #include "VlkTextureResource.h"
 #include "Windows\VulkanInternal\VlkDevice.h"
 #include "VlkBufferResource.h"
-#include "Windows/VulkanInternal/VlkBufferCreationFunctions.h"
 
 using namespace Hail;
 

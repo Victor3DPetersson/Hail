@@ -27,7 +27,7 @@
 - [] Implement batch rendering of sprites
 - [] Spline objects
 - [x] Implement VMA on the Vulkan backend
-- [] VMA implement texture support
+- [x] VMA implement texture support
 - [x] Angelscript, implement array
 - [] Angelscript, replace std::string with our own string class
 - [x] Angelscript, add debugging support in VS code

@@ -2,9 +2,9 @@
 #include "VlkResourceManager.h"
 
 #include "VlkDevice.h"
-#include "VlkBufferCreationFunctions.h"
-#include "VlkVertex_Descriptor.h"
 #include "VlkSwapChain.h"
+#include "VlkTextureCreationFunctions.h"
+#include "VlkVertex_Descriptor.h"
 #include "Resources\Vulkan\VlkTextureManager.h"
 
 #include "Containers\StaticArray\StaticArray.h"

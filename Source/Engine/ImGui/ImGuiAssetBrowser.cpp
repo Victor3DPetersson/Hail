@@ -7,14 +7,16 @@
 #include "imgui.h"
 
 #include "MathUtils.h"
-#include "Resources\MaterialResources.h"
 #include "Utility\StringUtility.h"
 
 #include "Resources\MaterialManager.h"
+#include "Resources\MaterialResources.h"
 #include "Resources\ResourceManager.h"
+#include "Resources\ResourceRegistry.h"
 #include "Resources\TextureManager.h"
 
-#include "Resources\ResourceRegistry.h"
+#include "Rendering\RenderContext.h"
+
 #include "HailEngine.h"
 
 #include "ImGuiHelpers.h"
@@ -134,10 +136,10 @@ void Hail::ImGuiAssetBrowser::DeInit()
 	}
 }
 
-void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject)
+void ImGuiAssetBrowser::RenderImGuiCommands(RenderContext* pRenderContext, ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject)
 {
 	m_resourceManager = resourceManager;
-	InitCommonData();
+	InitCommonData(pRenderContext);
 	if (m_openedFileBrowser)
 	{
 		bool closeCommandWasSent = false;
@@ -152,7 +154,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 			{
 				ImportShaderResourceLogic();
 			}
-			InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
+			InitFolder(pRenderContext, m_fileSystem.GetCurrentFileDirectoryObject());
 			m_openedFileBrowser = false;
 		}
 	}
@@ -203,7 +205,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 	if (ImGuiHelpers::DirectoryPanelLogic(&m_fileSystem, m_fileSystem.GetBaseDepth()))
 	{
 		m_currentFileDirectoryOpened = m_fileSystem.GetCurrentFileDirectoryObject();
-		InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
+		InitFolder(pRenderContext, m_fileSystem.GetCurrentFileDirectoryObject());
 	}
 
 	ImGui::EndChild();
@@ -234,7 +236,7 @@ void ImGuiAssetBrowser::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, Resou
 					if (m_fileSystem.SetCurrentFileDirectory(currentObject.m_fileObject))
 					{
 						m_currentFileDirectoryOpened = m_fileSystem.GetCurrentFileDirectoryObject();
-						InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
+						InitFolder(pRenderContext, m_fileSystem.GetCurrentFileDirectoryObject());
 					}
 					else
 					{
@@ -348,7 +350,7 @@ void Hail::ImGuiAssetBrowser::InitFileBrowser()
 	m_shaderFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 }
 
-void Hail::ImGuiAssetBrowser::InitCommonData()
+void Hail::ImGuiAssetBrowser::InitCommonData(RenderContext* pRenderContext)
 {
 	if (m_inited)
 	{
@@ -358,18 +360,19 @@ void Hail::ImGuiAssetBrowser::InitCommonData()
 	
 	FilePath baseResourcePath = RESOURCE_DIR_OUT;
 	m_fileSystem.SetFilePathAndInit(baseResourcePath, { "txr" });
-
-	m_folderTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(baseResourcePath.Parent() + L"editorResources/folderTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_folderTexture.m_TextureProperties);
-	m_materialIconTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(baseResourcePath.Parent() + L"editorResources/materialIconTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_materialIconTexture.m_TextureProperties);
+	pRenderContext->StartTransferPass();
+	m_folderTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(pRenderContext, baseResourcePath.Parent() + L"editorResources/folderTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_folderTexture.m_TextureProperties);
+	m_materialIconTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(pRenderContext, baseResourcePath.Parent() + L"editorResources/materialIconTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_materialIconTexture.m_TextureProperties);
+	pRenderContext->EndTransferPass();
 
 	m_currentFileDirectoryOpened = m_fileSystem.GetCurrentFileDirectoryObject();
 	InitFileBrowser();
-	InitFolder(m_fileSystem.GetCurrentFileDirectoryObject());
+	InitFolder(pRenderContext, m_fileSystem.GetCurrentFileDirectoryObject());
 
 	m_createMaterialType = (uint32)eMaterialType::SPRITE;
 }
 
-void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
+void Hail::ImGuiAssetBrowser::InitFolder(RenderContext* pRenderContext, const FileObject& fileObject)
 {
 	const GrowingArray<SelectAbleFileObject>* directory = m_fileSystem.GetFileDirectory(fileObject);
 	if (!directory)
@@ -404,7 +407,9 @@ void Hail::ImGuiAssetBrowser::InitFolder(const FileObject& fileObject)
 		if (fileObject.m_fileObject.IsFile() && StringCompare(fileObject.m_fileObject.Extension(), L"txr"))
 		{
 			TextureContextAsset textureAsset;
-			textureAsset.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager(), &textureAsset.m_TextureProperties);
+			pRenderContext->StartTransferPass();
+			textureAsset.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(pRenderContext, m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager(), &textureAsset.m_TextureProperties);
+			pRenderContext->EndTransferPass();
 			textureAsset.m_fileObject = fileObject;
 			textureFolder.folderTextures.Add(textureAsset);
 		}

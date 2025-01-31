@@ -49,7 +49,7 @@ namespace Hail
 
 		//Editor / non game functionality
 		FilePath ImportTextureResource(const FilePath& filepath) const;
-		virtual ImGuiTextureResource* CreateImGuiTextureResource(const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureProperties* headerToFill) = 0;
+		virtual ImGuiTextureResource* CreateImGuiTextureResource(RenderContext* pRenderContext, const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureProperties* headerToFill) = 0;
 		virtual void DeleteImGuiTextureResource(ImGuiTextureResource*) = 0;
 
 		static void LoadTextureMetaData(const FilePath& filePath, MetaResource& metaResourceToFill);

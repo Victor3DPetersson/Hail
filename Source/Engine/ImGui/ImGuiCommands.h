@@ -10,9 +10,9 @@
 namespace Hail
 {
 	class ResourceManager;
+	class RenderContext;
 
 	constexpr uint32_t MAX_NUMBER_OF_IMGUI_RESPONSES = 1024;
-
 
 	template<typename Type>
 	class ImGuiCommand
@@ -106,8 +106,8 @@ namespace Hail
 	public:
 		void Init(ResourceManager* resourceManager);
 		void DeInit();
-		void RenderImguiCommands();
-		void RenderSingleImguiCommand(bool& unlockApplicationThread);
+		void RenderImguiCommands(RenderContext* pRenderContext);
+		void RenderSingleImguiCommand(bool& unlockApplicationThread, RenderContext* pRenderContext);
 		void SwitchCommandBuffers(bool& shouldLockApplicationThread);
 		//Figure out what to do with this later
 		ImGuiCommandRecorder& FetchImguiResults() { return m_commandRecorder[m_writeCommandRecorder]; }
@@ -118,7 +118,7 @@ namespace Hail
 		void PopStackType(ImGuiCommandRecorder::IMGUI_TYPES referenceTypeToPop);
 		void SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_TYPES typeToPop);
 
-		void RenderEngineImgui();
+		void RenderEngineImgui(RenderContext* pRenderContext);
 
 		uint32 m_numberOfOpenWindows = 0;
 		uint32 m_numberOfOpenTabItems = 0;

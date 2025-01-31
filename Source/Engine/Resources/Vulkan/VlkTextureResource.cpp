@@ -7,36 +7,13 @@ using namespace Hail;
 
 namespace
 {
-	//void ClearTexture(VlkTextureData& textureData, VlkDevice& vlkDevice)
-	//{
-	//	if (textureData.textureImageView != VK_NULL_HANDLE)
-	//	{
-	//		vkDestroyImageView(vlkDevice.GetDevice(), textureData.textureImageView, nullptr);
-	//	}
-	//	if (textureData.textureImage != VK_NULL_HANDLE)
-	//	{
-	//		vkDestroyImage(vlkDevice.GetDevice(), textureData.textureImage, nullptr);
-	//	}
-	//	if (textureData.textureImageMemory != VK_NULL_HANDLE)
-	//	{
-	//		vkFreeMemory(vlkDevice.GetDevice(), textureData.textureImageMemory, nullptr);
-	//	}
-	//	textureData.textureImageView = VK_NULL_HANDLE;
-	//	textureData.textureImage = VK_NULL_HANDLE;
-	//	textureData.textureImageMemory = VK_NULL_HANDLE;
-	//}
 
 	void ClearTextureData(VlkTextureResource::VlkTextureInternalData& textureData, VlkDevice& vlkDevice)
 	{
-		//if (textureData.textureImageView != VK_NULL_HANDLE)
-		//{
-		//	vkDestroyImageView(vlkDevice.GetDevice(), textureData.textureImageView, nullptr);
-		//}
 		if (textureData.textureImage != VK_NULL_HANDLE)
 		{
 			vmaDestroyImage(vlkDevice.GetMemoryAllocator(), textureData.textureImage, textureData.allocation);
 		}
-		//textureData.textureImageView = VK_NULL_HANDLE;
 		textureData.textureImage = VK_NULL_HANDLE;
 		textureData.allocation = VK_NULL_HANDLE;
 	}

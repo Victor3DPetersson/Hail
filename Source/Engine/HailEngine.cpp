@@ -242,7 +242,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 	if (applicationThreadLocked)
 	{
 		bool unlockApplicationThread = false;
-		engineData.imguiCommandRecorder.RenderSingleImguiCommand(unlockApplicationThread);
+		engineData.imguiCommandRecorder.RenderSingleImguiCommand(unlockApplicationThread, g_engineData->renderer->GetCurrentContext());
 		if (unlockApplicationThread)
 		{
 			engineData.pauseApplication = false;
@@ -253,7 +253,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 	}
 	else
 	{
-		engineData.imguiCommandRecorder.RenderImguiCommands();
+		engineData.imguiCommandRecorder.RenderImguiCommands(g_engineData->renderer->GetCurrentContext());
 	}
 
 	engineData.renderer->Render();

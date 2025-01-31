@@ -27,8 +27,6 @@
 
 #include "VulkanInternal/VlkVertex_Descriptor.h"
 #include "VulkanInternal/VlkTextureCreationFunctions.h"
-#include "VulkanInternal/VlkBufferCreationFunctions.h"
-#include "VulkanInternal/VlkSingleTimeCommand.h"
 #include "VulkanInternal/VlkFrameBufferTexture.h"
 #include "VulkanInternal/VlkRenderContext.h"
 #include "Resources\Vulkan\VlkMaterial.h"

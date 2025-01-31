@@ -41,7 +41,6 @@ namespace Hail
 		struct MetaData
 		{
 			MetaResource m_resource;
-			//bool bIsLoaded;
 			eResourceState m_state;
 		};
 		FilePath GetProjectFilePathInternal(const GrowingArray<MetaData>& list, const GUID& resourceGuid) const;

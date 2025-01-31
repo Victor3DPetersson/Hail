@@ -22,6 +22,7 @@ namespace Hail
 		VlkTextureInternalData& GetVlkTextureData() { return m_textureData; }
 		ResourceValidator& GetValidator() { return m_validator; }
 	private:
+		friend class VlkTextureResourceManager;
 		bool InternalInit(RenderingDevice* pDevice) override;
 		//VlkTextureData m_textureData;
 		//VlkTextureData m_unloadingTextureData;
@@ -49,16 +50,16 @@ namespace Hail
 	class ImGuiVlkTextureResource : public ImGuiTextureResource
 	{
 	public:
-
 		void* GetImguiTextureResource() final { return &m_ImGuiResource; }
 
 	private:
 		friend class VlkTextureResourceManager;
 
-		VkDescriptorSet m_ImGuiResource;
-		VkImageView     m_imageView;
-		VkImage         m_image;
-		VkBuffer        m_uploadBuffer;
-		VkDeviceMemory  m_uploadBufferMemory;
+		VkDescriptorSet m_ImGuiResource = VK_NULL_HANDLE;
+		VkImageView     m_imageView = VK_NULL_HANDLE;
+		VmaAllocation	m_allocation = VK_NULL_HANDLE;
+		VkImage         m_image = VK_NULL_HANDLE;
+		//VkBuffer        m_uploadBuffer;
+		//VkDeviceMemory  m_uploadBufferMemory;
 	};
 }

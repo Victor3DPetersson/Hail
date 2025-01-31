@@ -7,6 +7,7 @@ namespace Hail
 	class ImGuiFileBrowser;
 	class ResourceManager;
 	class ImGuiTextureResource;
+	class RenderContext;
 
 	constexpr uint32 MAX_RESOURCE_FOLDER_DEPTH = 8;
 	class ImGuiAssetBrowser
@@ -14,13 +15,13 @@ namespace Hail
 	public:
 		ImGuiAssetBrowser();
 		void DeInit();
-		void RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject);
+		void RenderImGuiCommands(RenderContext* pRenderContext, ImGuiFileBrowser* fileBrowser, ResourceManager* resourceManager, ImGuiContext* contextObject);
 
 	private:
 		void InitFileBrowser();
-		void InitCommonData();
+		void InitCommonData(RenderContext* pRenderContext);
 
-		void InitFolder(const FileObject& fileObject);
+		void InitFolder(RenderContext* pRenderContext, const FileObject& fileObject);
 		void ImportTextureLogic();
 		void ImportShaderResourceLogic();
 		void DeselectAllObjects(GrowingArray<SelectAbleFileObject>* pCurrentDirectory);

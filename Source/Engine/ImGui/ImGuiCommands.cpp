@@ -197,7 +197,7 @@ void Hail::ImGuiCommandManager::DeInit()
 	g_assetBrowser.DeInit();
 }
 
-void Hail::ImGuiCommandManager::RenderImguiCommands()
+void Hail::ImGuiCommandManager::RenderImguiCommands(RenderContext* pRenderContext)
 {
 
 	ImGuiCommandRecorder& recorder = m_commandRecorder[m_readCommandRecorder];
@@ -353,11 +353,11 @@ void Hail::ImGuiCommandManager::RenderImguiCommands()
 			SendImGuiPopCommand(m_pushedTypeStack.RemoveLast());
 		}
 	}
-	RenderEngineImgui();
+	RenderEngineImgui(pRenderContext);
 }
-void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread)
+void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread, RenderContext* pRenderContext)
 {
-	RenderImguiCommands();
+	RenderImguiCommands(pRenderContext);
 	bool succesfulSetup = true;
 	if (m_successfullySetupSingleRenderSystem)
 	{
@@ -375,7 +375,7 @@ void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplication
 		RenderErrorModal(unlockApplicationThread);
 	}
 
-	RenderEngineImgui();
+	RenderEngineImgui(pRenderContext);
 
 	if (unlockApplicationThread)
 	{
@@ -474,7 +474,7 @@ void Hail::ImGuiCommandManager::SendImGuiPopCommand(ImGuiCommandRecorder::IMGUI_
 	}
 }
 
-void Hail::ImGuiCommandManager::RenderEngineImgui()
+void Hail::ImGuiCommandManager::RenderEngineImgui(RenderContext* pRenderContext)
 {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5.0f);
 	if (ImGui::Begin("Engine Window", nullptr, ImGuiWindowFlags_MenuBar))
@@ -506,7 +506,7 @@ void Hail::ImGuiCommandManager::RenderEngineImgui()
 		else
 		{
 			if (m_openAssetBrowser)
-				g_assetBrowser.RenderImGuiCommands(&m_fileBrowser, m_resourceManager, &g_contextObject);
+				g_assetBrowser.RenderImGuiCommands(pRenderContext , &m_fileBrowser, m_resourceManager, &g_contextObject);
 			if (m_openPropertyWindow)
 			{
 				ImGui::SameLine();
