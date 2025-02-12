@@ -77,26 +77,23 @@ namespace Hail
 		StaticArray<bool, MAX_FRAMESINFLIGHT> m_bBoundTypeData = false;
 	};
 	
-	// Descriptors unique to one material, Set 2 data
+	// Descriptors unique to one material, Set 2 data, binds textures and buffers to the shaders
 	class MaterialInstanceDescriptor
 	{
 	public:
-		virtual void CleanupResource(RenderingDevice& device) = 0;
-		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
 		ResourceValidator m_instanceDataValidator;
 	};
 
+	// The pipeline is the shader and the combination of a shader to specific blend modes
 	class Pipeline
 	{
 	public:
 		virtual void CleanupResource(RenderingDevice& device) = 0;
-		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
 		eMaterialType m_type = eMaterialType::COUNT;
 		VectorOnStack<CompiledShader*, 2> m_pShaders;
 		eBlendMode m_blendMode = eBlendMode::None;
 		uint64 m_sortKey = MAX_UINT;
 		bool m_bUseTypePasses = false;
-		bool m_bUseTypeRenderPasses = false;
 		eMaterialType m_typeRenderPass = eMaterialType::COUNT;
 		bool m_bIsCompute = false;
 		MaterialTypeObject* m_pTypeDescriptor = nullptr;
@@ -108,7 +105,6 @@ namespace Hail
 	public:
 
 		virtual void CleanupResource(RenderingDevice& device) = 0;
-		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
 
 		ResourceValidator m_validator;
 
@@ -122,8 +118,6 @@ namespace Hail
 	public:
 
 		virtual void CleanupResource(RenderingDevice& device) = 0;
-		virtual void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) = 0;
-
 		ResourceValidator m_validator;
 		Pipeline* m_pPipeline = nullptr;
 	};

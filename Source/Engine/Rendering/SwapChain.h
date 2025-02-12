@@ -16,7 +16,7 @@ namespace Hail
 	public:
 		explicit SwapChain(TextureManager* pTextureManager);
 		virtual void Init(RenderingDevice* renderDevice) = 0;
-		virtual void DestroySwapChain(RenderingDevice* renderDevice) = 0;
+		virtual void DestroySwapChain(RenderingDevice* renderDevice);
 		FrameBufferTexture* GetFrameBufferTexture() { return m_pFrameBufferTexture; }
 		virtual TextureView* GetSwapchainView() = 0;
 		//On systems without any frames in flight this will always return 0

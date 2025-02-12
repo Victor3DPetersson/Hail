@@ -13,18 +13,6 @@
 
 namespace Hail
 {
-	struct RenderGlypghlet
-	{
-		glm::vec2 pos;
-		float glyphPixelSize;
-		uint32 glyphletColor;
-
-		uint32 vertexOffset;
-		uint32 indexOffset; 
-		uint32 numberOfTrianglesNumberOfVertices; // 16 bits Tri count | << 16 bits vert count
-		uint32 padding; // add fun data here
-	};
-
 	FontRenderer::~FontRenderer()
 	{
 		H_ASSERT(m_pVertexBuffer == nullptr);
@@ -103,7 +91,9 @@ namespace Hail
 		pContext->UploadDataToBuffer(m_pIndexBuffer, m_fontData.m_glyphData.m_triangles.Data(), m_fontData.m_glyphData.m_triangles.Size() * sizeof(GlyphTri));
 		pContext->EndTransferPass();
 
-		return m_pFontPipeline;
+		m_glyphletsToRender.Prepare(128);
+
+		return m_pFontPipeline != nullptr;
 	}
 
 	void FontRenderer::Cleanup()
@@ -117,6 +107,9 @@ namespace Hail
 		H_ASSERT(m_pGlyphletBuffer);
 		m_pGlyphletBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pGlyphletBuffer);
+
+		m_pFontPipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pFontPipeline);
 	}
 
 	void localGetCompoundRenderGlyphlet(const TTF_FontStruct& fontData, GrowingArray<RenderGlypghlet>& listToFill, RenderGlypghlet glyphlet, const Glyph& glyph)
@@ -139,11 +132,8 @@ namespace Hail
 		}
 	}
 
-	void FontRenderer::Render()
+	void FontRenderer::Prepare()
 	{
-		if (!m_pFontPipeline)
-			return;
-
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
 		// Temp code below, should be driven by render commands.
@@ -165,7 +155,7 @@ namespace Hail
 		pixelSize.x = pixelSize.x * aspectRatioY;
 		glm::vec2 pixelSizeOfGlyph = pixelSize * adjustedFontSize;
 
-		GrowingArray<RenderGlypghlet> glyphletsToRender; 
+		m_glyphletsToRender.RemoveAll();
 
 		uint32 stringL = StringLength(helloWorld);
 		for (size_t i = 0; i < stringL; i++)
@@ -180,7 +170,7 @@ namespace Hail
 				const Glyph& glyph = m_fontData.m_glyphData.m_glyphs[glyphID];
 
 				const glm::ivec2 glyphExtents = { glyph.m_maxExtent.x - glyph.m_minExtent.x, glyph.m_maxExtent.y - glyph.m_minExtent.y };
-				
+
 				float xRatioOfAdvanceWidth = ((float)glyph.m_advanceWidth / (float)m_fontData.m_glyphExtents.x);
 
 				float advanceWidth = (pixelSize.x * adjustedFontSize * xRatioOfAdvanceWidth) * aspectRatioX;
@@ -196,29 +186,35 @@ namespace Hail
 					glyphletToCreate.indexOffset = glyph.m_indexOffset;
 					glyphletToCreate.numberOfTrianglesNumberOfVertices = glyph.m_numberOfTrianglesNumberOfVertices;
 					glyphletToCreate.vertexOffset = glyph.m_vertexOffset;
-					glyphletsToRender.Add(glyphletToCreate);
+					m_glyphletsToRender.Add(glyphletToCreate);
 				}
 				else
 				{
-					localGetCompoundRenderGlyphlet(m_fontData, glyphletsToRender, glyphletToCreate, glyph);
+					localGetCompoundRenderGlyphlet(m_fontData, m_glyphletsToRender, glyphletToCreate, glyph);
 				}
 				glyphPosition.x += advanceWidth + glyphSize;
 			}
 		}
 		pContext->StartTransferPass();
-		pContext->UploadDataToBuffer(m_pGlyphletBuffer, glyphletsToRender.Data(), glyphletsToRender.Size() * sizeof(RenderGlypghlet));
+		pContext->UploadDataToBuffer(m_pGlyphletBuffer, m_glyphletsToRender.Data(), m_glyphletsToRender.Size() * sizeof(RenderGlypghlet));
 		pContext->EndTransferPass();
 		// End of temp code.
+	}
+
+	void FontRenderer::Render()
+	{
+		if (!m_pFontPipeline)
+			return;
+
+		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
 		pContext->SetBufferAtSlot(m_pVertexBuffer, 0);
 		pContext->SetBufferAtSlot(m_pIndexBuffer, 1);
 		pContext->SetBufferAtSlot(m_pGlyphletBuffer   , 2);
 
+		pContext->BindMaterial(m_pFontPipeline->m_pPipeline);
 		pContext->SetPipelineState(m_pFontPipeline->m_pPipeline);
-
-		m_pRenderer->BindMaterialPipeline(m_pFontPipeline->m_pPipeline, false);
-
-		m_pRenderer->RenderMeshlets(glm::uvec3(glyphletsToRender.Size(), 1, 1));
+		pContext->RenderMeshlets(glm::uvec3(m_glyphletsToRender.Size(), 1, 1));
 	}
 
 

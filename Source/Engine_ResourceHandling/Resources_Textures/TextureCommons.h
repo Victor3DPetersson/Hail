@@ -183,6 +183,14 @@ namespace Hail
         ALWAYS = 7
     };
 
+    enum class eFrameBufferLayoutState
+    {
+        Undefined,
+        ShaderRead,
+        ColorAttachment,
+        DepthAttachment
+    };
+
     constexpr glm::vec3 Color_RED = { 1.0, 0.0, 0.0 };
     constexpr glm::vec3 Color_BLUE = { 0.0, 0.0, 1.0 };
     constexpr glm::vec3 Color_GREEN = { 0.0, 1.0, 0.0 };

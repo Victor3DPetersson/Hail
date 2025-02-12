@@ -30,7 +30,8 @@ namespace Hail
 		// Loads the base default materials for each type.
 		bool InitDefaultMaterial(eMaterialType  type, FrameBufferTexture* frameBufferToBindToMaterial, bool reloadShader, uint32 frameInFlight);
 		Material* GetMaterial(eMaterialType materialType, uint32 materialIndex);
-		
+		Material* GetDefaultMaterial(eMaterialType materialType);
+
 		MaterialPipeline* CreateMaterialPipeline(MaterialCreationProperties props);
 
 		const MaterialInstance& GetMaterialInstance(uint32_t instanceID, eMaterialType materialType);

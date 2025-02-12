@@ -36,7 +36,7 @@ namespace Hail
 		virtual bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
 		//Always call virtual version of this function after swapchain has finished the previous frame
 		virtual void StartFrame(RenderCommandPool& renderPool);
-		virtual void EndFrame();
+		void EndFrame();
 		virtual void Render();
 		virtual void Cleanup();
 		virtual void InitImGui() = 0; 
@@ -49,23 +49,18 @@ namespace Hail
 		//virtual void FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;
 		//virtual void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) = 0;
 
-		virtual void BindMaterialPipeline(Pipeline* pipelineToBind, bool bFirstMaterialInFrame) = 0;
-		virtual void EndMaterialPass() = 0;
 		virtual void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) = 0;
 		virtual void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
 		virtual void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) = 0;
 		virtual void RenderDebugLines3D(uint32 numberOfLinesToRender) = 0;
 		virtual void RenderLetterBoxPass() = 0;
-		virtual void RenderMeshlets(glm::uvec3 dispatchSize) = 0;
 
 		RenderingDevice* GetRenderingDevice() { return m_renderDevice; }
 		RenderContext* GetCurrentContext() { return m_pContext; }
 
-		void WindowSizeUpdated();
 	protected:
 
 		bool m_shadersRecompiled = false;
-		bool m_framebufferResized = false;
 		ResourceManager* m_pResourceManager = nullptr;
 		Timer* m_timer = nullptr;
 

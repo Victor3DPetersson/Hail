@@ -93,10 +93,11 @@ void VlkSwapChain::RecreateSwapchain(VlkDevice& device, VkFence* inFrameFences, 
 
 void Hail::VlkSwapChain::DestroySwapChain(RenderingDevice* renderDevice)
 {
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(renderDevice);
-	CleanupSwapchain(device);
+	VlkDevice& device = *(VlkDevice*)(renderDevice);
 	vkDestroyRenderPass(device.GetDevice(), m_finalRenderPass, nullptr);
 	SAFEDELETE(m_pFrameBufferTexture);
+	CleanupSwapchain(device);
+	SwapChain::DestroySwapChain(renderDevice);
 }
 
 TextureView* Hail::VlkSwapChain::GetSwapchainView()
@@ -173,7 +174,7 @@ void VlkSwapChain::CreateSwapChain(VlkDevice& device)
 	CalculateRenderResolution();
 
 	m_pFrameBufferTexture->SetTextureFormat(ToInternalFromVkFormat(m_swapChainImageFormat));
-	m_pFrameBufferTexture->SetResolution(m_windowResolution); ;
+	m_pFrameBufferTexture->SetResolution(m_windowResolution);
 }
 
 VkSurfaceFormatKHR VlkSwapChain::ChooseSwapSurfaceFormat(const GrowingArray<VkSurfaceFormatKHR>& availableFormats)
@@ -258,7 +259,6 @@ VkFormat Hail::VlkSwapChain::FindDepthFormat(VlkDevice& device)
 
 void VlkSwapChain::CreateImageViews(VlkDevice& device)
 {
-	if (m_imageCount != m_pTextureViews.Size())
 	{
 		for (uint32 i = 0; i < m_pTextureViews.Size(); i++)
 		{
@@ -302,6 +302,11 @@ void VlkSwapChain::CreateFramebuffers(VlkDevice& device)
 		framebufferInfo.layers = 1;
 
 		H_ASSERT(vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &m_swapChainFramebuffers[i]) == VK_SUCCESS);
+		if (i < MAX_FRAMESINFLIGHT)
+		{
+			VlkFrameBufferTexture* pVlkFrameBuffer = (VlkFrameBufferTexture*)m_pFrameBufferTexture;
+			pVlkFrameBuffer->m_frameBuffers[i] = m_swapChainFramebuffers[i];
+		}
 	}
 }
 
@@ -346,5 +351,8 @@ void Hail::VlkSwapChain::CreateRenderPass(VlkDevice& device)
 	renderPassInfo.pDependencies = &dependency;
 
 	H_ASSERT(vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &m_finalRenderPass) == VK_SUCCESS);
+
+	VlkFrameBufferTexture* pVlkFrameBuffer = (VlkFrameBufferTexture*)m_pFrameBufferTexture;
+	pVlkFrameBuffer->m_renderPass = m_finalRenderPass;
 }
 

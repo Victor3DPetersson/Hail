@@ -9,6 +9,19 @@ namespace Hail
 	class Renderer;
 	class ResourceManager;
 	class BufferObject;
+
+	struct RenderGlypghlet
+	{
+		glm::vec2 pos;
+		float glyphPixelSize;
+		uint32 glyphletColor;
+
+		uint32 vertexOffset;
+		uint32 indexOffset;
+		uint32 numberOfTrianglesNumberOfVertices; // 16 bits Tri count | << 16 bits vert count
+		uint32 padding; // add fun data here
+	};
+
 	struct TTF_FontStruct;
 
 	class FontRenderer
@@ -19,6 +32,7 @@ namespace Hail
 		bool Initialize();
 		void Cleanup();
 
+		void Prepare();
 		void Render();
 
 	private:
@@ -33,6 +47,8 @@ namespace Hail
 		BufferObject* m_pGlyphletBuffer;
 
 		TTF_FontStruct m_fontData;
+
+		GrowingArray<RenderGlypghlet> m_glyphletsToRender;
 	};
 
 }

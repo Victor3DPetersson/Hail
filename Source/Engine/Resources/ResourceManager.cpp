@@ -88,12 +88,14 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, Rend
 	return true;
 }
 
-void Hail::ResourceManager::ClearAllResources()
+void Hail::ResourceManager::ClearAllResources(RenderingDevice* pRenderDevice)
 {
 	m_textureManager->ClearAllResources();
 	m_materialManager->ClearAllResources();
 	m_renderingResourceManager->ClearAllResources();
-	m_mainPassFrameBufferTexture->ClearResources(m_renderDevice);
+	m_mainPassFrameBufferTexture->ClearResources(pRenderDevice);
+	SAFEDELETE(m_mainPassFrameBufferTexture);
+	m_swapChain->DestroySwapChain(pRenderDevice);
 }
 
 void Hail::ResourceManager::SetTargetResolution(eResolutions targetResolution)
@@ -151,7 +153,6 @@ void Hail::ResourceManager::ReloadResources()
 		m_reloadEverything = false;
 		m_reloadAllTextures = false;
 	}
-
 }
 
 void Hail::ResourceManager::LoadMaterialResource(GUID guid)

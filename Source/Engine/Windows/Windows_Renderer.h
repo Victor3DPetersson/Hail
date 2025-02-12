@@ -20,25 +20,17 @@ namespace Hail
 		bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) override;
 		void StartFrame(RenderCommandPool& renderPool) override;
 		void Render() override;
-		void EndFrame() override;
 		void Cleanup() override;
 		void InitImGui() override;
 		void WaitForGPU() override;
 
-		void BindMaterialPipeline(Pipeline* pPipelineToBind, bool bFirstMaterialInFrame) override;
-
-		void EndMaterialPass() override;
 		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) override;
 		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) override;
 		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) override;
 		void RenderDebugLines3D(uint32 numberOfLinesToRender) override;
 		void RenderLetterBoxPass() override;
-		void RenderMeshlets(glm::uvec3 dispatchSize) override;
 
 	private:
-
-		void CreateCommandBuffers();
-		void CreateSyncObjects();
 
 		// TODO: move out of the Vulkan renderer and have it in the main renderer.
 		void CreateVertexBuffer();
@@ -55,16 +47,7 @@ namespace Hail
 	
 		VlkSwapChain* m_swapChain = nullptr;
 
-		VkCommandBuffer m_commandBuffers[MAX_FRAMESINFLIGHT];
-
-		eMaterialType m_boundMaterialType = eMaterialType::COUNT;
-		bool m_commandBufferBound = false;
-
 		VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
-
-		VkSemaphore m_imageAvailableSemaphores[MAX_FRAMESINFLIGHT];
-		VkSemaphore m_renderFinishedSemaphores[MAX_FRAMESINFLIGHT];
-		VkFence m_inFrameFences[MAX_FRAMESINFLIGHT];
 	};
 }
 

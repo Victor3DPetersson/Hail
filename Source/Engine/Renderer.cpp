@@ -7,11 +7,6 @@
 #include "Rendering\FontRenderer.h"
 #include "Rendering\RenderContext.h"
 
-void Hail::Renderer::WindowSizeUpdated()
-{
-	m_framebufferResized = true;
-}
-
 Hail::Renderer::~Renderer()
 {
 	H_ASSERT(m_pFontRenderer == nullptr, "Never cleaned up the Renderer, Add the virtual Cleanup function to the inherited renderer")
@@ -29,8 +24,10 @@ bool Hail::Renderer::Initialize()
 void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 {
 	m_commandPoolToRender = &renderPool;
+	m_pContext->StartFrame();
 	m_pResourceManager->ReloadResources();
 	m_pResourceManager->UpdateRenderBuffers(renderPool, m_pContext, m_timer);
+	m_pFontRenderer->Prepare();
 }
 
 void Hail::Renderer::EndFrame()
@@ -40,7 +37,13 @@ void Hail::Renderer::EndFrame()
 
 void Hail::Renderer::Render()
 {
-	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0)->m_pPipeline, true);
+	m_pContext->StartGraphicsPass();
+	m_pContext->TransferFramebufferLayout(m_pResourceManager->GetMainPassFBTexture(), eFrameBufferLayoutState::ColorAttachment, eFrameBufferLayoutState::DepthAttachment);
+	m_pContext->BindFrameBufferAtSlot(m_pResourceManager->GetMainPassFBTexture(), 0);
+	m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0));
+
+	m_pContext->ClearBoundFrameBuffers();
+	//BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::MODEL3D, 0)->m_pPipeline, true);
 	if (!m_commandPoolToRender->meshCommands.Empty())
 	{
 		RenderMesh(m_commandPoolToRender->meshCommands[0], 0);
@@ -51,17 +54,30 @@ void Hail::Renderer::Render()
 	const uint32_t numberOfSprites = m_commandPoolToRender->spriteCommands.Size();
 	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
 	{
+		const MaterialInstance& materialInstance = m_pResourceManager->GetMaterialManager()->GetMaterialInstance(m_commandPoolToRender->spriteCommands[sprite].materialInstanceID, eMaterialType::SPRITE);
+		m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex));
+
 		RenderSprite(m_commandPoolToRender->spriteCommands[sprite], sprite);
 	}
 
-	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0)->m_pPipeline, false);
+	//BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0)->m_pPipeline, false);
 	const uint32_t numberOfLines = m_commandPoolToRender->debugLineCommands.Size() * 2;
-	RenderDebugLines2D(numberOfLines, 0);
-
+	if (numberOfLines)
+	{
+		m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0));
+		RenderDebugLines2D(numberOfLines, 0);
+	}
 	m_pFontRenderer->Render();
 
-	BindMaterialPipeline(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0)->m_pPipeline, false);
+	// Finished rendering to our main framebuffer
+	m_pContext->EndRenderPass();
+
+	m_pContext->TransferFramebufferLayout(m_pResourceManager->GetMainPassFBTexture(), eFrameBufferLayoutState::ShaderRead, eFrameBufferLayoutState::ShaderRead);
+	m_pContext->BindFrameBufferAtSlot(m_pResourceManager->GetSwapChain()->GetFrameBufferTexture(), 0);
+	m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0));
+	// TODO: flytta till contexten
 	RenderLetterBoxPass();
+	m_pContext->EndGraphicsPass();
 }
 
 void Hail::Renderer::Cleanup()

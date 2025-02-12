@@ -188,7 +188,6 @@ namespace Hail
 			pMaterial->m_pPipeline->m_type = type;
 			pMaterial->m_pPipeline->m_typeRenderPass = type;
 			pMaterial->m_pPipeline->m_bUseTypePasses = true;
-			pMaterial->m_pPipeline->m_bUseTypeRenderPasses = true;
 			m_materials[(uint32_t)type].Add(pMaterial);
 		}
 
@@ -373,8 +372,6 @@ namespace Hail
 		return shaders;
 	}
 
-
-
 	uint32 MaterialManager::LoadMaterialFromSerializedData(const SerializeableMaterial& loadedMaterialInstance)
 	{
 		// Get Shader pair or individual shader for the material.
@@ -404,7 +401,6 @@ namespace Hail
 		pMaterial->m_pPipeline->m_typeRenderPass = loadedMaterialInstance.m_baseMaterialType;
 		pMaterial->m_pPipeline->m_blendMode = loadedMaterialInstance.m_blendMode;
 		pMaterial->m_pPipeline->m_bUseTypePasses = true;
-		pMaterial->m_pPipeline->m_bUseTypeRenderPasses = true;
 		for (size_t i = 0; i < shaders.Size(); i++)
 		{
 			pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
@@ -445,6 +441,11 @@ namespace Hail
 		return m_materials[(uint32)materialType][materialIndex];
 	}
 
+	Material* MaterialManager::GetDefaultMaterial(eMaterialType materialType)
+	{
+		return GetMaterial(materialType, 0u);
+	}
+
 	MaterialPipeline* MaterialManager::CreateMaterialPipeline(MaterialCreationProperties props)
 	{
 		// Get Shader pair or individual shader for the material.
@@ -474,7 +475,6 @@ namespace Hail
 		}
 		pPipeline->m_bIsCompute = props.m_shaders[0].m_type == eShaderType::Compute;
 		pPipeline->m_bUseTypePasses = props.m_bUsesMaterialTypeData;
-		pPipeline->m_bUseTypeRenderPasses = true;
 		pPipeline->m_typeRenderPass = props.m_typeRenderPass;
 
 		bool result = true;
@@ -865,6 +865,8 @@ namespace Hail
 
 	void MaterialManager::ClearAllResources()
 	{
+		m_loadRequests.RemoveAll();
+
 		for (uint32 i = 0; i < (uint32)eMaterialType::COUNT; i++)
 		{
 			if (m_MaterialTypeObjects[i])

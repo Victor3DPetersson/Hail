@@ -23,7 +23,7 @@ namespace Hail
 	public:
 		ResourceManager();
 		bool InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes);
-		void ClearAllResources();
+		void ClearAllResources(RenderingDevice* pRenderDevice);
 		MaterialManager* GetMaterialManager() { return m_materialManager; }
 		TextureManager* GetTextureManager() { return m_textureManager; }
 		RenderingResourceManager* GetRenderingResourceManager() { return m_renderingResourceManager; }
@@ -32,8 +32,11 @@ namespace Hail
 		eResolutions GetTargetResolution() const { return m_targetResolution; }
 		void SetReloadOfAllResources();
 		void SetReloadOfAllTextures();
+
 		void ReloadResources();
 
+		// TODO: Move frame buffer and what owns it to a different place
+		FrameBufferTexture* GetMainPassFBTexture() { return m_mainPassFrameBufferTexture; }
 
 		void LoadMaterialResource(GUID guid);
 		uint32 GetMaterialInstanceHandle(GUID guid) const;

@@ -40,17 +40,8 @@ namespace Hail
 	public:
 
 		void CleanupResource(RenderingDevice& device) override;
-		void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) override;
-		VlkFrameBufferTexture* m_frameBufferTextures = nullptr;
-		uint32 numberOfFrameBufferTextures = 0;
 
-		bool m_ownsRenderpass = true;
-		VkRenderPass m_renderPass = VK_NULL_HANDLE;
-		VkPipeline m_pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-
-		bool m_ownsFrameBuffer = true;
-		VkFramebuffer m_frameBuffer[MAX_FRAMESINFLIGHT];
 	};
 
 	class VlkMaterial : public Material
@@ -58,21 +49,16 @@ namespace Hail
 	public:
 
 		void CleanupResource(RenderingDevice& device) override;
-		void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) override;
 
 		VkDescriptorSetLayout m_instanceSetLayout = VK_NULL_HANDLE;
 
 		GrowingArray<VkInternalMaterialDescriptorSet> m_instanceDescriptors;
-
-
 	};
 
 	class VlkMaterialPipeline : public MaterialPipeline
 	{
 	public:
 		void CleanupResource(RenderingDevice& device) override;
-		void CleanupResourceFrameData(RenderingDevice& device, uint32 frameInFlight) override;
-
 		
 	};
 

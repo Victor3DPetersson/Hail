@@ -7,6 +7,7 @@
 
 namespace Hail
 {
+	class RenderContext;
 	class RenderingDevice;
 	class TextureResource;
 	class TextureView;
@@ -14,9 +15,8 @@ namespace Hail
 	class FrameBufferTexture
 	{
 	public:
-		FrameBufferTexture() = default;
-		FrameBufferTexture(glm::uvec2 resolution, eTextureFormat format = eTextureFormat::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED);
-		
+		explicit FrameBufferTexture(glm::uvec2 resolution, eTextureFormat format = eTextureFormat::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED);
+
 		virtual void CreateFrameBufferTextureObjects(RenderingDevice* device) = 0;
 		virtual void ClearResources(RenderingDevice* device, bool isSwapchain = false);
 
@@ -39,7 +39,7 @@ namespace Hail
 		TextureView* GetDepthTextureView(uint32 frameInFlight) { return m_pDepthTextureViews[frameInFlight]; }
 
 	protected:
-
+		friend class RenderContext;
 		virtual void CreateTextureResources(bool bIsColorTexture, RenderingDevice* device) = 0;
 
 		String64 m_bufferName;
@@ -48,11 +48,30 @@ namespace Hail
 		glm::uvec2 m_resolution;
 		glm::vec3 m_clearColor = Color_BLACK;
 
+
+		//struct FrameData
+		//{
+		//	TextureResource* pColorTexture;
+		//	TextureResource* pDepthTexture;
+
+		//	TextureView* pColorView;
+		//	TextureView* pDepthView;
+
+		//	eFrameBufferLayoutState colorState;
+		//	eFrameBufferLayoutState depthState;
+		//};
+		//// TODO implementera data strukturen ovanför och ta bort nedanför listor
+
+		//StaticArray<FrameData, MAX_FRAMESINFLIGHT> m_frameData;
+
 		StaticArray<TextureResource*, MAX_FRAMESINFLIGHT> m_pTextureResource;
 		StaticArray<TextureResource*, MAX_FRAMESINFLIGHT> m_pDepthTextureResource;
 
 		StaticArray<TextureView*, MAX_FRAMESINFLIGHT> m_pTextureViews;
 		StaticArray<TextureView*, MAX_FRAMESINFLIGHT> m_pDepthTextureViews;
+
+		StaticArray<eFrameBufferLayoutState, MAX_FRAMESINFLIGHT> m_currentColorLayoutState;
+		StaticArray<eFrameBufferLayoutState, MAX_FRAMESINFLIGHT> m_currentDepthLayoutState;
 	};
 }
 

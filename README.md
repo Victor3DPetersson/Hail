@@ -1,7 +1,21 @@
 # Hail
  Custom game engine - framework for c++ game development
 
-# TODO: unspecified order for Hail
+
+# TODO: priority order for project
+
+- [] Text render commands
+- [] Depth Sorting of sprite and text commands
+- [] Implement batch rendering of sprites and fonts
+- [] Cloud rendering experiment of a point cloud dataset
+- [] Compute shader support
+- [] Update point cloud data with a compute pass
+- [] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
+- [] Create a pipeline to create sprites render commands from AngelScript
+- [] Fix broken reloading of GPU resources and then remake hot reloading 
+
+
+# TODO: unspecified order for Hail Engine
 
 - [] Memory allocators & memory pool (check out the Arena memory allocator strategy)
 - [] Red-black tree and hashmap
@@ -18,7 +32,7 @@
 - [x] Use material system to take control over render styles and add blending
 - [x] Shader owned by material Instances
 - [] Configurable rendering, so start of a render graph
-- [] Compute shaders, dependent on Configurable rendering
+- [] Compute shader support
 - [] Implement Mip-Mapping
 - [] Implement a File watcher
 - [] Make resource registry thread safe, could be done by locking it on write operations and waiting on read
@@ -36,14 +50,15 @@
 - [] Angelscript, improve hot reloading and make hotreloading when changing dependency files
 - [] Fix broken reloading of GPU resources and then remake hot reloading 
 - [x] Context upload once function 
-- [] Context, move over rendering and state functions to the context.
-- [] Depth Sorting of sprites
-- [] Explicit setting of Framebuffer bind state through the context object. Make materials transition have a bind state that is not set at Init
+- [x] Context, move over rendering and state functions to the context.
+- [] Depth Sorting of sprite and text commands
+- [x] Explicit setting of Framebuffer bind state through the context object. Make materials transition have a bind state that is not set at Init
 - [] Bindless texturing
 - [] RawInput instead of Windows input
 - [] Input queue to make input more predictable
-- [] Create a render command for sprites and a pipeline to create sprites from AngelScript
+- [] Create a pipeline to create sprites render commands from AngelScript
 - [] Design and decide over game Objects and level structure
+
 
 ## Important Notes
 Create a seperate Command Pool for short lived commands, as well as a transfer Queue only for transfer commands on the GPU.
@@ -52,7 +67,6 @@ Iterators for for-each loops on all container types
 
 ## Known bugs:
 Compound glyphs can get the wrong horizontal alignment, repo case, Roboto-Medium ':'
-
 
 
 # First todo's when starting out: (keeping them here as it is quite cute to keep)

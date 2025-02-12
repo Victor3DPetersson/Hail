@@ -444,7 +444,6 @@ void Hail::VlkMaterialManager::BindFrameBuffer(eMaterialType materialType, Frame
 
 bool VlkMaterialManager::InitMaterialInternal(Material* pMaterial, uint32 frameInFlight)
 {
-
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
 	VlkMaterial* pVlkMat = (VlkMaterial*)pMaterial;
 	VlkPipeline* pVlkPipeline = (VlkPipeline*)pMaterial->m_pPipeline;
@@ -460,8 +459,6 @@ bool VlkMaterialManager::InitMaterialInternal(Material* pMaterial, uint32 frameI
 			return false;
 		}
 	}
-
-	pVlkPipeline->m_frameBufferTextures = m_passesFrameBufferTextures[materialBaseType];
 
 	if (materialDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
@@ -487,41 +484,17 @@ bool VlkMaterialManager::InitMaterialInternal(Material* pMaterial, uint32 frameI
 			// TODO assert
 			return false;
 		}
-
-		// TODO: assert on !pMaterial->m_pTypeDescriptor
-
-		// TODO: if reloading a material and the materials layout is different, this needs to be looked over
 		if (!CreatePipelineLayout(*pVlkPipeline, pVlkMat))
 		{
 			// TODO assert
 			return false;
 		}
-
-		// Create the render pass
-		if (!CreateRenderpass(*pVlkPipeline, false))
-		{
-			return false;
-		}
-	}
-	if (!CreateFramebuffers(*pVlkPipeline, frameInFlight))
-	{
-		return false;
 	}
 	AllocateTypeDescriptors(*pVlkPipeline, frameInFlight);
 
 	//for debugging, check so that once everyFrameDataIsDirty the validator is set to not dirty
 	materialDataValidator.ClearFrameData(frameInFlight);
 
-	if (materialDataValidator.GetFrameThatMarkedFrameDirty() != frameInFlight)
-	{
-		//Early out as below the resources are only created for the first frame in flight
-		return true;
-	}
-
-	if (!CreateGraphicsPipeline(*pVlkPipeline))
-	{
-		return false;
-	}
 	return true;
 }
 
@@ -543,9 +516,6 @@ bool Hail::VlkMaterialManager::InitMaterialPipelineInternal(MaterialPipeline* pM
 		}
 	}
 
-	if (vlkPipeline.m_bUseTypeRenderPasses)
-		vlkPipeline.m_frameBufferTextures = m_passesFrameBufferTextures[(uint32)vlkPipeline.m_typeRenderPass];
-
 	if (materialDataValidator.GetFrameThatMarkedFrameDirty() == frameInFlight)
 	{
 		if (!CreateMaterialTypeObject(&vlkPipeline))
@@ -561,227 +531,11 @@ bool Hail::VlkMaterialManager::InitMaterialPipelineInternal(MaterialPipeline* pM
 			return false;
 		}
 
-		//TODO: Updatera interfacet på denna funktionen
-		if (!CreateRenderpass(vlkPipeline, true))
-		{
-			return false;
-		}
-
-	}
-	if (!CreateFramebuffers(vlkPipeline, frameInFlight))
-	{
-		return false;
 	}
 
 	//for debugging, check so that once everyFrameDataIsDirty the validator is set to not dirty
 	materialDataValidator.ClearFrameData(frameInFlight);
 
-	if (materialDataValidator.GetFrameThatMarkedFrameDirty() != frameInFlight)
-	{
-		//Early out as below the resources are only created for the first frame in flight
-		return true;
-	}
-
-	if (vlkPipeline.m_bIsCompute)
-	{
-		// TODO: Create compute pipeline
-	}
-	else
-	{
-		if (!CreateGraphicsPipeline(vlkPipeline))
-		{
-			return false;
-		}
-	}
-
-	return true;
-}
-
-bool Hail::VlkMaterialManager::CreateRenderpass(VlkPipeline& vlkPipeline, bool bSpecialCase)
-{
-	if (vlkPipeline.m_bIsCompute)
-		return true;
-
-	VlkMaterialTypeObject& typeDescriptor = *(VlkMaterialTypeObject*)m_MaterialTypeObjects[(uint32)vlkPipeline.m_type];
-	if (vlkPipeline.m_typeRenderPass == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
-	{
-		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
-		vlkPipeline.m_ownsRenderpass = false;
-		vlkPipeline.m_renderPass = swapChain->GetRenderPass();
-		return true;
-	}
-
-	// TODO: If vlkPipeline.m_typeRenderPass == Custom, do something weird with that shit :) 
-
-	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-	GrowingArray<VkAttachmentDescription> attachmentDescriptors(2);
-	VkAttachmentReference colorAttachmentRef{};
-	VkAttachmentReference depthAttachmentRef{};
-	switch (vlkPipeline.m_typeRenderPass)
-	{
-		case Hail::eMaterialType::SPRITE:
-		{
-			VkAttachmentDescription colorAttachment{};
-			VkAttachmentDescription depthAttachment{};
-
-			colorAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetTextureFormat());
-			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			colorAttachment.finalLayout = bSpecialCase ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(colorAttachment);
-
-			colorAttachmentRef.attachment = 0;
-			colorAttachmentRef.layout = bSpecialCase ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			depthAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetDepthFormat());
-			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			depthAttachmentRef.attachment = 1;
-			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(depthAttachment);
-		}
-		break;
-
-		case Hail::eMaterialType::MODEL3D:
-		{
-			VkAttachmentDescription colorAttachment{};
-			VkAttachmentDescription depthAttachment{};
-			colorAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetTextureFormat());
-			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(colorAttachment);
-
-			colorAttachmentRef.attachment = 0;
-			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			depthAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetDepthFormat());
-			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			depthAttachmentRef.attachment = 1;
-			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(depthAttachment);
-		}
-		break;
-
-		case Hail::eMaterialType::DEBUG_LINES2D:
-		{
-			VkAttachmentDescription colorAttachment{};
-			VkAttachmentDescription depthAttachment{};
-
-			colorAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetTextureFormat());
-			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			colorAttachment.finalLayout = bSpecialCase ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(colorAttachment);
-
-			colorAttachmentRef.attachment = 0;
-			colorAttachmentRef.layout = bSpecialCase ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			depthAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetDepthFormat());
-			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			depthAttachmentRef.attachment = 1;
-			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(depthAttachment);
-		}
-		break;
-
-		case Hail::eMaterialType::DEBUG_LINES3D:
-		{
-			VkAttachmentDescription colorAttachment{};
-			VkAttachmentDescription depthAttachment{};
-
-			colorAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetTextureFormat());
-			colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(colorAttachment);
-
-			colorAttachmentRef.attachment = 0;
-			colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-			depthAttachment.format = ToVkFormat(vlkPipeline.m_frameBufferTextures->GetDepthFormat());
-			depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-			depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-			depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-			depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-			depthAttachment.initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-			depthAttachmentRef.attachment = 1;
-			depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-			attachmentDescriptors.Add(depthAttachment);
-		}
-		break;
-
-		default:
-		break;
-	}
-	//Todo set up dependencies depending on pass
-	VkSubpassDependency dependency{};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcAccessMask = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-
-	VkSubpassDescription subpass{};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-	VkRenderPassCreateInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = attachmentDescriptors.Size();
-	renderPassInfo.pAttachments = attachmentDescriptors.Data();
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = 1;
-	renderPassInfo.pDependencies = &dependency;
-	if (vkCreateRenderPass(device.GetDevice(), &renderPassInfo, nullptr, &vlkPipeline.m_renderPass) != VK_SUCCESS)
-	{
-		//TODO ASSERT
-		return false;
-	}
 	return true;
 }
 
@@ -935,204 +689,6 @@ bool Hail::VlkMaterialManager::CreatePipelineLayout(VlkPipeline& vlkPipeline, Vl
 	return true;
 }
 
-bool Hail::VlkMaterialManager::CreateGraphicsPipeline(VlkPipeline& vlkPipeline)
-{
-	VlkDevice& device = *(VlkDevice*)m_renderDevice;
-	//TODO: make a wireframe toggle for materials
-	const bool isWireFrame = vlkPipeline.m_type == eMaterialType::DEBUG_LINES2D || vlkPipeline.m_type == eMaterialType::DEBUG_LINES3D;
-
-	bool renderDepth = false;
-	VkVertexInputBindingDescription vertexBindingDescription = VkVertexInputBindingDescription();
-	GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions(1);
-	switch (vlkPipeline.m_type)
-	{
-	case eMaterialType::SPRITE:
-		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
-		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
-		break;
-	case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-	{
-		VkVertexInputAttributeDescription attributeDescription{};
-		attributeDescription.binding = 0;
-		attributeDescription.location = 0;
-		attributeDescription.format = VK_FORMAT_R32_UINT;
-		attributeDescription.offset = 0;
-		vertexAttributeDescriptions.Add(attributeDescription);
-	}
-	vertexBindingDescription.binding = 0;
-	vertexBindingDescription.stride = sizeof(uint32_t);
-	vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	break;
-	case eMaterialType::MODEL3D:
-		renderDepth = true;
-		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
-		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
-		break;
-	case eMaterialType::DEBUG_LINES2D:
-	case eMaterialType::DEBUG_LINES3D:
-		vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
-		vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
-		break;
-	default:
-		break;
-	}
-
-	H_ASSERT(vlkPipeline.m_pShaders.Size() == 2, "Insufficient amount of shaders in the material");
-	VkShaderModule vertShaderModule;
-	bool bUsesMeshShaders = false;
-	VkShaderModule fragShaderModule;
-	for (size_t i = 0; i < vlkPipeline.m_pShaders.Size(); i++)
-	{
-		if ((eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType == eShaderType::Vertex)
-		{
-			vertShaderModule = CreateShaderModule(*vlkPipeline.m_pShaders[i], device);
-		}
-		else if ((eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType == eShaderType::Fragment)
-		{
-			fragShaderModule = CreateShaderModule(*vlkPipeline.m_pShaders[i], device);
-		}
-		else if ((eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType == eShaderType::Mesh)
-		{
-			vertShaderModule = CreateShaderModule(*vlkPipeline.m_pShaders[i], device);
-			bUsesMeshShaders = true;
-		}
-
-	}
-
-	VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-	vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertShaderStageInfo.stage = bUsesMeshShaders ? VK_SHADER_STAGE_MESH_BIT_EXT : VK_SHADER_STAGE_VERTEX_BIT;
-	vertShaderStageInfo.module = vertShaderModule;
-	vertShaderStageInfo.pName = "main";
-
-	VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-	fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragShaderStageInfo.module = fragShaderModule;
-	fragShaderStageInfo.pName = "main";
-
-	//l vertexInput, inputAssembly, vertexBindingDescriptions and vertexAttributes
-
-	VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-	VkDynamicState dynamicStates[2] = {
-	VK_DYNAMIC_STATE_VIEWPORT,
-	VK_DYNAMIC_STATE_SCISSOR
-	};
-
-	VkPipelineDynamicStateCreateInfo dynamicState{};
-	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicState.dynamicStateCount = 2;
-	dynamicState.pDynamicStates = dynamicStates;
-
-	VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 1;
-	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributeDescriptions.Size());
-	vertexInputInfo.pVertexBindingDescriptions = &vertexBindingDescription;
-	vertexInputInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.Data();
-
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = isWireFrame ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	const glm::uvec2 resolution = vlkPipeline.m_frameBufferTextures->GetResolution();
-	const VkExtent2D passExtent = { resolution.x, resolution.y };
-	viewport.width = (float)passExtent.width;
-	viewport.height = (float)passExtent.height;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = passExtent;
-
-	VkPipelineViewportStateCreateInfo viewportState{};
-	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-	viewportState.viewportCount = 1;
-	viewportState.scissorCount = 1;
-
-	VkPipelineRasterizationStateCreateInfo rasterizer{};
-	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizer.depthClampEnable = VK_FALSE;
-	rasterizer.rasterizerDiscardEnable = VK_FALSE; // Good to turn off for debugging fragment shader bottlenecks
-	rasterizer.polygonMode = isWireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
-	rasterizer.lineWidth = 1.0f;
-	rasterizer.depthBiasEnable = VK_FALSE;
-	rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-	rasterizer.depthBiasClamp = 0.0f; // Optional
-	rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
-	//rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	//rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-
-	VkPipelineMultisampleStateCreateInfo multisampling{};
-	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampling.sampleShadingEnable = VK_FALSE;
-	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	multisampling.minSampleShading = 1.0f; // Optional
-	multisampling.pSampleMask = nullptr; // Optional
-	multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
-	multisampling.alphaToOneEnable = VK_FALSE; // Optional
-
-	VkPipelineColorBlendAttachmentState colorBlendAttachment = LocalCreateBlendMode(vlkPipeline.m_blendMode);
-
-	VkPipelineColorBlendStateCreateInfo colorBlending{};
-	colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-	colorBlending.logicOpEnable = VK_FALSE;
-	colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
-	colorBlending.attachmentCount = 1;
-	colorBlending.pAttachments = &colorBlendAttachment;
-	colorBlending.blendConstants[0] = 0.0f; // Optional
-	colorBlending.blendConstants[1] = 0.0f; // Optional
-	colorBlending.blendConstants[2] = 0.0f; // Optional
-	colorBlending.blendConstants[3] = 0.0f; // Optional
-
-	VkPipelineDepthStencilStateCreateInfo depthStencil{};
-	depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depthStencil.depthTestEnable = renderDepth;
-	depthStencil.depthWriteEnable = renderDepth;
-	depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-	depthStencil.depthBoundsTestEnable = VK_FALSE;
-	depthStencil.minDepthBounds = 0.0f; // Optional
-	depthStencil.maxDepthBounds = 1.0f; // Optional
-	depthStencil.stencilTestEnable = VK_FALSE;
-	depthStencil.front = {}; // Optional
-	depthStencil.back = {}; // Optional
-
-	VkGraphicsPipelineCreateInfo pipelineInfo{};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStages;
-	pipelineInfo.pVertexInputState = bUsesMeshShaders ? nullptr : &vertexInputInfo;
-	pipelineInfo.pInputAssemblyState = bUsesMeshShaders ? nullptr : &inputAssembly;
-	pipelineInfo.pViewportState = &viewportState;
-	pipelineInfo.pRasterizationState = &rasterizer;
-	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = &depthStencil;
-	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.pDynamicState = &dynamicState;
-
-	pipelineInfo.layout = vlkPipeline.m_pipelineLayout;
-	pipelineInfo.renderPass = vlkPipeline.m_renderPass;
-	pipelineInfo.subpass = 0;
-	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-	pipelineInfo.basePipelineIndex = -1; // Optional
-
-	if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &vlkPipeline.m_pipeline) != VK_SUCCESS)
-	{
-		//TODO ASSERT
-		return false;
-	}
-
-	vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
-	vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
-	return true;
-}
-
 void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkPipeline& vlkPipeline, uint32 frameInFlight)
 {
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
@@ -1184,46 +740,6 @@ void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkPipeline& vlkPipeline,
 	typeDescriptor.m_bBoundTypeData[frameInFlight] = true;
 
 }
-
-bool VlkMaterialManager::CreateFramebuffers(VlkPipeline& vlkPipeline, uint32 frameInFlight)
-{
-	if (vlkPipeline.m_bIsCompute)
-		return true;
-
-
-	if (vlkPipeline.m_typeRenderPass == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
-	{
-		VlkSwapChain* swapChain = (VlkSwapChain*)m_swapChain;
-		vlkPipeline.m_ownsFrameBuffer = false;
-
-		vlkPipeline.m_frameBuffer[frameInFlight] = swapChain->GetFrameBuffer(frameInFlight);
-		vlkPipeline.m_renderPass = swapChain->GetRenderPass();
-	}
-	else
-	{
-		VlkDevice& device = *(VlkDevice*)(m_renderDevice);
-		VkImageView colorTexture = ((VlkTextureView*)vlkPipeline.m_frameBufferTextures->GetColorTextureView(frameInFlight))->GetVkImageView();
-		VkImageView depthTexture = ((VlkTextureView*)vlkPipeline.m_frameBufferTextures->GetDepthTextureView(frameInFlight))->GetVkImageView();
-		VkImageView attachments[2] = { colorTexture, depthTexture };
-
-		VkFramebufferCreateInfo framebufferInfo{};
-		framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		framebufferInfo.renderPass = vlkPipeline.m_renderPass;
-		framebufferInfo.attachmentCount = 2;
-		framebufferInfo.pAttachments = attachments;
-		framebufferInfo.width = vlkPipeline.m_frameBufferTextures->GetResolution().x;
-		framebufferInfo.height = vlkPipeline.m_frameBufferTextures->GetResolution().y;
-		framebufferInfo.layers = 1;
-
-		if (vkCreateFramebuffer(device.GetDevice(), &framebufferInfo, nullptr, &vlkPipeline.m_frameBuffer[frameInFlight]) != VK_SUCCESS)
-		{
-			//TODO ASSERT
-			return false;
-		}
-	}
-	return true;
-}
-
 
 bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance, uint32 frameInFlight, bool isDefaultMaterialInstance)
 {
@@ -1318,7 +834,6 @@ void Hail::VlkMaterialManager::ClearMaterialInternal(Material* pMaterial, uint32
 	{
 		pMaterial->CleanupResource(*m_renderDevice);
 	}
-	pMaterial->CleanupResourceFrameData(*m_renderDevice, frameInFlight);
 }
 
 Material* Hail::VlkMaterialManager::CreateUnderlyingMaterial()

@@ -2,6 +2,8 @@
 #include "SwapChain.h"
 #include "DebugMacros.h"
 
+#include "Resources\TextureResource.h"
+
 namespace Hail
 {
 	SwapChain::SwapChain(TextureManager* pTextureManager) : m_pTextureManager(pTextureManager)
@@ -13,6 +15,14 @@ namespace Hail
 		m_renderTargetResolution = { 0, 0 };
 		m_targetResolution = { 720, 480 };
 		m_pFrameBufferTexture = nullptr;
+	}
+
+	void SwapChain::DestroySwapChain(RenderingDevice* renderDevice)
+	{
+		for (uint32 i = 0; i < m_pTextureViews.Size(); i++)
+		{
+			m_pTextureViews[i]->CleanupResource(renderDevice);
+		}
 	}
 
 	void SwapChain::CalculateRenderResolution()

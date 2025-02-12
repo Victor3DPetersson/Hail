@@ -11,6 +11,8 @@ namespace Hail
 		m_pDepthTextureResource.Fill(nullptr);
 		m_pTextureViews.Fill(nullptr);
 		m_pDepthTextureViews.Fill(nullptr);
+		m_currentColorLayoutState.Fill(eFrameBufferLayoutState::Undefined);
+		m_currentDepthLayoutState.Fill(eFrameBufferLayoutState::Undefined);
 	}
 
 	void FrameBufferTexture::ClearResources(RenderingDevice* device, bool isSwapchain)

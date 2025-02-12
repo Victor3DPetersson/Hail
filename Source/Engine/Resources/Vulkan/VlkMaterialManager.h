@@ -27,14 +27,9 @@ namespace Hail
 		Material* CreateUnderlyingMaterial() override;
 		MaterialPipeline* CreateUnderlyingMaterialPipeline() override;
 		Pipeline* CreateUnderlyingPipeline() override;
-		bool CreateFramebuffers(VlkPipeline& vlkPipeline, uint32 frameInFlight);
-		// TODO: Fix this one to not be hard-coded when making a render-graph / setting up dependencies of materials.
-		bool CreateRenderpass(VlkPipeline& vlkPipeline, bool bSpecialCase);
 		bool CreateMaterialTypeObject(Pipeline* pPipeline) override;
 		// The pipeline holds all the Sets layouts.
 		bool CreatePipelineLayout(VlkPipeline& vlkPipeline, VlkMaterial* pMaterial);
-		bool CreateGraphicsPipeline(VlkPipeline& vlkPipeline);
-		//bool CreateComputePipeline(VlkMaterial& vlkMaterial);
 
 		// TODO, remove function and make this go through the context
 		// Assigns the buffers and samplers that are registered to the material, so not instance descriptors.
