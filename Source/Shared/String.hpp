@@ -405,6 +405,9 @@ namespace Hail
 		// Returns length in number of characters, not byte length.
 		const uint32 Length() const { return m_length; }
 
+		// DeAllocates memory if this string uses a memory pool, and sets length to 0.
+		void Clear();
+		void Reserve(uint32 numOfChars);
 	private:
 
 		union stringMemory
@@ -413,5 +416,6 @@ namespace Hail
 			wchar_t m_shortString[8];
 		}m_memory;
 		uint32 m_length;
+		uint32 m_allocatedLength;
 	};
 }

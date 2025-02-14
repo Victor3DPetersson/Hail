@@ -4,7 +4,7 @@
 
 # TODO: priority order for project
 
-- [] Text render commands
+- [x] Text render commands
 - [] Depth Sorting of sprite and text commands
 - [] Implement batch rendering of sprites and fonts
 - [] Cloud rendering experiment of a point cloud dataset
@@ -21,7 +21,7 @@
 - [] Red-black tree and hashmap
 - [x] Improve growing array
 - [x] Long string class
-- [] Text render commands
+- [x] Text render commands
 - [x] Font rendering
 - [x] Make asserts and error Handling
 - [x] Update the input handler and create an input to action map

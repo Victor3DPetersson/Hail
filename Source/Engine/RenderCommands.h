@@ -51,12 +51,13 @@ namespace Hail
 
 	struct RenderCommand_Text
 	{
-		Transform2D transform;
-		glm::vec3 color;
-		StringL text;
-		uint32_t materialInstanceID;
+		Transform2D transform; // 20 Bytes
+		glm::vec3 color; // 12 Bytes
+		StringLW text; // TODO: kolla hur jag sparar strängen, kanske ha en stor sträng pool bara för text commands, som är en circular buffer
+		uint16 textSize;
 		uint16_t index;
-		bool lerpCommand;
+		bool bLerpCommand{ true };
+		bool bNormalizedPosition {false};
 	};
 
 	struct RenderCommand_Mesh
@@ -66,7 +67,7 @@ namespace Hail
 		uint32_t meshID = 0;
 		uint32_t materialInstanceID = 0;
 		uint16_t index = 0;
-		bool lerpCommand = true;
+		bool bLerpCommand = true;
 	};
 
 

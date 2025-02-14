@@ -6,6 +6,8 @@
 #include "Rendering\SwapChain.h"
 #include "Input\InputActionMap.h"
 
+using namespace Hail;
+
 void Hail::ThreadSyncronizer::Init(float tickTimer)
 {
 	m_engineTickRate = tickTimer;
@@ -60,6 +62,12 @@ void Hail::ThreadSyncronizer::PrepareApplicationData()
 			camera.TransformToCameraSpace(sprite.transform);
 		}
 	}
+	for (size_t i = 0; i < pPool->textCommands.Size(); i++)
+	{
+		RenderCommand_Text& textC = pPool->textCommands[i];
+		if (!textC.bNormalizedPosition)
+			camera.TransformToCameraSpace(textC.transform);
+	}
 	for (size_t i = 0; i < pPool->debugLineCommands.Size(); i++)
 	{
 		RenderCommand_DebugLine& line = pPool->debugLineCommands[i];
@@ -76,6 +84,7 @@ void Hail::ThreadSyncronizer::PrepareApplicationData()
 				Transform2DLineFromPixelSpaceToNormalizedSpace(line.pos1, line.pos2, camera.GetResolution());
 		}
 	}
+
 }
 
 void Hail::ThreadSyncronizer::SwapBuffersInternal()
@@ -102,6 +111,7 @@ void Hail::ThreadSyncronizer::TransferBufferSizes()
 	m_rendererCommandPool.spriteCommands.TransferSize(readPool.spriteCommands);
 	m_rendererCommandPool.meshCommands.TransferSize(readPool.meshCommands);
 	m_rendererCommandPool.debugLineCommands.TransferSize(readPool.debugLineCommands);
+	m_rendererCommandPool.textCommands.TransferSize(readPool.textCommands);
 }
 
 void Hail::ThreadSyncronizer::LerpRenderBuffers()
@@ -115,12 +125,53 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	LerpSprites(tValue);
 	Lerp3DModels(tValue);
 	LerpDebugLines(tValue);
+	LerpTextCommands(tValue);
 }
-namespace Hail
+
+namespace 
 {
-	void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t);
-	void LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t);
-	void LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCommand_DebugLine& lastReadLine, RenderCommand_DebugLine& writeLine, float t);
+	void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
+	{
+		writeSprite.transform = Transform2D::LerpTransforms(readSprite.transform, lastReadSprite.transform, t);
+		writeSprite.uvTR_BL = glm::mix(readSprite.uvTR_BL, lastReadSprite.uvTR_BL, t);
+		writeSprite.color = glm::mix(readSprite.color, lastReadSprite.color, t);
+		writeSprite.pivot = glm::mix(readSprite.pivot, lastReadSprite.pivot, t);
+		writeSprite.index = readSprite.index;
+		writeSprite.materialInstanceID = readSprite.materialInstanceID;
+		writeSprite.bLerpCommand = readSprite.bLerpCommand;
+		writeSprite.bIsAffectedBy2DCamera = readSprite.bIsAffectedBy2DCamera;
+		writeSprite.bSizeRelativeToRenderTarget = readSprite.bSizeRelativeToRenderTarget;
+	}
+
+	void LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t)
+	{
+		writeMesh.transform = Transform3D::LerpTransforms_t(readMesh.transform, lastReadMesh.transform, t);
+		writeMesh.color = glm::mix(readMesh.color, lastReadMesh.color, t);
+		writeMesh.meshID = readMesh.meshID;
+		writeMesh.index = readMesh.index;
+		writeMesh.materialInstanceID = readMesh.materialInstanceID;
+		writeMesh.bLerpCommand = readMesh.bLerpCommand;
+	}
+
+	void LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCommand_DebugLine& lastReadLine, RenderCommand_DebugLine& writeLine, float t)
+	{
+		writeLine.color1 = glm::mix(readLine.color1, lastReadLine.color1, t);
+		writeLine.color2 = glm::mix(readLine.color2, lastReadLine.color2, t);
+		writeLine.pos1 = glm::mix(readLine.pos1, lastReadLine.pos1, t);
+		writeLine.pos2 = glm::mix(readLine.pos2, lastReadLine.pos2, t);
+		writeLine.bIs2D = readLine.bIs2D;
+		writeLine.bLerpCommand = readLine.bLerpCommand;
+		writeLine.bIsAffectedBy2DCamera = readLine.bIsAffectedBy2DCamera;
+	}
+
+	void LerpTextCommand(const RenderCommand_Text& readTextC, const RenderCommand_Text& lastReadTextC, RenderCommand_Text& writeTextC, float t)
+	{
+		writeTextC.transform = Transform2D::LerpTransforms(readTextC.transform, lastReadTextC.transform, t);
+		writeTextC.color = glm::mix(readTextC.color, lastReadTextC.color, t);
+		writeTextC.text = readTextC.text;
+		writeTextC.index = readTextC.index;
+		writeTextC.bLerpCommand = readTextC.bLerpCommand;
+	}
 }
 
 void Hail::ThreadSyncronizer::LerpSprites(float tValue)
@@ -194,7 +245,7 @@ void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
 		}
 
 		const RenderCommand_Mesh& lastReadMesh = lastReadPool.meshCommands[mesh];
-		if (readMesh.lerpCommand)
+		if (readMesh.bLerpCommand)
 		{
 			if (readMesh.index == lastReadMesh.index)
 			{
@@ -207,7 +258,7 @@ void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
 				bool foundMesh = false;
 				for (uint16_t missingMesh = mesh; missingMesh < lastReadNumberOfModels; missingMesh++)
 				{
-					if (readMesh.index == lastReadPool.spriteCommands[missingMesh].index)
+					if (readMesh.index == lastReadPool.meshCommands[missingMesh].index)
 					{
 						foundMesh = true;
 						LerpMeshCommand(readMesh, lastReadPool.meshCommands[missingMesh], writeMesh, tValue);
@@ -257,36 +308,31 @@ void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
 	}
 }
 
-void Hail::LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCommand_DebugLine& lastReadLine, RenderCommand_DebugLine& writeLine, float t)
+void Hail::ThreadSyncronizer::LerpTextCommands(float tValue)
 {
-	writeLine.color1 = glm::mix(readLine.color1, lastReadLine.color1, t);
-	writeLine.color2 = glm::mix(readLine.color2, lastReadLine.color2, t);
-	writeLine.pos1 = glm::mix(readLine.pos1, lastReadLine.pos1, t);
-	writeLine.pos2 = glm::mix(readLine.pos2, lastReadLine.pos2, t);
-	writeLine.bIs2D = readLine.bIs2D;
-	writeLine.bLerpCommand = readLine.bLerpCommand;
-	writeLine.bIsAffectedBy2DCamera = readLine.bIsAffectedBy2DCamera;
-}
+	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
+	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
+	const uint32_t numberOfTexts = readPool.textCommands.Size();
+	const uint32_t lastReadNumberOfTexts = lastReadPool.textCommands.Size();
+	for (uint16_t iTextC = 0; iTextC < numberOfTexts; iTextC++)
+	{
+		const RenderCommand_Text& readText = readPool.textCommands[iTextC];
+		RenderCommand_Text& writeText = m_rendererCommandPool.textCommands[iTextC];
 
-void Hail::LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
-{
-	writeSprite.transform = Transform2D::LerpTransforms(readSprite.transform, lastReadSprite.transform, t);
-	writeSprite.uvTR_BL = glm::mix(readSprite.uvTR_BL, lastReadSprite.uvTR_BL, t);
-	writeSprite.color = glm::mix(readSprite.color, lastReadSprite.color, t);
-	writeSprite.pivot = glm::mix(readSprite.pivot, lastReadSprite.pivot, t);
-	writeSprite.index = readSprite.index;
-	writeSprite.materialInstanceID = readSprite.materialInstanceID;
-	writeSprite.bLerpCommand = readSprite.bLerpCommand;
-	writeSprite.bIsAffectedBy2DCamera = readSprite.bIsAffectedBy2DCamera;
-	writeSprite.bSizeRelativeToRenderTarget = readSprite.bSizeRelativeToRenderTarget;
-}
+		if (iTextC >= lastReadNumberOfTexts)
+		{
+			writeText = readText;
+			continue;
+		}
 
-void Hail::LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t)
-{
-	writeMesh.transform = Transform3D::LerpTransforms_t(readMesh.transform, lastReadMesh.transform, t);
-	writeMesh.color = glm::mix(readMesh.color, lastReadMesh.color, t);
-	writeMesh.meshID = readMesh.meshID;
-	writeMesh.index = readMesh.index;
-	writeMesh.materialInstanceID = readMesh.materialInstanceID;
-	writeMesh.lerpCommand = readMesh.lerpCommand;
+		const RenderCommand_Text& lastReadText = lastReadPool.textCommands[iTextC];
+		if (lastReadText.bLerpCommand)
+		{
+			LerpTextCommand(readText, lastReadText, writeText, tValue);
+		}
+		else
+		{
+			writeText = readText;
+		}
+	}
 }

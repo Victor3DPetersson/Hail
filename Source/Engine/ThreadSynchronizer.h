@@ -41,6 +41,7 @@ namespace Hail
 		void LerpSprites(float tValue);
 		void Lerp3DModels(float tValue);
 		void LerpDebugLines(float tValue);
+		void LerpTextCommands(float tValue);
 
 		
 

@@ -27,7 +27,7 @@ void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 	m_pContext->StartFrame();
 	m_pResourceManager->ReloadResources();
 	m_pResourceManager->UpdateRenderBuffers(renderPool, m_pContext, m_timer);
-	m_pFontRenderer->Prepare();
+	m_pFontRenderer->Prepare(renderPool);
 }
 
 void Hail::Renderer::EndFrame()

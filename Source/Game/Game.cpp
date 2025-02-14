@@ -31,11 +31,14 @@ namespace
 	bool renderPlayer = false;
 	Hail::ImGuiFileBrowserData g_fileBrowserData;
 
+	Hail::RenderCommand_Text g_textCommand1{};
+	Hail::RenderCommand_Text g_textCounter{};
+	Hail::RenderCommand_Text g_textCounterNumber{};
+	Hail::uint32 g_debugCounter{0u};
+
 	Hail::GUID spaceShipGuid;
 	Hail::GUID backgroundGuid;
 	Hail::GUID debugGridGuid;
-
-
 }
 
 namespace Hail
@@ -110,6 +113,21 @@ namespace Hail
 		g_fileBrowserData.extensionsToSearchFor = { "tga", "frag", "vert" };
 		g_fileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 
+		g_textCommand1.index = 0;
+		g_textCounter.index = 1;
+		g_textCounterNumber.index = 2;
+
+		g_textCommand1.text = L"Tjenare tjena böddy! <3 :}";
+		g_textCommand1.transform.SetPosition({ 0.5f, 0.5f });
+		g_textCounter.text = L"Räknare :";
+		g_textCounterNumber.text = StringLW::Format(L"%u", g_debugCounter);
+
+		g_textCommand1.textSize = 48u;
+		g_textCounter.textSize = 48u;
+		g_textCounterNumber.textSize = 64u;
+		g_textCommand1.color = glm::vec3(1.0, 0.120, 0.9);
+		g_textCounter.color = glm::vec3(1.0, 0.9, 0.9);
+		g_textCounterNumber.color = glm::vec3(1.0, 0.0, 0.0);
 	}
 
 	bool g_bTest = false;
@@ -194,6 +212,8 @@ namespace Hail
 		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerAction1) == Hail::eInputState::Pressed)
 		{
 			g_camera.GetTransform().AddToPosition(glm::vec3{ 0.0, 0.0, 1.0 } *g_movementSpeed);
+			g_textCounterNumber.text = StringLW::Format(L"%u", ++g_debugCounter);
+			g_textCounterNumber.color = glm::vec3(1.0, g_debugCounter * 0.01f, g_debugCounter * 0.01f);
 		}
 		if (frameData.inputActionMap->GetButtonInput(eInputAction::PlayerAction2) == Hail::eInputState::Pressed)
 		{
@@ -266,7 +286,9 @@ namespace Hail
 
 	void GameApplication::Shutdown()
 	{
-
+		g_textCommand1.text.Clear();
+		g_textCounter.text.Clear();
+		g_textCounterNumber.text.Clear();
 	}
 
 
@@ -281,14 +303,25 @@ namespace Hail
 		{
 			renderCommandPoolToFill.spriteCommands.Add(player);
 
-			DrawLine2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0, true);
-			DrawCircle2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), 10.0f, false);
-			DrawBox2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(40.0f, 40.0f), false, glm::vec4(1.0, 0.0, 0.0, 1.0f));
+			g_textCounter.transform.SetPosition(player.transform.GetPosition() + glm::vec2(-140, -55));
+			g_textCounterNumber.transform.SetPosition(player.transform.GetPosition() + glm::vec2(30, -55));
+			g_textCommand1.transform.LookAt(player.transform.GetPosition());
+			//DrawLine2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0, true);
+			DrawCircle2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), 10.0f, true);
+			//DrawBox2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(40.0f, 40.0f), false, glm::vec4(1.0, 0.0, 0.0, 1.0f));
 			const glm::vec2 halfDimensions = glm::vec2(10.0, 10.0);
-			DrawBox2DMinMaxPixelSpace(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, true, glm::vec4(1.0, 0.6, 0.0, 1.0f));
+			//DrawBox2DMinMaxPixelSpace(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, true, glm::vec4(1.0, 0.6, 0.0, 1.0f));
+			renderCommandPoolToFill.textCommands.Add(g_textCounter);
+			renderCommandPoolToFill.textCommands.Add(g_textCounterNumber);
 		}
+		else
+		{
+			g_textCommand1.transform.SetRotation(0);
+		}
+		renderCommandPoolToFill.textCommands.Add(g_textCommand1);
 		renderCommandPoolToFill.camera2D = g_2DCamera;
 		renderCommandPoolToFill.meshCommands.Add(Hail::RenderCommand_Mesh());
+
 
 	}
 

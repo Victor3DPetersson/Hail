@@ -1,6 +1,16 @@
 #version 450
 #extension GL_EXT_mesh_shader : require
 
+// TODO: create a utility header for shaders with common operations
+vec3 ColorFromPackedColor(uint packedColor)
+{
+    vec3 returnColor;
+    returnColor.x = float((packedColor >> 16) & 0xff) / 255.0;
+    returnColor.y = float((packedColor >> 8) & 0xff) / 255.0;
+    returnColor.z = float(packedColor & 0xff) / 255.0;
+    return returnColor;
+}
+
 layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
 {
     uvec2 renderResolution;
@@ -20,14 +30,14 @@ layout(binding = 1, set = 1, std140) buffer GlyphPrimitiveBuffers
 
 struct RenderInstance
 {
-    vec2 pos;
+    vec2 relativePos;
     float PixelSize;
     uint glyphletColor;
 
     uint vertexOffset;
     uint indexOffset;
     uint numberOfTrianglesNumberOfVertices; // 16 bits Tri count | << 16 bits vert count
-    uint padding;
+    uint commandBufferIndex;
 };
 
 layout(binding = 2, set = 1, std140) buffer InstanceBuffer
@@ -35,8 +45,14 @@ layout(binding = 2, set = 1, std140) buffer InstanceBuffer
    	RenderInstance renderInstances[];
 };
 
+layout(binding = 3, set = 1, std140) buffer TextCommandBuffer
+{
+   	vec4 textCommands[];
+};
+
 layout (location = 0) perprimitiveEXT out uint outTriangleType[];
 layout (location = 1) perprimitiveEXT out uint outTriangleID[];
+layout (location = 2) out vec3 outTextColor[];
 
 layout (local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
 layout(max_vertices=128, max_primitives=128) out;
@@ -51,6 +67,8 @@ void main()
     
     RenderInstance glyphletInstance = renderInstances[gl_WorkGroupID.x];
 
+    vec4 textCommandData = textCommands[glyphletInstance.commandBufferIndex];
+    vec3 glyphColor = ColorFromPackedColor(glyphletInstance.glyphletColor);
     uint numberOfVertices = (glyphletInstance.numberOfTrianglesNumberOfVertices >> 16) & 0xffff;
     uint numberOfPrimitives = glyphletInstance.numberOfTrianglesNumberOfVertices & 0xffff;
 
@@ -60,7 +78,7 @@ void main()
     float resolutionRatio = renderRes.y / renderRes.x;
     vec2 pixelSize = vec2((1.0 / renderRes.y) * glyphletInstance.PixelSize, (1.0 / renderRes.y) * glyphletInstance.PixelSize);
 
-    if (tid < numberOfPrimitives)
+    if (tid <= numberOfPrimitives)
     {
         uint primID = glyphletInstance.indexOffset + tid;
         uvec4 indicesAndPrimFlag = glyphPrimitives[primID];
@@ -76,8 +94,22 @@ void main()
         vec2 vertPos = vertXOrY == 0 ? glyphVerts[vertID].xy : glyphVerts[vertID].zw;
 
         vec2 vertPosFlippedY = vec2(vertPos.x, 1.0 - vertPos.y) * pixelSize;
-        vec2 vertPosNormalized = (vertPosFlippedY) + glyphletInstance.pos;
 
-        gl_MeshVerticesEXT[tid].gl_Position = vec4(vertPosNormalized * 2.0 - 1.0, 0.001, 1.0);
+	    vec2 pivotPoint = textCommandData.xy;
+        float rotation = textCommandData.z;
+        float cs = cos(rotation);
+	    float sn = sin(rotation);
+	    mat2 rotationMatrix = mat2(cs, -sn, sn, cs);
+
+        vertPosFlippedY = vertPosFlippedY * rotationMatrix;
+        vertPosFlippedY.x = vertPosFlippedY.x * resolutionRatio;
+        vec2 glyphPosition = glyphletInstance.relativePos;
+        glyphPosition = (glyphPosition * rotationMatrix);
+        glyphPosition.x = glyphPosition.x * resolutionRatio;
+        glyphPosition = glyphPosition + pivotPoint;
+        
+        vec2 vertPosNormalized = (vertPosFlippedY + glyphPosition) * 2.0 - 1.0;
+        outTextColor[tid] = glyphColor;
+        gl_MeshVerticesEXT[tid].gl_Position = vec4(vertPosNormalized, 0.001, 1.0);
     }
 }

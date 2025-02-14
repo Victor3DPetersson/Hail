@@ -6,6 +6,7 @@ layout(location = 0) out vec4 outColor;
 
 layout (location = 0) in flat uint triangleType;
 layout (location = 1) in flat uint triangleID;
+layout (location = 2) in vec3 fontColor;
 
 const uint SOLID = 2;
 const uint CONVEX = 1;
@@ -30,11 +31,11 @@ void main()
     float triangleType = float(triangleType);
     float triangleID = float(triangleID);
 
-    vec3 color = vec3(0.95, 0.95, 0.95);
     //color = vec3(uv, 0.7);
     if (((triangleType == CONVEX) && (y > 0.0)) || ((triangleType == CONCAVE) && (y < 0.0)))
     {
         discard;                        
     }
+    vec3 color = fontColor;
     outColor = vec4(color, 1);
 }
