@@ -56,9 +56,14 @@ namespace Hail
 
 		void BindMaterial(Material* pMaterial);
 		void BindMaterial(Pipeline* pPipeline);
+		// Will bind the instance ID for the currently bound material.
+		virtual void BindMaterialInstance(uint32 materialInstanceIndex) = 0;
 		void BindFrameBufferAtSlot(FrameBufferTexture* pFrameBuffer, uint32 bindSlot);
+		void BindVertexBuffer(BufferObject* pVertexBufferToBind, BufferObject* pIndexBufferToBind);
 		// Creates a complete state for a pipeline if it does not exist, this pipeline will be with the bound resources. 
 		void SetPipelineState(Pipeline* pPipeline);
+		// Takes any 16 byte sized data
+		void SetPushConstantValue(void* pPushConstant);
 
 		// Clears the framebuffers colors to the base colors and depth values
 		void ClearBoundFrameBuffers();
@@ -77,7 +82,7 @@ namespace Hail
 		void TransferFramebufferLayout(FrameBufferTexture* pTextureToTransfer, eFrameBufferLayoutState colorState, eFrameBufferLayoutState depthState);
 
 		virtual void RenderMeshlets(glm::uvec3 dispatchSize);
-
+		virtual void RenderSprites(uint32 numberOfInstances, uint32 offset) = 0;
 
 		CommandBuffer* GetCurrentCommandBuffer() { return m_pCurrentCommandBuffer; }
 		// Will end the frame if the last bound material that was bound is FULLSCREEN_PRESENT_LETTERBOX
@@ -114,26 +119,32 @@ namespace Hail
 		virtual void ClearFrameBufferInternal(FrameBufferTexture* pFrameBuffer) = 0;
 		virtual MaterialFrameBufferConnection* CreateMaterialFrameBufferConnection() = 0;
 		virtual void BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* connectionToBind) = 0;
+		virtual void BindVertexBufferInternal() = 0;
+		virtual void SetPushConstantInternal(void* pPushConstant) = 0;
 
-		StaticArray<TextureView*, 16> m_pBoundTextures;
-		StaticArray<BufferObject*, 16> m_pBoundStructuredBuffers;
-		StaticArray<BufferObject*, 16> m_pBoundUniformBuffers;
 
-		Pipeline* m_pBoundMaterialPipeline;
-		StaticArray<FrameBufferTexture*, 8> m_pBoundFrameBuffers;
+		RenderingDevice* m_pDevice;
+		ResourceManager* m_pResourceManager;
 
 		eContextState m_currentState;
 		CommandBuffer* m_pCurrentCommandBuffer;
 
-		RenderingDevice* m_pDevice;
-		ResourceManager* m_pResourceManager;
+		Material* m_pBoundMaterial;
+		Pipeline* m_pBoundMaterialPipeline;
+		BufferObject* m_pBoundVertexBuffer;
+		BufferObject* m_pBoundIndexBuffer;
+
+		StaticArray<TextureView*, 16> m_pBoundTextures;
+		StaticArray<BufferObject*, 16> m_pBoundStructuredBuffers;
+		StaticArray<BufferObject*, 16> m_pBoundUniformBuffers;
+		StaticArray<FrameBufferTexture*, 8> m_pBoundFrameBuffers;
 
 		GrowingArray<BufferObject*> m_stagingBuffers;
 
 		StaticArray<CommandBuffer*, MAX_FRAMESINFLIGHT> m_pGraphicsCommandBuffers;
 
 		uint64 m_currentlyBoundPipeline{};
-		eMaterialType m_boundMaterialType = eMaterialType::COUNT;
+		eMaterialType m_boundMaterialType;
 
 		GrowingArray<MaterialFrameBufferConnection*> m_pFrameBufferMaterialPipelines;
 	};

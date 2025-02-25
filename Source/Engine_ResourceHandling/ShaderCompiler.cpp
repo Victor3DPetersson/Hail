@@ -119,7 +119,7 @@ namespace Hail
 		shaderc_compilation_status status = shaderc_result_get_compilation_status(compiledShader);
 		if (numberOfErrors > 0 && status != shaderc_compilation_status_success)
 		{
-			Debug_PrintConsoleConstChar(shaderc_result_get_error_message(compiledShader));
+			H_ERROR(shaderc_result_get_error_message(compiledShader));
 		}
 		else
 		{

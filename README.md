@@ -5,8 +5,8 @@
 # TODO: priority order for project
 
 - [x] Text render commands
-- [] Depth Sorting of sprite and text commands
-- [] Implement batch rendering of sprites and fonts
+- [x] Depth Sorting of sprite and text commands
+- [x] Implement batch rendering of sprites and fonts
 - [] Cloud rendering experiment of a point cloud dataset
 - [] Compute shader support
 - [] Update point cloud data with a compute pass
@@ -38,7 +38,7 @@
 - [] Make resource registry thread safe, could be done by locking it on write operations and waiting on read
 - [x] 2D camera for the 2D rendering
 - [] Resource registration Init Check if current path does not match the meta resource project path, and make a function to clean that up.
-- [] Implement batch rendering of sprites
+- [x] Implement batch rendering of sprites and fonts
 - [] Spline objects
 - [x] Implement VMA on the Vulkan backend
 - [x] VMA implement texture support
@@ -51,7 +51,7 @@
 - [] Fix broken reloading of GPU resources and then remake hot reloading 
 - [x] Context upload once function 
 - [x] Context, move over rendering and state functions to the context.
-- [] Depth Sorting of sprite and text commands
+- [x] Depth Sorting of sprite and text commands
 - [x] Explicit setting of Framebuffer bind state through the context object. Make materials transition have a bind state that is not set at Init
 - [] Bindless texturing
 - [] RawInput instead of Windows input

@@ -531,10 +531,11 @@ Hail::StringLW::StringLW(const StringL& anotherString)
 
 Hail::StringLW::StringLW(const StringLW& anotherWString)
 {
+	m_length = 0u;
 	m_memory.m_p = nullptr;
-	if (m_length > 7)
+	if (anotherWString.m_length > 7)
 	{
-		StringMemoryAllocator::GetInstance().AllocateString(anotherWString.Data(), m_length, &m_memory.m_p);
+		StringMemoryAllocator::GetInstance().AllocateString(anotherWString.Data(), anotherWString.m_length, &m_memory.m_p);
 		m_allocatedLength = anotherWString.m_allocatedLength;
 	}
 	else

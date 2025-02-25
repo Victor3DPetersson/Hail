@@ -26,15 +26,17 @@ namespace
 	Hail::Camera2D g_2DCamera;
 	float g_movementSpeed = 10.0f;
 	float g_spriteMovementSpeed = 5.0f;
-	Hail::RenderCommand_Sprite player;
-	Hail::RenderCommand_Sprite sprites[5];
-	bool renderPlayer = false;
+	Hail::GameCommand_Sprite player;
+	Hail::GameCommand_Sprite sprites[5];
+	Hail::GameCommand_Sprite manySprites[100];
+	bool renderPlayer = true;
 	Hail::ImGuiFileBrowserData g_fileBrowserData;
 
-	Hail::RenderCommand_Text g_textCommand1{};
-	Hail::RenderCommand_Text g_textCounter{};
-	Hail::RenderCommand_Text g_textCounterNumber{};
+	Hail::GameCommand_Text g_textCommand1{};
+	Hail::GameCommand_Text g_textCounter{};
+	Hail::GameCommand_Text g_textCounterNumber{};
 	Hail::uint32 g_debugCounter{0u};
+	Hail::uint32 g_frameCounter{ 0u };
 
 	Hail::GUID spaceShipGuid;
 	Hail::GUID backgroundGuid;
@@ -97,8 +99,10 @@ namespace Hail
 		player.transform.SetPosition({ 0.5f, 0.5f });
 		player.bSizeRelativeToRenderTarget = true;
 		player.transform.SetScale({ 0.285f, 0.285f });
-		sprites[0].materialInstanceID = 2;
+		player.m_layer = 0;
+		//sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
+		sprites[0].m_layer = -1;
 
 		sprites[1].transform.SetPosition({ -400, -200 });
 		sprites[2].transform.SetPosition({ 200, 200 });
@@ -106,16 +110,38 @@ namespace Hail
 		sprites[4].transform.SetPosition({ 200, -200 });
 		for (uint32_t i = 1; i < 5; i++)
 		{
-			sprites[i].transform.SetRotation({ i * Math::PIf * 0.25f });
+			sprites[i].transform.SetRotationRad({ i * Math::PIf * 0.25f });
 			sprites[i].index = i + 1;
 			sprites[i].transform.SetScale({ 0.25, 0.25 });
+			sprites[i].m_layer = 1;
 		}
+
+		for (int x = 0; x < 10; x++)
+		{
+			for (int y = 0; y < 10; y++)
+			{
+				int i = x + y * 10;
+				manySprites[i].transform.SetRotationRad({ i * 0.25f });
+				manySprites[i].transform.SetRotationRad({ i * 0.25f });
+				manySprites[i].index = 5 + i;
+				manySprites[i].transform.SetScale({ 0.15, 0.15 });
+				manySprites[i].transform.SetPosition({ (float)x * 40.1f , (float)y * 40.1f });
+				manySprites[i].bSizeRelativeToRenderTarget = true;
+				manySprites[i].m_layer = 0;
+				manySprites[i].materialInstanceID = sprites[3].materialInstanceID;
+			}
+		}
+
 		g_fileBrowserData.extensionsToSearchFor = { "tga", "frag", "vert" };
 		g_fileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
 
 		g_textCommand1.index = 0;
 		g_textCounter.index = 1;
 		g_textCounterNumber.index = 2;
+
+		g_textCommand1.m_layer = 0;
+		g_textCounter.m_layer = 1;
+		g_textCounterNumber.m_layer = 1;
 
 		g_textCommand1.text = L"Tjenare tjena böddy! <3 :}";
 		g_textCommand1.transform.SetPosition({ 0.5f, 0.5f });
@@ -146,10 +172,14 @@ namespace Hail
 			if (sprites[i].materialInstanceID == MAX_UINT && Hail::ResourceInterface::GetMaterialResourceState(debugGridGuid) == eResourceState::Loaded)
 				sprites[i].materialInstanceID = Hail::ResourceInterface::GetMaterialInstanceResourceHandle(debugGridGuid);
 		}
-
+		for (size_t i = 0; i < 50; i++)
+		{
+			if (manySprites[i].materialInstanceID == MAX_UINT && Hail::ResourceInterface::GetMaterialResourceState(debugGridGuid) == eResourceState::Loaded)
+				manySprites[i].materialInstanceID = Hail::ResourceInterface::GetMaterialInstanceResourceHandle(debugGridGuid);
+		}
 
 		Hail::ApplicationFrameData& frameData = recievedFrameData;
-		g_2DCamera.SetResolution(frameData.renderPool->camera2D.GetResolution());
+		g_2DCamera.SetResolution(frameData.commandPoolToFill->camera2D.GetResolution());
 		//Make Gawme ^^
 		g_fTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<float>(3);
 		g_sTest = recievedFrameData.imguiCommandRecorder->GetResponseValue<StringL>(4);
@@ -274,14 +304,15 @@ namespace Hail
 			H_WARNING("Warning frome game");
 		}
 
-		player.color.x = sinf(totalTime) * 0.5 + 0.5f;
+		player.color.SetA(sinf(totalTime) * 0.5 + 0.5f);
 
 		for (uint32_t i = 1; i < 5; i++)
 		{
-			sprites[i].transform.AddToRotation({ 0.15f * (i + 1) });
-			DrawLine2DPixelSpace(*frameData.renderPool, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f), true);
+			sprites[i].transform.AddToRotationEuler({ 0.15f * (i + 1) });
+			DrawLine2DPixelSpace(*frameData.commandPoolToFill, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f), true);
 		}
-		FillFrameData(*frameData.renderPool);
+		FillFrameData(*frameData.commandPoolToFill);
+		g_frameCounter++;
 	}
 
 	void GameApplication::Shutdown()
@@ -292,35 +323,34 @@ namespace Hail
 	}
 
 
-	void GameApplication::FillFrameData(Hail::RenderCommandPool& renderCommandPoolToFill)
+	void GameApplication::FillFrameData(Hail::ApplicationCommandPool& commandPoolToFill)
 	{
-		renderCommandPoolToFill.camera3D = g_camera;
+		commandPoolToFill.camera3D = g_camera;
 		for (uint32_t i = 0; i < 5; i++)
 		{
-			renderCommandPoolToFill.spriteCommands.Add(sprites[i]);
+			commandPoolToFill.AddSpriteCommand(sprites[i]);
+		}
+		for (uint32_t i = 0; i < 100; i++)
+		{
+			commandPoolToFill.AddSpriteCommand(manySprites[i]);
 		}
 		if (renderPlayer)
 		{
-			renderCommandPoolToFill.spriteCommands.Add(player);
+			commandPoolToFill.AddSpriteCommand(player);
 
 			g_textCounter.transform.SetPosition(player.transform.GetPosition() + glm::vec2(-140, -55));
 			g_textCounterNumber.transform.SetPosition(player.transform.GetPosition() + glm::vec2(30, -55));
-			g_textCommand1.transform.LookAt(player.transform.GetPosition());
-			//DrawLine2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), player.transform.GetRotationRad(), g_spriteMovementSpeed * 20.0, true);
-			DrawCircle2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), 10.0f, true);
-			//DrawBox2DPixelSpace(renderCommandPoolToFill, player.transform.GetPosition(), glm::vec2(40.0f, 40.0f), false, glm::vec4(1.0, 0.0, 0.0, 1.0f));
-			const glm::vec2 halfDimensions = glm::vec2(10.0, 10.0);
-			//DrawBox2DMinMaxPixelSpace(renderCommandPoolToFill, player.transform.GetPosition() - halfDimensions, player.transform.GetPosition() + halfDimensions, true, glm::vec4(1.0, 0.6, 0.0, 1.0f));
-			renderCommandPoolToFill.textCommands.Add(g_textCounter);
-			renderCommandPoolToFill.textCommands.Add(g_textCounterNumber);
+			DrawCircle2DPixelSpace(commandPoolToFill, player.transform.GetPosition(), 10.0f, true);
+			commandPoolToFill.AddTextCommand(g_textCounter);
+			commandPoolToFill.AddTextCommand(g_textCounterNumber);
 		}
 		else
 		{
-			g_textCommand1.transform.SetRotation(0);
+			//g_textCommand1.transform.SetRotationEuler(-90 + g_frameCounter);
 		}
-		renderCommandPoolToFill.textCommands.Add(g_textCommand1);
-		renderCommandPoolToFill.camera2D = g_2DCamera;
-		renderCommandPoolToFill.meshCommands.Add(Hail::RenderCommand_Mesh());
+		commandPoolToFill.AddTextCommand(g_textCommand1);
+		commandPoolToFill.camera2D = g_2DCamera;
+		commandPoolToFill.m_meshCommands.Add(Hail::GameCommand_Mesh());
 
 
 	}

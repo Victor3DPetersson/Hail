@@ -1,6 +1,7 @@
 #pragma once
 #include <cassert>
 #include <cstring>
+#include "Types.h"
 
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag = true, typename CountType = unsigned int>
 class VectorOnStack
@@ -18,6 +19,8 @@ public:
 
 	inline void Add(const Type& object);
 	inline Type& Add();
+	// Adds N to the counter, but does not make any initialization or construciton on the types
+	inline void AddN_NoConstruction(Hail::uint32 numberToAdd);
 	inline void Insert(CountType index, Type& object);
 	inline void RemoveCyclicAtIndex(CountType itemNumber);
 	inline Type* Data() 
@@ -85,8 +88,6 @@ VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType> &  VectorOnStack<Type,
 	return (*this);
 }
 
-	
-
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
 const Type& VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::operator[](const CountType& index) const
 {
@@ -115,6 +116,14 @@ Type& VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::Add()
 {
 	assert(m_end <= (Capacity) && "Vector is full");
 	return m_data[m_end++];
+}
+
+template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>
+void VectorOnStack<Type, Capacity, UseSafeModeFlag, CountType>::AddN_NoConstruction(Hail::uint32 numberToAdd)
+{
+	m_end += numberToAdd;
+	if (m_end > Capacity)
+		m_end = Capacity;
 }
 
 template <typename Type, unsigned int Capacity, bool UseSafeModeFlag, typename CountType>

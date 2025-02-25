@@ -25,25 +25,12 @@ namespace Hail
 		void WaitForGPU() override;
 
 		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) override;
-		void RenderMesh(const RenderCommand_Mesh& meshCommandToRender, uint32_t meshInstance) override;
+		void RenderMesh(const RenderData_Mesh& meshCommandToRender, uint32_t meshInstance) override;
 		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) override;
 		void RenderDebugLines3D(uint32 numberOfLinesToRender) override;
 		void RenderLetterBoxPass() override;
 
 	private:
-
-		// TODO: move out of the Vulkan renderer and have it in the main renderer.
-		void CreateVertexBuffer();
-		void CreateFullscreenVertexBuffer();
-		void CreateSpriteVertexBuffer();
-		void CreateIndexBuffer();
-		void CreateDebugLineVertexBuffer();
-
-		VlkBufferObject* m_pFullscreenVertexBuffer = nullptr;
-		VlkBufferObject* m_pSpriteVertexBuffer = nullptr;
-		VlkBufferObject* m_pVertexBuffer = nullptr;
-		VlkBufferObject* m_pIndexBuffer = nullptr;
-		VlkBufferObject* m_pDebugLineVertexBuffer = nullptr;
 	
 		VlkSwapChain* m_swapChain = nullptr;
 

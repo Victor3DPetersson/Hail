@@ -192,59 +192,26 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 	m_textureManager->Update(pRenderContext);
 	m_materialManager->Update();
 
-	const TextureResource* defaultTexture = m_textureManager->GetDefaultTexture().m_pTexture;
-	// Move to a sprite handler / renderer
-	const uint32_t numberOfSprites = renderPool.spriteCommands.Size();
-	const glm::vec2 renderResolution = m_swapChain->GetRenderTargetResolution();
-	for (size_t sprite = 0; sprite < numberOfSprites; sprite++)
-	{
-		const RenderCommand_Sprite& spriteCommand = renderPool.spriteCommands[sprite];
-		//Get sprite texture size and sort with material and everything here to the correct place. 
-		const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(spriteCommand.materialInstanceID, eMaterialType::SPRITE);
-		const TextureResource& texture = materialInstance.m_textureHandles[0] != INVALID_TEXTURE_HANDLE ? *m_textureManager->GetTexture(materialInstance.m_textureHandles[0]) : *defaultTexture;
-		const float textureAspectRatio = (float)texture.m_properties.width / (float)texture.m_properties.height;
+	BufferObject* instance2DBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::instanceBuffer2D);
+	pRenderContext->UploadDataToBuffer(instance2DBuffer, renderPool.m_2DRenderCommands.Data(), sizeof(RenderCommand2DBase) * renderPool.m_2DRenderCommands.Size());
 
-		glm::vec2 spriteScale = spriteCommand.transform.GetScale();
-		const glm::vec2 spriteSizeMultiplier = spriteCommand.bSizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : spriteCommand.transform.GetScale();
-		if (spriteCommand.bSizeRelativeToRenderTarget)
-		{
-			spriteScale.x *= textureAspectRatio;
-		}
-		else
-		{
-			const glm::vec2 scaleMultiplier = glm::vec2(texture.m_compiledTextureData.properties.width, texture.m_compiledTextureData.properties.height) / renderResolution.y;
-			spriteScale = (spriteScale * 2.0f) * scaleMultiplier;
-		}
-		
-		const glm::vec2 spritePosition = spriteCommand.transform.GetPosition();
-
-		const float cutoutThreshhold = materialInstance.m_blendMode == eBlendMode::None ? 0.0f : (float)materialInstance.m_cutoutThreshold / 256.f;
-
-		SpriteInstanceData spriteInstance{};
-		spriteInstance.position_scale = { spritePosition.x, spritePosition.y, spriteScale.x, spriteScale.y };
-		spriteInstance.uvTR_BL = spriteCommand.uvTR_BL;
-		spriteInstance.color = spriteCommand.color;
-		spriteInstance.pivot_rotation_padding = { spriteCommand.pivot.x, spriteCommand.pivot.y, spriteCommand.transform.GetRotationRad(), 0.0f };
-		spriteInstance.sizeMultiplier_effectData_cutoutThreshold_padding = { spriteSizeMultiplier.x, spriteSizeMultiplier.y, cutoutThreshhold, 0 };
-		m_spriteInstanceData.Add(spriteInstance);
-	}
-	BufferObject* spriteInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteInstanceBuffer);
-	pRenderContext->UploadDataToBuffer(spriteInstanceBuffer, m_spriteInstanceData.Data(), sizeof(SpriteInstanceData) * m_spriteInstanceData.Size());
+	BufferObject* pSpriteDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteDataBuffer);
+	pRenderContext->UploadDataToBuffer(pSpriteDataBuffer, renderPool.m_spriteData.Data(), sizeof(RenderData_Sprite) * renderPool.m_spriteData.Size());
 	
 	//Debug Lines___
 	//TODO: Add proper support for 3D lines and sort this list
-	m_numberOf2DDebugLines = renderPool.debugLineCommands.Size();
+	m_numberOf2DDebugLines = renderPool.m_debugLineCommands.Size();
 	for (size_t iDebugLine = 0; iDebugLine < m_numberOf2DDebugLines; iDebugLine++)
 	{
-		const RenderCommand_DebugLine& debugLine = renderPool.debugLineCommands[iDebugLine];
+		const DebugLineCommand& debugLine = renderPool.m_debugLineCommands[iDebugLine];
 
 		DebugLineData line; 
 		line.posAndIs2D = glm::vec4(debugLine.pos1.x, debugLine.pos1.y, debugLine.pos1.z, debugLine.bIs2D ? 0.0f : 1.0f);
-		line.color = debugLine.color1;
+		line.color = debugLine.color1.GetColorWithAlpha();
 		m_debugLineData.Add(line);
 
 		line.posAndIs2D = glm::vec4(debugLine.pos2.x, debugLine.pos2.y, debugLine.pos2.z, debugLine.bIs2D ? 0.0f : 1.0f);
-		line.color = debugLine.color2;
+		line.color = debugLine.color2.GetColorWithAlpha();
 		m_debugLineData.Add(line);
 	}
 	BufferObject* lineInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::lineInstanceBuffer);
@@ -285,13 +252,47 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 
 void Hail::ResourceManager::ClearFrameData()
 {
-	m_spriteInstanceData.Clear();
 	m_debugLineData.Clear();
 }
 
 void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolution)
 {
 	m_swapChain->SetTargetResolution(targetResolution);
+}
+
+void Hail::ResourceManager::SpriteRenderDataFromGameCommand(const GameCommand_Sprite& commandToCreateFrom, RenderCommand2DBase& baseCommandToFill, RenderData_Sprite& dataToFill)
+{
+	const TextureResource* defaultTexture = m_textureManager->GetDefaultTexture().m_pTexture;
+	const glm::vec2 renderResolution = m_swapChain->GetRenderTargetResolution();
+	const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(commandToCreateFrom.materialInstanceID, eMaterialType::SPRITE);
+	const TextureResource& texture = materialInstance.m_textureHandles[0] != INVALID_TEXTURE_HANDLE ? *m_textureManager->GetTexture(materialInstance.m_textureHandles[0]) : *defaultTexture;
+	const float textureAspectRatio = (float)texture.m_properties.width / (float)texture.m_properties.height;
+
+	glm::vec2 spriteScale = commandToCreateFrom.transform.GetScale();
+	const glm::vec2 spriteSizeMultiplier = commandToCreateFrom.bSizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : commandToCreateFrom.transform.GetScale();
+	if (commandToCreateFrom.bSizeRelativeToRenderTarget)
+	{
+		spriteScale.x *= textureAspectRatio;
+	}
+	else
+	{
+		const glm::vec2 scaleMultiplier = glm::vec2(texture.m_compiledTextureData.properties.width, texture.m_compiledTextureData.properties.height) / renderResolution.y;
+		spriteScale = (spriteScale * 2.0f) * scaleMultiplier;
+	}
+	const float cutoutThreshhold = materialInstance.m_blendMode == eBlendMode::None ? 0.0f : (float)materialInstance.m_cutoutThreshold / 256.f;
+
+	// The last bit is set to 1 or 0 for if the data should be lerped or not
+	baseCommandToFill.m_color = commandToCreateFrom.color;
+	baseCommandToFill.m_transform = commandToCreateFrom.transform;
+	baseCommandToFill.m_transform.SetScale(spriteScale);
+	baseCommandToFill.m_index_materialIndex_flags.u = commandToCreateFrom.index;
+	uint32 maskedValue = commandToCreateFrom.materialInstanceID << 16;
+	baseCommandToFill.m_index_materialIndex_flags.u |= (maskedValue | LerpCommandFlagMask | IsSpriteFlagMask);
+
+	dataToFill.uvTR_BL = commandToCreateFrom.uvTR_BL;
+	dataToFill.pivot_sizeMultiplier = { commandToCreateFrom.pivot.x, commandToCreateFrom.pivot.y, spriteSizeMultiplier.x, spriteSizeMultiplier.y };
+	dataToFill.cutoutThreshold_padding = { cutoutThreshhold, 0.f, 0.f, 0.f };
+
 }
 
 Hail::Mesh Hail::CreateUnitCube()

@@ -58,13 +58,12 @@ namespace Hail
 		Transform2D() {
 			m_pos = glm::vec2();
 			m_scl = glm::vec2(1, 1);
-			m_rot = -90.0f;
+			m_rot = Math::PI2f;
 		}
 		const Transform2D& operator=(const Transform2D& transform);
 
-		//Returns rotation in EulerAngles
-		__forceinline float GetRotation() const { return m_rot; };
-		__forceinline float GetRotationRad() const { return m_rot * Math::DegToRadf + Math::PIf * 0.5f; };
+		__forceinline float GetRotationEuler() const { return m_rot * Math::RadToDegf + 90.f; };
+		__forceinline float GetRotationRad() const { return m_rot; };
 		__forceinline glm::vec2 GetScale()	const { return m_scl; };
 		__forceinline glm::vec2 GetPosition() const { return m_pos; };
 
@@ -72,8 +71,10 @@ namespace Hail
 
 		void SetPosition(const glm::vec2 pos);
 		void AddToPosition(const glm::vec2 pos);
-		void SetRotation(const float rotInEulerAngles);
-		void AddToRotation(const float rotInEulerAngles);
+		void SetRotationRad(const float rot);
+		void SetRotationEuler(const float rot);
+		void AddToRotationRad(const float rot);
+		void AddToRotationEuler(const float rot);
 		void SetScale(const glm::vec2 scl);
 		void AddToScale(const glm::vec2 scl);
 		void LookAt(const glm::vec2 normalizedDirection);

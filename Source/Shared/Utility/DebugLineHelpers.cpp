@@ -1,13 +1,13 @@
 #include "Shared_PCH.h"
 #include "DebugLineHelpers.h"
-#include "../Engine/RenderCommands.h"
+#include "../Engine/Interface/GameCommands.h"
 
 
 namespace Hail
 {
-	void DrawLine2D(RenderCommandPool& poolToFill, glm::vec2 startPos, glm::vec2 endPos, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2, bool drawPixelSpace)
+	void DrawLine2D(ApplicationCommandPool& poolToFill, glm::vec2 startPos, glm::vec2 endPos, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2, bool drawPixelSpace)
 	{
-		RenderCommand_DebugLine line;
+		DebugLineCommand line;
 		line.pos1 = glm::vec3(startPos.x, startPos.y, 0.0f);
 		line.pos2 = glm::vec3(endPos.x, endPos.y, 0.0f);
 		line.color1 = color1;
@@ -16,18 +16,18 @@ namespace Hail
 		line.bIsAffectedBy2DCamera = bAffectedBy2DCamera;
 		line.bLerpCommand = true;
 		line.bIsNormalized = !drawPixelSpace;
-		poolToFill.debugLineCommands.Add(line);
+		poolToFill.AddDebugLine(line);
 	}
 
-	void DrawLine2DPixelSpace(RenderCommandPool& poolToFill, glm::vec2 startPos, glm::vec2 endPos, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2)
+	void DrawLine2DPixelSpace(ApplicationCommandPool& poolToFill, glm::vec2 startPos, glm::vec2 endPos, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2)
 	{
 		DrawLine2D(poolToFill, startPos, endPos, bAffectedBy2DCamera, color1, color2, true);
 	}
 
-	void DrawLine2D(RenderCommandPool& poolToFill, glm::vec2 startPos, float rotationRadian, float length, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2, bool drawPixelSpace)
+	void DrawLine2D(ApplicationCommandPool& poolToFill, glm::vec2 startPos, float rotationRadian, float length, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2, bool drawPixelSpace)
 	{
 		const float normalizedSpaceModifier = drawPixelSpace ? 1.f : poolToFill.inverseHorizontalAspectRatio;
-		RenderCommand_DebugLine line;
+		DebugLineCommand line;
 		line.pos1 = glm::vec3(startPos.x, startPos.y, 0.0f);
 		const float x = sin(rotationRadian) * length * normalizedSpaceModifier;
 		const float y = cos(rotationRadian) * -length;
@@ -38,17 +38,17 @@ namespace Hail
 		line.bLerpCommand = true;
 		line.bIsAffectedBy2DCamera = bAffectedBy2DCamera;
 		line.bIsNormalized = !drawPixelSpace;
-		poolToFill.debugLineCommands.Add(line);
+		poolToFill.AddDebugLine(line);
 	}
 
-	void DrawLine2DPixelSpace(RenderCommandPool& poolToFill, glm::vec2 startPos, float rotationRadian, float length, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2)
+	void DrawLine2DPixelSpace(ApplicationCommandPool& poolToFill, glm::vec2 startPos, float rotationRadian, float length, bool bAffectedBy2DCamera, glm::vec4 color1, glm::vec4 color2)
 	{
 		DrawLine2D(poolToFill, startPos, rotationRadian, length, bAffectedBy2DCamera, color1, color2, true);
 	}
 
-	void DrawBox2D(RenderCommandPool& poolToFill, glm::vec2 pos, glm::vec2 dimensions, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
+	void DrawBox2D(ApplicationCommandPool& poolToFill, glm::vec2 pos, glm::vec2 dimensions, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
 	{
-		RenderCommand_DebugLine line;
+		DebugLineCommand line;
 		line.color1 = color;
 		line.color2 = color;
 		line.bIs2D = true;
@@ -59,41 +59,41 @@ namespace Hail
 		//Top
 		line.pos1 = glm::vec3(pos.x - adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
 		line.pos2 = glm::vec3(pos.x + adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
-		poolToFill.debugLineCommands.Add(line);
+		poolToFill.AddDebugLine(line);
 		//Right
 		line.pos1 = glm::vec3(pos.x + adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
 		line.pos2 = glm::vec3(pos.x + adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		poolToFill.debugLineCommands.Add(line);
+		poolToFill.AddDebugLine(line);
 		//Bottom
 		line.pos1 = glm::vec3(pos.x - adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
 		line.pos2 = glm::vec3(pos.x + adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		poolToFill.debugLineCommands.Add(line);
+		poolToFill.AddDebugLine(line);
 		//Left
 		line.pos1 = glm::vec3(pos.x - adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
 		line.pos2 = glm::vec3(pos.x - adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		poolToFill.debugLineCommands.Add(line);
+		poolToFill.AddDebugLine(line);
 	}
 
-	void DrawBox2DPixelSpace(RenderCommandPool& poolToFill, glm::vec2 pos, glm::vec2 dimensions, bool bAffectedBy2DCamera, glm::vec4 color)
+	void DrawBox2DPixelSpace(ApplicationCommandPool& poolToFill, glm::vec2 pos, glm::vec2 dimensions, bool bAffectedBy2DCamera, glm::vec4 color)
 	{
 		DrawBox2D(poolToFill, pos, dimensions, bAffectedBy2DCamera, color, true);
 	}
 
-	void DrawBox2DMinMax(RenderCommandPool& poolToFill, glm::vec2 min, glm::vec2 max, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
+	void DrawBox2DMinMax(ApplicationCommandPool& poolToFill, glm::vec2 min, glm::vec2 max, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
 	{
 		const glm::vec2 dimensions = max - min;
 		const glm::vec2 halfDimensions = dimensions * 0.5f;
 		DrawBox2D(poolToFill, min + halfDimensions, dimensions, bAffectedBy2DCamera, color, drawPixelSpace);
 	}
 
-	void DrawBox2DMinMaxPixelSpace(RenderCommandPool& poolToFill, glm::vec2 min, glm::vec2 max, bool bAffectedBy2DCamera, glm::vec4 color)
+	void DrawBox2DMinMaxPixelSpace(ApplicationCommandPool& poolToFill, glm::vec2 min, glm::vec2 max, bool bAffectedBy2DCamera, glm::vec4 color)
 	{
 		DrawBox2DMinMax(poolToFill, min, max, bAffectedBy2DCamera, color, true);
 	}
 
-	void DrawCircle2D(RenderCommandPool& poolToFill, glm::vec2 pos, float radius, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
+	void DrawCircle2D(ApplicationCommandPool& poolToFill, glm::vec2 pos, float radius, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
 	{
-		RenderCommand_DebugLine line;
+		DebugLineCommand line;
 		line.color1 = color;
 		line.color2 = color;
 		line.bIs2D = true;
@@ -112,11 +112,11 @@ namespace Hail
 			const float x2 = radius * cosf(i2 * dTheta) * normalizedSpaceModifier + pos.x;
 			const float y2 = radius * sinf(i2 * dTheta) + pos.y;
 			line.pos2 = glm::vec3(x2, y2, 0.0f);
-			poolToFill.debugLineCommands.Add(line);
+			poolToFill.AddDebugLine(line);
 		}
 	}
 
-	void DrawCircle2DPixelSpace(RenderCommandPool& poolToFill, glm::vec2 pos, float radius, bool bAffectedBy2DCamera, glm::vec4 color)
+	void DrawCircle2DPixelSpace(ApplicationCommandPool& poolToFill, glm::vec2 pos, float radius, bool bAffectedBy2DCamera, glm::vec4 color)
 	{
 		DrawCircle2D(poolToFill, pos, radius, bAffectedBy2DCamera, color, true);
 	}

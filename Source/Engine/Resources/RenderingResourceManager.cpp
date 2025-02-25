@@ -1,6 +1,8 @@
 #include "Engine_PCH.h"
 #include "RenderingResourceManager.h"
 #include "Resources_Materials\ShaderBufferList.h"
+
+#include "RenderCommands.h"
 using namespace Hail;
 
 BufferObject* Hail::RenderingResourceManager::GetGlobalBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint)
@@ -139,9 +141,9 @@ bool Hail::RenderingResourceManager::InternalInit()
         properties.elementByteSize = 0;
         switch ((eMaterialBuffers)i)
         {
-        case Hail::eMaterialBuffers::spriteInstanceBuffer:
-            properties.numberOfElements = MAX_NUMBER_OF_SPRITES;
-            properties.elementByteSize = sizeof(SpriteInstanceData);
+        case Hail::eMaterialBuffers::instanceBuffer2D:
+            properties.numberOfElements = MAX_NUMBER_OF_2D_RENDER_COMMANDS;
+            properties.elementByteSize = sizeof(RenderCommand2DBase);
             properties.domain = eShaderBufferDomain::CpuToGpu;
             properties.usage = eShaderBufferUsage::Read;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
@@ -149,6 +151,13 @@ bool Hail::RenderingResourceManager::InternalInit()
         case Hail::eMaterialBuffers::lineInstanceBuffer:
             properties.numberOfElements = MAX_NUMBER_OF_DEBUG_LINES;
             properties.elementByteSize = sizeof(DebugLineData);
+            properties.domain = eShaderBufferDomain::CpuToGpu;
+            properties.usage = eShaderBufferUsage::Read;
+            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+            break;
+        case Hail::eMaterialBuffers::spriteDataBuffer:
+            properties.numberOfElements = MAX_NUMBER_OF_SPRITES;
+            properties.elementByteSize = sizeof(RenderData_Sprite);
             properties.domain = eShaderBufferDomain::CpuToGpu;
             properties.usage = eShaderBufferUsage::Read;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;

@@ -17,6 +17,9 @@ namespace Hail
 	class SwapChain;
 	class TextureManager;
 	class Timer;
+	struct GameCommand_Sprite;
+	struct RenderCommand2DBase;
+	struct RenderData_Sprite;
 
 	class ResourceManager
 	{
@@ -45,6 +48,8 @@ namespace Hail
 		void ClearFrameData();
 		void SetSwapchainTargetResolution(glm::uvec2 targetResolution);
 
+		void SpriteRenderDataFromGameCommand(const GameCommand_Sprite& commandToCreateFrom, RenderCommand2DBase& baseCommandToFill, RenderData_Sprite& dataToFill);
+		
 		SwapChain* GetSwapChain() { return m_swapChain; }
 
 		Mesh m_unitCube;
@@ -69,8 +74,6 @@ namespace Hail
 		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
 
 		//Instance resources
-
-		VectorOnStack<SpriteInstanceData, MAX_NUMBER_OF_SPRITES, false> m_spriteInstanceData;
 
 		uint32 m_numberOf2DDebugLines;
 		uint32 m_numberOf3DDebugLines;

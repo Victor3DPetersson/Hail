@@ -5,6 +5,7 @@
 #include "Resources\ResourceManager.h"
 #include "Rendering\SwapChain.h"
 #include "Input\InputActionMap.h"
+#include "Utility\Sorting.h"
 
 using namespace Hail;
 
@@ -14,26 +15,156 @@ void Hail::ThreadSyncronizer::Init(float tickTimer)
 	m_currentActiveRenderPoolWrite = 0;
 	m_currentActiveRenderPoolRead = 1;
 	m_currentActiveRenderPoolLastRead = 2;
-	m_appData.renderPool = &m_renderCommandPools[m_currentActiveRenderPoolWrite];
+	m_currentActiveAppCommandPoolWrite = 0;
+	m_currentActiveAppCommandPoolRead = 1;
+	m_appData.commandPoolToFill = &m_appCommandPools[m_currentActiveAppCommandPoolWrite];
 }
 
 void Hail::ThreadSyncronizer::SynchronizeAppData(InputActionMap& inputActionMap, ImGuiCommandRecorder& imguiCommandRecorder, ResourceManager& resourceManager)
 {
 	m_currentResolution = ResolutionFromEnum(resourceManager.GetTargetResolution());
 	SwapBuffersInternal();
-	ClearApplicationBuffers();
 	m_appData.rawInputData = inputActionMap.GetRawInputMap();
 	m_appData.inputActionMap = &inputActionMap;
 	m_appData.imguiCommandRecorder = &imguiCommandRecorder;
 	m_currentRenderTimer = 0.0f;
-	m_appData.renderPool->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();
-	m_appData.renderPool->inverseHorizontalAspectRatio = 1.0 / m_appData.renderPool->horizontalAspectRatio;
-	m_appData.renderPool->camera2D.SetResolution(m_currentResolution);
+	m_appData.commandPoolToFill->NewFrame();
+	m_appData.commandPoolToFill->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();
+	m_appData.commandPoolToFill->inverseHorizontalAspectRatio = 1.0 / m_appData.commandPoolToFill->horizontalAspectRatio;
+	m_appData.commandPoolToFill->camera2D.SetResolution(m_currentResolution);
+}
+
+void Hail::ThreadSyncronizer::TransferGameCommandsToRenderCommands(ResourceManager& resourceManager)
+{
+	ApplicationCommandPool& poolToTransferFrom = m_appCommandPools[m_currentActiveAppCommandPoolRead];
+	// Filling data from the read pool
+	RenderCommandPool& renderPoolReadToFill = m_renderCommandPools[m_currentActiveRenderPoolRead];
+
+	//prepare data structures for the pool we are going to fill
+	renderPoolReadToFill.m_batches.Clear();
+	renderPoolReadToFill.m_layersBatchOffset.Clear();
+	renderPoolReadToFill.m_2DRenderCommands.Clear();
+	renderPoolReadToFill.m_spriteData.Clear();
+	renderPoolReadToFill.m_textData.Clear();
+	renderPoolReadToFill.m_debugLineCommands.Clear();
+
+	uint16 textCounter = 0u;
+	uint16 spriteCounter = 0u;
+	uint32 batchCounter = 0u;
+	for (uint16 iLayer = 0; iLayer < poolToTransferFrom.m_depthTypeCounters.Size(); iLayer++)
+	{
+		const DepthTypeCounter2D& depthTypeCounter = poolToTransferFrom.m_depthTypeCounters[iLayer];
+
+		H_ASSERT(depthTypeCounter.m_spriteCounter || depthTypeCounter.m_textCounter);
+		renderPoolReadToFill.m_layersBatchOffset.Add(batchCounter);
+
+		uint32 currentMaterialID{MAX_UINT - 1};
+		uint16 numberOfInstancesInBatch = 0;
+		const int32 spriteCounterBeforeBatching = spriteCounter;
+
+		for (uint16 iSpriteC = 0; iSpriteC < depthTypeCounter.m_spriteCounter; iSpriteC++)
+		{
+			numberOfInstancesInBatch++;
+			// Prepare all sprite data we need from application data
+			const uint16 iSpriteCIndex = spriteCounterBeforeBatching + iSpriteC;
+			GameCommand_Sprite& spriteCToTransfer = poolToTransferFrom.m_spriteCommands[iSpriteCIndex];
+
+			RenderCommand2DBase& commandToAdd = renderPoolReadToFill.m_2DRenderCommands.Add();
+			commandToAdd.m_dataIndex = renderPoolReadToFill.m_spriteData.Size();
+			RenderData_Sprite& dataToAdd = renderPoolReadToFill.m_spriteData.Add();
+			resourceManager.SpriteRenderDataFromGameCommand(spriteCToTransfer, commandToAdd, dataToAdd);
+
+			const uint32 nextSpriteIndex = Math::Min(iSpriteCIndex + 1, (depthTypeCounter.m_spriteCounter + spriteCounterBeforeBatching) - 1);
+			const uint32 nextMaterialID = poolToTransferFrom.m_spriteCommands[nextSpriteIndex].materialInstanceID;
+			if (spriteCToTransfer.materialInstanceID != nextMaterialID)
+			{
+				currentMaterialID = poolToTransferFrom.m_spriteCommands[iSpriteCIndex].materialInstanceID;
+
+				Batch2DInfo& spriteBatch = renderPoolReadToFill.m_batches.Add();
+				spriteBatch.m_type = eCommandType::Sprite;
+				spriteBatch.m_instanceOffset = spriteCounter + textCounter;
+				spriteBatch.m_numberOfInstances = numberOfInstancesInBatch;
+				batchCounter++;
+				spriteCounter += numberOfInstancesInBatch;
+				numberOfInstancesInBatch = 0;
+			}
+		}
+
+		if (numberOfInstancesInBatch)
+		{
+
+			Batch2DInfo& spriteBatch = renderPoolReadToFill.m_batches.Add();
+			spriteBatch.m_type = eCommandType::Sprite;
+			spriteBatch.m_instanceOffset = spriteCounter + textCounter;
+			spriteBatch.m_numberOfInstances = numberOfInstancesInBatch;
+			batchCounter++;
+
+			spriteCounter += numberOfInstancesInBatch;
+			numberOfInstancesInBatch = 0;
+		}
+
+		if (depthTypeCounter.m_textCounter == 0u)
+			continue;
+
+		Batch2DInfo& textBatch = renderPoolReadToFill.m_batches.Add();
+		textBatch.m_type = eCommandType::Text;
+		textBatch.m_instanceOffset = spriteCounter + textCounter;
+		textBatch.m_numberOfInstances = depthTypeCounter.m_textCounter;
+		batchCounter++;
+		for (uint16 iTextC = 0; iTextC < depthTypeCounter.m_textCounter; iTextC++)
+		{
+			const uint16 iTextCAdjusted = textCounter + iTextC;
+
+			GameCommand_Text& textCToTransfer = poolToTransferFrom.m_textCommands[iTextCAdjusted];
+
+			RenderCommand2DBase& commandToAdd = renderPoolReadToFill.m_2DRenderCommands.Add();
+			commandToAdd.m_dataIndex = renderPoolReadToFill.m_textData.Size();
+			commandToAdd.m_color = textCToTransfer.color;
+			commandToAdd.m_transform = textCToTransfer.transform;
+			commandToAdd.m_index_materialIndex_flags.u = textCToTransfer.index;
+			// The last bit is set to 1 or 0 for if the data should be lerped or not
+			commandToAdd.m_index_materialIndex_flags.u |= (textCToTransfer.bLerpCommand ? LerpCommandFlagMask : 0);
+
+			RenderData_Text& dataToAdd = renderPoolReadToFill.m_textData.Add();
+			dataToAdd.text = textCToTransfer.text;
+			dataToAdd.textSize = textCToTransfer.textSize;
+		}
+		textCounter += depthTypeCounter.m_textCounter;
+	}
+
+	for (uint16 i = 0; i < poolToTransferFrom.m_debugLineCommands.Size(); i++)
+		renderPoolReadToFill.m_debugLineCommands.Add(poolToTransferFrom.m_debugLineCommands[i]);
+
+	// Transfer to the current write render pool the data we do not need to lerp each frame
+	RenderCommandPool& writeRenderPool = GetRenderPool();
+	writeRenderPool.m_spriteData.Clear();
+	writeRenderPool.m_spriteData.AddN_NoConstruction(renderPoolReadToFill.m_spriteData.Size());
+	writeRenderPool.m_textData.Clear();
+	writeRenderPool.m_textData.AddN_NoConstruction(renderPoolReadToFill.m_textData.Size());
+	writeRenderPool.m_batches.Clear();
+	writeRenderPool.m_batches.AddN_NoConstruction(renderPoolReadToFill.m_batches.Size());
+	writeRenderPool.m_layersBatchOffset.Clear();
+	writeRenderPool.m_layersBatchOffset.AddN_NoConstruction(renderPoolReadToFill.m_layersBatchOffset.Size());
+
+	// TODO make a CopyN function
+	for (uint32 i = 0; i < renderPoolReadToFill.m_spriteData.Size(); i++)
+		writeRenderPool.m_spriteData[i] = renderPoolReadToFill.m_spriteData[i];
+
+	for (uint32 i = 0; i < renderPoolReadToFill.m_textData.Size(); i++)
+		writeRenderPool.m_textData[i] = renderPoolReadToFill.m_textData[i];
+
+	for (uint32 i = 0; i < renderPoolReadToFill.m_batches.Size(); i++)
+		writeRenderPool.m_batches[i] = renderPoolReadToFill.m_batches[i];
+
+	for (uint32 i = 0; i < renderPoolReadToFill.m_layersBatchOffset.Size(); i++)
+		writeRenderPool.m_layersBatchOffset[i] = renderPoolReadToFill.m_layersBatchOffset[i];
+
 }
 
 void Hail::ThreadSyncronizer::SynchronizeRenderData(float frameDeltaTime)
 {
 	m_currentRenderTimer += frameDeltaTime;
+
 	LerpRenderBuffers();
 }
 
@@ -51,26 +182,37 @@ void Transform2DLineFromPixelSpaceToNormalizedSpace(glm::vec3& start, glm::vec3&
 
 void Hail::ThreadSyncronizer::PrepareApplicationData()
 {
-	RenderCommandPool* pPool = m_appData.renderPool;
+	ApplicationCommandPool* pPool = m_appData.commandPoolToFill;
 	Camera2D& camera = pPool->camera2D;
 	camera.SetResolution(m_currentResolution);
-	for (size_t i = 0; i < pPool->spriteCommands.Size(); i++)
+
+	// Sorting the game data 
+	DepthTypeCounter2D* depthCounterList = pPool->m_depthTypeCounters.Data();
+	Sorting::LinearBubbleDepthTypeCounter(&depthCounterList, pPool->m_depthTypeCounters.Size());
+
+	GameCommand_Sprite* spriteList = pPool->m_spriteCommands.Data();
+	Sorting::LinearBubbleSpriteCommand(&spriteList, pPool->m_spriteCommands.Size());
+
+	GameCommand_Text* textList = pPool->m_textCommands.Data();
+	Sorting::LinearBubbleTextDepth(&textList, pPool->m_textCommands.Size());
+
+	for (size_t i = 0; i < pPool->m_spriteCommands.Size(); i++)
 	{
-		RenderCommand_Sprite& sprite = pPool->spriteCommands[i];
+		GameCommand_Sprite& sprite = pPool->m_spriteCommands[i];
 		if (sprite.bIsAffectedBy2DCamera)
 		{
 			camera.TransformToCameraSpace(sprite.transform);
 		}
 	}
-	for (size_t i = 0; i < pPool->textCommands.Size(); i++)
+	for (size_t i = 0; i < pPool->m_textCommands.Size(); i++)
 	{
-		RenderCommand_Text& textC = pPool->textCommands[i];
+		GameCommand_Text& textC = pPool->m_textCommands[i];
 		if (!textC.bNormalizedPosition)
 			camera.TransformToCameraSpace(textC.transform);
 	}
-	for (size_t i = 0; i < pPool->debugLineCommands.Size(); i++)
+	for (size_t i = 0; i < pPool->m_debugLineCommands.Size(); i++)
 	{
-		RenderCommand_DebugLine& line = pPool->debugLineCommands[i];
+		DebugLineCommand& line = pPool->m_debugLineCommands[i];
 		if (line.bIs2D)
 		{
 			if (line.bIsAffectedBy2DCamera)
@@ -84,7 +226,6 @@ void Hail::ThreadSyncronizer::PrepareApplicationData()
 				Transform2DLineFromPixelSpaceToNormalizedSpace(line.pos1, line.pos2, camera.GetResolution());
 		}
 	}
-
 }
 
 void Hail::ThreadSyncronizer::SwapBuffersInternal()
@@ -93,150 +234,111 @@ void Hail::ThreadSyncronizer::SwapBuffersInternal()
 	m_currentActiveRenderPoolLastRead = m_currentActiveRenderPoolRead;
 	m_currentActiveRenderPoolRead = m_currentActiveRenderPoolWrite;
 	m_currentActiveRenderPoolWrite = lastRead;
-	m_appData.renderPool = &m_renderCommandPools[m_currentActiveRenderPoolWrite];
-}
 
-void Hail::ThreadSyncronizer::ClearApplicationBuffers()
-{
-	m_appData.renderPool->debugLineCommands.Clear();
-	m_appData.renderPool->meshCommands.Clear();
-	m_appData.renderPool->spriteCommands.Clear();
-	m_appData.renderPool->textCommands.Clear();
-}
+	m_currentActiveAppCommandPoolRead = m_currentActiveAppCommandPoolWrite;
+	m_currentActiveAppCommandPoolWrite = (m_currentActiveAppCommandPoolWrite + 1) % 2;
 
-
-void Hail::ThreadSyncronizer::TransferBufferSizes()
-{
-	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
-	m_rendererCommandPool.spriteCommands.TransferSize(readPool.spriteCommands);
-	m_rendererCommandPool.meshCommands.TransferSize(readPool.meshCommands);
-	m_rendererCommandPool.debugLineCommands.TransferSize(readPool.debugLineCommands);
-	m_rendererCommandPool.textCommands.TransferSize(readPool.textCommands);
+	m_appData.commandPoolToFill = &m_appCommandPools[m_currentActiveAppCommandPoolWrite];
 }
 
 void Hail::ThreadSyncronizer::LerpRenderBuffers()
 {
-	TransferBufferSizes();
 	float tValue = m_currentRenderTimer / m_engineTickRate;
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
-	m_rendererCommandPool.camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
+	m_renderCommandPools[m_currentActiveRenderPoolWrite].camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
 	
-	LerpSprites(tValue);
+	RenderCommandPool& writePool = GetRenderPool();
+	writePool.camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
+
+	writePool.m_2DRenderCommands.Clear();
+	writePool.m_2DRenderCommands.AddN_NoConstruction(readPool.m_2DRenderCommands.Size());
+	writePool.m_debugLineCommands.Clear();
+	writePool.m_debugLineCommands.AddN_NoConstruction(readPool.m_debugLineCommands.Size());
+
+	for (uint32 i2DInstanceID = 0; i2DInstanceID < readPool.m_2DRenderCommands.Size(); i2DInstanceID++)
+	{
+		const RenderCommand2DBase& readCommand = readPool.m_2DRenderCommands[i2DInstanceID];
+
+		if ((readCommand.m_index_materialIndex_flags.u & LerpCommandFlagMask) == 0)
+		{
+			writePool.m_2DRenderCommands[i2DInstanceID] = readCommand;
+			H_ASSERT(writePool.m_2DRenderCommands[i2DInstanceID].m_dataIndex != MAX_UINT);
+			continue;
+		}
+		
+		RenderCommand2DBase& writeCommand = writePool.m_2DRenderCommands[i2DInstanceID];
+		//search for correct index, might be performant dumb dumb, but lets improve this when needed
+		bool foundCommand = false;
+		if (i2DInstanceID < lastReadPool.m_2DRenderCommands.Size())
+		{
+			if (readCommand.m_index_materialIndex_flags.u == lastReadPool.m_2DRenderCommands[i2DInstanceID].m_index_materialIndex_flags.u)
+			{
+				foundCommand = true;
+				LerpRenderCommand2DBase(writeCommand, readCommand, lastReadPool.m_2DRenderCommands[i2DInstanceID], tValue);
+			}
+			else
+			{
+				uint16 iMissingCommand = Math::Min(uint16(i2DInstanceID + 1u), uint16(lastReadPool.m_2DRenderCommands.Size() - 1u));
+				for (; iMissingCommand < lastReadPool.m_2DRenderCommands.Size(); ++iMissingCommand)
+				{
+					if (lastReadPool.m_2DRenderCommands[iMissingCommand].m_index_materialIndex_flags.u > readCommand.m_index_materialIndex_flags.u)
+						break;
+
+					if (readCommand.m_index_materialIndex_flags.u == lastReadPool.m_2DRenderCommands[iMissingCommand].m_index_materialIndex_flags.u)
+					{
+						foundCommand = true;
+						LerpRenderCommand2DBase(writeCommand, readCommand, lastReadPool.m_2DRenderCommands[iMissingCommand], tValue);
+						break;
+					}
+				}
+			}
+		}
+
+		if (!foundCommand)
+			writeCommand = readCommand;
+	}
+
 	Lerp3DModels(tValue);
 	LerpDebugLines(tValue);
-	LerpTextCommands(tValue);
 }
 
 namespace 
 {
-	void LerpSpriteCommand(const RenderCommand_Sprite& readSprite, const RenderCommand_Sprite& lastReadSprite, RenderCommand_Sprite& writeSprite, float t)
-	{
-		writeSprite.transform = Transform2D::LerpTransforms(readSprite.transform, lastReadSprite.transform, t);
-		writeSprite.uvTR_BL = glm::mix(readSprite.uvTR_BL, lastReadSprite.uvTR_BL, t);
-		writeSprite.color = glm::mix(readSprite.color, lastReadSprite.color, t);
-		writeSprite.pivot = glm::mix(readSprite.pivot, lastReadSprite.pivot, t);
-		writeSprite.index = readSprite.index;
-		writeSprite.materialInstanceID = readSprite.materialInstanceID;
-		writeSprite.bLerpCommand = readSprite.bLerpCommand;
-		writeSprite.bIsAffectedBy2DCamera = readSprite.bIsAffectedBy2DCamera;
-		writeSprite.bSizeRelativeToRenderTarget = readSprite.bSizeRelativeToRenderTarget;
-	}
-
-	void LerpMeshCommand(const RenderCommand_Mesh& readMesh, const RenderCommand_Mesh& lastReadMesh, RenderCommand_Mesh& writeMesh, float t)
+	void LerpMeshCommand(const RenderData_Mesh& readMesh, const RenderData_Mesh& lastReadMesh, RenderData_Mesh& writeMesh, float t)
 	{
 		writeMesh.transform = Transform3D::LerpTransforms_t(readMesh.transform, lastReadMesh.transform, t);
-		writeMesh.color = glm::mix(readMesh.color, lastReadMesh.color, t);
+		writeMesh.color = Color::Lerp(readMesh.color, lastReadMesh.color, t);
 		writeMesh.meshID = readMesh.meshID;
 		writeMesh.index = readMesh.index;
 		writeMesh.materialInstanceID = readMesh.materialInstanceID;
 		writeMesh.bLerpCommand = readMesh.bLerpCommand;
 	}
 
-	void LerpDebugLine(const RenderCommand_DebugLine& readLine, const RenderCommand_DebugLine& lastReadLine, RenderCommand_DebugLine& writeLine, float t)
+	void LerpDebugLine(const DebugLineCommand& readLine, const DebugLineCommand& lastReadLine, DebugLineCommand& writeLine, float t)
 	{
-		writeLine.color1 = glm::mix(readLine.color1, lastReadLine.color1, t);
-		writeLine.color2 = glm::mix(readLine.color2, lastReadLine.color2, t);
+		writeLine.color1 = Color::Lerp(readLine.color1, lastReadLine.color1, t);
+		writeLine.color2 = Color::Lerp(readLine.color2, lastReadLine.color2, t);
 		writeLine.pos1 = glm::mix(readLine.pos1, lastReadLine.pos1, t);
 		writeLine.pos2 = glm::mix(readLine.pos2, lastReadLine.pos2, t);
 		writeLine.bIs2D = readLine.bIs2D;
 		writeLine.bLerpCommand = readLine.bLerpCommand;
 		writeLine.bIsAffectedBy2DCamera = readLine.bIsAffectedBy2DCamera;
 	}
-
-	void LerpTextCommand(const RenderCommand_Text& readTextC, const RenderCommand_Text& lastReadTextC, RenderCommand_Text& writeTextC, float t)
-	{
-		writeTextC.transform = Transform2D::LerpTransforms(readTextC.transform, lastReadTextC.transform, t);
-		writeTextC.color = glm::mix(readTextC.color, lastReadTextC.color, t);
-		writeTextC.text = readTextC.text;
-		writeTextC.index = readTextC.index;
-		writeTextC.bLerpCommand = readTextC.bLerpCommand;
-	}
 }
 
-void Hail::ThreadSyncronizer::LerpSprites(float tValue)
-{
-	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
-	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
-	//Lerp sprites
-	const uint32_t numberOfSprites = readPool.spriteCommands.Size();
-	const uint32_t lastReadNumberOfSprites = lastReadPool.spriteCommands.Size();
-	for (uint16_t sprite = 0; sprite < numberOfSprites; sprite++)
-	{
-		const RenderCommand_Sprite& readSprite = readPool.spriteCommands[sprite];
-		RenderCommand_Sprite& writeSprite = m_rendererCommandPool.spriteCommands[sprite];
-
-		if (sprite >= lastReadNumberOfSprites)
-		{
-			writeSprite = readSprite;
-			continue;
-		}
-
-		const RenderCommand_Sprite& lastReadSprite = lastReadPool.spriteCommands[sprite];
-		if (readSprite.bLerpCommand)
-		{
-			if (readSprite.index == lastReadSprite.index)
-			{
-				LerpSpriteCommand(readSprite, lastReadSprite, writeSprite, tValue);
-			}
-			else
-			{
-				//search for correct index
-				//Switch to use an ordered heap or something like that later to increase performance.
-				bool foundSprite = false;
-				for (uint16_t missingSprite = sprite; missingSprite < lastReadNumberOfSprites; missingSprite++)
-				{
-					if (readSprite.index == lastReadPool.spriteCommands[missingSprite].index)
-					{
-						foundSprite = true;
-						LerpSpriteCommand(readSprite, lastReadPool.spriteCommands[missingSprite], writeSprite, tValue);
-						break;
-					}
-				}
-				if (foundSprite == false)
-				{
-					writeSprite = readSprite;
-				}
-			}
-		}
-		else
-		{
-			writeSprite = readSprite;
-		}
-	}
-}
 
 void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
 {
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
 	//Lerp sprites
-	const uint32_t numberOfModels = readPool.meshCommands.Size();
-	const uint32_t lastReadNumberOfModels = lastReadPool.meshCommands.Size();
+	const uint32_t numberOfModels = readPool.m_meshData.Size();
+	const uint32_t lastReadNumberOfModels = lastReadPool.m_meshData.Size();
 	for (uint16_t mesh = 0; mesh < numberOfModels; mesh++)
 	{
-		const RenderCommand_Mesh& readMesh = readPool.meshCommands[mesh];
-		RenderCommand_Mesh& writeMesh = m_rendererCommandPool.meshCommands[mesh];
+		const RenderData_Mesh& readMesh = readPool.m_meshData[mesh];
+		RenderData_Mesh& writeMesh = GetRenderPool().m_meshData[mesh];
 
 		if (mesh >= lastReadNumberOfModels)
 		{
@@ -244,7 +346,7 @@ void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
 			continue;
 		}
 
-		const RenderCommand_Mesh& lastReadMesh = lastReadPool.meshCommands[mesh];
+		const RenderData_Mesh& lastReadMesh = lastReadPool.m_meshData[mesh];
 		if (readMesh.bLerpCommand)
 		{
 			if (readMesh.index == lastReadMesh.index)
@@ -258,10 +360,10 @@ void Hail::ThreadSyncronizer::Lerp3DModels(float tValue)
 				bool foundMesh = false;
 				for (uint16_t missingMesh = mesh; missingMesh < lastReadNumberOfModels; missingMesh++)
 				{
-					if (readMesh.index == lastReadPool.meshCommands[missingMesh].index)
+					if (readMesh.index == lastReadPool.m_meshData[missingMesh].index)
 					{
 						foundMesh = true;
-						LerpMeshCommand(readMesh, lastReadPool.meshCommands[missingMesh], writeMesh, tValue);
+						LerpMeshCommand(readMesh, lastReadPool.m_meshData[missingMesh], writeMesh, tValue);
 						break;
 					}
 				}
@@ -283,12 +385,12 @@ void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
 	//TODO: Add proper support for 3D lines and sort these lists
-	const uint32_t numberOfLines = readPool.debugLineCommands.Size();
-	const uint32_t lastReadNumberOfLines = lastReadPool.debugLineCommands.Size();
+	const uint32_t numberOfLines = readPool.m_debugLineCommands.Size();
+	const uint32_t lastReadNumberOfLines = lastReadPool.m_debugLineCommands.Size();
 	for (uint16_t iLine = 0; iLine < numberOfLines; iLine++)
 	{
-		const RenderCommand_DebugLine& readLine = readPool.debugLineCommands[iLine];
-		RenderCommand_DebugLine& writeLine = m_rendererCommandPool.debugLineCommands[iLine];
+		const DebugLineCommand& readLine = readPool.m_debugLineCommands[iLine];
+		DebugLineCommand& writeLine = GetRenderPool().m_debugLineCommands[iLine];
 
 		if (iLine >= lastReadNumberOfLines)
 		{
@@ -296,7 +398,7 @@ void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
 			continue;
 		}
 
-		const RenderCommand_DebugLine& lastReadLine = lastReadPool.debugLineCommands[iLine];
+		const DebugLineCommand& lastReadLine = lastReadPool.m_debugLineCommands[iLine];
 		if (lastReadLine.bLerpCommand)
 		{
 			LerpDebugLine(readLine, lastReadLine, writeLine, tValue);
@@ -304,35 +406,6 @@ void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
 		else
 		{
 			writeLine = readLine;
-		}
-	}
-}
-
-void Hail::ThreadSyncronizer::LerpTextCommands(float tValue)
-{
-	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
-	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
-	const uint32_t numberOfTexts = readPool.textCommands.Size();
-	const uint32_t lastReadNumberOfTexts = lastReadPool.textCommands.Size();
-	for (uint16_t iTextC = 0; iTextC < numberOfTexts; iTextC++)
-	{
-		const RenderCommand_Text& readText = readPool.textCommands[iTextC];
-		RenderCommand_Text& writeText = m_rendererCommandPool.textCommands[iTextC];
-
-		if (iTextC >= lastReadNumberOfTexts)
-		{
-			writeText = readText;
-			continue;
-		}
-
-		const RenderCommand_Text& lastReadText = lastReadPool.textCommands[iTextC];
-		if (lastReadText.bLerpCommand)
-		{
-			LerpTextCommand(readText, lastReadText, writeText, tValue);
-		}
-		else
-		{
-			writeText = readText;
 		}
 	}
 }

@@ -66,15 +66,6 @@ namespace Hail
 
 	// Structured Buffers
 
-	struct SpriteInstanceData
-	{
-		glm::vec4 position_scale;
-		glm::vec4 uvTR_BL;
-		glm::vec4 color;
-		glm::vec4 pivot_rotation_padding; //vec2, float, float
-		glm::vec4 sizeMultiplier_effectData_cutoutThreshold_padding;
-	};
-
 	struct DebugLineData
 	{
 		glm::vec4 posAndIs2D;

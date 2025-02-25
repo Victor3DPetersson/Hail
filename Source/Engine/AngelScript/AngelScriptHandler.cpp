@@ -89,102 +89,102 @@ namespace
 	//TODO: Add a color type to AngelScript
 	void localDrawLineNormalized(const Vec2& startPos, const Vec2& endPos)
 	{
-		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, endPos.m_vec, true);
+		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, endPos.m_vec, true);
 	}
 
 	void localDrawLineNormalizedScreenAlligned(const Vec2& startPos, const Vec2& endPos)
 	{
-		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, endPos.m_vec, false);
+		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, endPos.m_vec, false);
 	}
 
 	void localDrawLine(const Vec2& startPos, const Vec2& endPos)
 	{
-		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, endPos.m_vec, true);
+		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, endPos.m_vec, true);
 	}
 
 	void localDrawLineScreenAlligned(const Vec2& startPos, const Vec2& endPos)
 	{
-		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, endPos.m_vec, false);
+		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, endPos.m_vec, false);
 	}
 
 	void localDrawLineNormalizedRotLength(const Vec2& startPos, float rotationRadian, float length)
 	{
-		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, rotationRadian, length, true);
+		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, rotationRadian, length, true);
 	}
 
 	void localDrawLineNormalizedRotLengthScreenAlligned(const Vec2& startPos, float rotationRadian, float length)
 	{
-		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, rotationRadian, length, false);
+		DrawLine2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, rotationRadian, length, false);
 	}
 
 	void localDrawLineRotLength(const Vec2& startPos, float rotationRadian, float length)
 	{
-		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, rotationRadian, length, true);
+		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, rotationRadian, length, true);
 	}
 
 	void localDrawLineRotLengthScreenAlligned(const Vec2& startPos, float rotationRadian, float length)
 	{
-		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, startPos.m_vec, rotationRadian, length, false);
+		DrawLine2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, startPos.m_vec, rotationRadian, length, false);
 	}
 
 	void localDrawBoxNormalized(const Vec2& pos, const Vec2& dimensions)
 	{
-		DrawBox2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, dimensions.m_vec, true);
+		DrawBox2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, dimensions.m_vec, true);
 	}
 
 	void localDrawBoxNormalizedScreenAlligned(const Vec2& pos, const Vec2& dimensions)
 	{
-		DrawBox2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, dimensions.m_vec, false);
+		DrawBox2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, dimensions.m_vec, false);
 	}
 
 	void localDrawBox(const Vec2& pos, const Vec2& dimensions)
 	{
-		DrawBox2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, dimensions.m_vec, true);
+		DrawBox2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, dimensions.m_vec, true);
 	}
 
 	void localDrawBoxScreenAlligned(const Vec2& pos, const Vec2& dimensions)
 	{
-		DrawBox2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, dimensions.m_vec, false);
+		DrawBox2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, dimensions.m_vec, false);
 	}
 
 	void localDrawBoxMinMaxNormalized(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMax(*g_pThreadSynchronizer->GetAppFrameData().renderPool, min.m_vec, max.m_vec, true);
+		DrawBox2DMinMax(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, true);
 	}
 
 	void localDrawBoxMinMaxNormalizedScreenAlligned(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMax(*g_pThreadSynchronizer->GetAppFrameData().renderPool, min.m_vec, max.m_vec, false);
+		DrawBox2DMinMax(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, false);
 	}
 
 	void localDrawBoxMinMax(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMaxPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, min.m_vec, max.m_vec, true);
+		DrawBox2DMinMaxPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, true);
 	}
 
 	void localDrawBoxMinMaxScreenAlligned(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMaxPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, min.m_vec, max.m_vec, false);
+		DrawBox2DMinMaxPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, false);
 	}
 
 	void localDrawCircleNormalized(const Vec2& pos, float radius)
 	{
-		DrawCircle2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, radius, true);
+		DrawCircle2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, radius, true);
 	}
 
 	void localDrawCircleNormalizedScreenAlligned(const Vec2& pos, float radius)
 	{
-		DrawCircle2D(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, radius, false);
+		DrawCircle2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, radius, false);
 	}
 
 	void localDrawCircle(const Vec2& pos, float radius)
 	{
-		DrawCircle2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, radius, true);
+		DrawCircle2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, radius, true);
 	}
 
 	void localDrawCircleScreenAlligned(const Vec2& pos, float radius)
 	{
-		DrawCircle2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().renderPool, pos.m_vec, radius, false);
+		DrawCircle2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, pos.m_vec, radius, false);
 	}
 }
 

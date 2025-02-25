@@ -22,8 +22,9 @@ namespace Hail
 	};
 	enum class eMaterialBuffers
 	{
-		spriteInstanceBuffer,
+		instanceBuffer2D,
 		lineInstanceBuffer,
+		spriteDataBuffer,
 		count
 	};
 	// Set 2

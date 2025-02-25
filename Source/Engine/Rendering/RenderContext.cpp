@@ -16,13 +16,17 @@ RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pResource
 	, m_pResourceManager(pResourceManager)
 	, m_currentState(eContextState::TransitionBetweenStates)
 	, m_pCurrentCommandBuffer(nullptr)
+	, m_pBoundMaterial(nullptr)
 	, m_pBoundMaterialPipeline(nullptr)
-	, m_pGraphicsCommandBuffers(nullptr)
+	, m_pBoundVertexBuffer(nullptr)
+	, m_pBoundIndexBuffer(nullptr)
+	, m_boundMaterialType(eMaterialType::COUNT)
 {
 	m_pBoundTextures.Fill(nullptr);
 	m_pBoundStructuredBuffers.Fill(nullptr);
 	m_pBoundUniformBuffers.Fill(nullptr);
 	m_pBoundFrameBuffers.Fill(nullptr);
+	m_pGraphicsCommandBuffers.Fill(nullptr);
 }
 
 void RenderContext::Init()
@@ -54,7 +58,7 @@ void RenderContext::SetTextureAtSlot(TextureView* pTexture, uint32 slot)
 void RenderContext::BindMaterial(Material* pMaterial)
 {
 	// TODO: Check shaders expected outputs and make sure it matches the bound framebuffers below and assert if not matching, 
-	//pMaterial->m_pPipeline->m_pTypeDescriptor->m_expectedShaderData
+	// pMaterial->m_pPipeline->m_pTypeDescriptor->m_expectedShaderData
 	// Not set up yet, so only assert if nothing is bound at slot 0;
 	H_ASSERT(m_pCurrentCommandBuffer && m_pCurrentCommandBuffer->m_contextState == eContextState::Graphics);
 
@@ -65,11 +69,13 @@ void RenderContext::BindMaterial(Material* pMaterial)
 
 	if (!BindMaterialInternal(pMaterial->m_pPipeline))
 	{
-		m_pBoundMaterialPipeline = m_pResourceManager->GetMaterialManager()->GetDefaultMaterial(pMaterial->m_pPipeline->m_type)->m_pPipeline;
+		m_pBoundMaterial = m_pResourceManager->GetMaterialManager()->GetDefaultMaterial(pMaterial->m_pPipeline->m_type);
+		m_pBoundMaterialPipeline = m_pBoundMaterial->m_pPipeline;
 		H_ASSERT(BindMaterialInternal(m_pBoundMaterialPipeline));
 	}
 	else
 	{
+		m_pBoundMaterial = pMaterial;
 		m_pBoundMaterialPipeline = pMaterial->m_pPipeline;
 	}
 }
@@ -81,6 +87,7 @@ void RenderContext::BindMaterial(Pipeline* pPipeline)
 	if (m_pBoundMaterialPipeline && m_pBoundMaterialPipeline == pPipeline)
 		return;
 
+	m_pBoundMaterial = nullptr;
 	H_ASSERT(m_pBoundFrameBuffers[0], "No framebuffer bound");
 	if (!BindMaterialInternal(pPipeline))
 	{
@@ -99,6 +106,21 @@ void RenderContext::BindFrameBufferAtSlot(FrameBufferTexture* pFrameBuffer, uint
 	m_pBoundFrameBuffers[bindSlot] = pFrameBuffer;
 }
 
+void Hail::RenderContext::BindVertexBuffer(BufferObject* pVertexBufferToBind, BufferObject* pIndexBufferToBind)
+{
+	H_ASSERT(m_pCurrentCommandBuffer && m_currentState == eContextState::Graphics, "Binding a Vertex buffer without recording a graphics pass.");
+
+	if (m_pBoundVertexBuffer == pVertexBufferToBind)
+		return;
+
+	H_ASSERT(pVertexBufferToBind->GetProperties().type == eBufferType::vertex, "Wrong buffer type bound.");
+	if (pIndexBufferToBind)
+		H_ASSERT(pIndexBufferToBind->GetProperties().type == eBufferType::index, "Wrong buffer type bound.");
+	m_pBoundVertexBuffer = pVertexBufferToBind;
+	m_pBoundIndexBuffer = pIndexBufferToBind;
+	BindVertexBufferInternal();
+}
+
 void RenderContext::SetPipelineState(Pipeline* pPipeline)
 {
 	if (!pPipeline->m_pTypeDescriptor)
@@ -108,6 +130,12 @@ void RenderContext::SetPipelineState(Pipeline* pPipeline)
 	}
 	// TODO: move this to the context instead of the indirection
 	m_pResourceManager->GetMaterialManager()->BindPipelineToContext(pPipeline, this);
+}
+
+void Hail::RenderContext::SetPushConstantValue(void* pPushConstant)
+{
+	H_ASSERT(m_pCurrentCommandBuffer && m_currentState == eContextState::Graphics || m_currentState == eContextState::Compute);
+	SetPushConstantInternal(pPushConstant);
 }
 
 void Hail::RenderContext::ClearBoundFrameBuffers()
@@ -176,6 +204,10 @@ void Hail::RenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
 	H_ASSERT(minDispatchSize != 0u, "A dispatch of 0 is not allowed in any dimension");
 }
 
+void Hail::RenderContext::RenderSprites(uint32 numberOfInstances, uint32 offset)
+{
+}
+
 void RenderContext::StartGraphicsPass()
 {
 	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "Wrong context state for starting a graphics pass.");
@@ -201,6 +233,10 @@ void RenderContext::EndGraphicsPass()
 	{
 		m_pCurrentCommandBuffer->EndBuffer(false);
 	}
+
+	m_pBoundMaterial = nullptr;
+	m_pBoundMaterialPipeline = nullptr;
+	m_pBoundVertexBuffer = nullptr;
 
 	m_pCurrentCommandBuffer = nullptr;
 	m_currentlyBoundPipeline = MAX_UINT;

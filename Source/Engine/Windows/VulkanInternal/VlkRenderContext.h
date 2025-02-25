@@ -28,19 +28,25 @@ namespace Hail
 
 		void Cleanup() override;
 
+		void BindMaterialInstance(uint32 materialInstanceIndex) override;
+
 		CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) override;
 		void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) override;
 		void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 		void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) override;
 		void RenderMeshlets(glm::uvec3 dispatchSize) override;
+		void RenderSprites(uint32 numberOfInstances, uint32 offset) override;
 		bool BindMaterialInternal(Pipeline* pPipeline) override;
 		void ClearFrameBufferInternal(FrameBufferTexture* pFrameBuffer) override;
+
+		void SetPushConstantInternal(void* pPushConstant) override;
 
 		void StartFrame() override;
 		void EndRenderPass() override;
 		void SubmitFinalFrameCommandBuffer() override;
 	private:
 		void BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* connectionToBind) override;
+		void BindVertexBufferInternal() override;
 		MaterialFrameBufferConnection* CreateMaterialFrameBufferConnection() override;
 		VlkBufferObject* CreateStagingBufferAndMemoryBarrier(uint32 bufferSize, void* pDataToUpload);
 

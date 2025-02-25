@@ -1,13 +1,19 @@
 #version 450
 #extension GL_EXT_mesh_shader : require
 
+layout( push_constant ) uniform constants
+{
+	uvec4 startOffset_padding; // uint uvec3 padding
+} PushConstants;
+
+
 // TODO: create a utility header for shaders with common operations
 vec3 ColorFromPackedColor(uint packedColor)
 {
     vec3 returnColor;
-    returnColor.x = float((packedColor >> 16) & 0xff) / 255.0;
-    returnColor.y = float((packedColor >> 8) & 0xff) / 255.0;
-    returnColor.z = float(packedColor & 0xff) / 255.0;
+    returnColor.x = float((packedColor >> 24) & 0xff) / 255.0;
+    returnColor.y = float((packedColor >> 16) & 0xff) / 255.0;
+    returnColor.z = float((packedColor >> 8) & 0xff) / 255.0;
     return returnColor;
 }
 
@@ -47,7 +53,14 @@ layout(binding = 2, set = 1, std140) buffer InstanceBuffer
 
 layout(binding = 3, set = 1, std140) buffer TextCommandBuffer
 {
-   	vec4 textCommands[];
+    // vec2 for command position (aka pivot), float for rotation  // TODO bake in 2D Scale 
+   	vec4 g_positionRotation[];
+};
+
+layout(binding = 4, set = 1, std140) uniform BatchToFirstInstanceBuffer
+{
+    // vec2 for command position (aka pivot), float for rotation  // TODO bake in 2D Scale 
+   	uvec4 g_batchOffsets[32];
 };
 
 layout (location = 0) perprimitiveEXT out uint outTriangleType[];
@@ -65,9 +78,13 @@ void main()
     uint nVerts = 10;
     uint nPrims = 10;
     
-    RenderInstance glyphletInstance = renderInstances[gl_WorkGroupID.x];
+    uint baseOffset = PushConstants.startOffset_padding.x / 4;
+    uint offsetMod = PushConstants.startOffset_padding.x % 4;
+    uint batchOffset = g_batchOffsets[baseOffset][offsetMod];
+    uint instanceIndex = batchOffset + gl_WorkGroupID.x;
+    RenderInstance glyphletInstance = renderInstances[instanceIndex];
+    vec4 textCommandData = g_positionRotation[glyphletInstance.commandBufferIndex + PushConstants.startOffset_padding.x];
 
-    vec4 textCommandData = textCommands[glyphletInstance.commandBufferIndex];
     vec3 glyphColor = ColorFromPackedColor(glyphletInstance.glyphletColor);
     uint numberOfVertices = (glyphletInstance.numberOfTrianglesNumberOfVertices >> 16) & 0xffff;
     uint numberOfPrimitives = glyphletInstance.numberOfTrianglesNumberOfVertices & 0xffff;
@@ -107,7 +124,7 @@ void main()
         glyphPosition = (glyphPosition * rotationMatrix);
         glyphPosition.x = glyphPosition.x * resolutionRatio;
         glyphPosition = glyphPosition + pivotPoint;
-        
+
         vec2 vertPosNormalized = (vertPosFlippedY + glyphPosition) * 2.0 - 1.0;
         outTextColor[tid] = glyphColor;
         gl_MeshVerticesEXT[tid].gl_Position = vec4(vertPosNormalized, 0.001, 1.0);

@@ -173,7 +173,20 @@ namespace Hail
 		Transform2D outTransform;
 		outTransform.m_pos = glm::mix(tr1.m_pos, tr2.m_pos, t);
 		outTransform.m_scl = glm::mix(tr1.m_scl, tr2.m_scl, t);
-		outTransform.m_rot = glm::mix(tr1.m_rot, tr2.m_rot, t);
+
+		float dTheta = tr1.m_rot - tr2.m_rot;
+		float tr2Rot = tr2.m_rot;
+		
+		if (dTheta > Math::PIf)
+		{
+			tr2Rot += Math::PI2f;
+		}
+		else if (dTheta < -Math::PIf)
+		{
+			tr2Rot -= Math::PI2f;
+		}
+		
+		outTransform.m_rot = glm::mix(tr1.m_rot, tr2Rot, t);
 		return outTransform;
 	}
 
@@ -187,19 +200,28 @@ namespace Hail
 		m_pos += pos;
 	}
 
-	void Hail::Transform2D::SetRotation(const float rotInEulerAngles)
+	void Hail::Transform2D::SetRotationRad(const float rot)
 	{
-		m_rot = fmod(rotInEulerAngles, 360.0f);
+		m_rot = fmod(rot, Math::PI2f);
 	}
 
-	void Hail::Transform2D::AddToRotation(const float rotInEulerAngles)
+	void Hail::Transform2D::SetRotationEuler(const float rot)
 	{
-		m_rot += rotInEulerAngles;
-		m_rot = fmod(m_rot, 360.0f);
-		if (m_rot > 180)
-			m_rot -= 360;
-		else if (m_rot < -180)
-			m_rot += 360;
+		m_rot = fmod(rot, 360.0f);
+		m_rot = m_rot * Math::DegToRadf;
+	}
+
+	void Transform2D::AddToRotationRad(const float rot)
+	{
+		m_rot += rot;
+		m_rot = fmod(m_rot, Math::PI2f);
+	}
+
+	void Hail::Transform2D::AddToRotationEuler(const float rot)
+	{
+		const float rotInRadians = Math::DegToRadf * rot;
+		m_rot += rotInRadians;
+		m_rot = fmod(m_rot, Math::PI2f);
 	}
 
 	void Hail::Transform2D::SetScale(const glm::vec2 scl)
@@ -214,6 +236,7 @@ namespace Hail
 	void Hail::Transform2D::LookAt(const glm::vec2 normalizedDirection)
 	{
 		float theta = atan2f(normalizedDirection.y, normalizedDirection.x);
-		m_rot = fmod(Math::RadToDegf * theta, 360.0f);
+		theta += Math::PIfHalf;
+		m_rot = fmod(theta, Math::PI2f);
 	}
 }

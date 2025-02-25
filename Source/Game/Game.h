@@ -6,7 +6,7 @@ namespace Hail
 {
 	struct ApplicationFrameData;
 	struct RecordedImGuiCommands;
-	struct RenderCommandPool;
+	struct ApplicationCommandPool;
 	struct InputMapping;
 
 	class GameApplication
@@ -20,7 +20,7 @@ namespace Hail
 	private:
 		Hail::InputMapping m_inputMapping;
 		Hail::RecordedImGuiCommands* m_recordedImguiCommands;
-		void FillFrameData(Hail::RenderCommandPool& renderCommandPoolToFill);
+		void FillFrameData(Hail::ApplicationCommandPool& renderCommandPoolToFill);
 
 	};
 }

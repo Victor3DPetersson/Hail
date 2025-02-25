@@ -277,6 +277,20 @@ void Hail::VlkRenderContext::Cleanup()
     }
 }
 
+void Hail::VlkRenderContext::BindMaterialInstance(uint32 materialInstanceIndex)
+{
+    VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)GetCurrentCommandBuffer();
+    VkCommandBuffer commandBuffer = pVlkCommandBfr->m_commandBuffer;
+    H_ASSERT(m_pBoundMaterial, "No bound material, is this called in a material pipeline pass?");
+    VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pBoundMaterial;
+    VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
+
+    H_ASSERT(vlkMaterial.m_instanceDescriptors.Size() > materialInstanceIndex);
+
+    const uint32 frameInFlight = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 2, 1, &vlkMaterial.m_instanceDescriptors[materialInstanceIndex].descriptors[frameInFlight], 0, nullptr);
+}
+
 CommandBuffer* Hail::VlkRenderContext::CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer)
 {
     return new VlkCommandBuffer(pDevice, contextStateForCommandBuffer);
@@ -418,6 +432,24 @@ void Hail::VlkRenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
     vkCmdDrawMeshTasksEXT(vlkCommandBuffer.m_commandBuffer, dispatchSize.x, dispatchSize.y, dispatchSize.z);
 }
 
+void Hail::VlkRenderContext::RenderSprites(uint32 numberOfInstances, uint32 offset)
+{
+    H_ASSERT(m_pCurrentCommandBuffer && m_currentState == eContextState::Graphics, "Can not render outside of a graphics pass");
+    H_ASSERT(m_pBoundVertexBuffer, "No vertex buffer bound");
+    H_ASSERT(m_pBoundMaterial, "Must have bound a material to render sprites.");
+
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer commandBuffer = vlkCommandBuffer.m_commandBuffer;
+
+    VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pBoundMaterial;
+    VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
+    // TODO: use the reflected push constants
+    glm::uvec4 pushConstants_instanceID_padding = { offset, 0, 0, 0 };
+
+    vkCmdPushConstants(commandBuffer, vlkPipeline.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
+    vkCmdDraw(commandBuffer, 6, numberOfInstances, 0, 0);
+}
+
 bool Hail::VlkRenderContext::BindMaterialInternal(Pipeline* pPipeline)
 {
     // Check if we already have this combination ready, otherwise create it.
@@ -487,6 +519,36 @@ void Hail::VlkRenderContext::ClearFrameBufferInternal(FrameBufferTexture* pFrame
         attachmentsToClear.Data(),
         1,
         &clearRect);
+}
+
+void Hail::VlkRenderContext::SetPushConstantInternal(void* pPushConstant)
+{
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer commandBuffer = vlkCommandBuffer.m_commandBuffer;
+
+    VlkPipeline& vlkPipeline = *(VlkPipeline*)m_pBoundMaterialPipeline;
+
+    //TODO: Check shader validation first
+
+    VkShaderStageFlagBits stage{};
+    if (m_currentState == eContextState::Graphics)
+    {
+        for (uint32 i = 0; i < vlkPipeline.m_pShaders.Size(); i++)
+        {
+            const eShaderType shaderType = (eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType;
+            if (shaderType == eShaderType::Vertex || shaderType == eShaderType::Mesh)
+            {
+                stage = shaderType == eShaderType::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_MESH_BIT_EXT;
+                break;
+            }
+        }
+    }
+    else if (m_currentState == eContextState::Compute)
+    {
+        stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    }
+    H_ASSERT(stage, "No valid stage found");
+    vkCmdPushConstants(commandBuffer, vlkPipeline.m_pipelineLayout, stage, 0, sizeof(glm::uvec4), pPushConstant);
 }
 
 void Hail::VlkRenderContext::EndRenderPass()
@@ -793,15 +855,15 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
 void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* pConnectionToBind)
 {
     H_ASSERT(m_pCurrentCommandBuffer, "No command buffer started.");
-
-    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
-    VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
     if (m_currentlyBoundPipeline == pConnectionToBind->m_pMaterialPipeline->m_sortKey)
     {
         return;
     }
 
     EndRenderPass();
+
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
 
     VlkMaterialFrameBufferConnection& vkConnectionToBind = *(VlkMaterialFrameBufferConnection*)pConnectionToBind;
 
@@ -868,6 +930,20 @@ void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBuff
     vkCmdSetScissor(commandBuffer, 0, 1, &mainScissor);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkConnectionToBind.m_pipeline);
+}
+
+void Hail::VlkRenderContext::BindVertexBufferInternal()
+{
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
+
+    VkDeviceSize spriteOffsets[] = { 0 };
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((VlkBufferObject*)m_pBoundVertexBuffer)->GetBuffer(0), spriteOffsets);
+    if (m_pBoundIndexBuffer)
+    {
+        vkCmdBindIndexBuffer(commandBuffer, ((VlkBufferObject*)m_pBoundIndexBuffer)->GetBuffer(0), 0, VK_INDEX_TYPE_UINT32);
+    }
+
 }
 
 Hail::VlkCommandBuffer::VlkCommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) : 

@@ -1,5 +1,16 @@
 #version 450
 
+// TODO: create a utility header for shaders with common operations
+vec4 ColorFromPackedColor(uint packedColor)
+{
+    vec4 returnColor;
+    returnColor.x = float((packedColor >> 24) & 0xff) / 255.0;
+    returnColor.y = float((packedColor >> 16) & 0xff) / 255.0;
+    returnColor.z = float((packedColor >> 8) & 0xff) / 255.0;
+    returnColor.w = float((packedColor) & 0xff) / 255.0;
+    return returnColor;
+}
+
 layout( push_constant ) uniform constants
 {
 	uvec4 instanceID_padding; // uint uvec3 padding
@@ -14,18 +25,31 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 	vec2 totalTime_HorizonPosition;
 } constantVariables;
 
-struct UIData
+struct Instance2D
 {
 	vec4 position_scale;
-	vec4 uvTL_BR;
-	vec4 color;
-	vec4 pivot_rotation_padding; //vec2 float padd
-	vec4 scaleMultiplier_effectData_cutoutThreshold_padding;
+	float rotation;
+	uint packedColor;
+	uint index_materialIndex_flags; // used for sorting
+	uint dataIndex; // index to the sprite specific data
 };
 
-layout(std140, set = 1, binding = 0) buffer UIDataBuffer 
+layout(std140, set = 1, binding = 0) buffer InstanceBuffer 
 {
-   	UIData uiInstanceData[];
+   	Instance2D g_instances[];
+};
+
+struct SpriteData
+{
+	vec4 uvTL_BR; // f2, f2
+	vec4 pivot_sizeMultiplier; // f2, f2
+	vec4 cutoutThreshold_padding; // f, f3
+	vec4 padding; // f, f3
+};
+
+layout(std140, set = 1, binding = 2) buffer SpriteDataBuffer 
+{
+   	SpriteData g_spriteData[];
 };
 
 uint BL = 0;
@@ -49,18 +73,21 @@ layout(location = 2) out float outCutoutThreshold;
 
 void main() 
 {
-	UIData instanceData = uiInstanceData[PushConstants.instanceID_padding.x];
+	uint instanceIndex = PushConstants.instanceID_padding.x + gl_InstanceIndex;
+	Instance2D instanceData = g_instances[instanceIndex];
+	SpriteData spriteData = g_spriteData[instanceData.dataIndex];
+	//UIData instanceData = uiInstanceData[PushConstants.instanceID_padding.x];
 
 	vec2 renderRes = vec2(constantVariables.renderResolution);
 	vec2 finalScale = vec2(instanceData.position_scale.zw);
 
 	float ratio = renderRes.y / renderRes.x;
 	
-	vec2 uvTL = instanceData.uvTL_BR.xy;
-	vec2 uvBR = instanceData.uvTL_BR.zw;
-	vec2 pivotPoint = instanceData.pivot_rotation_padding.xy * 2.0 - 1.0;
+	vec2 uvTL = spriteData.uvTL_BR.xy;
+	vec2 uvBR = spriteData.uvTL_BR.zw;
+	vec2 pivotPoint = spriteData.pivot_sizeMultiplier.xy * 2.0 - 1.0;
 	vec2 finalUV = vec2(0);
-	float rotation = instanceData.pivot_rotation_padding.z;
+	float rotation = instanceData.rotation;
 
 	//TODO: set these on the vertices instead
 	vec4 vertexPos = vec4(0.0 ,0.0, 0.0, 1.0);
@@ -104,7 +131,7 @@ void main()
 	vertexPos.x -= pivotPoint.x;
 	vertexPos.y += pivotPoint.y;
 	
-	vertexPos.xy *= (finalScale * instanceData.scaleMultiplier_effectData_cutoutThreshold_padding.xy);
+	vertexPos.xy *= (finalScale * spriteData.pivot_sizeMultiplier.zw);
 	float cs = cos(rotation);
 	float sn = sin(rotation);
 
@@ -115,7 +142,6 @@ void main()
 
 	gl_Position = vec4(vertexPos.xy, 0.00, 1.0);
 	outTexCoord = vec2(finalUV.x, finalUV.y);
-	outColor = instanceData.color;
-	outCutoutThreshold = instanceData.scaleMultiplier_effectData_cutoutThreshold_padding.z;
-
+	outColor = ColorFromPackedColor(instanceData.packedColor);
+	outCutoutThreshold = spriteData.cutoutThreshold_padding.x;
 }

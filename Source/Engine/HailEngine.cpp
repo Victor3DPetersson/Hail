@@ -125,13 +125,13 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	// AngelScriptHandler
 	g_engineData->asHandler.Init(&g_engineData->inputActionMap, &g_engineData->threadSynchronizer);
 
+	g_engineData->applicationTickRate = (float32)startupData.applicationTickRate;
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
 	g_engineData->threadSynchronizer.Init(tickTime);
 	g_engineData->imguiCommandRecorder.Init(g_engineData->resourceManager);
 	startupData.initFunctionToCall(&g_engineData->inputHandler->GetInputMapping()); // Init the calling application
 	g_engineData->updateFunctionToCall = startupData.updateFunctionToCall;
 	g_engineData->shutdownFunctionToCall = startupData.shutdownFunctionToCall;
-	g_engineData->applicationTickRate = (float32)startupData.applicationTickRate;
 
 	g_engineData->threadSynchronizer.SynchronizeAppData(g_engineData->inputActionMap, g_engineData->imguiCommandRecorder.FetchImguiResults(), *g_engineData->resourceManager);
 	startupData.postInitFunctionToCall();
@@ -195,17 +195,20 @@ void Hail::MainLoop()
 		engineData.appWindow->ApplicationUpdateLoop();
 		const glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
 
-		if (resolution.x != 0.0f && resolution.y != 0.0f)
-		{
-			ProcessRendering(lockApplicationThread);
-		}
 		if(lockApplicationThread == false)
 		{
 			engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer.GetDeltaTime());
 		}
+
+		if (resolution.x != 0.0f && resolution.y != 0.0f)
+		{
+			ProcessRendering(lockApplicationThread);
+		}
+
 		//SwapData
 		if (engineData.applicationLoopDone)
 		{
+			// This area of the code is synchronized and locks the game thread, so keep code running here to a minimal
 			engineData.inputHandler->UpdateGamepads();
 			g_engineData->inputActionMap.UpdateInputActions();
 			InternalMessageLogger::GetInstance().Update();
@@ -214,6 +217,7 @@ void Hail::MainLoop()
 
 			if (lockApplicationThread)
 			{
+				// Exception if the application thread is locked by a debug command
 				engineData.pauseApplication = true;
 				engineData.runApplication = false;
 				engineData.applicationThread.join();
@@ -222,6 +226,7 @@ void Hail::MainLoop()
 
 			engineData.applicationLoopDone = false;
 			engineData.inputHandler->UpdateKeyStates();
+			engineData.threadSynchronizer.TransferGameCommandsToRenderCommands(*engineData.resourceManager);
 		}
 		if (engineData.pauseApplication == false)
 		{
@@ -282,8 +287,8 @@ void Hail::ProcessApplicationThread()
 		{
 			engineData.updateFunctionToCall(applicationTimer.GetTotalTime(), tickTime, engineData.threadSynchronizer.GetAppFrameData());
 			asScriptRunner.RunScript("FirstScript");
-			engineData.threadSynchronizer.PrepareApplicationData();
 			asScriptRunner.Update();
+			engineData.threadSynchronizer.PrepareApplicationData();
 			applicationTime = 0.0;
 			engineData.applicationLoopDone = true;
 		}
