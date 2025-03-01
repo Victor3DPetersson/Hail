@@ -88,15 +88,20 @@ namespace Hail
 
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
+
 		MaterialCreationProperties matProperties{};
+
+		RelativeFilePath meshProjectPath("resources/shaders/MS_fontBasic.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource("D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/MS_fontBasic.mesh")))
+		pMatManager->ImportShaderResource(meshProjectPath.GetFilePath(), eShaderType::Mesh)))
 		{
 			matProperties.m_shaders[0].m_id = metaData->GetGUID();
 			matProperties.m_shaders[0].m_type = eShaderType::Mesh;
 		}
+
+		RelativeFilePath fragmentProjectPath("resources/shaders/FS_fontBasic.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource("D:/Projects/YlvicProject/Hail/Source/Resources/Shaders/FS_fontBasic.frag")))
+			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderType::Fragment)))
 		{
 			matProperties.m_shaders[1].m_id = metaData->GetGUID();
 			matProperties.m_shaders[1].m_type = eShaderType::Fragment;
@@ -106,7 +111,6 @@ namespace Hail
 		matProperties.m_typeRenderPass = eMaterialType::SPRITE;
 		m_pFontPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
-		// TODO: Fix so that this can be uploaded once and not per frame.
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->StartTransferPass();
 		pContext->UploadDataToBuffer(m_pVertexBuffer, m_fontData.m_renderVerts.Data(), m_fontData.m_renderVerts.Size() * sizeof(glm::vec2));

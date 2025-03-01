@@ -12,10 +12,10 @@ namespace Hail
 	{
 	public:
 		friend class MaterialManager;
+		static eShaderType CheckShaderType(const char* shaderExtension);
 
 	private:
 		bool CompileSpecificShader(const char* shaderName, eShaderType shaderType);
-		eShaderType CheckShaderType(const char* shaderExtension);
 		void Init(SHADERLANGUAGETARGET shaderCompilationTarget);
 
 		SHADERLANGUAGETARGET m_languageToCompileTo;

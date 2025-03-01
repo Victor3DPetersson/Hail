@@ -24,7 +24,6 @@ namespace Hail
 		void InitImGui() override;
 		void WaitForGPU() override;
 
-		void RenderSprite(const RenderCommand_Sprite& spriteCommandToRender, uint32_t spriteInstance) override;
 		void RenderMesh(const RenderData_Mesh& meshCommandToRender, uint32_t meshInstance) override;
 		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) override;
 		void RenderDebugLines3D(uint32 numberOfLinesToRender) override;

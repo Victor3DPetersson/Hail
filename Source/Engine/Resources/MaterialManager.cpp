@@ -765,7 +765,6 @@ namespace Hail
 	//TODO: Add relative path support in the shader output
 	CompiledShader* MaterialManager::LoadShader(const char* shaderName, eShaderType shaderType, bool reloadShader, const char* shaderExtension)
 	{
-		InitCompiler();
 		const uint64 shaderHash = LocalGetShaderHash(shaderName);
 		if (shaderType != eShaderType::None)
 		{
@@ -779,7 +778,7 @@ namespace Hail
 		{
 			if (shaderType == eShaderType::None)
 			{
-				shaderType = m_compiler->CheckShaderType(shaderExtension);
+				shaderType = ShaderCompiler::CheckShaderType(shaderExtension);
 			}
 		}
 
@@ -802,6 +801,7 @@ namespace Hail
 			}
 		}
 
+		InitCompiler();
 		if (!doesCompiledShaderExist || reloadShader)
 		{
 			if (!m_compiler->CompileSpecificShader(shaderName, shaderType))
@@ -1004,6 +1004,16 @@ namespace Hail
 	FilePath MaterialManager::ImportShaderResource(const FilePath& filepath)
 	{
 		CompiledShader* pShader = LoadShader(filepath.Object().Name().CharString(), eShaderType::None, false, filepath.Object().Extension().CharString());
+		if (pShader)
+		{
+			return pShader->m_metaData.GetProjectFilePath().GetFilePath();
+		}
+		return FilePath();
+	}
+
+	FilePath MaterialManager::ImportShaderResource(const FilePath& filepath, eShaderType shaderType)
+	{
+		CompiledShader* pShader = LoadShader(filepath.Object().Name().CharString(), shaderType, false, filepath.Object().Extension().CharString());
 		if (pShader)
 		{
 			return pShader->m_metaData.GetProjectFilePath().GetFilePath();

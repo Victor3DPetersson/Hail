@@ -63,6 +63,7 @@ namespace Hail
 		CompiledShader* GetCompiledLoadedShader(GUID shaderGUID);
 		CompiledShader* LoadShaderResource(GUID shaderGUID);
 		FilePath ImportShaderResource(const FilePath& filepath);
+		FilePath ImportShaderResource(const FilePath& filepath, eShaderType shaderType);
 
 		const bool IsShaderValidWithMaterialType(eMaterialType materialType, eShaderType shaderType, ReflectedShaderData& shaderDataToCheck) const;
 

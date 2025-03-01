@@ -816,8 +816,80 @@ RelativeFilePath::RelativeFilePath(const FilePath& longFilePath)
     m_name = longFilePath.Object().Name().CharString();
 }
 
+RelativeFilePath::RelativeFilePath(const char* relativeProjectPath)
+{
+    const FilePath& currentWorkingDirectory = FilePath::GetCurrentWorkingDirectory();
+    const uint16 currentWorkingDirectoryLevel = currentWorkingDirectory.m_directoryLevel;
+    bool isDirectoryInsideOfWorkingDirectory = false;
+
+    StringLW path = relativeProjectPath;
+    FilePath longFilePath = currentWorkingDirectory;
+    longFilePath = longFilePath + path.Data();
+
+    if (!longFilePath.IsValid())
+    {
+        StringLW finalPath = longFilePath.Data();
+        H_ERROR(StringL::Format("Invalid filepath s%", finalPath.ToCharString().Data()));
+        m_directoryLevel = 0;
+        m_pathLength = 0;
+        m_isInsideWorkingDirectory = true;
+        return;
+    }
+
+
+    m_directoryLevel = longFilePath.GetDirectoryLevel();
+
+    //if file is in a higher level we could be inside of the working directory
+    if (currentWorkingDirectoryLevel < longFilePath.GetDirectoryLevel())
+    {
+        FilePath filePathAtDirectoryLevel = longFilePath.GetDirectoryAtLevel(currentWorkingDirectoryLevel);
+
+        if (StringCompare(filePathAtDirectoryLevel.m_data, currentWorkingDirectory.m_data))
+        {
+            isDirectoryInsideOfWorkingDirectory = true;
+        }
+
+        if (isDirectoryInsideOfWorkingDirectory)
+        {
+            m_stepsFromFileToCommonSharedDir = longFilePath.GetDirectoryLevel() - currentWorkingDirectoryLevel;
+
+            const uint16 nameLengthToDirectory = StringLength(filePathAtDirectoryLevel.m_data);
+            m_pathLength = longFilePath.Length() - nameLengthToDirectory;
+            memcpy(m_pathFromWorkingDir, &longFilePath.m_data[nameLengthToDirectory], m_pathLength * sizeof(wchar_t));
+            m_pathFromWorkingDir[m_pathLength] = g_End;
+            m_isInsideWorkingDirectory = true;
+            m_name = longFilePath.Object().Name().CharString();
+            return;
+        }
+    }
+
+    m_isInsideWorkingDirectory = false;
+    // find common lowest directory and set the data
+    const int16 lowestCommonDirectoryLevel = FilePath::FindCommonLowestDirectoryLevel(longFilePath, currentWorkingDirectory);
+
+    if (lowestCommonDirectoryLevel == -1)
+    {
+        m_stepsFromFileToCommonSharedDir = -1;
+        m_pathLength = longFilePath.Length();
+        memcpy(m_pathFromWorkingDir, &longFilePath.m_data, m_pathLength * sizeof(wchar_t));
+    }
+    else
+    {
+        m_stepsFromFileToCommonSharedDir = longFilePath.GetDirectoryLevel() - lowestCommonDirectoryLevel;
+        FilePath filePathAtCommonDirectoryLevel = longFilePath.GetDirectoryAtLevel(lowestCommonDirectoryLevel);
+        const uint16 nameLengthToDirectory = StringLength(filePathAtCommonDirectoryLevel.m_data);
+        m_pathLength = longFilePath.Length() - nameLengthToDirectory;
+        memcpy(m_pathFromWorkingDir, &longFilePath.m_data[nameLengthToDirectory], m_pathLength * sizeof(wchar_t));
+        m_pathFromWorkingDir[m_pathLength] = g_End;
+    }
+    m_name = longFilePath.Object().Name().CharString();
+}
+
 FilePath RelativeFilePath::GetFilePath() const
 {
+    if (Empty())
+        return FilePath::GetCurrentWorkingDirectory();
+
     FilePath returnPath;
 
     //If not an invalid filepath or a path on a different disk from working directory

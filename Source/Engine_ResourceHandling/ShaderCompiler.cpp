@@ -23,6 +23,7 @@ namespace Hail
 		WString64 extension{};
 		WString64 wShaderName;
 		FromConstCharToWChar(shaderName, wShaderName, 64);
+		H_ASSERT(shaderType != eShaderType::None, "incorrect shader type");
 		switch (shaderType)
 		{
 		case Hail::eShaderType::Compute:

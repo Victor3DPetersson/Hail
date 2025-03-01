@@ -250,10 +250,11 @@ namespace Hail
 	public:
 		RelativeFilePath();
 		explicit RelativeFilePath(const FilePath& longFilePath);
+		explicit RelativeFilePath(const char* relativeProjectPath);
 		//Constructs a FilePath object from the known Data
 		FilePath GetFilePath() const;
 		const wchar_t* GetRelativePathData() const { return m_pathFromWorkingDir; }
-		bool Empty() { return m_pathLength == 0; }
+		bool Empty() const { return m_pathLength == 0; }
 		void Serialize(InOutStream& outObject) override;
 		void Deserialize(InOutStream& inObject) override;
 		String64 GetName() const { return m_name; }
