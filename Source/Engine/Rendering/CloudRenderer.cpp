@@ -1,0 +1,371 @@
+#include "Engine_PCH.h"
+#include "CloudRenderer.h"
+
+#include "HailEngine.h"
+#include "Renderer.h"
+#include "Resources\ResourceManager.h"
+#include "Resources\TextureManager.h"
+#include "Resources\RenderingResourceManager.h"
+#include "Resources\ResourceRegistry.h"
+#include "Resources\MaterialManager.h"
+#include "RenderContext.h"
+#include "MathUtils.h"
+#include "RenderCommands.h"
+
+namespace Hail
+{
+	// TODO, link to website for credit
+	// Dead reckoning alghorithm to generate a SDF to a texture from point data, found on the web. 
+	void DeadReckoning(int width, int height, const GrowingArray<uint8>& binaryPixels, GrowingArray<float>& setSignedDistance) 
+	{
+		const auto contains = [&](int x, int y) -> bool 
+		{
+			return x >= 0 && x < width&& y >= 0 && y < height;
+		};
+
+		// I - a 2D binary image
+		const bool outside = false;
+		const bool inside = true;
+		const auto I = [&](int x, int y) -> bool 
+		{
+			uint32 pixelCoord = x + y * width;
+			return binaryPixels[pixelCoord] ? inside : outside;
+		};
+
+		// d - a 2D grey image representing the distance image
+		GrowingArray<float> ds(width * height);
+		ds.Fill();
+		const float inf = static_cast<float>(256 * 256 * 256);
+		const auto getd = [&](int x, int y) -> float { return ds[y * width + x]; };
+		const auto setd = [&](int x, int y, float v) { ds[y * width + x] = v; };
+		const auto distance = [](int x, int y) -> float 
+		{
+			return hypotf(static_cast<float>(x), static_cast<float>(y));
+		};
+
+		// p - for each pixel, the corresponding border point
+		struct Point { int x, y; };
+		GrowingArray<Point> ps(width * height);
+		ps.Fill();
+		const Point outOfBounds = { -1, -1 };
+		const auto getp = [&](int x, int y) -> Point { return ps[y * width + x]; };
+		const auto setp = [&](int x, int y, const Point& p) { ps[y * width + x] = p; };
+
+		// initialize d
+		// initialize immediate interior & exterior elements
+		for (int y = 0; y < height; ++y) 
+		{
+			for (int x = 0; x < width; ++x) 
+			{
+				const bool c = I(x, y);
+				const bool w = contains(x - 1, y) ? I(x - 1, y) : outside;
+				const bool e = contains(x + 1, y) ? I(x + 1, y) : outside;
+				const bool n = contains(x, y - 1) ? I(x, y - 1) : outside;
+				const bool s = contains(x, y + 1) ? I(x, y + 1) : outside;
+				if ((w != c) || (e != c) || (n != c) || (s != c)) 
+				{
+					setd(x, y, 0);
+					setp(x, y, { x, y });
+				}
+				else 
+				{
+					setd(x, y, inf);
+					setp(x, y, outOfBounds);
+				}
+			}
+		}
+
+		// Perform minimum distance choice for single pixel, single direction.
+		enum class Dir 
+		{
+			NW, N, NE,      // NW=(x-1, y-1), N=(x, y-1), NE=(x+1, y-1)
+			W, E,       // W =(x-1, y),               E =(x+1, y)
+			SW, S, SE       // SW=(x-1, y+1), S=(x, y+1), SE=(x+1, y+1)
+		};
+		const auto f = [&](int x, int y, Dir dir) 
+		{
+			// d1 - distance between two adjacent pixels in either the x or y direction
+			const float d1 = 1.0f;
+
+			// d2 - distance between two diagonally adjacent pixels (sqrt(2))
+			const float d2 = d1 * 1.4142135623730950488f;
+
+			int dx, dy;
+			float od;
+			switch (dir) 
+			{
+			default:
+			case Dir::NW: dx = -1; dy = -1; od = d2; break; // first pass
+			case Dir::N:  dx = 0; dy = -1; od = d1; break; // first pass
+			case Dir::NE: dx = 1; dy = -1; od = d2; break; // first pass
+			case Dir::W:  dx = -1; dy = 0; od = d1; break; // first pass
+			case Dir::E:  dx = 1; dy = 0; od = d1; break; // final pass
+			case Dir::SW: dx = -1; dy = 1; od = d2; break; // final pass
+			case Dir::S:  dx = 0; dy = 1; od = d1; break; // final pass
+			case Dir::SE: dx = 1; dy = 1; od = d2; break; // final pass
+			}
+			const bool b = contains(x + dx, y + dy);
+			const float cd = b ? getd(x + dx, y + dy) : inf;
+			if (cd + od < getd(x, y)) 
+			{
+				const Point p = b ? getp(x + dx, y + dy) : outOfBounds;
+				setp(x, y, p);
+				const int xx = x - p.x;
+				const int yy = y - p.y;
+				const float nd = distance(xx, yy);
+				setd(x, y, nd);
+			}
+		};
+
+		// perform the first pass
+		for (int y = 0; y < height; ++y) 
+		{           // top to bottom
+			for (int x = 0; x < width; ++x) 
+			{        // left to right
+				static const Dir dirs[] = { Dir::NW, Dir::N, Dir::NE, Dir::W };
+				for (const Dir dir : dirs) 
+				{
+					f(x, y, dir);
+				}
+			}
+		}
+
+		// perform the final pass
+		for (int y = height - 1; y >= 0; --y) 
+		{        // bottom to top
+			for (int x = width - 1; x >= 0; --x) 
+			{     // right to left
+				static const Dir dirs[] = { Dir::E, Dir::SW, Dir::S, Dir::SE };
+				for (const Dir dir : dirs) 
+				{
+					f(x, y, dir);
+				}
+			}
+		}
+
+		// indicate inside & outside
+		for (int y = 0; y < height; ++y) 
+		{
+			for (int x = 0; x < width; ++x) 
+			{
+				float d = getd(x, y);
+				if (I(x, y) == outside) 
+				{
+					d = -d;                         // Negative distance means outside.
+				}
+
+				uint32 pixelCoord = x + y * width;
+				setSignedDistance[pixelCoord] = d * -1.f;
+			}
+		}
+	}
+
+
+	constexpr uint32 locMaxNumberOfGlyphlets = 1028u;
+
+	CloudRenderer::~CloudRenderer()
+	{
+		H_ASSERT(m_pCloudPipeline == nullptr);
+		H_ASSERT(m_pCloudBuffer == nullptr);
+	}
+
+	CloudRenderer::CloudRenderer(Renderer* pRenderer, ResourceManager* pResourceManager)
+		: m_pRenderer(pRenderer)
+		, m_pResourceManager(pResourceManager) 
+		, m_pCloudPipeline(nullptr)
+		, m_pCloudBuffer(nullptr)
+		, m_pSdfTexture(nullptr)
+		, m_pSdfView(nullptr)
+		, m_numberOfPointsUploaded(0u)
+	{
+	}
+
+	glm::vec2 Vogel(uint32 sampleIndex, uint32 samplesCount, float Offset)
+	{
+		float r = sqrt(float(sampleIndex) + 0.5f) / sqrt(float(samplesCount));
+		float theta = float(sampleIndex) * Math::GoldenAngle + Offset;
+		return r * glm::vec2(cos(theta), sin(theta));
+	}
+
+	bool CloudRenderer::Initialize()
+	{
+		// Hard coded shape for debugging
+		GrowingArray<glm::uvec2> pointBaseList = {
+			{1, 7},
+			{2, 7},
+			{2, 6},
+			{3, 7},
+			{3, 6},
+			{3, 4},
+			{4, 7},
+			{4, 6},
+			{4, 5},
+			{4, 4},
+			{4, 3},
+			{4, 2},
+			{5, 7},
+			{5, 6},
+			{5, 5},
+			{5, 4},
+			{5, 3},
+			{5, 2},
+			{6, 7},
+			{6, 6},
+			{6, 5},
+			{6, 4},
+			{6, 3},
+			{7, 7},
+			{7, 6},
+			{7, 5},
+			{7, 4},
+			{7, 3},
+			{7, 2},
+			{8, 7},
+			{8, 6},
+			{8, 5},
+			{9, 7}
+		};
+
+		GrowingArray<glm::vec2> pointsToPutOnTheGpu;
+		for (uint32 i = 0; i < pointBaseList.Size(); i++)
+		{
+			const uint32 rnd = ((pointBaseList[i].x * 5u + pointBaseList[i].y * 7u) >> (pointBaseList[i].x & 3u));
+			for (uint32 iPRand = 0; iPRand < 4; ++iPRand)
+			{
+				glm::vec2 vogelNoise = Vogel(rnd + iPRand, 128u, 0.1 * iPRand) * 0.5f;
+				glm::vec2 finalPos = (glm::vec2( pointBaseList[i].x + 0.5, pointBaseList[i].y + 0.5) / 11.f + vogelNoise / 11.f);
+				pointsToPutOnTheGpu.Add(finalPos);
+			}
+		}
+		const float cloudPointRadius = 0.1f;
+		const float cloudPointRadiusSq = cloudPointRadius * cloudPointRadius;
+		uint32 width = 128u;
+		uint32 height = 128u;
+		GrowingArray<uint8> imageRepresentationOfCloud(width * height);
+		imageRepresentationOfCloud.Fill();
+		for (uint32 x = 0; x < width; x++)
+		{
+			for (uint32 y = 0; y < height; y++)
+			{
+				uint32 imageCoord = x + y * height;
+				glm::vec2 cloudCoord = glm::vec2((float)(x + 0.5) / width, (float)(y + 0.5) / height);
+				uint32 numberOfPointsInRadius = 0;
+				for (uint32 iPoint = 0; iPoint < pointsToPutOnTheGpu.Size(); iPoint++)
+				{
+					glm::vec2 cloudPointToSamplePoint = cloudCoord - pointsToPutOnTheGpu[iPoint];
+					float distanceSquared = glm::dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
+					if (distanceSquared <= cloudPointRadiusSq)
+					{
+						numberOfPointsInRadius++;
+					}
+				}
+				imageRepresentationOfCloud[imageCoord] = numberOfPointsInRadius >= 4u ? numberOfPointsInRadius : 0;
+			}
+		}
+		GrowingArray<float> distanceFieldOfCloud(width * height);
+		distanceFieldOfCloud.Fill();
+		DeadReckoning(width, height, imageRepresentationOfCloud, distanceFieldOfCloud);
+
+		//pointsToPutOnTheGpu.Add(glm::vec2(0.95, 0.05));
+		pointsToPutOnTheGpu.Add(glm::vec2(0.9, 0.1));
+		//pointsToPutOnTheGpu.Add(glm::vec2(0.85, 0.15));
+		pointsToPutOnTheGpu.Add(glm::vec2(0.8, 0.23));
+
+		RenderContext* pContext = m_pRenderer->GetCurrentContext();
+		pContext->StartTransferPass();
+
+		CompiledTexture sdfTextureValues;
+		sdfTextureValues.properties.height = height;
+		sdfTextureValues.properties.width = width;
+		sdfTextureValues.properties.textureType = (uint32)eTextureSerializeableType::R32F;
+		sdfTextureValues.properties.format = eTextureFormat::R32_SFLOAT;
+		sdfTextureValues.compiledColorValues = distanceFieldOfCloud.Data();
+		sdfTextureValues.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+		m_pSdfTexture = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "CloudSdfTexture", sdfTextureValues);
+
+		TextureViewProperties viewProps;
+		viewProps.pTextureToView = m_pSdfTexture;
+		viewProps.viewUsage = eTextureUsage::Texture;
+		m_pSdfView = m_pResourceManager->GetTextureManager()->CreateTextureView(viewProps);
+
+		BufferProperties cloudPointBufferProps;
+		cloudPointBufferProps.elementByteSize = sizeof(glm::vec2);
+		cloudPointBufferProps.numberOfElements = pointsToPutOnTheGpu.Size();
+		cloudPointBufferProps.offset = 0;
+		cloudPointBufferProps.type = eBufferType::structured;
+		cloudPointBufferProps.domain = eShaderBufferDomain::GpuOnly;
+		cloudPointBufferProps.usage = eShaderBufferUsage::Read;
+		cloudPointBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Once;
+		m_pCloudBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(cloudPointBufferProps);
+
+		ResourceRegistry& reg = GetResourceRegistry();
+		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
+		MaterialCreationProperties matProperties{};
+		RelativeFilePath vertexProjectPath("resources/shaders/VS_fullscreenPass.shr");
+		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
+			pMatManager->ImportShaderResource(vertexProjectPath.GetFilePath(), eShaderType::Vertex)))
+		{
+			matProperties.m_shaders[0].m_id = metaData->GetGUID();
+			matProperties.m_shaders[0].m_type = eShaderType::Vertex;
+		}
+
+		RelativeFilePath fragmentProjectPath("resources/shaders/FS_cloudDrawing.shr");
+		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
+			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderType::Fragment)))
+		{
+			matProperties.m_shaders[1].m_id = metaData->GetGUID();
+			matProperties.m_shaders[1].m_type = eShaderType::Fragment;
+		}
+
+		matProperties.m_baseMaterialType = eMaterialType::CUSTOM;
+		matProperties.m_typeRenderPass = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
+		m_pCloudPipeline = pMatManager->CreateMaterialPipeline(matProperties);
+
+		pContext->UploadDataToBuffer(m_pCloudBuffer, pointsToPutOnTheGpu.Data(), pointsToPutOnTheGpu.Size() * sizeof(glm::vec2));
+		pContext->EndTransferPass();
+		m_numberOfPointsUploaded = pointsToPutOnTheGpu.Size();
+
+		return m_pCloudPipeline != nullptr;
+	}
+
+	void CloudRenderer::Cleanup()
+	{
+		H_ASSERT(m_pCloudBuffer);
+		m_pCloudBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pCloudBuffer);
+
+		m_pSdfTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pSdfTexture);
+
+		m_pSdfView->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pSdfView);
+
+		m_pCloudPipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pCloudPipeline);
+	}
+
+	void CloudRenderer::Prepare(const RenderCommandPool& poolOfCommands)
+	{
+		// For permanent buffers
+		//RenderContext* pContext = m_pRenderer->GetCurrentContext();
+		//pContext->StartTransferPass();
+		//pContext->UploadDataToBuffer();
+		//pContext->EndTransferPass();
+	}
+
+	void CloudRenderer::Render()
+	{
+		RenderContext* pContext = m_pRenderer->GetCurrentContext();
+
+		pContext->SetBufferAtSlot(m_pCloudBuffer, 0);
+		pContext->SetTextureAtSlot(m_pSdfView, 1);
+		pContext->SetTextureAtSlot(m_pSdfView, 2);
+
+		pContext->SetPipelineState(m_pCloudPipeline->m_pPipeline);
+		pContext->BindMaterial(m_pCloudPipeline->m_pPipeline);
+		glm::uvec4 pushConstantData = glm::uvec4(m_numberOfPointsUploaded, 0, 0, 0);
+ 		pContext->SetPushConstantValue(&pushConstantData);
+
+		pContext->RenderFullscreenPass();
+	}
+}

@@ -29,7 +29,7 @@ void Hail::ThreadSyncronizer::SynchronizeAppData(InputActionMap& inputActionMap,
 	m_appData.imguiCommandRecorder = &imguiCommandRecorder;
 	m_currentRenderTimer = 0.0f;
 	m_appData.commandPoolToFill->NewFrame();
-	m_appData.commandPoolToFill->horizontalAspectRatio = resourceManager.GetSwapChain()->GetHorizontalAspectRatio();
+	m_appData.commandPoolToFill->horizontalAspectRatio = resourceManager.GetSwapChain()->GetTargetHorizontalAspectRatio();
 	m_appData.commandPoolToFill->inverseHorizontalAspectRatio = 1.0 / m_appData.commandPoolToFill->horizontalAspectRatio;
 	m_appData.commandPoolToFill->camera2D.SetResolution(m_currentResolution);
 }

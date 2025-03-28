@@ -54,8 +54,9 @@ namespace Hail
 
 	struct PerFrameUniformBuffer
 	{
-		glm::uvec2 mainRenderResolution;
-		glm::uvec2 mainWindowResolution;
+		glm::uvec2 mainRenderResolution; // Actual render resolution on the final window
+		glm::uvec2 mainWindowResolution; 
+		glm::uvec2 renderTargetRes; // Main rendertargets resolution
 		glm::vec2 totalTime_horizonLevel;
 	};
 
@@ -103,6 +104,5 @@ namespace Hail
 		static uint32 g_idCounter;
 		bool m_bUsesFramesInFlight = false;
 	};
-
 }
 

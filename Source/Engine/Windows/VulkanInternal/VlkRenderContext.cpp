@@ -432,6 +432,16 @@ void Hail::VlkRenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
     vkCmdDrawMeshTasksEXT(vlkCommandBuffer.m_commandBuffer, dispatchSize.x, dispatchSize.y, dispatchSize.z);
 }
 
+void Hail::VlkRenderContext::RenderFullscreenPass()
+{
+    H_ASSERT(m_pBoundVertexBuffer == nullptr, "No vertex buffer should be bound for fullscreen rendering.");
+    const uint32 frameInFlightIndex = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
+    VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)GetCurrentCommandBuffer();
+    VkCommandBuffer& commandBuffer = pVlkCommandBuffer->m_commandBuffer;
+
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+}
+
 void Hail::VlkRenderContext::RenderSprites(uint32 numberOfInstances, uint32 offset)
 {
     H_ASSERT(m_pCurrentCommandBuffer && m_currentState == eContextState::Graphics, "Can not render outside of a graphics pass");
@@ -530,16 +540,24 @@ void Hail::VlkRenderContext::SetPushConstantInternal(void* pPushConstant)
 
     //TODO: Check shader validation first
 
-    VkShaderStageFlagBits stage{};
+    uint32 stage{};
     if (m_currentState == eContextState::Graphics)
     {
         for (uint32 i = 0; i < vlkPipeline.m_pShaders.Size(); i++)
         {
             const eShaderType shaderType = (eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType;
+            bool bContainsPushConstants = vlkPipeline.m_pShaders[i]->reflectedShaderData.m_pushConstants.Size();
+
+            if (!bContainsPushConstants)
+                continue;
+
             if (shaderType == eShaderType::Vertex || shaderType == eShaderType::Mesh)
             {
-                stage = shaderType == eShaderType::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_MESH_BIT_EXT;
-                break;
+                stage |= shaderType == eShaderType::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_MESH_BIT_EXT;
+            }
+            else if (shaderType == eShaderType::Fragment)
+            {
+                stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
             }
         }
     }
@@ -558,7 +576,12 @@ void Hail::VlkRenderContext::EndRenderPass()
         VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
         VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
         vkCmdEndRenderPass(commandBuffer);
+        // TODO make a proper state cleanup function and check all the places where cleanup happens so it is done properly.
         m_currentlyBoundPipeline = MAX_UINT;
+        m_pBoundMaterial = nullptr;
+        m_pBoundMaterialPipeline = nullptr;
+        m_pBoundVertexBuffer = nullptr;
+        m_pBoundIndexBuffer = nullptr;
     }
 }
 
@@ -658,8 +681,9 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
     const bool isWireFrame = materialType == eMaterialType::DEBUG_LINES2D || materialType == eMaterialType::DEBUG_LINES3D;
 
     bool renderDepth = false;
+    bool bUseVertexBuffer = true;
     VkVertexInputBindingDescription vertexBindingDescription = VkVertexInputBindingDescription();
-    GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions(1);
+    GrowingArray<VkVertexInputAttributeDescription> vertexAttributeDescriptions;
     switch (materialType)
     {
     case eMaterialType::SPRITE:
@@ -667,17 +691,8 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
         vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
         break;
     case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-    {
-        VkVertexInputAttributeDescription attributeDescription{};
-        attributeDescription.binding = 0;
-        attributeDescription.location = 0;
-        attributeDescription.format = VK_FORMAT_R32_UINT;
-        attributeDescription.offset = 0;
-        vertexAttributeDescriptions.Add(attributeDescription);
-    }
-    vertexBindingDescription.binding = 0;
-    vertexBindingDescription.stride = sizeof(uint32_t);
-    vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    case eMaterialType::CUSTOM:
+        bUseVertexBuffer = false;
     break;
     case eMaterialType::MODEL3D:
         renderDepth = true;
@@ -744,10 +759,10 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributeDescriptions.Size());
-    vertexInputInfo.pVertexBindingDescriptions = &vertexBindingDescription;
-    vertexInputInfo.pVertexAttributeDescriptions = vertexAttributeDescriptions.Data();
+    vertexInputInfo.vertexBindingDescriptionCount = bUseVertexBuffer ? 1u : 0u;
+    vertexInputInfo.vertexAttributeDescriptionCount = bUseVertexBuffer ? (uint32)vertexAttributeDescriptions.Size() : 0u;
+    vertexInputInfo.pVertexBindingDescriptions = bUseVertexBuffer ? &vertexBindingDescription : nullptr;
+    vertexInputInfo.pVertexAttributeDescriptions = bUseVertexBuffer ? vertexAttributeDescriptions.Data() : nullptr;
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -869,7 +884,8 @@ void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBuff
 
     const uint32_t frameInFlightIndex = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
 
-    if (m_boundMaterialType != pConnectionToBind->m_pMaterialPipeline->m_type)
+    const bool bRebindTypeDescriptors = m_boundMaterialType != pConnectionToBind->m_pMaterialPipeline->m_type || pConnectionToBind->m_pMaterialPipeline->m_type == eMaterialType::CUSTOM;
+    if (bRebindTypeDescriptors)
     {
         VlkPipeline* pVlkPipeline = (VlkPipeline*)pConnectionToBind->m_pMaterialPipeline;
         VectorOnStack< VkDescriptorSet, 3> descriptorSets = Internal::GetMaterialDescriptors(m_pResourceManager, pVlkPipeline, frameInFlightIndex);
@@ -938,11 +954,13 @@ void Hail::VlkRenderContext::BindVertexBufferInternal()
     VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
 
     VkDeviceSize spriteOffsets[] = { 0 };
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((VlkBufferObject*)m_pBoundVertexBuffer)->GetBuffer(0), spriteOffsets);
+    if (m_pBoundVertexBuffer)
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((VlkBufferObject*)m_pBoundVertexBuffer)->GetBuffer(0), spriteOffsets);
+    else
+        vkCmdBindVertexBuffers(commandBuffer, 0, 0, nullptr, spriteOffsets);
+
     if (m_pBoundIndexBuffer)
-    {
         vkCmdBindIndexBuffer(commandBuffer, ((VlkBufferObject*)m_pBoundIndexBuffer)->GetBuffer(0), 0, VK_INDEX_TYPE_UINT32);
-    }
 
 }
 

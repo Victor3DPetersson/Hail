@@ -35,6 +35,7 @@ namespace Hail
 		void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 		void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) override;
 		void RenderMeshlets(glm::uvec3 dispatchSize) override;
+		void RenderFullscreenPass() override;
 		void RenderSprites(uint32 numberOfInstances, uint32 offset) override;
 		bool BindMaterialInternal(Pipeline* pPipeline) override;
 		void ClearFrameBufferInternal(FrameBufferTexture* pFrameBuffer) override;

@@ -20,6 +20,7 @@ namespace Hail
 	struct RenderCommand_Sprite;
 	
 	class BufferObject;
+	class CloudRenderer;
 	class FontRenderer;
 	class FrameBufferTexture;
 	class RenderContext;
@@ -53,7 +54,7 @@ namespace Hail
 		virtual void RenderMesh(const RenderData_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
 		virtual void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) = 0;
 		virtual void RenderDebugLines3D(uint32 numberOfLinesToRender) = 0;
-		virtual void RenderLetterBoxPass() = 0;
+		virtual void RenderImGui() = 0;
 
 		RenderingDevice* GetRenderingDevice() { return m_renderDevice; }
 		RenderContext* GetCurrentContext() { return m_pContext; }
@@ -62,11 +63,9 @@ namespace Hail
 
 		void CreateSpriteVertexBuffer();
 		void CreateVertexBuffer();
-		void CreateFullscreenVertexBuffer();
 		void CreateIndexBuffer();
 		void CreateDebugLineVertexBuffer();
 
-		BufferObject* m_pFullscreenVertexBuffer = nullptr;
 		BufferObject* m_pVertexBuffer = nullptr;
 		BufferObject* m_pIndexBuffer = nullptr;
 		BufferObject* m_pDebugLineVertexBuffer = nullptr;
@@ -78,6 +77,7 @@ namespace Hail
 
 		// TODO: Should this be here? Figure out where we place our renderers and how to structure it properly.
 		FontRenderer* m_pFontRenderer = nullptr;
+		CloudRenderer* m_pCloudRenderer = nullptr;
 
 
 		RenderingDevice* m_renderDevice = nullptr;

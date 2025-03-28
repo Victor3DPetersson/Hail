@@ -40,6 +40,8 @@ namespace Hail
 		virtual TextureView* CreateTextureView() = 0;
 
 		TextureResource* GetTexture(uint32_t index);
+		TextureResource* CreateTexture(RenderContext* pRenderContext, const char* name, CompiledTexture& compiledTextureData);
+		TextureView* CreateTextureView(TextureViewProperties& viewProps);
 		TextureView* GetTextureView(uint32_t index);
 		TextureView* GetEngineTextureView(eDecorationSets setDomainToGet, uint32_t bindingIndex, uint32 frameInFlight);
 		void RegisterEngineTexture(TextureResource* pTexture, TextureView* pTextureView, eDecorationSets setDomain, uint32 bindingIndex, uint32 frameInFlight);

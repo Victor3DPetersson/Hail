@@ -826,17 +826,6 @@ RelativeFilePath::RelativeFilePath(const char* relativeProjectPath)
     FilePath longFilePath = currentWorkingDirectory;
     longFilePath = longFilePath + path.Data();
 
-    if (!longFilePath.IsValid())
-    {
-        StringLW finalPath = longFilePath.Data();
-        H_ERROR(StringL::Format("Invalid filepath s%", finalPath.ToCharString().Data()));
-        m_directoryLevel = 0;
-        m_pathLength = 0;
-        m_isInsideWorkingDirectory = true;
-        return;
-    }
-
-
     m_directoryLevel = longFilePath.GetDirectoryLevel();
 
     //if file is in a higher level we could be inside of the working directory

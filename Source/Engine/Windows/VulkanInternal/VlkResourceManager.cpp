@@ -20,20 +20,16 @@ bool VlkRenderingResourceManager::Init(RenderingDevice* renderingDevice, SwapCha
 	m_swapChain = swapChain;
 	VlkDevice& device = *(VlkDevice*)m_renderDevice;
 
-	//initialize samplers
-	m_resources.m_linearTextureSampler = CreateTextureSampler(device, TextureSamplerData{});
-	TextureSamplerData pointSamplerData;
-	pointSamplerData.sampler_mode = TEXTURE_SAMPLER_FILTER_MODE::POINT;
-	m_resources.m_pointTextureSampler = CreateTextureSampler(device, pointSamplerData);
-
 	// TODO: Move this out to a more clever spot where we can measure what wee register and stuff. 
-	StaticArray<VkDescriptorPoolSize, 4> poolSizes =
+	StaticArray<VkDescriptorPoolSize, 6> poolSizes =
 	{
 		{
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 10 },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 }
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100},
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 8 }
 		}
 	};
 	VkDescriptorPoolCreateInfo finalPoolInfo{};
@@ -54,9 +50,14 @@ void VlkRenderingResourceManager::ClearAllResources()
 {
 	H_ASSERT(m_renderDevice);
 
+
+	for (uint32 i = 0; i < (uint32)GlobalSamplers::Count; i++)
+	{
+		m_samplers[i]->CleanupResource(m_renderDevice);
+		SAFEDELETE(m_samplers[i]);
+	}
 	VlkDevice* device = (VlkDevice*)m_renderDevice;
-	vkDestroySampler(device->GetDevice(), m_resources.m_linearTextureSampler, nullptr);
-	vkDestroySampler(device->GetDevice(), m_resources.m_pointTextureSampler, nullptr);
+
 	for (size_t iSet = 0; iSet < 2; iSet++)
 	{
 		for (size_t iBuffer = 0; iBuffer < m_uniformBuffers[iSet].Size(); iBuffer++)
@@ -89,4 +90,11 @@ BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties propert
 
 	vlkBuffer->CleanupResource(m_renderDevice);
 	return nullptr;
+}
+
+SamplerObject* Hail::VlkRenderingResourceManager::CreateSamplerObject(SamplerProperties properties)
+{
+	SamplerObject* sampler = new VlkSamplerObject();
+	sampler->Init(m_renderDevice, properties);
+	return sampler;
 }

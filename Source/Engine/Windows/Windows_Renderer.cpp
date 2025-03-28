@@ -49,7 +49,6 @@ bool Hail::VlkRenderer::Initialize()
 	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
 	m_pContext->StartTransferPass();
 	CreateSpriteVertexBuffer();
-	CreateFullscreenVertexBuffer();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
 	CreateDebugLineVertexBuffer();
@@ -224,16 +223,11 @@ void Hail::VlkRenderer::RenderDebugLines3D(uint32 numberOfLinesToRender)
 	//TODO:
 }
 
-void Hail::VlkRenderer::RenderLetterBoxPass()
+void Hail::VlkRenderer::RenderImGui()
 {
-	const uint32 frameInFlightIndex = m_swapChain->GetFrameInFlight();
 	VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
 	VkCommandBuffer& commandBuffer = pVlkCommandBuffer->m_commandBuffer;
-
-	vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-
 }
 
 void VlkRenderer::Cleanup()
@@ -249,12 +243,10 @@ void VlkRenderer::Cleanup()
 	m_pContext->Cleanup();
 	m_pResourceManager->ClearAllResources(m_renderDevice);
 
-	m_pFullscreenVertexBuffer->CleanupResource(m_renderDevice);
 	m_pSpriteVertexBuffer->CleanupResource(m_renderDevice);
 	m_pVertexBuffer->CleanupResource(m_renderDevice);
 	m_pIndexBuffer->CleanupResource(m_renderDevice);
 	m_pDebugLineVertexBuffer->CleanupResource(m_renderDevice);
-	SAFEDELETE(m_pFullscreenVertexBuffer);
 	SAFEDELETE(m_pSpriteVertexBuffer);
 	SAFEDELETE(m_pVertexBuffer);
 	SAFEDELETE(m_pIndexBuffer);

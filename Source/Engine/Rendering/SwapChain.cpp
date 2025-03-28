@@ -10,6 +10,7 @@ namespace Hail
 	{
 		// start with a 16/9 Aspect ratio, TODO: make configurable
 		m_horizontalAspectRatio = 16.0f / 9.0f;
+		m_targetHorizontalAspectRatio = 16.0f / 9.0f;
 		m_bResizeSwapChain = false;
 		m_windowResolution = { 0, 0 };
 		m_renderTargetResolution = { 0, 0 };
@@ -48,6 +49,7 @@ namespace Hail
 		if (targetResolution != m_targetResolution)
 		{
 			m_targetResolution = targetResolution;
+			m_targetHorizontalAspectRatio = float(m_targetResolution.x) / float(m_targetResolution.y);
 			m_bResizeSwapChain = true;
 		}
 	}

@@ -112,8 +112,8 @@ void Hail::RenderContext::BindVertexBuffer(BufferObject* pVertexBufferToBind, Bu
 
 	if (m_pBoundVertexBuffer == pVertexBufferToBind)
 		return;
-
-	H_ASSERT(pVertexBufferToBind->GetProperties().type == eBufferType::vertex, "Wrong buffer type bound.");
+	if (pVertexBufferToBind)
+		H_ASSERT(pVertexBufferToBind->GetProperties().type == eBufferType::vertex, "Wrong buffer type bound.");
 	if (pIndexBufferToBind)
 		H_ASSERT(pIndexBufferToBind->GetProperties().type == eBufferType::index, "Wrong buffer type bound.");
 	m_pBoundVertexBuffer = pVertexBufferToBind;

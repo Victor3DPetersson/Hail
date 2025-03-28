@@ -17,10 +17,6 @@ namespace Hail
 	struct VlkRenderingResources
 	{
 		VkDescriptorPool m_globalDescriptorPool = VK_NULL_HANDLE;
-
-		VkSampler m_linearTextureSampler = VK_NULL_HANDLE;
-		VkSampler m_pointTextureSampler = VK_NULL_HANDLE;
-
 	};
 
 
@@ -33,6 +29,7 @@ namespace Hail
 		void* GetRenderingResources() override;
 
 		BufferObject* CreateBuffer(BufferProperties properties) override;
+		SamplerObject* CreateSamplerObject(SamplerProperties properties) override;
 
 	private:
 

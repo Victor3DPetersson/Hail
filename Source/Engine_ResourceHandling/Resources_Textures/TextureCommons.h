@@ -200,7 +200,7 @@ namespace Hail
     constexpr glm::vec3 Color_CYAN = { 0.0, 1.0, 1.0 };
     constexpr glm::vec3 Color_YELLOW = { 1.0, 1.0, 0.0 };
 
-    struct TextureSamplerData
+    struct SamplerProperties
     {
         TEXTURE_WRAP_MODE wrapMode_u = TEXTURE_WRAP_MODE::REPEAT;
         TEXTURE_WRAP_MODE wrapMode_v = TEXTURE_WRAP_MODE::REPEAT;

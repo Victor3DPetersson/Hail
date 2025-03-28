@@ -53,16 +53,16 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, Rend
 	m_renderingResourceManager->Init(m_renderDevice, m_swapChain);
 	m_textureManager->Init(pRenderContext);
 	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain );
-	m_mainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", m_swapChain->GetRenderTargetResolution(), eTextureFormat::R8G8B8A8_UNORM, TEXTURE_DEPTH_FORMAT::D16_UNORM);
+	m_pMainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", ResolutionFromEnum(m_targetResolution), eTextureFormat::R8G8B8A8_UNORM, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 	
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		m_textureManager->RegisterEngineTexture(m_mainPassFrameBufferTexture->GetColorTexture(i), m_mainPassFrameBufferTexture->GetColorTextureView(i), eDecorationSets::MaterialTypeDomain, (uint32)eMaterialTextures::FullscreenPassTarget, i);
+		m_textureManager->RegisterEngineTexture(m_pMainPassFrameBufferTexture->GetColorTexture(i), m_pMainPassFrameBufferTexture->GetColorTextureView(i), eDecorationSets::MaterialTypeDomain, (uint32)eMaterialTextures::FullscreenPassTarget, i);
 	}
 
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-		if(!m_materialManager->InitDefaultMaterial(eMaterialType::SPRITE, m_mainPassFrameBufferTexture, false, i))
+		if(!m_materialManager->InitDefaultMaterial(eMaterialType::SPRITE, m_pMainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
@@ -70,15 +70,15 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, Rend
 		{
 			return false;
 		}
-		if(!m_materialManager->InitDefaultMaterial(eMaterialType::MODEL3D, m_mainPassFrameBufferTexture, false, i))
+		if(!m_materialManager->InitDefaultMaterial(eMaterialType::MODEL3D, m_pMainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
-		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES2D, m_mainPassFrameBufferTexture, false, i))
+		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES2D, m_pMainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
-		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES3D, m_mainPassFrameBufferTexture, false, i))
+		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES3D, m_pMainPassFrameBufferTexture, false, i))
 		{
 			return false;
 		}
@@ -93,8 +93,8 @@ void Hail::ResourceManager::ClearAllResources(RenderingDevice* pRenderDevice)
 	m_textureManager->ClearAllResources();
 	m_materialManager->ClearAllResources();
 	m_renderingResourceManager->ClearAllResources();
-	m_mainPassFrameBufferTexture->ClearResources(pRenderDevice);
-	SAFEDELETE(m_mainPassFrameBufferTexture);
+	m_pMainPassFrameBufferTexture->ClearResources(pRenderDevice);
+	SAFEDELETE(m_pMainPassFrameBufferTexture);
 	m_swapChain->DestroySwapChain(pRenderDevice);
 }
 
@@ -228,6 +228,7 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 	perFrameData.totalTime_horizonLevel.y = 0.0f;
 	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
 	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
+	perFrameData.renderTargetRes = m_swapChain->GetTargetResolution();
 	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
 	pRenderContext->UploadDataToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
 
@@ -263,7 +264,7 @@ void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolu
 void Hail::ResourceManager::SpriteRenderDataFromGameCommand(const GameCommand_Sprite& commandToCreateFrom, RenderCommand2DBase& baseCommandToFill, RenderData_Sprite& dataToFill)
 {
 	const TextureResource* defaultTexture = m_textureManager->GetDefaultTexture().m_pTexture;
-	const glm::vec2 renderResolution = m_swapChain->GetRenderTargetResolution();
+	const glm::vec2 renderResolution = m_swapChain->GetTargetResolution();
 	const MaterialInstance& materialInstance = m_materialManager->GetMaterialInstance(commandToCreateFrom.materialInstanceID, eMaterialType::SPRITE);
 	const TextureResource& texture = materialInstance.m_textureHandles[0] != INVALID_TEXTURE_HANDLE ? *m_textureManager->GetTexture(materialInstance.m_textureHandles[0]) : *defaultTexture;
 	const float textureAspectRatio = (float)texture.m_properties.width / (float)texture.m_properties.height;

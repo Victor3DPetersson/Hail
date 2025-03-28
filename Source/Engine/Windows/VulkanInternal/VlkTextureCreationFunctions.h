@@ -6,10 +6,8 @@
 
 namespace Hail
 {
-
 	class VlkDevice;
 	bool HasStencilComponent(VkFormat format);
-	VkSampler CreateTextureSampler(VlkDevice& device, TextureSamplerData samplerData);
 	VkFormat ToVkFormat(eTextureFormat format);
 	eTextureFormat ToInternalFromVkFormat(VkFormat format);
 	VkFormat ToVkFormat(TEXTURE_DEPTH_FORMAT format);

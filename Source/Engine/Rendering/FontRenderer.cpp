@@ -176,7 +176,7 @@ namespace Hail
 	{
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
-		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetRenderTargetResolution();
+		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
 
 		glm::vec2 resolutionToFontRatio = glm::vec2((float)resolution.x / 1920.f, (float)resolution.y / 1080.f);
 

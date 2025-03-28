@@ -195,8 +195,8 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 	returnResource->m_image = pVlkTexture->m_textureData.textureImage;
 
 	// Create Descriptor Set using ImGUI's implementation
-	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)renderingResourceManager->GetRenderingResources();
-	returnResource->m_ImGuiResource = ImGui_ImplVulkan_AddTexture(vlkRenderingResources->m_linearTextureSampler, returnResource->m_imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	VlkSamplerObject* vlkSampler = (VlkSamplerObject*)renderingResourceManager->GetGlobalSampler(GlobalSamplers::Point);
+	returnResource->m_ImGuiResource = ImGui_ImplVulkan_AddTexture(vlkSampler->GetInternalSampler(), returnResource->m_imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 	SAFEDELETE(pVlkTexture);
 	SAFEDELETE(pView);

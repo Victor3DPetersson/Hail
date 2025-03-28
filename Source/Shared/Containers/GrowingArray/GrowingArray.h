@@ -35,6 +35,7 @@ namespace Hail
 		inline T& Add(const T& object);
 		inline T& Add();
 		inline void AddN(uint32 numberOfItemsToAdd);
+		inline void AddN(const T& object, uint32 numberOfItemsToAdd);
 		inline void Insert(CountType index, const T& object);
 
 		inline bool RemoveCyclic(const T& object);
@@ -262,6 +263,21 @@ namespace Hail
 
 		for (size_t i = m_elementCount; i < m_capacity; i++)
 			m_arrayPointer[m_elementCount] = {};
+
+		m_elementCount += numberOfItemsToAdd;
+	}
+
+	template <typename T, typename CountType>
+	void GrowingArray<typename T, typename CountType>::AddN(const T& object, uint32 numberOfItemsToAdd)
+	{
+		if (!m_arrayPointer)
+			Prepare(m_capacity != 0 ? m_capacity : 8);
+
+		if (m_elementCount + numberOfItemsToAdd > (m_capacity))
+			GrowArray(m_elementCount + numberOfItemsToAdd * 2);
+
+		for (size_t i = m_elementCount; i < m_capacity; i++)
+			m_arrayPointer[m_elementCount] = object;
 
 		m_elementCount += numberOfItemsToAdd;
 	}

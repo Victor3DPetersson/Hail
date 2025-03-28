@@ -7,6 +7,7 @@ namespace Math
 	static constexpr float PIf = 3.1415926f;
 	static constexpr float PIfHalf = PIf / 2.f;
 	static constexpr float PI2f = PIf * 2.f;
+	static constexpr float GoldenAngle = PIf * (0.763932f);
 
 	template <typename T>
 	inline T Max(const T firstValue, const T secondValue)

@@ -82,6 +82,7 @@ namespace Hail
 		void TransferFramebufferLayout(FrameBufferTexture* pTextureToTransfer, eFrameBufferLayoutState colorState, eFrameBufferLayoutState depthState);
 
 		virtual void RenderMeshlets(glm::uvec3 dispatchSize);
+		virtual void RenderFullscreenPass() = 0;
 		virtual void RenderSprites(uint32 numberOfInstances, uint32 offset) = 0;
 
 		CommandBuffer* GetCurrentCommandBuffer() { return m_pCurrentCommandBuffer; }

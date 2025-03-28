@@ -1,7 +1,5 @@
 #version 450
 
-layout(location = 0) in uint inIndex;
-
 layout(location = 0) out vec2 outTexCoord;
 
 vec4 pos[3] =
@@ -20,6 +18,6 @@ vec4 pos[3] =
 
 void main() 
 {
-	gl_Position = pos[inIndex];
-	outTexCoord = uv[inIndex];
+	gl_Position = pos[gl_VertexIndex];
+	outTexCoord = uv[gl_VertexIndex];
 }

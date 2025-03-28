@@ -40,6 +40,11 @@ BufferObject* Hail::RenderingResourceManager::GetGlobalBuffer(eDecorationSets se
 	return nullptr;
 }
 
+SamplerObject* Hail::RenderingResourceManager::GetGlobalSampler(GlobalSamplers samplerToGet)
+{
+    return m_samplers[(uint32)samplerToGet];
+}
+
 bool Hail::RenderingResourceManager::InternalInit()
 {
     // TODO use a Macro definition from the ShaderBufferList and decipher that to remove the hard-coded aspect of this:
@@ -171,6 +176,14 @@ bool Hail::RenderingResourceManager::InternalInit()
 
         assignBuffer(CreateBuffer(properties), eDecorationSets::MaterialTypeDomain);
     }
+
+    m_samplers[(uint32)GlobalSamplers::Point] = CreateSamplerObject(SamplerProperties());
+
+    SamplerProperties bilinearSamplerProps = SamplerProperties();
+    bilinearSamplerProps.sampler_mode = TEXTURE_SAMPLER_FILTER_MODE::LINEAR;
+    bilinearSamplerProps.filter_mag = TEXTURE_FILTER_MODE::LINEAR;
+    bilinearSamplerProps.filter_min = TEXTURE_FILTER_MODE::LINEAR;
+    m_samplers[(uint32)GlobalSamplers::Bilinear] = CreateSamplerObject(bilinearSamplerProps);
 
 	return true;
 }

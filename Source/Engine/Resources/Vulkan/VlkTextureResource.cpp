@@ -7,7 +7,6 @@ using namespace Hail;
 
 namespace
 {
-
 	void ClearTextureData(VlkTextureResource::VlkTextureInternalData& textureData, VlkDevice& vlkDevice)
 	{
 		if (textureData.textureImage != VK_NULL_HANDLE)
@@ -16,6 +15,70 @@ namespace
 		}
 		textureData.textureImage = VK_NULL_HANDLE;
 		textureData.allocation = VK_NULL_HANDLE;
+	}
+
+	VkFilter ToVkFilter(TEXTURE_FILTER_MODE mode)
+	{
+		switch (mode)
+		{
+		case Hail::TEXTURE_FILTER_MODE::NEAREST:
+			return VK_FILTER_NEAREST;
+		case Hail::TEXTURE_FILTER_MODE::LINEAR:
+			return VK_FILTER_LINEAR;
+		case Hail::TEXTURE_FILTER_MODE::CUBIC_EXT:
+			return VK_FILTER_CUBIC_EXT;
+		}
+	}
+
+	VkSamplerAddressMode ToVkSamplerAdressMode(TEXTURE_WRAP_MODE adressMode)
+	{
+		switch (adressMode)
+		{
+		case Hail::TEXTURE_WRAP_MODE::REPEAT:
+			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		case Hail::TEXTURE_WRAP_MODE::MIRRORED_REPEAT:
+			return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+		case Hail::TEXTURE_WRAP_MODE::CLAMP_TO_EDGE:
+			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		case Hail::TEXTURE_WRAP_MODE::CLAMP_TO_BORDER:
+			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+		case Hail::TEXTURE_WRAP_MODE::MIRROR_CLAMP_TO_EDGE:
+			return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+		}
+	}
+
+	VkCompareOp ToVkCompareOperation(COMPARE_MODE mode)
+	{
+		switch (mode)
+		{
+		case Hail::COMPARE_MODE::NEVER:
+			return  VK_COMPARE_OP_NEVER;
+		case Hail::COMPARE_MODE::LESS:
+			return  VK_COMPARE_OP_LESS;
+		case Hail::COMPARE_MODE::EQUAL:
+			return  VK_COMPARE_OP_EQUAL;
+		case Hail::COMPARE_MODE::LESS_OR_EQUAL:
+			return  VK_COMPARE_OP_LESS_OR_EQUAL;
+		case Hail::COMPARE_MODE::GREATER:
+			return  VK_COMPARE_OP_GREATER;
+		case Hail::COMPARE_MODE::NOT_EQUAL:
+			return  VK_COMPARE_OP_NOT_EQUAL;
+		case Hail::COMPARE_MODE::GREATER_OR_EQUAL:
+			return  VK_COMPARE_OP_GREATER_OR_EQUAL;
+		case Hail::COMPARE_MODE::ALWAYS:
+			return  VK_COMPARE_OP_ALWAYS;
+		}
+	}
+
+	VkSamplerMipmapMode ToVkSamplerFilter(TEXTURE_SAMPLER_FILTER_MODE samplerMode)
+	{
+		switch (samplerMode)
+		{
+		case Hail::TEXTURE_SAMPLER_FILTER_MODE::POINT:
+			return  VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		case Hail::TEXTURE_SAMPLER_FILTER_MODE::LINEAR:
+			return  VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		}
 	}
 }
 
@@ -137,4 +200,38 @@ bool Hail::VlkTextureView::InitView(RenderingDevice* pDevice, TextureViewPropert
 	m_textureIndex = properties.pTextureToView->m_index;
 
 	return true;
+}
+
+void Hail::VlkSamplerObject::Init(RenderingDevice* pDevice, SamplerProperties props)
+{
+	VlkDevice& vlkDevice = *(VlkDevice*)pDevice;
+	m_props = props;
+
+	VkSamplerCreateInfo samplerInfo{};
+	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.magFilter = ToVkFilter(m_props.filter_mag);
+	samplerInfo.minFilter = ToVkFilter(m_props.filter_min);
+	samplerInfo.addressModeU = ToVkSamplerAdressMode(m_props.wrapMode_u);
+	samplerInfo.addressModeV = ToVkSamplerAdressMode(m_props.wrapMode_v);
+	samplerInfo.addressModeW = ToVkSamplerAdressMode(m_props.wrapMode_w);
+	samplerInfo.anisotropyEnable = m_props.anisotropy;
+	VkPhysicalDeviceProperties properties{};
+	vkGetPhysicalDeviceProperties(vlkDevice.GetPhysicalDevice(), &properties);
+	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;//TODO: Remove this and count this variable once
+	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	samplerInfo.compareEnable = VK_FALSE;
+	samplerInfo.compareOp = ToVkCompareOperation(m_props.compareOp);
+	samplerInfo.mipmapMode = ToVkSamplerFilter(m_props.sampler_mode);
+	samplerInfo.mipLodBias = 0.0f;
+	samplerInfo.minLod = 0.0f;
+	samplerInfo.maxLod = 0.0f;
+	vkCreateSampler(vlkDevice.GetDevice(), &samplerInfo, nullptr, &m_sampler);
+	H_ASSERT(m_sampler != VK_NULL_HANDLE, "Failed to create Sampler");
+}
+
+void Hail::VlkSamplerObject::CleanupResource(RenderingDevice* pDevice)
+{
+	VlkDevice* device = (VlkDevice*)pDevice;
+	vkDestroySampler(device->GetDevice(), m_sampler, nullptr);
 }

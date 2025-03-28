@@ -7,7 +7,8 @@
 - [x] Text render commands
 - [x] Depth Sorting of sprite and text commands
 - [x] Implement batch rendering of sprites and fonts
-- [] Cloud rendering experiment of a point cloud dataset
+- [x] Cloud rendering experiment of a point cloud dataset
+- [] Update cloud point data as a fluid for dynamic clouds
 - [] Compute shader support
 - [] Update point cloud data with a compute pass
 - [] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.

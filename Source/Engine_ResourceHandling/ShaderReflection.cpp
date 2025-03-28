@@ -236,7 +236,6 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 
 	Debug_PrintConsoleStringL(StringL::Format("\nShader: %s\n", shaderName));
 
-	// Get all sampled images in the shader.
 	for (auto& resource : res.stage_inputs)
 	{
 		unsigned location = comp.get_decoration(resource.id, spv::DecorationLocation);
@@ -293,6 +292,53 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 			returnData.m_globalMaterialDecorations.Add(decoration);
 		}
 	}
+
+	for (auto& resource : res.separate_images)
+	{
+		unsigned int set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
+		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+
+		ShaderDecoration decoration;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_bindingLocation = binding;
+		decoration.m_elementCount = type.vecsize;
+		decoration.m_valueType = eShaderValueType::none;
+		decoration.m_type = eDecorationType::Image;
+		decoration.m_set = set;
+		returnData.m_setDecorations[set].m_images.Add(decoration);
+
+		if (set < InstanceDomain)
+		{
+			returnData.m_globalMaterialDecorations.Add(decoration);
+		}
+	}
+
+	for (auto& resource : res.separate_samplers)
+	{
+		unsigned int set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
+		Debug_PrintConsoleStringL(StringL::Format("Sampler %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		H_ASSERT(set == 0, "Samplers should only reside at set 0");
+		ShaderDecoration decoration;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_bindingLocation = binding;
+		decoration.m_elementCount = type.vecsize;
+		decoration.m_valueType = eShaderValueType::none;
+		decoration.m_type = eDecorationType::Sampler;
+		decoration.m_set = set;
+		returnData.m_setDecorations[set].m_samplers.Add(decoration);
+
+		if (set < InstanceDomain)
+		{
+			returnData.m_globalMaterialDecorations.Add(decoration);
+		}
+	}
+
 	for (auto& resource : res.uniform_buffers)
 	{
 		unsigned set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);

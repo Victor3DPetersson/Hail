@@ -10,6 +10,13 @@ namespace Hail
 	class RenderingDevice;
 	class TextureManager;
 
+	class SamplerObject
+	{
+	public:
+		virtual void Init(RenderingDevice* pDevice, SamplerProperties props) = 0;
+		virtual void CleanupResource(RenderingDevice* pDevice) = 0;
+		SamplerProperties m_props;
+	};
 
 	class TextureResource
 	{

@@ -62,6 +62,8 @@ namespace Hail
 		UniformBuffer,
 		ShaderStorageBuffer,
 		SampledImage,
+		Image,
+		Sampler,
 		PushConstant
 	};
 }

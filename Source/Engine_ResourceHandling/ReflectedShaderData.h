@@ -35,6 +35,8 @@ namespace Hail
 	struct SetDecorations
 	{
 		VectorOnStack<ShaderDecoration, 8> m_sampledImages;
+		VectorOnStack<ShaderDecoration, 8> m_images;
+		VectorOnStack<ShaderDecoration, 8> m_samplers;
 		VectorOnStack<ShaderDecoration, 8> m_uniformBuffers;
 		VectorOnStack<ShaderDecoration, 8> m_storageBuffers;
 	};

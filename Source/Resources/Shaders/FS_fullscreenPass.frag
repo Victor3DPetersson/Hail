@@ -2,9 +2,10 @@
 //Add to include file later
 layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
 {
-    uvec2 renderResolution;
+    uvec2 renderResolution; // Actual render resolution on the final window
     uvec2 screenResolution;
-	float totalTime;
+	uvec2 renderTargetRes; // Main rendertargets resolution
+	vec2 totalTime_HorizonPosition;
 } constantVariables;
 
 layout(binding = 0, set = 1) uniform sampler2D texSampler;

@@ -5,6 +5,7 @@
 #include "Resources\ResourceManager.h"
 #include "Resources\MaterialManager.h"
 #include "Rendering\FontRenderer.h"
+#include "Rendering\CloudRenderer.h"
 #include "Rendering\RenderContext.h"
 #include "Resources\RenderingResourceManager.h"
 
@@ -17,7 +18,9 @@ bool Hail::Renderer::Initialize()
 {
 	bool initializationResult = true;
 	m_pFontRenderer = new FontRenderer(this, m_pResourceManager);
+	m_pCloudRenderer = new CloudRenderer(this, m_pResourceManager);
 	initializationResult &= m_pFontRenderer->Initialize();
+	initializationResult &= m_pCloudRenderer->Initialize();
 
 	return initializationResult;
 }
@@ -29,6 +32,7 @@ void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 	m_pResourceManager->ReloadResources();
 	m_pResourceManager->UpdateRenderBuffers(renderPool, m_pContext, m_timer);
 	m_pFontRenderer->Prepare(renderPool);
+	m_pCloudRenderer->Prepare(renderPool);
 }
 
 void Hail::Renderer::EndFrame()
@@ -84,6 +88,8 @@ void Hail::Renderer::Render()
 		}
 	}
 
+	m_pCloudRenderer->Render();
+
 	const uint32_t numberOfLines = m_commandPoolToRender->m_debugLineCommands.Size() * 2;
 	if (numberOfLines)
 	{
@@ -98,9 +104,8 @@ void Hail::Renderer::Render()
 	m_pContext->TransferFramebufferLayout(m_pResourceManager->GetMainPassFBTexture(), eFrameBufferLayoutState::ShaderRead, eFrameBufferLayoutState::ShaderRead);
 	m_pContext->BindFrameBufferAtSlot(m_pResourceManager->GetSwapChain()->GetFrameBufferTexture(), 0);
 	m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, 0));
-	m_pContext->BindVertexBuffer(m_pFullscreenVertexBuffer, nullptr);
-	// TODO: flytta till contexten
-	RenderLetterBoxPass();
+	m_pContext->RenderFullscreenPass();
+	RenderImGui();
 	m_pContext->EndGraphicsPass();
 }
 
@@ -109,6 +114,8 @@ void Hail::Renderer::Cleanup()
 	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.")
 	m_pFontRenderer->Cleanup();
 	SAFEDELETE(m_pFontRenderer);
+	m_pCloudRenderer->Cleanup();
+	SAFEDELETE(m_pCloudRenderer);
 }
 
 
@@ -142,23 +149,6 @@ void Hail::Renderer::CreateVertexBuffer()
 	m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(vertexBufferProperties);
 
 	m_pContext->UploadDataToBuffer(m_pVertexBuffer, m_pResourceManager->m_unitCube.vertices.Data(), sizeof(VertexModel) * m_pResourceManager->m_unitCube.vertices.Size());
-}
-
-void Hail::Renderer::CreateFullscreenVertexBuffer()
-{
-	uint32_t vertices[3] = { 0, 1, 2 };
-
-	BufferProperties fullscreenVertexBufferProperties;
-	fullscreenVertexBufferProperties.elementByteSize = sizeof(uint32);
-	fullscreenVertexBufferProperties.numberOfElements = 3;
-	fullscreenVertexBufferProperties.offset = 0;
-	fullscreenVertexBufferProperties.type = eBufferType::vertex;
-	fullscreenVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-	fullscreenVertexBufferProperties.usage = eShaderBufferUsage::Read;
-	fullscreenVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-	m_pFullscreenVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fullscreenVertexBufferProperties);
-
-	m_pContext->UploadDataToBuffer(m_pFullscreenVertexBuffer, vertices, 3 * sizeof(uint32));
 }
 
 void Hail::Renderer::CreateIndexBuffer()

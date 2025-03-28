@@ -39,7 +39,7 @@ namespace Hail
 		void ReloadResources();
 
 		// TODO: Move frame buffer and what owns it to a different place
-		FrameBufferTexture* GetMainPassFBTexture() { return m_mainPassFrameBufferTexture; }
+		FrameBufferTexture* GetMainPassFBTexture() { return m_pMainPassFrameBufferTexture; }
 
 		void LoadMaterialResource(GUID guid);
 		uint32 GetMaterialInstanceHandle(GUID guid) const;
@@ -71,7 +71,7 @@ namespace Hail
 
 		// Resources
 
-		FrameBufferTexture* m_mainPassFrameBufferTexture = nullptr;
+		FrameBufferTexture* m_pMainPassFrameBufferTexture = nullptr;
 
 		//Instance resources
 

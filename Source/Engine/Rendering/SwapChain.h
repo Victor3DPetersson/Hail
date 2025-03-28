@@ -23,6 +23,8 @@ namespace Hail
 		virtual uint32 GetFrameInFlight() = 0;
 		glm::uvec2 GetSwapChainResolution() const { return m_windowResolution; }
 		glm::uvec2 GetRenderTargetResolution() const { return m_renderTargetResolution; }
+		glm::uvec2 GetTargetResolution() const { return m_targetResolution; }
+		float GetTargetHorizontalAspectRatio() const { return m_horizontalAspectRatio; }
 		float GetHorizontalAspectRatio() const { return m_horizontalAspectRatio; }
 		void SetTargetResolution(glm::uvec2 targetResolution);
 		void SetWindowResolution(glm::uvec2 targetResolution);
@@ -36,6 +38,7 @@ namespace Hail
 		glm::uvec2 m_targetResolution;
 
 		float m_horizontalAspectRatio;
+		float m_targetHorizontalAspectRatio;
 		bool m_bResizeSwapChain;
 		FrameBufferTexture* m_pFrameBufferTexture;
 		GrowingArray<TextureView*> m_pTextureViews;

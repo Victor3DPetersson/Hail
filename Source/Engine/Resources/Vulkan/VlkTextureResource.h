@@ -6,6 +6,18 @@
 namespace Hail
 {
 	class RenderingDevice;
+
+	class VlkSamplerObject : public SamplerObject
+	{
+	public:
+		void Init(RenderingDevice* pDevice, SamplerProperties props) override;
+		void CleanupResource(RenderingDevice* pDevice) override;
+
+		VkSampler GetInternalSampler() { return m_sampler; }
+	private:
+		VkSampler m_sampler;
+	};
+
 	class VlkTextureResource : public TextureResource
 	{
 	public:

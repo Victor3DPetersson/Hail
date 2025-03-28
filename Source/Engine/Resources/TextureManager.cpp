@@ -475,11 +475,30 @@ void Hail::TextureManager::RegisterEngineTexture(TextureResource* pTexture, Text
 	}
 }
 
+TextureResource* Hail::TextureManager::CreateTexture(RenderContext* pRenderContext, const char* name, CompiledTexture& compiledTextureData)
+{
+	TextureResource* pTexture = CreateTextureInternalNoLoad();
+	pTexture->textureName = name;
+	pTexture->m_index = TextureResource::g_idCounter++;
+	pTexture->m_properties = compiledTextureData.properties;
+	H_ASSERT(CreateTextureGPUData(pRenderContext, compiledTextureData, pTexture), "Failed to create texture");
+	pRenderContext->UploadDataToTexture(pTexture, compiledTextureData.compiledColorValues, 0);
+	return pTexture;
+}
+
+
 FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
 	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(filepath);
 	GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
 	return projectPath;
+}
+
+TextureView* Hail::TextureManager::CreateTextureView(TextureViewProperties& viewProps)
+{
+	TextureView* pView = CreateTextureView();
+	H_ASSERT(pView->InitView(m_device, viewProps));
+	return pView;
 }
 
 void Hail::TextureManager::LoadTextureMetaData(const FilePath& filePath, MetaResource& metaResourceToFill)
