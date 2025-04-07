@@ -26,8 +26,6 @@ namespace
 		case eMaterialType::SPRITE:
 		case eMaterialType::MODEL3D:
 		case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-		case eMaterialType::DEBUG_LINES2D:
-		case eMaterialType::DEBUG_LINES3D:
 			return true;
 		case eMaterialType::COUNT:
 			break;

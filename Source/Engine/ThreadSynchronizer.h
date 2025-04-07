@@ -42,6 +42,7 @@ namespace Hail
 		void LerpRenderBuffers();
 		void Lerp3DModels(float tValue);
 		void LerpDebugLines(float tValue);
+		void LerpDebugCircles(float tValue);
 
 		RenderCommandPool m_renderCommandPools[3]{};
 		// DoubleBuffered for application as that does not need any other update frequency

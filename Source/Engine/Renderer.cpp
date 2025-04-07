@@ -4,11 +4,11 @@
 #include "RenderCommands.h"
 #include "Resources\ResourceManager.h"
 #include "Resources\MaterialManager.h"
-#include "Rendering\FontRenderer.h"
 #include "Rendering\CloudRenderer.h"
+#include "Rendering\DebugRenderingManager.h"
+#include "Rendering\FontRenderer.h"
 #include "Rendering\RenderContext.h"
 #include "Resources\RenderingResourceManager.h"
-
 Hail::Renderer::~Renderer()
 {
 	H_ASSERT(m_pFontRenderer == nullptr, "Never cleaned up the Renderer, Add the virtual Cleanup function to the inherited renderer")
@@ -19,10 +19,23 @@ bool Hail::Renderer::Initialize()
 	bool initializationResult = true;
 	m_pFontRenderer = new FontRenderer(this, m_pResourceManager);
 	m_pCloudRenderer = new CloudRenderer(this, m_pResourceManager);
+	m_pDebugRenderingManager = new DebugRenderingManager(this, m_pResourceManager);
 	initializationResult &= m_pFontRenderer->Initialize();
 	initializationResult &= m_pCloudRenderer->Initialize();
+	initializationResult &= m_pDebugRenderingManager->Initialize();
 
 	return initializationResult;
+}
+
+void Hail::Renderer::Cleanup()
+{
+	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.")
+		m_pFontRenderer->Cleanup();
+	SAFEDELETE(m_pFontRenderer);
+	m_pCloudRenderer->Cleanup();
+	SAFEDELETE(m_pCloudRenderer);
+	m_pDebugRenderingManager->Cleanup();
+	SAFEDELETE(m_pDebugRenderingManager);
 }
 
 void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
@@ -33,6 +46,7 @@ void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 	m_pResourceManager->UpdateRenderBuffers(renderPool, m_pContext, m_timer);
 	m_pFontRenderer->Prepare(renderPool);
 	m_pCloudRenderer->Prepare(renderPool);
+	m_pDebugRenderingManager->Prepare(renderPool);
 }
 
 void Hail::Renderer::EndFrame()
@@ -76,7 +90,7 @@ void Hail::Renderer::Render()
 				m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::SPRITE, materialInstance.m_materialIndex));
 				m_pContext->BindMaterialInstance(materialInstance.m_gpuResourceInstance);
 				m_pContext->BindVertexBuffer(m_pSpriteVertexBuffer, nullptr);
-				m_pContext->RenderSprites(batchToRender.m_numberOfInstances, batchToRender.m_instanceOffset);
+				m_pContext->RenderInstances(batchToRender.m_numberOfInstances, batchToRender.m_instanceOffset);
 			}
 			else
 			{
@@ -90,13 +104,7 @@ void Hail::Renderer::Render()
 
 	m_pCloudRenderer->Render();
 
-	const uint32_t numberOfLines = m_commandPoolToRender->m_debugLineCommands.Size() * 2;
-	if (numberOfLines)
-	{
-		m_pContext->BindMaterial(m_pResourceManager->GetMaterialManager()->GetMaterial(eMaterialType::DEBUG_LINES2D, 0));
-		m_pContext->BindVertexBuffer(m_pDebugLineVertexBuffer, nullptr);
-		RenderDebugLines2D(numberOfLines, 0);
-	}
+	m_pDebugRenderingManager->Render();
 
 	// Finished rendering to our main framebuffer
 	m_pContext->EndRenderPass();
@@ -108,16 +116,6 @@ void Hail::Renderer::Render()
 	RenderImGui();
 	m_pContext->EndGraphicsPass();
 }
-
-void Hail::Renderer::Cleanup()
-{
-	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.")
-	m_pFontRenderer->Cleanup();
-	SAFEDELETE(m_pFontRenderer);
-	m_pCloudRenderer->Cleanup();
-	SAFEDELETE(m_pCloudRenderer);
-}
-
 
 void Hail::Renderer::CreateSpriteVertexBuffer()
 {
@@ -163,24 +161,4 @@ void Hail::Renderer::CreateIndexBuffer()
 	indexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
 	m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(indexBufferProperties);
 	m_pContext->UploadDataToBuffer(m_pIndexBuffer, m_pResourceManager->m_unitCube.indices.Data(), sizeof(uint32_t) * m_pResourceManager->m_unitCube.indices.Size());
-}
-
-void Hail::Renderer::CreateDebugLineVertexBuffer()
-{
-	GrowingArray<uint32> debugLineVertices(MAX_NUMBER_OF_DEBUG_LINES, 0);
-	for (uint32 i = 0; i < MAX_NUMBER_OF_DEBUG_LINES; i++)
-	{
-		debugLineVertices[i] = i;
-	}
-
-	BufferProperties debugLineBufferProperties;
-	debugLineBufferProperties.elementByteSize = sizeof(uint32_t);
-	debugLineBufferProperties.numberOfElements = MAX_NUMBER_OF_DEBUG_LINES;
-	debugLineBufferProperties.offset = 0;
-	debugLineBufferProperties.type = eBufferType::vertex;
-	debugLineBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-	debugLineBufferProperties.usage = eShaderBufferUsage::Read;
-	debugLineBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-	m_pDebugLineVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(debugLineBufferProperties);
-	m_pContext->UploadDataToBuffer(m_pDebugLineVertexBuffer, debugLineVertices.Data(), sizeof(uint32_t) * MAX_NUMBER_OF_DEBUG_LINES);
 }

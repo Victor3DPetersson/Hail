@@ -14,13 +14,14 @@ namespace Hail
 
         void FrameStart();
         double GetDeltaTime() const;
-        uint32 GetDeltaTimeMs() const { return m_deltaTimeMs; }
+        float GetDeltaTimeMs() const { return m_deltaTimeMs; }
         double GetTotalTime() const;
         uint64 GetTotalTimeMs() const;
         uint64 GetSystemTime() const;
     private:
-        uint32 m_deltaTimeMs = 0;
-        uint64 m_startTimeMs = 0;
-        uint64 m_frameStartMs = 0;
+        float m_deltaTimeMs = 0;
+        uint32 m_deltaTimeMsUint = 0;
+        uint64 m_startTimeMicroSec = 0;
+        uint64 m_frameStartMicroSec = 0;
     };
 }

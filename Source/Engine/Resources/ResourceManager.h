@@ -73,13 +73,6 @@ namespace Hail
 
 		FrameBufferTexture* m_pMainPassFrameBufferTexture = nullptr;
 
-		//Instance resources
-
-		uint32 m_numberOf2DDebugLines;
-		uint32 m_numberOf3DDebugLines;
-		VectorOnStack<DebugLineData, MAX_NUMBER_OF_DEBUG_LINES, false> m_debugLineData;
-
-
 		//Reloading
 		
 		bool m_reloadEverything = false;

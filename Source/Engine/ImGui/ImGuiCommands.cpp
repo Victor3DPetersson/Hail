@@ -8,6 +8,7 @@
 #include "Resources\ResourceManager.h"
 #include "ImGuiPropertyWindow.h"
 #include "ImGuiContext.h"
+#include "ImGuiProfilerWindow.h"
 
 namespace Hail
 {
@@ -15,6 +16,7 @@ namespace Hail
 	ImGuiAssetBrowser g_assetBrowser;
 	ImGuiPropertyWindow g_propertyWindow;
 	ImGuiMessageLogger g_messageLogger;
+	ImGuiProfilerWindow g_profilerWindow;
 	ImGuiContext g_contextObject;
 }
 
@@ -483,9 +485,33 @@ void Hail::ImGuiCommandManager::RenderEngineImgui(RenderContext* pRenderContext)
 		{
 			if (ImGui::BeginMenu("Windows"))
 			{
-				ImGui::MenuItem("Asset Browser", NULL, &m_openAssetBrowser);
-				ImGui::MenuItem("Property Window", NULL, &m_openPropertyWindow);
-				ImGui::MenuItem("Message Logger", NULL, &m_openMessageLogger);
+				if (ImGui::MenuItem("Asset Browser", NULL, &m_openAssetBrowser))
+				{
+					if (m_openAssetBrowser)
+					{
+						m_openPropertyWindow = true;
+						m_openMessageLogger = false;
+						m_bOpenProfilerlWindow = false;
+					}
+				}
+				if (ImGui::MenuItem("Message Logger", NULL, &m_openMessageLogger))
+				{
+					if (m_openMessageLogger)
+					{
+						m_openAssetBrowser = false;
+						m_openPropertyWindow = false;
+						m_bOpenProfilerlWindow = false;
+					}
+				}
+				if (ImGui::MenuItem("Profiler", NULL, &m_bOpenProfilerlWindow))
+				{
+					if (m_bOpenProfilerlWindow)
+					{
+						m_openAssetBrowser = false;
+						m_openPropertyWindow = false;
+						m_openMessageLogger = false;
+					}
+				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Reload"))
@@ -503,10 +529,9 @@ void Hail::ImGuiCommandManager::RenderEngineImgui(RenderContext* pRenderContext)
 		{
 			g_messageLogger.RenderImGuiCommands();
 		}
-		else
+		else if (m_openAssetBrowser)
 		{
-			if (m_openAssetBrowser)
-				g_assetBrowser.RenderImGuiCommands(pRenderContext , &m_fileBrowser, m_resourceManager, &g_contextObject);
+			g_assetBrowser.RenderImGuiCommands(pRenderContext , &m_fileBrowser, m_resourceManager, &g_contextObject);
 			if (m_openPropertyWindow)
 			{
 				ImGui::SameLine();
@@ -517,6 +542,10 @@ void Hail::ImGuiCommandManager::RenderEngineImgui(RenderContext* pRenderContext)
 					g_materialEditor.SetMaterialAsset(&g_contextObject);
 				}
 			}
+		}
+		else if (m_bOpenProfilerlWindow)
+		{
+			g_profilerWindow.RenderImGuiCommands(&g_contextObject);
 		}
 	}
 	ImGui::End();

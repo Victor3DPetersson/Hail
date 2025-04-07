@@ -25,8 +25,6 @@ namespace Hail
 		void WaitForGPU() override;
 
 		void RenderMesh(const RenderData_Mesh& meshCommandToRender, uint32_t meshInstance) override;
-		void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) override;
-		void RenderDebugLines3D(uint32 numberOfLinesToRender) override;
 		void RenderImGui() override;
 
 	private:

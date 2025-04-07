@@ -22,8 +22,6 @@ namespace Hail
 		SPRITE,
 		FULLSCREEN_PRESENT_LETTERBOX, // TODO: Move to Custom material type
 		MODEL3D,
-		DEBUG_LINES2D,
-		DEBUG_LINES3D,
 		CUSTOM, // Used for anything that is not batched unlike standardized sprite and mesh rendering.
 		COUNT
 	};

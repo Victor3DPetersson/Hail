@@ -28,7 +28,7 @@ namespace Hail
 		eMaterialType m_baseMaterialType{}; // Which type descriptor domain the pipeline will be using
 		eMaterialType m_typeRenderPass{}; // Which renderpass the popeline will be using
 		eBlendMode m_blendMode{};
-
+		bool m_bIsWireFrame = false;
 		// Add depth state and the like
 
 		ShaderProperties m_shaders[2];
@@ -92,11 +92,14 @@ namespace Hail
 		eMaterialType m_type = eMaterialType::COUNT;
 		VectorOnStack<CompiledShader*, 2> m_pShaders;
 		eBlendMode m_blendMode = eBlendMode::None;
+		bool m_bIsWireFrame = false;
+		bool m_bUsesVertexBuffer = false;
 		uint64 m_sortKey = MAX_UINT;
 		bool m_bUseTypePasses = false;
 		eMaterialType m_typeRenderPass = eMaterialType::COUNT;
 		bool m_bIsCompute = false;
 		MaterialTypeObject* m_pTypeDescriptor = nullptr;
+		VectorOnStack<ShaderDecoration, 4> m_pushConstants;
 	};
 
 	// The material owns the shader, has a pointer to the shared type data and owns the instance descriptors

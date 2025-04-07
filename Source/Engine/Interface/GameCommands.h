@@ -55,7 +55,8 @@ namespace Hail
 		void AddDebugLine(const DebugLineCommand& debugLineToAdd);
 		void AddSpriteCommand(const GameCommand_Sprite& spriteToAdd);
 		void AddTextCommand(const GameCommand_Text& textToAdd);
-
+		// Debug circles should be normalized, or add conversion to camera space and the like
+		void AddDebugCircle(DebugCircle circleToAdd);
 		void NewFrame();
 
 		VectorOnStack<GameCommand_Mesh, 1024, false> m_meshCommands;
@@ -63,8 +64,9 @@ namespace Hail
 		friend class ThreadSyncronizer;
 		// TODO gör detta till ett hashset som drivs av depth index
 		VectorOnStack<DepthTypeCounter2D, MAX_NUMBER_OF_2D_RENDER_COMMANDS> m_depthTypeCounters; 
-		VectorOnStack<DebugLineCommand, MAX_NUMBER_OF_DEBUG_LINES / 2, false> m_debugLineCommands;
 		VectorOnStack<GameCommand_Sprite, MAX_NUMBER_OF_SPRITES, false> m_spriteCommands;
 		VectorOnStack<GameCommand_Text, MAX_NUMBER_OF_TEXT_COMMANDS, false> m_textCommands;
+		VectorOnStack<DebugLineCommand, MAX_NUMBER_OF_DEBUG_LINES / 2, false> m_debugLineCommands;
+		VectorOnStack<DebugCircle, MAX_NUMBER_OF_DEBUG_CIRCLES, false> m_debugCircleCommands;
 	};
 }

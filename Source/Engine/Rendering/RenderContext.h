@@ -83,7 +83,8 @@ namespace Hail
 
 		virtual void RenderMeshlets(glm::uvec3 dispatchSize);
 		virtual void RenderFullscreenPass() = 0;
-		virtual void RenderSprites(uint32 numberOfInstances, uint32 offset) = 0;
+		virtual void RenderInstances(uint32 numberOfInstances, uint32 offset) = 0;
+		virtual void RenderDebugLines(uint32 numberOfLinesToRender) = 0;
 
 		CommandBuffer* GetCurrentCommandBuffer() { return m_pCurrentCommandBuffer; }
 		// Will end the frame if the last bound material that was bound is FULLSCREEN_PRESENT_LETTERBOX

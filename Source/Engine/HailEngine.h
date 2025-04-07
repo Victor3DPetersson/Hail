@@ -4,8 +4,9 @@
 
 namespace Hail
 {
-	class InputHandler;
 	class ApplicationWindow;
+	class InputHandler;
+	class Timer;
 
 	class ResourceRegistry;
 	bool InitEngine(StartupAttributes startupData);
@@ -14,6 +15,7 @@ namespace Hail
 	//TODO: make thread safe for the getters
 	InputHandler& GetInputHandler();
 	ResourceRegistry& GetResourceRegistry();
+	const Timer& GetRenderLoopTimer();
 
 	bool IsRunning();
 	// A getter for locking operations to see if the engine or window has been terminated from an OS command.

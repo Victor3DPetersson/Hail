@@ -239,7 +239,7 @@ void main()
 	float beersLawValue = 1.0 - clamp(rayInCloudDistance / (8.0 * baseRayDistance * 2.0), 0.0, 1.0); 
 	int quantizedValue = int(beersLawValue * 5.0);
 
-	vec3 color = vec3(beersLawValue, float(quantizedValue) * 0.2, 0.0);
+	vec3 color = vec3(beersLawValue, float(quantizedValue) * 0.2, sdfValue / 32.0);
 	//color.x = 0.0;
 	//color.y = 0.0;
 	//color.z = 0.0;

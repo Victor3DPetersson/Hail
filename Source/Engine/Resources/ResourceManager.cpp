@@ -74,14 +74,6 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, Rend
 		{
 			return false;
 		}
-		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES2D, m_pMainPassFrameBufferTexture, false, i))
-		{
-			return false;
-		}
-		if (!m_materialManager->InitDefaultMaterial(eMaterialType::DEBUG_LINES3D, m_pMainPassFrameBufferTexture, false, i))
-		{
-			return false;
-		}
 	}
 	m_materialManager->InitDefaultMaterialInstances();
 
@@ -198,25 +190,6 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 	BufferObject* pSpriteDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::spriteDataBuffer);
 	pRenderContext->UploadDataToBuffer(pSpriteDataBuffer, renderPool.m_spriteData.Data(), sizeof(RenderData_Sprite) * renderPool.m_spriteData.Size());
 	
-	//Debug Lines___
-	//TODO: Add proper support for 3D lines and sort this list
-	m_numberOf2DDebugLines = renderPool.m_debugLineCommands.Size();
-	for (size_t iDebugLine = 0; iDebugLine < m_numberOf2DDebugLines; iDebugLine++)
-	{
-		const DebugLineCommand& debugLine = renderPool.m_debugLineCommands[iDebugLine];
-
-		DebugLineData line; 
-		line.posAndIs2D = glm::vec4(debugLine.pos1.x, debugLine.pos1.y, debugLine.pos1.z, debugLine.bIs2D ? 0.0f : 1.0f);
-		line.color = debugLine.color1.GetColorWithAlpha();
-		m_debugLineData.Add(line);
-
-		line.posAndIs2D = glm::vec4(debugLine.pos2.x, debugLine.pos2.y, debugLine.pos2.z, debugLine.bIs2D ? 0.0f : 1.0f);
-		line.color = debugLine.color2.GetColorWithAlpha();
-		m_debugLineData.Add(line);
-	}
-	BufferObject* lineInstanceBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::MaterialTypeDomain, eBufferType::structured, (uint32)eMaterialBuffers::lineInstanceBuffer);
-	pRenderContext->UploadDataToBuffer(lineInstanceBuffer, m_debugLineData.Data(), sizeof(DebugLineData) * m_debugLineData.Size());
-
 	//Common GPU buffers___
 
 	const float deltaTime = timer->GetDeltaTime();
@@ -253,7 +226,6 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 
 void Hail::ResourceManager::ClearFrameData()
 {
-	m_debugLineData.Clear();
 }
 
 void Hail::ResourceManager::SetSwapchainTargetResolution(glm::uvec2 targetResolution)

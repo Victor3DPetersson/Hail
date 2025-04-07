@@ -51,7 +51,6 @@ bool Hail::VlkRenderer::Initialize()
 	CreateSpriteVertexBuffer();
 	CreateVertexBuffer();
 	CreateIndexBuffer();
-	CreateDebugLineVertexBuffer();
 	InitImGui();
 	m_pContext->EndTransferPass();
 	////clear font textures from cpu data, so clearing ImGui for Vlk
@@ -209,20 +208,6 @@ void Hail::VlkRenderer::RenderMesh(const RenderData_Mesh& meshCommandToRender, u
 	vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m_pResourceManager->m_unitCube.indices.Size()), 1, 0, 0, 0);
 }
 
-void Hail::VlkRenderer::RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines)
-{
-	const uint32_t frameInFlightIndex = m_swapChain->GetFrameInFlight();
-	VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
-	VkCommandBuffer commandBuffer = pVlkCommandBfr->m_commandBuffer;
-
-	vkCmdDraw(commandBuffer, numberOfLinesToRender, 1, offsetFrom3DLines, 0);
-}
-
-void Hail::VlkRenderer::RenderDebugLines3D(uint32 numberOfLinesToRender)
-{
-	//TODO:
-}
-
 void Hail::VlkRenderer::RenderImGui()
 {
 	VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
@@ -246,11 +231,9 @@ void VlkRenderer::Cleanup()
 	m_pSpriteVertexBuffer->CleanupResource(m_renderDevice);
 	m_pVertexBuffer->CleanupResource(m_renderDevice);
 	m_pIndexBuffer->CleanupResource(m_renderDevice);
-	m_pDebugLineVertexBuffer->CleanupResource(m_renderDevice);
 	SAFEDELETE(m_pSpriteVertexBuffer);
 	SAFEDELETE(m_pVertexBuffer);
 	SAFEDELETE(m_pIndexBuffer);
-	SAFEDELETE(m_pDebugLineVertexBuffer);
 	SAFEDELETE(m_pContext);
 
 	vkDestroyCommandPool(device.GetDevice(), device.GetCommandPool(), nullptr);

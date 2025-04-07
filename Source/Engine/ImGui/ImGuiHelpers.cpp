@@ -171,8 +171,6 @@ const char* Hail::ImGuiHelpers::GetMaterialTypeStringFromEnum(eMaterialType type
     case Hail::eMaterialType::MODEL3D:
         return "3D Model";
     case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-    case Hail::eMaterialType::DEBUG_LINES2D:
-    case Hail::eMaterialType::DEBUG_LINES3D:
     case Hail::eMaterialType::COUNT:
     default:
         break;

@@ -136,10 +136,12 @@ namespace Hail
 		ImGuiCommandRecorder m_commandRecorder[2];
 		ResourceManager* m_resourceManager = nullptr;
 
-		bool m_openAssetBrowser = true;
-		bool m_openPropertyWindow = true;
-		bool m_openMessageLogger = true;
+		// TODO, have a more robust setting for the imgui code and serialize this value
+		bool m_openAssetBrowser = false;
+		bool m_openPropertyWindow = false;
+		bool m_openMessageLogger = false;
 		bool m_openMaterialWindow = false;
+		bool m_bOpenProfilerlWindow = true;
 	};
 
 	template<typename Type>

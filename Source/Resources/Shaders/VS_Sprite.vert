@@ -11,13 +11,6 @@ vec4 ColorFromPackedColor(uint packedColor)
     return returnColor;
 }
 
-layout( push_constant ) uniform constants
-{
-	uvec4 instanceID_padding; // uint uvec3 padding
-} PushConstants;
-
-layout(location = 0) in uint inIndex;
-
 layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
 {
     uvec2 renderResolution;
@@ -25,6 +18,13 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 	uvec2 renderTargetRes;
 	vec2 totalTime_HorizonPosition;
 } constantVariables;
+
+layout( push_constant ) uniform constants
+{
+	uvec4 instanceID_padding; // uint uvec3 padding
+} PushConstants;
+
+layout(location = 0) in uint inIndex;
 
 struct Instance2D
 {
@@ -48,7 +48,7 @@ struct SpriteData
 	vec4 padding; // f, f3
 };
 
-layout(std140, set = 1, binding = 2) buffer SpriteDataBuffer 
+layout(std140, set = 1, binding = 1) buffer SpriteDataBuffer 
 {
    	SpriteData g_spriteData[];
 };

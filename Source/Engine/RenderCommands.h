@@ -83,11 +83,12 @@ namespace Hail
 		VectorOnStack<uint16, MAX_NUMBER_OF_SPRITES, false> m_layersBatchOffset;
 		// Gets uploaded as is to the GPU, can be lerped on either the GPU or the CPU
 		VectorOnStack<RenderCommand2DBase, MAX_NUMBER_OF_2D_RENDER_COMMANDS, false> m_2DRenderCommands;
-
-		VectorOnStack<DebugLineCommand, MAX_NUMBER_OF_DEBUG_LINES / 2, false> m_debugLineCommands;
 		VectorOnStack<RenderData_Sprite, MAX_NUMBER_OF_SPRITES, false> m_spriteData;
 		VectorOnStack<RenderData_Text, MAX_NUMBER_OF_TEXT_COMMANDS, false> m_textData;
-		VectorOnStack<RenderData_Mesh, 1024, false> m_meshData;
+		VectorOnStack<RenderData_Mesh, 128, false> m_meshData;
+		// TODO: define out for debug
+		VectorOnStack<DebugLineCommand, MAX_NUMBER_OF_DEBUG_LINES / 2, false> m_debugLineCommands;
+		VectorOnStack<DebugCircle, MAX_NUMBER_OF_DEBUG_CIRCLES, false> m_debugCircles;
 
 	};
 

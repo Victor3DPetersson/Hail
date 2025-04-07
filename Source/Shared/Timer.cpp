@@ -8,24 +8,25 @@
 
 using namespace Hail;
 
-uint64 localGetCurrentTimeInMs()
+uint64 localGetCurrentTimeInMicroSec()
 {
 	const auto duration = std::chrono::high_resolution_clock::now().time_since_epoch();
-	return (uint64)std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+	return (uint64)std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 }
 
 Hail::Timer::Timer()
 {
-	m_startTimeMs = localGetCurrentTimeInMs();
-	m_frameStartMs = m_startTimeMs;
+	m_startTimeMicroSec = localGetCurrentTimeInMicroSec();
+	m_frameStartMicroSec = m_startTimeMicroSec;
 }
 
 void Timer::FrameStart()
 {
-	const uint64 currentTimeInMs = localGetCurrentTimeInMs();
+	const uint64 currentTimeInMicroSec = localGetCurrentTimeInMicroSec();
 
-	m_deltaTimeMs = currentTimeInMs - m_frameStartMs;
-	m_frameStartMs = currentTimeInMs;
+	m_deltaTimeMs = (currentTimeInMicroSec - m_frameStartMicroSec) * 0.001f;
+	m_deltaTimeMsUint = (uint32)m_deltaTimeMs;
+	m_frameStartMicroSec = currentTimeInMicroSec;
 }
 
 double Timer::GetDeltaTime() const
@@ -35,12 +36,12 @@ double Timer::GetDeltaTime() const
 
 double Timer::GetTotalTime() const
 {
-	return (localGetCurrentTimeInMs() - m_startTimeMs) * 0.001;
+	return (localGetCurrentTimeInMicroSec() - m_startTimeMicroSec) * 0.000001;
 }
 
 uint64 Timer::GetTotalTimeMs() const
 {
-	return localGetCurrentTimeInMs() - m_startTimeMs;
+	return (localGetCurrentTimeInMicroSec() - m_startTimeMicroSec) / 1000;
 }
 
 uint64 Hail::Timer::GetSystemTime() const

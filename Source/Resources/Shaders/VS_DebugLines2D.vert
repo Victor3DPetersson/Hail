@@ -12,7 +12,7 @@ struct DebugLineData
     vec4 color; 
 };
 
-layout(std140, set = 1, binding = 1) buffer LineDataBuffer 
+layout(std140, set = 1, binding = 0) buffer LineDataBuffer 
 {
    	DebugLineData lineDataBuffer[];
 };
@@ -32,7 +32,7 @@ void main()
     }
     else
     {
-        finalPosition = vec4((lineData.posAndIs2D.xy - 0.5) * 2.0, 0.0001, 1.0);
+        finalPosition = vec4(lineData.posAndIs2D.xy, 0.0001, 1.0);
     }
 	gl_Position = finalPosition;
 	outColor = lineData.color;

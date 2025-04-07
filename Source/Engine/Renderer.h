@@ -21,6 +21,7 @@ namespace Hail
 	
 	class BufferObject;
 	class CloudRenderer;
+	class DebugRenderingManager;
 	class FontRenderer;
 	class FrameBufferTexture;
 	class RenderContext;
@@ -34,13 +35,13 @@ namespace Hail
 		~Renderer();
 		// TODO: Clean up the initialization order of all the rendering systems, this is a mess atm.
 		virtual bool Initialize();
+		virtual void Cleanup();
 		virtual bool InitDevice(Timer* timer) = 0;
 		virtual bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
 		//Always call virtual version of this function after swapchain has finished the previous frame
 		virtual void StartFrame(RenderCommandPool& renderPool);
 		void EndFrame();
 		virtual void Render();
-		virtual void Cleanup();
 		virtual void InitImGui() = 0; 
 		// Blocking operation for executing thread.
 		virtual void WaitForGPU() = 0;
@@ -52,8 +53,6 @@ namespace Hail
 		//virtual void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) = 0;
 
 		virtual void RenderMesh(const RenderData_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
-		virtual void RenderDebugLines2D(uint32 numberOfLinesToRender, uint32 offsetFrom3DLines) = 0;
-		virtual void RenderDebugLines3D(uint32 numberOfLinesToRender) = 0;
 		virtual void RenderImGui() = 0;
 
 		RenderingDevice* GetRenderingDevice() { return m_renderDevice; }
@@ -64,11 +63,9 @@ namespace Hail
 		void CreateSpriteVertexBuffer();
 		void CreateVertexBuffer();
 		void CreateIndexBuffer();
-		void CreateDebugLineVertexBuffer();
 
 		BufferObject* m_pVertexBuffer = nullptr;
 		BufferObject* m_pIndexBuffer = nullptr;
-		BufferObject* m_pDebugLineVertexBuffer = nullptr;
 		BufferObject* m_pSpriteVertexBuffer = nullptr;
 
 		bool m_shadersRecompiled = false;
@@ -78,7 +75,7 @@ namespace Hail
 		// TODO: Should this be here? Figure out where we place our renderers and how to structure it properly.
 		FontRenderer* m_pFontRenderer = nullptr;
 		CloudRenderer* m_pCloudRenderer = nullptr;
-
+		DebugRenderingManager* m_pDebugRenderingManager = nullptr;
 
 		RenderingDevice* m_renderDevice = nullptr;
 		RenderCommandPool* m_commandPoolToRender = nullptr;

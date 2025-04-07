@@ -23,7 +23,6 @@ namespace Hail
 	enum class eMaterialBuffers
 	{
 		instanceBuffer2D,
-		lineInstanceBuffer,
 		spriteDataBuffer,
 		count
 	};

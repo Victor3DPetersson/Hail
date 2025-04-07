@@ -149,16 +149,6 @@ namespace Hail
 				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_triangle", eShaderType::Vertex, reloadShader));
 				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_triangle", eShaderType::Fragment, reloadShader));
 				break;
-			case eMaterialType::DEBUG_LINES2D:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_DebugLines2D", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_DebugLines", eShaderType::Fragment, reloadShader));
-				break;
-			case eMaterialType::DEBUG_LINES3D:
-				return true;
-				// TODO:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_DebugLines", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_DebugLines", eShaderType::Fragment, reloadShader));
-				break;
 			case eMaterialType::COUNT:
 				break;
 			default:
@@ -209,8 +199,6 @@ namespace Hail
 		case eMaterialType::SPRITE:
 		case eMaterialType::MODEL3D:
 		case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-		case eMaterialType::DEBUG_LINES2D:
-		case eMaterialType::DEBUG_LINES3D:
 			return true;
 		case eMaterialType::COUNT:
 			break;
@@ -241,13 +229,6 @@ namespace Hail
 		case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 			shaders.Add({ eShaderType::Vertex, GuidZero, "VS_fullscreenPass" });
 			shaders.Add({ eShaderType::Fragment, GuidZero, "FS_fullscreenPass" });
-		case eMaterialType::DEBUG_LINES2D:
-			shaders.Add({ eShaderType::Vertex, GuidZero, "VS_DebugLines2D" });
-			shaders.Add({ eShaderType::Fragment, GuidZero, "FS_DebugLines" });
-		case eMaterialType::DEBUG_LINES3D:
-			H_ASSERT(false, "Should not get here yet.");
-			//shaders.Add("VS_DebugLines3D");
-			//shaders.Add("FS_DebugLines");
 			break;
 		case eMaterialType::COUNT:
 			break;
@@ -272,12 +253,6 @@ namespace Hail
 		case Hail::eMaterialType::MODEL3D:
 			shaderString = "VS_triangle";
 			break;
-		case Hail::eMaterialType::DEBUG_LINES2D:
-			shaderString = "VS_DebugLines2D";
-			break;
-		case Hail::eMaterialType::DEBUG_LINES3D:
-			H_ASSERT(false, "Should not get here yet.");
-			//return "VS_DebugLines3D";
 		case Hail::eMaterialType::COUNT:
 		default:
 			break;
@@ -299,12 +274,6 @@ namespace Hail
 		case Hail::eMaterialType::MODEL3D:
 			shaderString = "FS_triangle";
 			break;
-		case Hail::eMaterialType::DEBUG_LINES2D:
-			shaderString = "FS_DebugLines";
-			break;
-		case Hail::eMaterialType::DEBUG_LINES3D:
-			H_ASSERT(false, "Should not get here yet.");
-			//return "VS_DebugLines3D";
 		case Hail::eMaterialType::COUNT:
 		default:
 			break;
@@ -464,6 +433,7 @@ namespace Hail
 		pPipeline->m_sortKey = materialSortKey;
 		pPipeline->m_type = props.m_baseMaterialType;
 		pPipeline->m_blendMode = props.m_blendMode;
+		pPipeline->m_bIsWireFrame = props.m_bIsWireFrame;
 		for (size_t i = 0; i < shaders.Size(); i++)
 		{
 			pPipeline->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
@@ -476,6 +446,11 @@ namespace Hail
 		pPipeline->m_bIsCompute = props.m_shaders[0].m_type == eShaderType::Compute;
 		pPipeline->m_bUseTypePasses = props.m_bUsesMaterialTypeData;
 		pPipeline->m_typeRenderPass = props.m_typeRenderPass;
+
+		if (pPipeline->m_pShaders[0]->header.shaderType == (uint32)eShaderType::Vertex)
+		{
+			pPipeline->m_bUsesVertexBuffer = pPipeline->m_pShaders[0]->reflectedShaderData.m_shaderInputs.Size() > 0u;
+		}
 
 		bool result = true;
 		for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
@@ -909,8 +884,6 @@ namespace Hail
 			resource.m_shaders[1].m_type = eShaderType::Fragment;
 			break;
 		case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-		case Hail::eMaterialType::DEBUG_LINES2D:
-		case Hail::eMaterialType::DEBUG_LINES3D:
 		case Hail::eMaterialType::COUNT:
 			H_ERROR(StringL::Format("Create material type is incorrect for material: %s", name));
 			break;

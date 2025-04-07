@@ -47,6 +47,7 @@ void Hail::ThreadSyncronizer::TransferGameCommandsToRenderCommands(ResourceManag
 	renderPoolReadToFill.m_spriteData.Clear();
 	renderPoolReadToFill.m_textData.Clear();
 	renderPoolReadToFill.m_debugLineCommands.Clear();
+	renderPoolReadToFill.m_debugCircles.Clear();
 
 	uint16 textCounter = 0u;
 	uint16 spriteCounter = 0u;
@@ -134,6 +135,9 @@ void Hail::ThreadSyncronizer::TransferGameCommandsToRenderCommands(ResourceManag
 
 	for (uint16 i = 0; i < poolToTransferFrom.m_debugLineCommands.Size(); i++)
 		renderPoolReadToFill.m_debugLineCommands.Add(poolToTransferFrom.m_debugLineCommands[i]);
+
+	for (uint16 i = 0; i < poolToTransferFrom.m_debugCircleCommands.Size(); i++)
+		renderPoolReadToFill.m_debugCircles.Add(poolToTransferFrom.m_debugCircleCommands[i]);
 
 	// Transfer to the current write render pool the data we do not need to lerp each frame
 	RenderCommandPool& writeRenderPool = GetRenderPool();
@@ -255,6 +259,8 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	writePool.m_2DRenderCommands.AddN_NoConstruction(readPool.m_2DRenderCommands.Size());
 	writePool.m_debugLineCommands.Clear();
 	writePool.m_debugLineCommands.AddN_NoConstruction(readPool.m_debugLineCommands.Size());
+	writePool.m_debugCircles.Clear();
+	writePool.m_debugCircles.AddN_NoConstruction(readPool.m_debugCircles.Size());
 
 	for (uint32 i2DInstanceID = 0; i2DInstanceID < readPool.m_2DRenderCommands.Size(); i2DInstanceID++)
 	{
@@ -301,6 +307,7 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 
 	Lerp3DModels(tValue);
 	LerpDebugLines(tValue);
+	LerpDebugCircles(tValue);
 }
 
 namespace 
@@ -407,5 +414,29 @@ void Hail::ThreadSyncronizer::LerpDebugLines(float tValue)
 		{
 			writeLine = readLine;
 		}
+	}
+}
+
+void Hail::ThreadSyncronizer::LerpDebugCircles(float tValue)
+{
+	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
+	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
+	const uint32_t numberOfCircles = readPool.m_debugCircles.Size();
+	const uint32_t lastReadNumberOfCircles = lastReadPool.m_debugCircles.Size();
+	for (uint16_t iLine = 0; iLine < numberOfCircles; iLine++)
+	{
+		const DebugCircle& readCircle = readPool.m_debugCircles[iLine];
+		DebugCircle& writeCircle = GetRenderPool().m_debugCircles[iLine];
+
+		if (iLine >= lastReadNumberOfCircles)
+		{
+			writeCircle = readCircle;
+			continue;
+		}
+
+		const DebugCircle& lastReadCircle = lastReadPool.m_debugCircles[iLine];
+		writeCircle.pos = glm::mix(readCircle.pos, lastReadCircle.pos, tValue);
+		writeCircle.scale = Math::Lerp(readCircle.scale, lastReadCircle.scale, tValue);
+		writeCircle.color = Color::Lerp(readCircle.color, lastReadCircle.color, tValue);
 	}
 }

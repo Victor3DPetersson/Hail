@@ -149,22 +149,22 @@ namespace
 
 	void localDrawBoxMinMaxNormalized(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMax(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, true);
+		DrawRect2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, true);
 	}
 
 	void localDrawBoxMinMaxNormalizedScreenAlligned(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMax(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, false);
+		DrawRect2D(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, false);
 	}
 
 	void localDrawBoxMinMax(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMaxPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, true);
+		DrawRect2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, true);
 	}
 
 	void localDrawBoxMinMaxScreenAlligned(const Vec2& min, const Vec2& max)
 	{
-		DrawBox2DMinMaxPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, false);
+		DrawRect2DPixelSpace(*g_pThreadSynchronizer->GetAppFrameData().commandPoolToFill, min.m_vec, max.m_vec, false);
 	}
 
 	void localDrawCircleNormalized(const Vec2& pos, float radius)

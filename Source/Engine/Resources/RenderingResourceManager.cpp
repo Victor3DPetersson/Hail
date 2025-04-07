@@ -153,13 +153,6 @@ bool Hail::RenderingResourceManager::InternalInit()
             properties.usage = eShaderBufferUsage::Read;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
             break;
-        case Hail::eMaterialBuffers::lineInstanceBuffer:
-            properties.numberOfElements = MAX_NUMBER_OF_DEBUG_LINES;
-            properties.elementByteSize = sizeof(DebugLineData);
-            properties.domain = eShaderBufferDomain::CpuToGpu;
-            properties.usage = eShaderBufferUsage::Read;
-            properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-            break;
         case Hail::eMaterialBuffers::spriteDataBuffer:
             properties.numberOfElements = MAX_NUMBER_OF_SPRITES;
             properties.elementByteSize = sizeof(RenderData_Sprite);

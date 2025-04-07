@@ -44,6 +44,11 @@ Hail::Color::Color() : m_colorValue(MAX_UINT)
 {
 }
 
+Hail::Color::Color(glm::vec3 color)
+{
+	m_colorValue = locPackColorVec4({ color.x, color.y, color.z, 1.0f });
+}
+
 Hail::Color::Color(glm::vec3 color, float alpha)
 {
 	m_colorValue = locPackColorVec4({ color.x, color.y, color.z, alpha });
@@ -121,3 +126,16 @@ Color Hail::Color::Lerp(const Color& color1, const Color& color2, float T)
 	glm::vec4 mixedColor = glm::mix(color1.GetColorWithAlpha(), color2.GetColorWithAlpha(), T);
 	return Color(mixedColor);
 }
+
+const Color Color::White(MAX_UINT);
+const Color Color::Black(0u);
+const Color Color::Red(glm::vec3(1.0f, 0.0f, 0.0f));
+const Color Color::Green(glm::vec3(0.0f, 1.0f, 0.0f));
+const Color Color::Blue(glm::vec3(0.0f, 0.0f, 1.0f));
+const Color Color::Orange(glm::vec3(1.0f, 0.5f, 0.0f));
+const Color Color::Yellow(glm::vec3(1.0f, 0.9f, 0.0f));
+const Color Color::LimeGreen(glm::vec3(0.5f, 1.0f, 0.0f));
+const Color Color::Cyan(glm::vec3(0.0f, 1.0f, 0.5f));
+const Color Color::MarineBlue(glm::vec3(0.0f, 0.5f, 1.0f));
+const Color Color::PurpleBlue(glm::vec3(0.5f, 0.0f, 1.0f));
+const Color Color::Magenta(glm::vec3(1.0f, 0.0f, 0.5f));

@@ -162,6 +162,11 @@ Hail::ResourceRegistry& Hail::GetResourceRegistry()
 	return g_engineData->resourceRegistry;
 }
 
+const Hail::Timer& Hail::GetRenderLoopTimer()
+{
+	return g_engineData->timer;
+}
+
 bool Hail::IsRunning()
 {
 	return g_engineData->runApplication.load();

@@ -11,6 +11,7 @@
 #include "RenderContext.h"
 #include "MathUtils.h"
 #include "RenderCommands.h"
+#include "Utility\DebugLineHelpers.h"
 
 namespace Hail
 {
@@ -226,7 +227,6 @@ namespace Hail
 			{9, 7}
 		};
 
-		GrowingArray<glm::vec2> pointsToPutOnTheGpu;
 		for (uint32 i = 0; i < pointBaseList.Size(); i++)
 		{
 			const uint32 rnd = ((pointBaseList[i].x * 5u + pointBaseList[i].y * 7u) >> (pointBaseList[i].x & 3u));
@@ -234,7 +234,7 @@ namespace Hail
 			{
 				glm::vec2 vogelNoise = Vogel(rnd + iPRand, 128u, 0.1 * iPRand) * 0.5f;
 				glm::vec2 finalPos = (glm::vec2( pointBaseList[i].x + 0.5, pointBaseList[i].y + 0.5) / 11.f + vogelNoise / 11.f);
-				pointsToPutOnTheGpu.Add(finalPos);
+				m_pointsOnTheGPU.Add(finalPos);
 			}
 		}
 		const float cloudPointRadius = 0.1f;
@@ -250,9 +250,9 @@ namespace Hail
 				uint32 imageCoord = x + y * height;
 				glm::vec2 cloudCoord = glm::vec2((float)(x + 0.5) / width, (float)(y + 0.5) / height);
 				uint32 numberOfPointsInRadius = 0;
-				for (uint32 iPoint = 0; iPoint < pointsToPutOnTheGpu.Size(); iPoint++)
+				for (uint32 iPoint = 0; iPoint < m_pointsOnTheGPU.Size(); iPoint++)
 				{
-					glm::vec2 cloudPointToSamplePoint = cloudCoord - pointsToPutOnTheGpu[iPoint];
+					glm::vec2 cloudPointToSamplePoint = cloudCoord - m_pointsOnTheGPU[iPoint];
 					float distanceSquared = glm::dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
 					if (distanceSquared <= cloudPointRadiusSq)
 					{
@@ -267,9 +267,9 @@ namespace Hail
 		DeadReckoning(width, height, imageRepresentationOfCloud, distanceFieldOfCloud);
 
 		//pointsToPutOnTheGpu.Add(glm::vec2(0.95, 0.05));
-		pointsToPutOnTheGpu.Add(glm::vec2(0.9, 0.1));
+		m_pointsOnTheGPU.Add(glm::vec2(0.9, 0.1));
 		//pointsToPutOnTheGpu.Add(glm::vec2(0.85, 0.15));
-		pointsToPutOnTheGpu.Add(glm::vec2(0.8, 0.23));
+		m_pointsOnTheGPU.Add(glm::vec2(0.8, 0.23));
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->StartTransferPass();
@@ -290,7 +290,7 @@ namespace Hail
 
 		BufferProperties cloudPointBufferProps;
 		cloudPointBufferProps.elementByteSize = sizeof(glm::vec2);
-		cloudPointBufferProps.numberOfElements = pointsToPutOnTheGpu.Size();
+		cloudPointBufferProps.numberOfElements = m_pointsOnTheGPU.Size();
 		cloudPointBufferProps.offset = 0;
 		cloudPointBufferProps.type = eBufferType::structured;
 		cloudPointBufferProps.domain = eShaderBufferDomain::GpuOnly;
@@ -321,9 +321,9 @@ namespace Hail
 		matProperties.m_typeRenderPass = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 		m_pCloudPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
-		pContext->UploadDataToBuffer(m_pCloudBuffer, pointsToPutOnTheGpu.Data(), pointsToPutOnTheGpu.Size() * sizeof(glm::vec2));
+		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
 		pContext->EndTransferPass();
-		m_numberOfPointsUploaded = pointsToPutOnTheGpu.Size();
+		m_numberOfPointsUploaded = m_pointsOnTheGPU.Size();
 
 		return m_pCloudPipeline != nullptr;
 	}
@@ -344,13 +344,28 @@ namespace Hail
 		SAFEDELETE(m_pCloudPipeline);
 	}
 
-	void CloudRenderer::Prepare(const RenderCommandPool& poolOfCommands)
+	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
 	{
-		// For permanent buffers
-		//RenderContext* pContext = m_pRenderer->GetCurrentContext();
-		//pContext->StartTransferPass();
-		//pContext->UploadDataToBuffer();
-		//pContext->EndTransferPass();
+		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
+
+		DebugCircle debugCircle;
+		debugCircle.scale = 20.0;
+		debugCircle.color = { 3.0 / 255.f, 169.f / 255.f, 252.f / 255.f };
+		for (uint32 i = 0; i < m_pointsOnTheGPU.Size(); i++)
+		{
+			debugCircle.pos = m_pointsOnTheGPU[i];
+			debugCircle.pos.x /= aspectRatio;
+			poolOfCommands.m_debugCircles.Add(debugCircle);
+		}
+
+		debugCircle.pos = glm::vec2(1.0, 0.5);
+		debugCircle.pos.x /= aspectRatio;
+		debugCircle.scale = 30.0;
+		debugCircle.color = Color::Orange;
+		poolOfCommands.m_debugCircles.Add(debugCircle);
+
+		// TODO add debug line for the bounds: 
+		DrawRect2D(poolOfCommands.m_debugLineCommands, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f / aspectRatio, 1.0f) );
 	}
 
 	void CloudRenderer::Render()

@@ -10,6 +10,7 @@ namespace Hail
 	public:
 		Color();
 		Color(glm::vec3 color, float alpha);
+		Color(glm::vec3 color);
 		Color(glm::vec4 colorAndAlpha);
 		Color(uint32 packedColor);
 
@@ -28,8 +29,22 @@ namespace Hail
 
 		static Color Lerp(const Color& color1, const Color& color2, float T);
 
+		static const Color
+			White,
+			Black,
+			Red,
+			Green,
+			Blue,
+			Orange,
+			Yellow,
+			LimeGreen,
+			Cyan,
+			MarineBlue,
+			PurpleBlue,
+			Magenta;
+
 	private:
 		uint32 m_colorValue;
 	};
-}
 
+}

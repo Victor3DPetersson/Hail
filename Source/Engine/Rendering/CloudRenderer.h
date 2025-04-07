@@ -1,6 +1,7 @@
 #pragma once
 #include "Types.h"
 #include "ResourceCommon.h"
+#include "Containers\GrowingArray\GrowingArray.h"
 
 
 namespace Hail
@@ -22,7 +23,7 @@ namespace Hail
 		bool Initialize();
 		void Cleanup();
 
-		void Prepare(const RenderCommandPool& poolOfCommands);
+		void Prepare(RenderCommandPool& poolOfCommands);
 		void Render();
 
 	private:
@@ -33,6 +34,8 @@ namespace Hail
 		BufferObject* m_pCloudBuffer;
 		TextureResource* m_pSdfTexture;
 		TextureView* m_pSdfView;
+
+		GrowingArray<glm::vec2> m_pointsOnTheGPU;
 
 		uint32 m_numberOfPointsUploaded;
 	};

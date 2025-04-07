@@ -232,6 +232,41 @@ namespace Internal
 
         return descriptorSets;
     }
+
+    VkFormat GetVlkTypeFromReflectedType(eShaderValueType typeToGetFrom)
+    {
+        switch (typeToGetFrom)
+        {
+        case eShaderValueType::none:
+        {
+            H_ASSERT(false);
+            return VK_FORMAT_UNDEFINED;
+        }
+        case eShaderValueType::int8:
+            return VK_FORMAT_R8_SINT;
+        case eShaderValueType::uint8:
+            return VK_FORMAT_R8_UINT;
+        case eShaderValueType::int16:
+            return VK_FORMAT_R16_SINT;
+        case eShaderValueType::uint16:
+            return VK_FORMAT_R16_UINT;
+        case eShaderValueType::int32:
+            return VK_FORMAT_R32_SINT;
+        case eShaderValueType::boolean:
+        case eShaderValueType::uint32:
+            return VK_FORMAT_R32_UINT;
+        case eShaderValueType::int64:
+            return VK_FORMAT_R64_SINT;
+        case eShaderValueType::uint64:
+            return VK_FORMAT_R64_UINT;
+        case eShaderValueType::float16:
+            return VK_FORMAT_R16_SFLOAT;
+        case eShaderValueType::float32:
+            return VK_FORMAT_R32_SFLOAT;
+        case eShaderValueType::float64:
+            return VK_FORMAT_R64_SFLOAT;
+        }
+    }
 }
 
 Hail::VlkRenderContext::VlkRenderContext(RenderingDevice* pDevice, ResourceManager* pResourceManager) :RenderContext(pDevice, pResourceManager)
@@ -442,22 +477,39 @@ void Hail::VlkRenderContext::RenderFullscreenPass()
     vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 }
 
-void Hail::VlkRenderContext::RenderSprites(uint32 numberOfInstances, uint32 offset)
+void Hail::VlkRenderContext::RenderInstances(uint32 numberOfInstances, uint32 offset)
 {
     H_ASSERT(m_pCurrentCommandBuffer && m_currentState == eContextState::Graphics, "Can not render outside of a graphics pass");
-    H_ASSERT(m_pBoundVertexBuffer, "No vertex buffer bound");
-    H_ASSERT(m_pBoundMaterial, "Must have bound a material to render sprites.");
+    H_ASSERT(m_pBoundMaterial || m_pBoundMaterialPipeline, "Must have bound a material to render instances.");
+
+    bool bDoesNotNeedVertexBuffer = m_boundMaterialType == eMaterialType::CUSTOM;
+    bool bHaveABoundVertexBuffer = m_pBoundVertexBuffer;
+    H_ASSERT(bDoesNotNeedVertexBuffer != bHaveABoundVertexBuffer, "Must have bound a material to render sprites.");
 
     VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
     VkCommandBuffer commandBuffer = vlkCommandBuffer.m_commandBuffer;
 
-    VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pBoundMaterial;
-    VlkPipeline& vlkPipeline = *(VlkPipeline*)vlkMaterial.m_pPipeline;
-    // TODO: use the reflected push constants
-    glm::uvec4 pushConstants_instanceID_padding = { offset, 0, 0, 0 };
+    VlkPipeline& vlkPipeline = *(VlkPipeline*)(m_pBoundMaterial ? m_pBoundMaterial->m_pPipeline : m_pBoundMaterialPipeline);
 
-    vkCmdPushConstants(commandBuffer, vlkPipeline.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
+    if (vlkPipeline.m_type == eMaterialType::SPRITE)
+    {
+        // TODO: use the reflected push constants
+        glm::uvec4 pushConstants_instanceID_padding = { offset, 0, 0, 0 };
+        vkCmdPushConstants(commandBuffer, vlkPipeline.m_pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::uvec4), &pushConstants_instanceID_padding);
+    }
     vkCmdDraw(commandBuffer, 6, numberOfInstances, 0, 0);
+}
+
+void Hail::VlkRenderContext::RenderDebugLines(uint32 numberOfLinesToRender)
+{
+    H_ASSERT(m_pCurrentCommandBuffer && m_currentState == eContextState::Graphics, "Can not render outside of a graphics pass");
+    H_ASSERT(m_pBoundMaterialPipeline, "Must have bound a material to render lines.");
+    H_ASSERT(m_boundMaterialType == eMaterialType::CUSTOM, "Must have a custom material for lines.");
+
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer commandBuffer = vlkCommandBuffer.m_commandBuffer;
+
+    vkCmdDraw(commandBuffer, numberOfLinesToRender, 1, 0u, 0);
 }
 
 bool Hail::VlkRenderContext::BindMaterialInternal(Pipeline* pPipeline)
@@ -678,7 +730,6 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
     VlkDevice& device = *(VlkDevice*)(m_pDevice);
     //TODO: make a wireframe toggle for materials
     const eMaterialType materialType = materialFrameBufferConnection.m_pMaterialPipeline->m_type;
-    const bool isWireFrame = materialType == eMaterialType::DEBUG_LINES2D || materialType == eMaterialType::DEBUG_LINES3D;
 
     bool renderDepth = false;
     bool bUseVertexBuffer = true;
@@ -692,17 +743,37 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
         break;
     case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
     case eMaterialType::CUSTOM:
-        bUseVertexBuffer = false;
+    {
+        bUseVertexBuffer = materialFrameBufferConnection.m_pMaterialPipeline->m_bUsesVertexBuffer;
+
+        CompiledShader* pVertShader = materialFrameBufferConnection.m_pMaterialPipeline->m_pShaders[0];
+
+        if (bUseVertexBuffer && pVertShader->header.shaderType == (uint32)eShaderType::Vertex)
+        {
+            uint32 currentOffset = 0u;
+            for (uint32 i = 0; i < pVertShader->reflectedShaderData.m_shaderInputs.Size(); i++)
+            {
+                const ShaderDecoration& inputDecoration = pVertShader->reflectedShaderData.m_shaderInputs[i];
+                VkVertexInputAttributeDescription bindingDescription{};
+                bindingDescription.binding = 0u;
+                bindingDescription.location = inputDecoration.m_bindingLocation;
+                bindingDescription.format = Internal::GetVlkTypeFromReflectedType(inputDecoration.m_valueType);
+                bindingDescription.offset = currentOffset;
+                vertexAttributeDescriptions.Add(bindingDescription);
+
+                currentOffset += inputDecoration.m_byteSize;
+            }
+
+            vertexBindingDescription.binding = 0;
+            vertexBindingDescription.stride = currentOffset;
+            vertexBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        }
+    }
     break;
     case eMaterialType::MODEL3D:
         renderDepth = true;
         vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::MODEL);
         vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::MODEL);
-        break;
-    case eMaterialType::DEBUG_LINES2D:
-    case eMaterialType::DEBUG_LINES3D:
-        vertexBindingDescription = GetBindingDescription(VERTEX_TYPES::SPRITE);
-        vertexAttributeDescriptions = GetAttributeDescriptions(VERTEX_TYPES::SPRITE);
         break;
     default:
         break;
@@ -766,7 +837,7 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = isWireFrame ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssembly.topology = materialFrameBufferConnection.m_pMaterialPipeline->m_bIsWireFrame ? VK_PRIMITIVE_TOPOLOGY_LINE_LIST : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport viewport{};
@@ -792,7 +863,7 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE; // Good to turn off for debugging fragment shader bottlenecks
-    rasterizer.polygonMode = isWireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = materialFrameBufferConnection.m_pMaterialPipeline->m_bIsWireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f; // Optional
@@ -956,8 +1027,6 @@ void Hail::VlkRenderContext::BindVertexBufferInternal()
     VkDeviceSize spriteOffsets[] = { 0 };
     if (m_pBoundVertexBuffer)
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &((VlkBufferObject*)m_pBoundVertexBuffer)->GetBuffer(0), spriteOffsets);
-    else
-        vkCmdBindVertexBuffers(commandBuffer, 0, 0, nullptr, spriteOffsets);
 
     if (m_pBoundIndexBuffer)
         vkCmdBindIndexBuffer(commandBuffer, ((VlkBufferObject*)m_pBoundIndexBuffer)->GetBuffer(0), 0, VK_INDEX_TYPE_UINT32);

@@ -65,14 +65,6 @@ namespace Hail
 		glm::mat4 proj;
 	};
 
-	// Structured Buffers
-
-	struct DebugLineData
-	{
-		glm::vec4 posAndIs2D;
-		glm::vec4 color;
-	};
-
 	struct BufferProperties
 	{
 		eBufferType type;

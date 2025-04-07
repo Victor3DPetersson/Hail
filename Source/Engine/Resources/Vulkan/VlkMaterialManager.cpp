@@ -660,7 +660,7 @@ bool Hail::VlkMaterialManager::CreatePipelineLayout(VlkPipeline& vlkPipeline, Vl
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	//setup push constants
 	VectorOnStack<VkPushConstantRange, 4> push_constants;
-
+	H_ASSERT(vlkPipeline.m_pushConstants.Empty());
 	for (size_t i = 0; i < vlkPipeline.m_pShaders.Size(); i++)
 	{
 		const VectorOnStack<ShaderDecoration, 8>& reflectedPushConstants = vlkPipeline.m_pShaders[i]->reflectedShaderData.m_pushConstants;
@@ -668,6 +668,7 @@ bool Hail::VlkMaterialManager::CreatePipelineLayout(VlkPipeline& vlkPipeline, Vl
 		for (uint32 iPushConstant = 0u; iPushConstant < reflectedPushConstants.Size(); iPushConstant++)
 		{
 			const ShaderDecoration& reflectedPushConstant = reflectedPushConstants[iPushConstant];
+			vlkPipeline.m_pushConstants.Add(reflectedPushConstant);
 			VkPushConstantRange pushConstant;
 			//this push constant range starts at the beginning
 			pushConstant.offset = 0;

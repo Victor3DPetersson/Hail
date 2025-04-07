@@ -29,6 +29,13 @@ namespace Hail
 		bool bIsNormalized;
 	};
 
+	struct DebugCircle
+	{
+		glm::vec2 pos; // Normalized position used in rendering
+		float scale; // Pixel Size scale
+		Color color;
+	};
+
 	struct DepthTypeCounter2D
 	{
 		int m_layer{};

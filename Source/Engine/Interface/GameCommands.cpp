@@ -40,10 +40,16 @@ void Hail::ApplicationCommandPool::AddTextCommand(const GameCommand_Text& textTo
 	depthTypeCounter.m_textCounter = 1;
 }
 
+void Hail::ApplicationCommandPool::AddDebugCircle(DebugCircle circleToAdd)
+{
+	m_debugCircleCommands.Add(circleToAdd);
+}
+
 void Hail::ApplicationCommandPool::NewFrame()
 {
 	m_depthTypeCounters.Clear();
 	m_debugLineCommands.Clear();
+	m_debugCircleCommands.Clear();
 	m_spriteCommands.Clear();
 	m_textCommands.Clear();
 	m_meshCommands.Clear();

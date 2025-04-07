@@ -204,10 +204,6 @@ void Hail::RenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
 	H_ASSERT(minDispatchSize != 0u, "A dispatch of 0 is not allowed in any dimension");
 }
 
-void Hail::RenderContext::RenderSprites(uint32 numberOfInstances, uint32 offset)
-{
-}
-
 void RenderContext::StartGraphicsPass()
 {
 	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "Wrong context state for starting a graphics pass.");
