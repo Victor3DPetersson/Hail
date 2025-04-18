@@ -234,6 +234,7 @@ namespace Hail
 			{
 				glm::vec2 vogelNoise = Vogel(rnd + iPRand, 128u, 0.1 * iPRand) * 0.5f;
 				glm::vec2 finalPos = (glm::vec2( pointBaseList[i].x + 0.5, pointBaseList[i].y + 0.5) / 11.f + vogelNoise / 11.f);
+
 				m_pointsOnTheGPU.Add(finalPos);
 			}
 		}
@@ -262,9 +263,8 @@ namespace Hail
 				imageRepresentationOfCloud[imageCoord] = numberOfPointsInRadius >= 4u ? numberOfPointsInRadius : 0;
 			}
 		}
-		GrowingArray<float> distanceFieldOfCloud(width * height);
-		distanceFieldOfCloud.Fill();
-		DeadReckoning(width, height, imageRepresentationOfCloud, distanceFieldOfCloud);
+		m_cloudSdfTexture.PrepareAndFill(width * height);
+		DeadReckoning(width, height, imageRepresentationOfCloud, m_cloudSdfTexture);
 
 		//pointsToPutOnTheGpu.Add(glm::vec2(0.95, 0.05));
 		m_pointsOnTheGPU.Add(glm::vec2(0.9, 0.1));
@@ -279,7 +279,7 @@ namespace Hail
 		sdfTextureValues.properties.width = width;
 		sdfTextureValues.properties.textureType = (uint32)eTextureSerializeableType::R32F;
 		sdfTextureValues.properties.format = eTextureFormat::R32_SFLOAT;
-		sdfTextureValues.compiledColorValues = distanceFieldOfCloud.Data();
+		sdfTextureValues.compiledColorValues = m_cloudSdfTexture.Data();
 		sdfTextureValues.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 		m_pSdfTexture = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "CloudSdfTexture", sdfTextureValues);
 
@@ -293,9 +293,9 @@ namespace Hail
 		cloudPointBufferProps.numberOfElements = m_pointsOnTheGPU.Size();
 		cloudPointBufferProps.offset = 0;
 		cloudPointBufferProps.type = eBufferType::structured;
-		cloudPointBufferProps.domain = eShaderBufferDomain::GpuOnly;
+		cloudPointBufferProps.domain = eShaderBufferDomain::CpuToGpu;
 		cloudPointBufferProps.usage = eShaderBufferUsage::Read;
-		cloudPointBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Once;
+		cloudPointBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
 		m_pCloudBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(cloudPointBufferProps);
 
 		ResourceRegistry& reg = GetResourceRegistry();
@@ -325,6 +325,16 @@ namespace Hail
 		pContext->EndTransferPass();
 		m_numberOfPointsUploaded = m_pointsOnTheGPU.Size();
 
+
+		CloudParticle particle;
+		particle.velocity = glm::vec2(0.f);
+		m_cloudParticles.Prepare(m_numberOfPointsUploaded);
+		for (size_t i = 0; i < m_numberOfPointsUploaded; i++)
+		{
+			particle.pos = m_pointsOnTheGPU[i];
+			m_cloudParticles.Add(particle);
+		}
+
 		return m_pCloudPipeline != nullptr;
 	}
 
@@ -347,25 +357,32 @@ namespace Hail
 	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
 	{
 		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
-
+		m_simulator.UpdateParticles(m_cloudParticles, poolOfCommands, m_pResourceManager->GetSwapChain()->GetTargetResolution(), m_cloudSdfTexture);
 		DebugCircle debugCircle;
 		debugCircle.scale = 20.0;
 		debugCircle.color = { 3.0 / 255.f, 169.f / 255.f, 252.f / 255.f };
-		for (uint32 i = 0; i < m_pointsOnTheGPU.Size(); i++)
+		for (uint32 i = 0; i < m_cloudParticles.Size(); i++)
 		{
-			debugCircle.pos = m_pointsOnTheGPU[i];
+			m_pointsOnTheGPU[i] = m_cloudParticles[i].pos;
+			debugCircle.pos = m_cloudParticles[i].pos;
 			debugCircle.pos.x /= aspectRatio;
-			poolOfCommands.m_debugCircles.Add(debugCircle);
+			//poolOfCommands.m_debugCircles.Add(debugCircle);
 		}
 
 		debugCircle.pos = glm::vec2(1.0, 0.5);
 		debugCircle.pos.x /= aspectRatio;
 		debugCircle.scale = 30.0;
 		debugCircle.color = Color::Orange;
-		poolOfCommands.m_debugCircles.Add(debugCircle);
+		//poolOfCommands.m_debugCircles.Add(debugCircle);
 
 		// TODO add debug line for the bounds: 
 		DrawRect2D(poolOfCommands.m_debugLineCommands, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f / aspectRatio, 1.0f) );
+
+		RenderContext* pContext = m_pRenderer->GetCurrentContext();
+		pContext->StartTransferPass();
+		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
+		pContext->EndTransferPass();
+
 	}
 
 	void CloudRenderer::Render()

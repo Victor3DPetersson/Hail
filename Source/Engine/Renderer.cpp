@@ -42,16 +42,22 @@ void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
 {
 	m_commandPoolToRender = &renderPool;
 	m_pContext->StartFrame();
+}
+
+void Hail::Renderer::Prepare()
+{
+	H_ASSERT(m_commandPoolToRender);
 	m_pResourceManager->ReloadResources();
-	m_pResourceManager->UpdateRenderBuffers(renderPool, m_pContext, m_timer);
-	m_pFontRenderer->Prepare(renderPool);
-	m_pCloudRenderer->Prepare(renderPool);
-	m_pDebugRenderingManager->Prepare(renderPool);
+	m_pResourceManager->UpdateRenderBuffers(*m_commandPoolToRender, m_pContext, m_timer);
+	m_pFontRenderer->Prepare(*m_commandPoolToRender);
+	m_pCloudRenderer->Prepare(*m_commandPoolToRender);
+	m_pDebugRenderingManager->Prepare(*m_commandPoolToRender);
 }
 
 void Hail::Renderer::EndFrame()
 {
 	m_pResourceManager->ClearFrameData();
+	m_commandPoolToRender = nullptr;
 }
 
 void Hail::Renderer::Render()

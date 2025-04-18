@@ -108,34 +108,6 @@ namespace Hail
 		listToFill.Add(line);
 	}
 
-	void DrawBox2D(VectorOnStack<DebugLineCommand, MAX_NUMBER_OF_DEBUG_LINES / 2, false>& listToFill, float inverseHorizontalAspectRatio, glm::vec2 pos, glm::vec2 dimensions, Color color)
-	{
-		DebugLineCommand line;
-		line.color1 = color;
-		line.color2 = color;
-		line.bIs2D = true;
-		line.bLerpCommand = true;
-		line.bIsAffectedBy2DCamera = false;
-		line.bIsNormalized = true;
-		const glm::vec2 adjustedDimensions = glm::vec2(dimensions.x * inverseHorizontalAspectRatio, dimensions.y);
-		//Top
-		line.pos1 = glm::vec3(pos.x - adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
-		line.pos2 = glm::vec3(pos.x + adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
-		listToFill.Add(line);
-		//Right
-		line.pos1 = glm::vec3(pos.x + adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
-		line.pos2 = glm::vec3(pos.x + adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		listToFill.Add(line);
-		//Bottom
-		line.pos1 = glm::vec3(pos.x - adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		line.pos2 = glm::vec3(pos.x + adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		listToFill.Add(line);
-		//Left
-		line.pos1 = glm::vec3(pos.x - adjustedDimensions.x, pos.y + adjustedDimensions.y, 0.0);
-		line.pos2 = glm::vec3(pos.x - adjustedDimensions.x, pos.y - adjustedDimensions.y, 0.0);
-		listToFill.Add(line);
-	}
-
 	void DrawBox2D(ApplicationCommandPool& poolToFill, glm::vec2 pos, glm::vec2 dimensions, bool bAffectedBy2DCamera, glm::vec4 color, bool drawPixelSpace)
 	{
 		DebugLineCommand line;

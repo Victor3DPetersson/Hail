@@ -20,7 +20,7 @@ namespace Hail
 
 	struct MouseMap
 	{
-		unsigned char keys[(uint32)eMouseMapping::Count];
+		uint8 keys[(uint32)eMouseMapping::Count];
 		glm::uvec2 mousePos;
 		glm::vec2 normalizedPos;
 		glm::vec2 mouseDelta;

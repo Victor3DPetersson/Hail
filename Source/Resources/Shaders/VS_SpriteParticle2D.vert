@@ -55,8 +55,6 @@ void main()
 	vec2 scale = pointData.scale / renderRes;
 	vec2 pivot = vec2(0.5, 0.5);
 
-	vertexPos.x -= pivot.x;
-	vertexPos.y += pivot.y;
 	vertexPos *= scale;
 	vertexPos += pointData.pos * 2.0 - 1.0;
 

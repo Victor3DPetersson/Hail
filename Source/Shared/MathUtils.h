@@ -71,6 +71,13 @@ namespace Math
 		b = a;
 	}
 
+	inline float Sign(float floatToCheck)
+	{
+		if (floatToCheck == 0.f)
+			return 0.f;
+		return floatToCheck > 0.f ? 1.f : -1.f;
+	}
+
 	constexpr double DegToRad = PIf / 180.0;
 	constexpr double RadToDeg = 180.0 / PIf;
 	constexpr float DegToRadf = float(DegToRad);

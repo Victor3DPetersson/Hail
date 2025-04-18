@@ -248,7 +248,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 	EngineData& engineData = *g_engineData;
 	Hail::InputMapping& inputMapping = g_engineData->inputHandler->GetInputMapping();
 	engineData.renderer->StartFrame(g_engineData->threadSynchronizer.GetRenderPool());
-
+	engineData.renderer->Prepare();
 	if (applicationThreadLocked)
 	{
 		bool unlockApplicationThread = false;

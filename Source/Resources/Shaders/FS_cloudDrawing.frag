@@ -160,7 +160,6 @@ void main()
 
 	vec2 cloudToPixelDimensions = cloudDimensions / constantVariables.renderTargetRes;
 	float sampleRadiusCloudSpace = sampleRadiusPixelSpace / cloudDimensions.y;
-	float sampleInnerRadiusCloudSpace = (sampleRadiusPixelSpace * 0.15) / cloudDimensions.y;
 
 	vec2 fragCoordInCloudSpace = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5)) / cloudToPixelDimensions;
 
@@ -174,11 +173,8 @@ void main()
 	if (!bInRect)
 		discard;
 		
-	float accumulatedDistance = 0.0;
 	uint numberOfPointsInRadius = 0;
-	uint numberOfPointsInInnerRadius = 0;
 	float sampleRadiusSq = sampleRadiusCloudSpace * sampleRadiusCloudSpace;
-	float innerSampleRadiusSq = sampleInnerRadiusCloudSpace * sampleInnerRadiusCloudSpace;
 	for (int i = 0; i < 256; i++)
 	{
 		if (i == PushConstants.numberOfPoints_padding.x)
@@ -186,23 +182,18 @@ void main()
 
 		vec2 normalizedCloudPoint = g_cloudPoints[i];
 		normalizedCloudPoint.y = 1.0 - normalizedCloudPoint.y;
-		vec2 noise = vec2(0.0, 0.0); 
+		//vec2 noise = vec2(0.0, 0.0);
+		float noise = voronoi((normalizedCloudPoint + fragTexCoord) * 10.0) * 2.0 - 1.0;
 		//noise = (hash2f((normalizedCloudPoint + pixelPos)) * 2.0 - 1.0) * 0.02;
-		vec2 cloudPointToSamplePoint = pixelCloudSpacePos - normalizedCloudPoint + noise;
+		vec2 cloudPointToSamplePoint = pixelCloudSpacePos - normalizedCloudPoint + noise * 0.01;
 		float distanceSquared = dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
 
-		if (distanceSquared <= innerSampleRadiusSq)
+		if (distanceSquared <= sampleRadiusSq)
 		{
-			numberOfPointsInRadius++;
-			numberOfPointsInInnerRadius++;
-		}
-		else if (distanceSquared <= sampleRadiusSq)
-		{
-			accumulatedDistance += 0.05;
 			numberOfPointsInRadius++;
 		}
 	}
-	bool bIsAValidSample = numberOfPointsInInnerRadius != 0 || numberOfPointsInRadius > 2;
+	bool bIsAValidSample = numberOfPointsInRadius > 2;
 	if (!bIsAValidSample)
 		discard;
 

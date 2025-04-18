@@ -164,9 +164,7 @@ void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 	Renderer::StartFrame(renderPool);
 	ImGui_ImplWin32_NewFrame();
 	ImGui_ImplVulkan_NewFrame();
-
 	ImGui::NewFrame();
-	//g_camera = renderPool.renderCamera;
 }
 
 void VlkRenderer::Render()

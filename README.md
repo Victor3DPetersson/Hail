@@ -8,9 +8,10 @@
 - [x] Depth Sorting of sprite and text commands
 - [x] Implement batch rendering of sprites and fonts
 - [x] Cloud rendering experiment of a point cloud dataset
-- [] Update cloud point data as a fluid for dynamic clouds
+- [x] First draft Update cloud point data as a fluid for dynamic clouds
+- [] Rewrite the fluid solver not after Sebastians video (Coding Adventure: Simulating Fluids) but this paper: Smoothed Particle Hydrodynamics. Techniques for the Physics Based Simulation of Fluids and Solids
 - [] Compute shader support
-- [] Update point cloud data with a compute pass
+- [] Update point cloud data with a compute pass and create a sdf texture each frame for all fluids
 - [] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
 - [] Create a pipeline to create sprites render commands from AngelScript
 - [] Fix broken reloading of GPU resources and then remake hot reloading 

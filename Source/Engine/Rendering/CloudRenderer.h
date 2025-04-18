@@ -2,7 +2,7 @@
 #include "Types.h"
 #include "ResourceCommon.h"
 #include "Containers\GrowingArray\GrowingArray.h"
-
+#include "CloudParticleSimulator.h"
 
 namespace Hail
 {
@@ -36,8 +36,12 @@ namespace Hail
 		TextureView* m_pSdfView;
 
 		GrowingArray<glm::vec2> m_pointsOnTheGPU;
+		GrowingArray<CloudParticle> m_cloudParticles;
+		GrowingArray<float> m_cloudSdfTexture;
 
 		uint32 m_numberOfPointsUploaded;
+
+		CloudParticleSimulator m_simulator;
 	};
 
 }

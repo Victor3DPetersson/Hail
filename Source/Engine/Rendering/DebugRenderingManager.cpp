@@ -190,6 +190,16 @@ void Hail::DebugRenderingManager::Render()
 {
 	RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
+	if (m_numberOfCirclesToRender)
+	{
+		pContext->BindVertexBuffer(nullptr, nullptr);
+		pContext->SetBufferAtSlot(m_pDebugCircleBuffer, 0);
+		pContext->SetPipelineState(m_pDebugCirclePipeline->m_pPipeline);
+		pContext->BindMaterial(m_pDebugCirclePipeline->m_pPipeline);
+
+		pContext->RenderInstances(m_numberOfCirclesToRender, 0);
+	}
+
 	const uint32_t numberOfLines = m_numberOf2DDebugLines * 2u;
 	if (numberOfLines)
 	{
@@ -200,13 +210,4 @@ void Hail::DebugRenderingManager::Render()
 		pContext->RenderDebugLines(numberOfLines);
 	}
 
-	if (m_numberOfCirclesToRender)
-	{
-		pContext->BindVertexBuffer(nullptr, nullptr);
-		pContext->SetBufferAtSlot(m_pDebugCircleBuffer, 0);
-		pContext->SetPipelineState(m_pDebugCirclePipeline->m_pPipeline);
-		pContext->BindMaterial(m_pDebugCirclePipeline->m_pPipeline);
-
-		pContext->RenderInstances(m_numberOfCirclesToRender, 0);
-	}
 }

@@ -40,6 +40,7 @@ namespace Hail
 		virtual bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
 		//Always call virtual version of this function after swapchain has finished the previous frame
 		virtual void StartFrame(RenderCommandPool& renderPool);
+		void Prepare();
 		void EndFrame();
 		virtual void Render();
 		virtual void InitImGui() = 0; 
