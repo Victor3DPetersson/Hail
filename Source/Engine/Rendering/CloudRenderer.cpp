@@ -376,7 +376,7 @@ namespace Hail
 		//poolOfCommands.m_debugCircles.Add(debugCircle);
 
 		// TODO add debug line for the bounds: 
-		DrawRect2D(poolOfCommands.m_debugLineCommands, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f / aspectRatio, 1.0f) );
+		//DrawRect2D(poolOfCommands.m_debugLineCommands, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f / aspectRatio, 1.0f) );
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->StartTransferPass();

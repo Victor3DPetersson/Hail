@@ -22,6 +22,9 @@ namespace Hail
     constexpr uint32 MAX_UINT = 0xFFFFFFFF;
     constexpr uint64 MAX_UINT64 = 0xFFFFFFFFFFFFFFFF;
 
+    constexpr float MAX_FLOAT = std::numeric_limits<float>::max();
+    constexpr double MAX_DOUBLE = std::numeric_limits<double>::max();
+
     struct GUID {
         bool operator ==(const GUID& other) const
         {

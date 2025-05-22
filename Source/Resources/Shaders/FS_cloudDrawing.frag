@@ -175,6 +175,7 @@ void main()
 		
 	uint numberOfPointsInRadius = 0;
 	float sampleRadiusSq = sampleRadiusCloudSpace * sampleRadiusCloudSpace;
+	float distanceToReachForDraw = sampleRadiusSq + sampleRadiusCloudSpace * 0.1;
 	for (int i = 0; i < 256; i++)
 	{
 		if (i == PushConstants.numberOfPoints_padding.x)
@@ -190,10 +191,12 @@ void main()
 
 		if (distanceSquared <= sampleRadiusSq)
 		{
+			distanceToReachForDraw -= sampleRadiusSq - distanceSquared;
 			numberOfPointsInRadius++;
 		}
 	}
-	bool bIsAValidSample = numberOfPointsInRadius > 2;
+	//bool bIsAValidSample = numberOfPointsInRadius > 2;
+	bool bIsAValidSample = distanceToReachForDraw < 0.0;
 	if (!bIsAValidSample)
 		discard;
 

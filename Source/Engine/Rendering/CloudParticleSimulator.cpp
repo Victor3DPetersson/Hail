@@ -16,67 +16,79 @@
 
 namespace Hail
 {
-	float g_globalRadius = 0.f;
-	float g_targetDensity = 0.f;
-	float g_targetBaseDensity = 0.f;
-	float g_pressureMultiplier = 0.f;
-	float g_nearPressureMultiplier = 0.f;
+	glm::vec2 spaceModifier = glm::vec2(100.f);
 
-	glm::vec2 spaceModifier = glm::vec2(10.f);
-
-	void CollideWithBounds(CloudParticle& particleToCheck, float particleRadius)
+	void CollideWithBounds(glm::vec2& velocity, glm::vec2 posToCheck, glm::vec2* pPosToUpdate, float particleRadius)
 	{
 		float halfRadius = particleRadius * 0.5f;
-		const float collisionDampening = 0.1f;
+		const float collisionDampening = 0.5f;
 		glm::vec2 upperBounds = spaceModifier - halfRadius;
 		glm::vec2 lowerBounds = glm::vec2(halfRadius);
 
-		if (Math::Abs(particleToCheck.pos.x) > upperBounds.x)
+		if (Math::Abs(posToCheck.x) > upperBounds.x)
 		{
-			particleToCheck.pos.x = upperBounds.x;
-			particleToCheck.velocity.x *= -1.f * collisionDampening;
+			if (pPosToUpdate)
+				pPosToUpdate->x = upperBounds.x;
+			velocity.x *= -1.f * collisionDampening;
 		}
-		if (Math::Abs(particleToCheck.pos.y) > upperBounds.y)
+		if (Math::Abs(posToCheck.y) > upperBounds.y)
 		{
-			particleToCheck.pos.y = upperBounds.y;
-			particleToCheck.velocity.y *= -1.f * collisionDampening;
+			if (pPosToUpdate)
+				pPosToUpdate->y = upperBounds.y;
+			velocity.y *= -1.f * collisionDampening;
 		}
 
-		if (Math::Abs(particleToCheck.pos.x) < lowerBounds.x)
+		if (Math::Abs(posToCheck.x) < lowerBounds.x)
 		{
-			particleToCheck.pos.x = lowerBounds.x;
-			particleToCheck.velocity.x *= -1.f * collisionDampening;
+			if (pPosToUpdate)
+				pPosToUpdate->x = lowerBounds.x;
+			velocity.x *= -1.f * collisionDampening;
 		}
-		if (Math::Abs(particleToCheck.pos.y) < lowerBounds.y)
+		if (Math::Abs(posToCheck.y) < lowerBounds.y)
 		{
-			particleToCheck.pos.y = lowerBounds.y;
-			particleToCheck.velocity.y *= -1.f * collisionDampening;
+			if (pPosToUpdate)
+				pPosToUpdate->y = lowerBounds.y;
+			velocity.y *= -1.f * collisionDampening;
 		}
 	}
 
-	float ViscosityKernel(float radius, float distance)
+
+	float CubicSplineKernel(float r, float h)
 	{
-		if (distance >= radius) return 0.f;
-		// function (r^2-d^2)^3
-		// volume over the entire radius in a circle
-		float volume = (Math::PIf * powf(radius, 8.f)) / 4.f;
-		float f = radius * radius - distance * distance;
-		return f * f * f / volume;
+		if (r >= h) return 0.f;
+		float q = r / h;
+		float sigma = 40.0f / (7.0f * Math::PIf * h * h); // 2D normalization
+
+		if (q >= 0.f && q < 0.5f)
+		{
+			return sigma * (1.0f + 6.f * ((q * q * q) - (q * q)));
+		}
+		else if (q >= 0.5f && q < 1.f)
+		{
+			float term = 1.0f - q;
+			return sigma * 2.f * (term * term * term);
+		}
 	}
 
-	float SmoothingKernel(float radius, float distance)
+	float CubicSplineGradient(float r, float h)
 	{
-		if (distance >= radius) return 0.f;
-		// Volume for (r-d)^3
-		//float volume = (Math::PIf * powf(radius, 5.f)) * 0.1f;
-		//float value = radius - distance;
-		//return value * value * value / volume;
+		if (r >= h) return 0.f;
+		float q = r / h;
+		float sigma = (7.0f * Math::PIf * h * h); // 2D normalization
 
-		// Volume for (r-d)^2
-		float volume = (Math::PIf * powf(radius, 4.f)) / 6.f;
-		float value = radius - distance;
-		return value * value / volume;
+		if (q >= 0.f && q < 0.5f)
+		{
+			sigma = 40.f / sigma;
+			return sigma * (18.f * (q * q) - 12.f * q);
+		}
+		else if (q >= 0.5f && q < 1.f)
+		{
+			sigma = -(240.f / sigma);
+			float term = 1.0f - q;
+			return sigma * (term * term);
+		}
 	}
+
 	float NearSmoothingKernel(float radius, float distance)
 	{
 		if (distance >= radius) return 0.f;
@@ -86,58 +98,11 @@ namespace Hail
 		return value * value * value / volume;
 	}
 
-	float SmoothingKernelDerivative(float radius, float distance)
-	{
-		if (distance >= radius) return 0.f;
-		// Derivative for (r-d)^3
-		//float f = radius - distance;
-		//float scale = (-30.f * (f * f)) / (Math::PIf * powf(radius, 5.f));
-
-		// Derivative for (r-d)^2
-		float f = radius - distance;
-		float scale = (-12.f * f) / (Math::PIf * powf(radius, 4.f));
-
-		return scale;
-	}
-
-	glm::vec2 CalculateDensity(glm::vec2 pointToCheck, float radiusToCheck, const GrowingArray<CloudParticle>& particlesToCheckForDensity)
-	{
-		float calculatedDensity = 0.f;
-		float calculatedNearDensity = 0.f;
-		const float mass = 1.f;
-
-		for (uint32 i = 0; i < particlesToCheckForDensity.Size(); i++)
-		{
-			float distance = glm::length(pointToCheck - particlesToCheckForDensity[i].pos);
-			float influence = SmoothingKernel(radiusToCheck, distance);
-			float nearInfluence = NearSmoothingKernel(radiusToCheck, distance);
-			calculatedDensity += mass * influence;
-			calculatedNearDensity += mass * nearInfluence;
-		}
-
-		return glm::vec2(calculatedDensity, calculatedNearDensity);
-	}
-
-	glm::vec2 ConvertDensityToPressure(glm::vec2 densityNearDensity)
-	{
-		float densityError = densityNearDensity.x - g_targetDensity;
-		float density = densityError * g_pressureMultiplier;
-		float nearDensity = densityNearDensity.y * g_nearPressureMultiplier;
-		return glm::vec2(density, nearDensity);
-	}
-
 	glm::vec2 VogelDirection(uint32 sampleIndex, uint32 samplesCount, float Offset)
 	{
 		float r = sqrt(float(sampleIndex) + 0.5f) / sqrt(float(samplesCount));
 		float theta = float(sampleIndex) * Math::GoldenAngle + Offset;
 		return r * glm::vec2(cos(theta), sin(theta));
-	}
-
-	glm::vec2 CalculateSharedPressure(glm::vec2 densityA, glm::vec2 densityB)
-	{
-		glm::vec2 pressureA = ConvertDensityToPressure(densityA);
-		glm::vec2 pressureB = ConvertDensityToPressure(densityB);
-		return (pressureA + pressureB) * 0.5f;
 	}
 
 	const int32 HASH_SIZE = 200;
@@ -149,12 +114,12 @@ namespace Hail
 		return (unsigned int)((ix * 73856093) ^ (iy * 19349663)) % HASH_SIZE;
 	}
 
-	glm::ivec2 PositionToCellCoord(glm::vec2 positionToCheck)
+	glm::ivec2 PositionToCellCoord(glm::vec2 positionToCheck, float hRadius)
 	{
 		glm::vec2 worldCenter = glm::vec2(0.5f) * spaceModifier;
 		glm::vec2 adjustedCenter = positionToCheck - worldCenter;
 
-		return adjustedCenter / g_globalRadius;
+		return adjustedCenter / hRadius;
 	}
 
 	uint32 GenerateKeyFromCellPos(glm::ivec2 cellCoord, uint32 listMaxLength)
@@ -162,9 +127,9 @@ namespace Hail
 		return hasha(cellCoord) % listMaxLength;
 	}
 
-	uint32 ComputeParticleKeyLookup(const CloudParticle& cloudParticle, uint32 listMaxLength)
+	uint32 ComputeParticleKeyLookup(const CloudParticle& cloudParticle, uint32 listMaxLength, float hRadius)
 	{
-		glm::ivec2 cellCoord = PositionToCellCoord(cloudParticle.pos);
+		glm::ivec2 cellCoord = PositionToCellCoord(cloudParticle.pos, hRadius);
 		return GenerateKeyFromCellPos(cellCoord, listMaxLength);
 	}
 
@@ -174,13 +139,13 @@ namespace Hail
 		return glm::ivec2(normalizedParticlePos.x * 128, normalizedParticlePos.y * 128);
 	}
 
-	glm::vec2 MouseForce(glm::uvec2 renderResolution,  float radius, float mouseForceStrength, const CloudParticle& particleToCheck)
+	glm::vec2 MouseForce(glm::uvec2 renderResolution, float radius, float mouseForceStrength, glm::vec2 posToCheck, glm::vec2 velocityOfParticle)
 	{
 		glm::vec2 mouseForce = glm::vec2(0.f);
 
 		glm::vec2 mouseParticleSpacePos = (glm::vec2(GetInputHandler().GetInputMap().mouse.mousePos) / (float)renderResolution.y) * spaceModifier;
 
-		glm::vec2 offset = particleToCheck.pos - mouseParticleSpacePos;
+		glm::vec2 offset = posToCheck - mouseParticleSpacePos;
 		float sqrDistance = glm::dot(offset, offset);
 
 		const bool lmbDown = GetInputHandler().GetInputMap().mouse.keys[(uint32)eMouseMapping::LMB] == (uint8)eInputState::Down;
@@ -189,11 +154,11 @@ namespace Hail
 		float strength = 0.f;
 		if (lmbDown)
 		{
-			strength = 1.f;
+			strength = 1.f * mouseForceStrength;
 		}
 		else if (rmbDown)
 		{
-			strength = -1.f;
+			strength = -1.f * mouseForceStrength;
 		}
 
 		if (strength != 0.f && sqrDistance < radius * radius)
@@ -203,10 +168,10 @@ namespace Hail
 			// Normalized or Zero
 			glm::vec2 dirToMouse = distance <= FLT_EPSILON ? glm::vec2(0.f) : offset / distance;
 
-			float centreT = 1.f - distance / radius;
-			mouseForce += (dirToMouse * strength - particleToCheck.velocity) * centreT;
+			float centreT = Math::Min(1.f - distance / radius, 0.8f);
+			mouseForce += (dirToMouse * strength - velocityOfParticle) * centreT;
 		}
-		return mouseForce * mouseForceStrength;
+		return mouseForce;
 	}
 
 	void CloudParticleSimulator::UpdateParticles(GrowingArray<CloudParticle>& cloudParticles, RenderCommandPool& poolOfCommands, glm::uvec2 resolution, const GrowingArray<float>& distanceField)
@@ -231,20 +196,6 @@ namespace Hail
 
 		ImGui::Begin("Particle test window");
 
-		if (ImGui::SliderFloat("Particle radius", &m_particleRadius, 0.f, 1.f))
-		{
-			respawnGrid = true;
-		}
-		g_globalRadius = m_particleRadius * spaceModifier.x;
-
-		ImGui::SliderFloat("Target Density", &m_targetDensity, -100.f, 500.f);
-		g_targetBaseDensity = SmoothingKernel(g_globalRadius, 0.f);
-		g_targetDensity = m_targetDensity + g_targetBaseDensity;
-		ImGui::SliderFloat("Pressure Multiplier", &m_pressureMultiplier, 0.f, 100.f);
-		g_pressureMultiplier = m_pressureMultiplier;
-		ImGui::SliderFloat("Near Pressure Multiplier", &m_nearPressureMultiplier, 0.f, 10.f);
-		g_nearPressureMultiplier = m_nearPressureMultiplier;
-		ImGui::SliderFloat("Viscosity force", &m_viscosityForce, 0.f, 10.f);
 		ImGui::SliderFloat("Mouse force", &m_mouseForceStrength, 0.f, 100.f);
 		ImGui::SliderFloat("Mouse radius", &m_mouseForceRadius, 0.f, 1.f);
 		if (ImGui::SliderInt2("NumberOfPoints", &m_numberOfPointsToSpawn.x, 1, 100))
@@ -255,8 +206,6 @@ namespace Hail
 		{
 			respawnGrid = true;
 		}
-		ImGui::SliderFloat("Gravity", &m_gravity, -1.f, 1.f);
-		ImGui::SliderInt("Time Steps per second", &m_timeStepsPerSecond, 30, 600);
 		// Settings
 		if (ImGui::Checkbox("Simulate Grid", &m_bSimulateGrid))
 		{
@@ -265,6 +214,17 @@ namespace Hail
 		ImGui::Checkbox("Draw Circles", &m_bShowCircles);
 		ImGui::Checkbox("Draw Gradient Vectors", &m_bShowGradientValues);
 
+		ImGui::SameLine();
+		if (ImGui::Button("<") && m_particleToDebug != 0u)
+		{
+			--m_particleToDebug;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button(">"))
+		{
+			++m_particleToDebug;
+		}
+
 		if (respawnGrid)
 		{
 			m_particleGrid.RemoveAll();
@@ -272,7 +232,7 @@ namespace Hail
 			m_particleGridSize = Math::Max(m_particleGridSize, m_numberOfParticles);
 			m_particleGrid.PrepareAndFill(m_particleGridSize);
 
-			float spacing = g_globalRadius * 2 + m_particleSpacing * spaceModifier.x;
+			float spacing = m_particleKernelRadius * 2 + m_particleSpacing * spaceModifier.x;
 			float rowLength = (1.f / (float)m_numberOfPointsToSpawn.x) * 0.5f * spaceModifier.x;
 			float columnLength = (1.f / (float)m_numberOfPointsToSpawn.y) * 0.5f * spaceModifier.y;
 
@@ -305,64 +265,43 @@ namespace Hail
 
 		GrowingArray<CloudParticle>& particlesToSimulate = m_bSimulateGrid ? m_particleGrid : m_cloudParticles;
 
-		// Draw density debug circle
 		{
 			glm::vec2 mouseNormalizedPos = glm::vec2(GetInputHandler().GetInputMap().mouse.mousePos) / (float)resolution.y;
 			glm::vec2 adjustedDebugPos = glm::vec2(mouseNormalizedPos.x * inverseHorizontalAspectRatio, mouseNormalizedPos.y);
 			DrawCircle2D(poolOfCommands.m_debugLineCommands, inverseHorizontalAspectRatio, adjustedDebugPos, m_mouseForceRadius);
-			// Fetch density at a debug point
-			glm::vec2 densityAtPoint = CalculateDensity(mouseNormalizedPos * spaceModifier, g_globalRadius, particlesToSimulate) - g_targetBaseDensity;
-			ImGui::Text("Density at point %f, near Density at point %f", densityAtPoint.x, densityAtPoint.y);
 		}
 
-		float gravity = m_gravity;
-		const float lookAheadStepRate = 1.f / (float)m_timeStepsPerSecond;
+		float h = m_particleKernelRadius;
+		ImGui::SliderFloat("Particle Radius", &m_particleKernelRadius, 0.1f, 5.f);
+		h = m_particleKernelRadius;
+		float mass = m_mass;
+		UpdatePartialLookupList(particlesToSimulate, h);
+		UpdateParticlesBasedOnPaper(particlesToSimulate, h, resolution, dt, distanceField);
 
-		for (uint32 i = 0; i < m_numberOfParticles; i++)
-		{
-			glm::vec2 graviticForce = m_bSimulateGrid ? glm::vec2(0.f, 1.f) : CalculateForceToSdf(particlesToSimulate, i, distanceField);
-			//glm::vec2 graviticForce = glm::vec2(0.f, 1.f);
-
-			particlesToSimulate[i].velocity += graviticForce * gravity * dt;
-			particlesToSimulate[i].predictedPos = particlesToSimulate[i].pos + particlesToSimulate[i].velocity * lookAheadStepRate;
-		}
-
-		UpdatePartialLookupList(particlesToSimulate);
-
-		for (uint32 i = 0; i < m_numberOfParticles; i++)
-		{
-			particlesToSimulate[i].densityNearDensity = CalculateDensityForEachPointWithinRadius(particlesToSimulate, i);
-			if (particlesToSimulate[i].densityNearDensity.x == 0.f)
-			{
-				particlesToSimulate[i].densityNearDensity.x = 0.f;
-			}
-
-		}
-
-		for (uint32 i = 0; i < m_numberOfParticles; i++)
-		{
-			glm::vec2 pressureForce = CalculatePressureForceForEachPointWithinRadius(particlesToSimulate, i);
-			glm::vec2 viscosityForce = CalculateViscosityForceForEachPointWithinRadius(particlesToSimulate, i) * m_viscosityForce;
-			glm::vec2 mouseForce = MouseForce(resolution, m_mouseForceRadius * spaceModifier.x, m_mouseForceStrength, particlesToSimulate[i]);
-			//glm::vec2 pressureForce = CalculatePressureForce(i, particlesToSimulate);
-			float density = particlesToSimulate[i].densityNearDensity.x;
-			glm::vec2 pressureAcceleration = (pressureForce + viscosityForce) / density + mouseForce;
-			particlesToSimulate[i].velocity += pressureAcceleration * dt;
-		}
-
-		for (uint32 i = 0; i < m_numberOfParticles; i++)
-		{
-			particlesToSimulate[i].pos += particlesToSimulate[i].velocity * dt;
-			CollideWithBounds(particlesToSimulate[i], g_globalRadius);
-		}
-
+		ImGui::Text("Particle density: %f", particlesToSimulate[m_particleToDebug].densityNearDensity.x);
+		ImGui::Text("Particle pressure: %f", particlesToSimulate[m_particleToDebug].pressure);
+		ImGui::SameLine();
+		ImGui::Text("Near pressure: %f", particlesToSimulate[m_particleToDebug].nearPressure);
+		ImGui::Text("Particle pressureForce x: %f y: %f", particlesToSimulate[m_particleToDebug].pressureForce.x, particlesToSimulate[m_particleToDebug].pressureForce.y);
 		ImGui::End();
 
 		DebugCircle debugCircle;
-		debugCircle.scale = (m_particleRadius * (float)resolution.y);
+		debugCircle.scale = (h * (float)resolution.y) / spaceModifier.x;
 		debugCircle.color = { 3.0 / 255.f, 169.f / 255.f, 252.f / 255.f };
 		for (uint32 i = 0; i < m_numberOfParticles; i++)
 		{
+			glm::vec2 adjustedVelocity = glm::vec2(particlesToSimulate[i].velocity.x * inverseHorizontalAspectRatio, particlesToSimulate[i].velocity.y) / spaceModifier;
+			float velocityLength = glm::length(particlesToSimulate[i].velocity);
+			adjustedVelocity *= 10.f;
+			const float normalizedPressure = (particlesToSimulate[i].pressure + 10.f) / 20.f;
+			const float r = Math::Lerp(0.f, 255.f, Math::Clamp(0.f, 1.0f, velocityLength / (h / spaceModifier.x))) / 255.f;
+			const float g = i == m_particleToDebug ? 225.f / 255.f : 188.f / 255.f;
+			const float b = Math::Lerp(252.f, 3.f, Math::Clamp(0.f, 1.0f, normalizedPressure)) / 255.f;
+			if (i == m_particleToDebug)
+				debugCircle.color = { r, g, b };
+			else
+				debugCircle.color = { r, g, b };
+
 			debugCircle.pos = particlesToSimulate[i].pos / spaceModifier;
 			debugCircle.pos.x *= inverseHorizontalAspectRatio;
 			if (m_bShowCircles)
@@ -370,19 +309,11 @@ namespace Hail
 
 			if (m_bShowGradientValues)
 			{
-				glm::vec2 adjustedVelocity = glm::vec2(particlesToSimulate[i].velocity.x * inverseHorizontalAspectRatio, particlesToSimulate[i].velocity.y) / spaceModifier;
+
+
 				glm::vec2 endPos = adjustedVelocity + debugCircle.pos;
 				DrawLine2D(poolOfCommands.m_debugLineCommands, debugCircle.pos, endPos, Color::Red, Color::LimeGreen);
 			}
-		}
-		debugCircle.scale = debugCircle.scale * 0.1f ;
-		debugCircle.color = Color::Black;
-		for (uint32 i = 0; i < m_numberOfParticles; i++)
-		{
-			debugCircle.pos = particlesToSimulate[i].pos / spaceModifier;
-			debugCircle.pos.x *= inverseHorizontalAspectRatio;
-			if (m_bShowCircles)
-				poolOfCommands.m_debugCircles.Add(debugCircle);
 		}
 
 		if (!m_bSimulateGrid)
@@ -407,7 +338,7 @@ namespace Hail
 		{1, 1}
 	};
 
-	void CloudParticleSimulator::UpdatePartialLookupList(GrowingArray<CloudParticle>& cloudParticles)
+	void CloudParticleSimulator::UpdatePartialLookupList(GrowingArray<CloudParticle>& cloudParticles, float hRadius)
 	{
 		const uint32 numberOfParticles = m_numberOfParticles;
 		m_particleSpatialLookup.RemoveAll();
@@ -415,7 +346,7 @@ namespace Hail
 		m_particleSpatialLookupStartIndices.PrepareAndFill(m_particleGridSize);
 		for (uint32 i = 0; i < numberOfParticles; i++)
 		{
-			uint32 key = ComputeParticleKeyLookup(cloudParticles[i], m_particleGridSize);
+			uint32 key = ComputeParticleKeyLookup(cloudParticles[i], m_particleGridSize, hRadius);
 			m_particleSpatialLookup[i] = (SpatialIndexLookup{ key, i });
 		}
 		for (uint32 i = 0; i < m_particleGridSize; i++)
@@ -440,123 +371,13 @@ namespace Hail
 		}
 	}
 
-	glm::vec2 CloudParticleSimulator::CalculateDensityForEachPointWithinRadius(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck)
+	glm::vec2 CloudParticleSimulator::CalculateForceToSdf(const CloudParticle& cloudParticle,  const GrowingArray<float>& distanceField)
 	{
-		glm::vec2 calculatedDensity = glm::vec2(0.f);
-		const float mass = 1.f;
-
-		const CloudParticle& particle = cloudParticleList[indexToCheck];
-		glm::ivec2 cellCoord = PositionToCellCoord(particle.predictedPos);
-		float sqrRadius = g_globalRadius * g_globalRadius;
-
-		for (uint32 iCellID = 0; iCellID < 9; iCellID++)
-		{
-			const glm::ivec2 cellCoordToTest = cellCoord + cellOffsets[iCellID];
-			const uint32 key = GenerateKeyFromCellPos(cellCoordToTest, m_particleGridSize);
-			const uint32 cellStartIndex = m_particleSpatialLookupStartIndices[key];
-			for (uint32 i = cellStartIndex; i < m_numberOfParticles; i++)
-			{
-				if (m_particleSpatialLookup[i].cellKey != key)
-					break;
-
-				const uint32 particleIndex = m_particleSpatialLookup[i].particleIndex;
-				glm::vec2 diffVector = particle.predictedPos - cloudParticleList[particleIndex].predictedPos;
-				float sqrDist = glm::dot(diffVector, diffVector);
-
-				if (sqrDist <= sqrRadius)
-				{
-					float distance = glm::length(particle.predictedPos - cloudParticleList[particleIndex].predictedPos);
-					float influence = SmoothingKernel(g_globalRadius, distance);
-					float nearInfluence = NearSmoothingKernel(g_globalRadius, distance);
-					calculatedDensity.x += mass * influence;
-					calculatedDensity.y += mass * nearInfluence;
-				}
-			}
-		}
-		return calculatedDensity;
-	}
-
-	glm::vec2 CloudParticleSimulator::CalculatePressureForceForEachPointWithinRadius(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck)
-	{
-		glm::vec2 pressureForce = glm::vec2(0.f);
-		const float mass = 1.f;
-
-		const CloudParticle& particle = cloudParticleList[indexToCheck];
-		glm::ivec2 cellCoord = PositionToCellCoord(particle.predictedPos);
-		float sqrRadius = g_globalRadius * g_globalRadius;
-
-		for (uint32 iCellID = 0; iCellID < 9; iCellID++)
-		{
-			uint32 key = GenerateKeyFromCellPos(cellCoord + cellOffsets[iCellID], m_particleGridSize);
-			uint32 cellStartIndex = m_particleSpatialLookupStartIndices[key];
-			for (uint32 i = cellStartIndex; i < m_numberOfParticles; i++)
-			{
-				if (m_particleSpatialLookup[i].cellKey != key)
-					break;
-				if (m_particleSpatialLookup[i].particleIndex == indexToCheck)
-					continue;
-
-				uint32 particleIndex = m_particleSpatialLookup[i].particleIndex;
-				glm::vec2 diffVector = particle.predictedPos - cloudParticleList[particleIndex].predictedPos;
-				float sqrDist = glm::dot(diffVector, diffVector);
-
-				if (sqrDist <= sqrRadius)
-				{
-					glm::vec2 direction = particle.predictedPos - cloudParticleList[particleIndex].predictedPos;
-					float distance = glm::length(direction);
-					// normalize the direction
-					direction = distance == 0.f ? VogelDirection(i, 256u + indexToCheck, (indexToCheck + 1u) * 0.01f) : direction / distance;
-					float slope = SmoothingKernelDerivative(g_globalRadius, distance);
-					glm::vec2 density = cloudParticleList[particleIndex].densityNearDensity;
-					glm::vec2 sharedPressure = CalculateSharedPressure(density, particle.densityNearDensity);
-					pressureForce += -(sharedPressure.x - sharedPressure.y) * mass * direction * slope / density.x;
-				}
-			}
-		}
-		return pressureForce;
-	}
-
-	glm::vec2 CloudParticleSimulator::CalculateViscosityForceForEachPointWithinRadius(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck)
-	{
-		glm::vec2 viscosityForce = glm::vec2(0.f);
-		const float mass = 1.f;
-
-		const CloudParticle& particle = cloudParticleList[indexToCheck];
-		glm::ivec2 cellCoord = PositionToCellCoord(particle.predictedPos);
-		float sqrRadius = g_globalRadius * g_globalRadius;
-
-		for (uint32 iCellID = 0; iCellID < 9; iCellID++)
-		{
-			uint32 key = GenerateKeyFromCellPos(cellCoord + cellOffsets[iCellID], m_particleGridSize);
-			uint32 cellStartIndex = m_particleSpatialLookupStartIndices[key];
-			for (uint32 i = cellStartIndex; i < m_numberOfParticles; i++)
-			{
-				if (m_particleSpatialLookup[i].cellKey != key)
-					break;
-				if (m_particleSpatialLookup[i].particleIndex == indexToCheck)
-					continue;
-
-				uint32 particleIndex = m_particleSpatialLookup[i].particleIndex;
-				const CloudParticle& particleToCheckAgainst = cloudParticleList[particleIndex];
-				glm::vec2 direction = particle.predictedPos - particleToCheckAgainst.predictedPos;
-				float distance = glm::length(direction);
-				// normalize the direction
-				float influence = ViscosityKernel(g_globalRadius, distance);
-				viscosityForce += (particleToCheckAgainst.velocity - particle.velocity) * influence;
-			}
-		}
-		return viscosityForce;
-	}
-
-	glm::vec2 CloudParticleSimulator::CalculateForceToSdf(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck, const GrowingArray<float>& distanceField)
-	{
-		const CloudParticle& particle = cloudParticleList[indexToCheck];
-
-		glm::ivec2 particleSdfPos = ParticlePosToSdfCoords(particle.pos);
+		glm::ivec2 particleSdfPos = ParticlePosToSdfCoords(cloudParticle.pos);
 
 		float sdfAtPos = distanceField[particleSdfPos.x + particleSdfPos.y * 128];
 
-		if (sdfAtPos < 0.f)
+		if (sdfAtPos < -4.f)
 			return glm::vec2(0.f);
 
 
@@ -584,4 +405,193 @@ namespace Hail
 		return returnVec;
 	}
 
+	void CloudParticleSimulator::UpdateParticlesBasedOnPaper(GrowingArray<CloudParticle>& cloudParticleList, float h, glm::uvec2 resolution, float actualDT, const GrowingArray<float>& distanceField)
+	{
+		ImGui::SliderFloat("Mass", &m_mass, 0.01f, 5.f);
+		float mass = m_mass;
+		ImGui::SliderFloat("Rest density", &m_restDensity, -10.f, 10.f);
+		const float restDensity = m_restDensity;
+		ImGui::SliderFloat("Stiffness", &m_stiffness, 0.f, 10.f);
+		ImGui::SliderFloat("Near Pressure", &m_nearPressureMultiplier, 0.f, 50.f);
+		const float stiffness = m_stiffness;
+		ImGui::SliderFloat("Viscosity", &m_viscosity, 0.01f, 200.f);
+		const float viscosity = m_viscosity;
+		ImGui::SliderFloat("gravity", &m_gravity, -50.f, 50.f);
+		glm::vec2 gravity = glm::vec2(0.f, m_gravity);
+		ImGui::SliderFloat("Deltatime modifier", &m_deltaTimeModifier, 0.1f, 5.f);
+
+		const float particleSize = h * 0.5f;
+		const float deltaTime = Math::Min(0.005f, actualDT);
+		//const float deltaTime = actualDT;
+		const float adjustedDeltaTime = (particleSize / m_maxVelocity);
+
+		//const float deltaTimeByMass = (Math::Min(deltaTime, adjustedDeltaTime) / mass);
+		const float deltaTimeByMass = Math::Min(deltaTime, adjustedDeltaTime) * m_deltaTimeModifier;
+
+		for (uint32 i = 0; i < m_numberOfParticles; i++)
+		{
+			CalculateDensityForEachPointWithinRadius(cloudParticleList, i, h, mass);
+			cloudParticleList[i].pressure = stiffness * (cloudParticleList[i].densityNearDensity.x - restDensity);
+			cloudParticleList[i].nearPressure = m_nearPressureMultiplier * (cloudParticleList[i].densityNearDensity.y);
+		}
+
+		for (uint32 i = 0; i < m_numberOfParticles; i++)
+		{
+			glm::vec2 F_viscosity = CalculateViscosityForceForEachPointWithinRadius(cloudParticleList, i, h, mass) * viscosity * mass;
+			glm::vec2 mouseForce = MouseForce(resolution, m_mouseForceRadius * spaceModifier.x, m_mouseForceStrength, cloudParticleList[i].pos, cloudParticleList[i].velocity);
+			glm::vec2 graviticForce = m_bSimulateGrid ? gravity : CalculateForceToSdf(cloudParticleList[i], distanceField) * m_gravity;
+
+			glm::vec2 F_ext = mass * (graviticForce + mouseForce);
+
+			glm::vec2 acceleration = (F_viscosity + F_ext);
+			cloudParticleList[i].intermediateVelocity = cloudParticleList[i].velocity + deltaTimeByMass * acceleration;
+		}
+
+		for (uint32 i = 0; i < m_numberOfParticles; i++)
+		{
+			cloudParticleList[i].pressureForce = CalculatePressureForceForEachPointWithinRadius(cloudParticleList, i, h, mass, deltaTimeByMass);
+		}
+
+		m_maxVelocity = 0.f;
+		for (uint32 i = 0; i < m_numberOfParticles; i++)
+		{
+			glm::vec2 acceleration_pressure = cloudParticleList[i].pressureForce / mass;
+
+			cloudParticleList[i].velocity = (cloudParticleList[i].intermediateVelocity + deltaTimeByMass * acceleration_pressure);
+
+			m_maxVelocity = Math::Max(m_maxVelocity, glm::dot(cloudParticleList[i].velocity, cloudParticleList[i].velocity));
+			
+			cloudParticleList[i].pos = cloudParticleList[i].pos + cloudParticleList[i].velocity;
+			CollideWithBounds(cloudParticleList[i].velocity, cloudParticleList[i].pos, &cloudParticleList[i].pos, h);
+		}
+		m_maxVelocity = sqrt(m_maxVelocity);
+	}
+
+	// Compute density using cubic spline kernel
+	void CloudParticleSimulator::CalculateDensityForEachPointWithinRadius(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck, float h, float mass)
+	{
+		glm::vec2 calculatedDensity = glm::vec2(0.f);
+
+		CloudParticle& particle = cloudParticleList[indexToCheck];
+		particle.densityNearDensity.x = 0.f;
+		particle.densityNearDensity.y = 0.f;
+		glm::ivec2 cellCoord = PositionToCellCoord(particle.pos, h);
+
+		for (uint32 iCellID = 0; iCellID < 9; iCellID++)
+		{
+			const glm::ivec2 cellCoordToTest = cellCoord + cellOffsets[iCellID];
+			const uint32 key = GenerateKeyFromCellPos(cellCoordToTest, m_particleGridSize);
+			const uint32 cellStartIndex = m_particleSpatialLookupStartIndices[key];
+			for (uint32 i = cellStartIndex; i < m_numberOfParticles; i++)
+			{
+				if (m_particleSpatialLookup[i].cellKey != key)
+					break;
+
+				const uint32 particleIndex = m_particleSpatialLookup[i].particleIndex;
+				glm::vec2 rij = particle.pos - cloudParticleList[particleIndex].pos;
+				float r = glm::length(rij);
+				particle.densityNearDensity.x += mass * CubicSplineKernel(r, h);
+				particle.densityNearDensity.y += mass * NearSmoothingKernel(h, r);
+			}
+		}
+	}
+
+	glm::vec2 CloudParticleSimulator::CalculateViscosityForceForEachPointWithinRadius(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck, float h, float mass)
+	{
+		glm::vec2 viscosityForce = glm::vec2(0.f);
+
+		CloudParticle& pi = cloudParticleList[indexToCheck];
+		glm::ivec2 cellCoord = PositionToCellCoord(pi.pos, h);
+
+		for (uint32 iCellID = 0; iCellID < 9; iCellID++)
+		{
+			const glm::ivec2 cellCoordToTest = cellCoord + cellOffsets[iCellID];
+			const uint32 key = GenerateKeyFromCellPos(cellCoordToTest, m_particleGridSize);
+			const uint32 cellStartIndex = m_particleSpatialLookupStartIndices[key];
+			for (uint32 i = cellStartIndex; i < m_numberOfParticles; i++)
+			{
+				if (m_particleSpatialLookup[i].cellKey != key)
+					break;
+
+				const uint32 particleIndex = m_particleSpatialLookup[i].particleIndex;
+
+				if (particleIndex == indexToCheck)
+					continue;
+
+				const CloudParticle& pj = cloudParticleList[particleIndex];
+
+				glm::vec2 rij = pi.pos - pj.pos;
+				float r = glm::length(rij);
+				if (r == 0.0f) continue; // avoid division by zero
+
+				glm::vec2 velocityDiff = pj.velocity - pi.velocity;
+
+				float smoothingKernelGradient = CubicSplineGradient(r, h);
+				
+				float gradW = smoothingKernelGradient;
+				glm::vec2 gradientOfKernel = (rij / r) * gradW;
+				float kernelGradientNormalized = (glm::length(gradientOfKernel) * 2.f) / r;
+
+				viscosityForce += ((mass / pj.densityNearDensity.x) * velocityDiff * kernelGradientNormalized);
+			}
+		}
+
+		return viscosityForce;
+	}
+
+	glm::vec2 CloudParticleSimulator::CalculatePressureForceForEachPointWithinRadius(GrowingArray<CloudParticle>& cloudParticleList, uint32 indexToCheck, float h, float mass, float dT)
+	{
+		glm::vec2 pressureForce = glm::vec2(0.f);
+
+		CloudParticle& pi = cloudParticleList[indexToCheck];
+		float piNearPressureTerm = pi.nearPressure / (pi.densityNearDensity.y * pi.densityNearDensity.y);
+		float piPressureTerm = pi.pressure / (pi.densityNearDensity.x * pi.densityNearDensity.x);
+
+		glm::vec2 piA = (pi.pos + pi.intermediateVelocity);
+
+		glm::ivec2 cellCoord = PositionToCellCoord(piA, h);
+		glm::vec2 randomFallbackDirection = VogelDirection(indexToCheck, 512u, (indexToCheck + 1u) * 0.01f);
+		const float hSquared = h * h;
+
+		for (uint32 iCellID = 0; iCellID < 9; iCellID++)
+		{
+			const glm::ivec2 cellCoordToTest = cellCoord + cellOffsets[iCellID];
+			const uint32 key = GenerateKeyFromCellPos(cellCoordToTest, m_particleGridSize);
+			const uint32 cellStartIndex = m_particleSpatialLookupStartIndices[key];
+			for (uint32 i = cellStartIndex; i < m_numberOfParticles; i++)
+			{
+				if (m_particleSpatialLookup[i].cellKey != key)
+					break;
+
+				const uint32 particleIndex = m_particleSpatialLookup[i].particleIndex;
+
+				if (particleIndex == indexToCheck)
+					continue;
+
+				const CloudParticle& pj = cloudParticleList[particleIndex];
+
+				glm::vec2 rij = piA - (pj.pos + pj.intermediateVelocity);
+				const float rijLengthSquard = rij.x * rij.x + rij.y * rij.y;
+				if (rijLengthSquard >= hSquared)
+					continue;
+
+				float nearPressureTerm = piNearPressureTerm + (pj.nearPressure / (pj.densityNearDensity.y * pj.densityNearDensity.y));
+				float pressureTerm = piPressureTerm + (pj.pressure / (pj.densityNearDensity.x * pj.densityNearDensity.x));
+
+				float r = sqrt(rijLengthSquard);
+				const float pressureModifier = 1.f - r / h;
+				pressureTerm = pressureTerm * pressureModifier + nearPressureTerm * (pressureModifier * pressureModifier);
+
+				bool useRandomDirection = false;
+				float gradient = CubicSplineGradient(r, h);
+				if (r < FLT_EPSILON)
+					gradient *= 2.f;
+				glm::vec2 normalizedDirection = r < FLT_EPSILON ? randomFallbackDirection : rij / r;
+				glm::vec2 pressureGradient = normalizedDirection * gradient;
+				
+				pressureForce += mass * -pressureTerm * pressureGradient;
+			}
+		}
+		return pressureForce;
+	}
 }
