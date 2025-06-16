@@ -294,7 +294,8 @@ bool Hail::ResourceRegistry::IsResourceOutOfDateInternal(const GrowingArray<Meta
 		{
 			CommonFileData sourceCurrentFileData = list[i].m_resource.GetSourceFilePath().GetFilePath().Object().GetFileData();
 			const CommonFileData& serializedSourceFileData = list[i].m_resource.GetSourceFileData();
-			return sourceCurrentFileData.m_lastWriteTime.m_highDateTime != serializedSourceFileData.m_lastWriteTime.m_highDateTime || 
+			return list[i].m_state == eResourceState::Invalid || 
+				sourceCurrentFileData.m_lastWriteTime.m_highDateTime != serializedSourceFileData.m_lastWriteTime.m_highDateTime ||
 				sourceCurrentFileData.m_lastWriteTime.m_lowDateTime != serializedSourceFileData.m_lastWriteTime.m_lowDateTime;
 		}
 	}

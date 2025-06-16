@@ -29,6 +29,12 @@ namespace
 			usage |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 			if (bufferProps.updateFrequency == eShaderBufferUpdateFrequency::Once)
 				usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+			if (bufferProps.accessQualifier != eShaderAccessQualifier::ReadOnly)
+			{
+				usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+			}
+
 		}
 		else if (bufferProps.domain == eShaderBufferDomain::GpuToCpu)
 		{
@@ -170,6 +176,7 @@ bool Hail::VlkBufferObject::InternalInit(RenderingDevice* pDevice)
 {
 	VlkDevice& vlkDevice = *(VlkDevice*)pDevice;
 
+	m_accessQualifier = m_properties.accessQualifier;
 	VkBufferUsageFlags typeFlag;
 	if (m_properties.type == eBufferType::uniform)
 	{

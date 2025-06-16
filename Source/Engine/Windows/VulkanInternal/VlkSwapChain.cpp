@@ -278,6 +278,7 @@ void VlkSwapChain::CreateImageViews(VlkDevice& device)
 		TextureViewProperties props;
 		props.pTextureToView = pTempTexture;
 		props.viewUsage = eTextureUsage::FramebufferColor;
+		props.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		m_pTextureViews[i]->InitView(&device, props);
 	}
 	SAFEDELETE(pTempTexture);

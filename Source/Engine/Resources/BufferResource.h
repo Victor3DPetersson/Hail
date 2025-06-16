@@ -10,14 +10,6 @@ namespace Hail
 {
 	class RenderingDevice;
 
-	enum class eShaderBufferUsage : uint8
-	{
-		Read,
-		Write, // Does shaders write to this buffer
-		ReadWrite, // RW buffer
-		Undefined
-	};
-
 	enum class eShaderBufferDomain : uint8
 	{
 		GpuOnly,
@@ -65,36 +57,58 @@ namespace Hail
 		glm::mat4 proj;
 	};
 
+	struct BufferViewProperties
+	{
+		eShaderAccessQualifier accessQualifier = eShaderAccessQualifier::ReadOnly;
+		uint32 elementByteSize = 0;
+		uint32 offset = 0;
+		uint32 numberOfElements = 0;
+		eShaderBufferDomain domain = eShaderBufferDomain::Undefined;
+	};
+
+
 	struct BufferProperties
 	{
 		eBufferType type;
 		uint32 elementByteSize = 0;
-		uint32 offset = 0;
 		uint32 numberOfElements = 0;
-		eShaderBufferUsage usage = eShaderBufferUsage::Undefined;
+		eShaderAccessQualifier accessQualifier = eShaderAccessQualifier::ReadOnly;
 		eShaderBufferDomain domain = eShaderBufferDomain::Undefined;
 		eShaderBufferUpdateFrequency updateFrequency = eShaderBufferUpdateFrequency::Undefined;
 	};
 
+
 	class BufferObject
 	{
 	public:
-		bool Init(RenderingDevice* device, BufferProperties properties);
+		bool Init(RenderingDevice* device, BufferProperties properties, const char* name);
 		virtual void CleanupResource(RenderingDevice* device) = 0;
 
 		const BufferProperties& GetProperties() { return m_properties; }
 		bool UsesFrameInFlight() const { return m_bUsesFramesInFlight; }
 		virtual bool UsesPersistentMapping(RenderingDevice* device, uint32 frameInFlight) = 0; // 
+		const eShaderAccessQualifier GetAccessQualifier() { return m_accessQualifier; }
+		void SetAccessQualifier(eShaderAccessQualifier qualifier) { m_accessQualifier = qualifier; }
 		const uint32 GetBufferSize() const;
 		const uint32 GetID() const { return m_id; }
 	protected:
 
 		virtual bool InternalInit(RenderingDevice* device) = 0;
+		static uint32 g_idCounter;
 
 		BufferProperties m_properties;
+		eShaderAccessQualifier m_accessQualifier = eShaderAccessQualifier::ReadOnly;
 		uint32 m_id = UINT_MAX;
-		static uint32 g_idCounter;
+		String64 m_name;
 		bool m_bUsesFramesInFlight = false;
+	};
+
+
+	class BufferView
+	{
+	public:
+		BufferObject* m_pBuffer;
+		BufferViewProperties m_properties;
 	};
 }
 

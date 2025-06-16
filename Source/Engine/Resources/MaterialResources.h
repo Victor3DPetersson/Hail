@@ -19,7 +19,7 @@ namespace Hail
 
 	struct ShaderProperties
 	{
-		eShaderType m_type = eShaderType::None;
+		eShaderStage m_type = eShaderStage::None;
 		GUID m_id = GuidZero;
 	};
 
@@ -88,6 +88,7 @@ namespace Hail
 	class Pipeline
 	{
 	public:
+
 		virtual void CleanupResource(RenderingDevice& device) = 0;
 		eMaterialType m_type = eMaterialType::COUNT;
 		VectorOnStack<CompiledShader*, 2> m_pShaders;
@@ -100,6 +101,7 @@ namespace Hail
 		bool m_bIsCompute = false;
 		MaterialTypeObject* m_pTypeDescriptor = nullptr;
 		VectorOnStack<ShaderDecoration, 4> m_pushConstants;
+		uint32 m_shaderStages = 1 << (uint8)eShaderStage::None;
 	};
 
 	// The material owns the shader, has a pointer to the shared type data and owns the instance descriptors

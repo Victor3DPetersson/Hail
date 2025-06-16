@@ -15,6 +15,13 @@ namespace Hail
 
 	struct RenderCommandPool;
 
+	struct ParticleUniformBuffer
+	{
+		uint32 numberOfParticles;
+		float particleSize;
+		glm::vec2 cloudTextureDimensions = { 240.f, 240.f };
+	};
+
 	class CloudRenderer
 	{
 	public:
@@ -31,9 +38,15 @@ namespace Hail
 		ResourceManager* m_pResourceManager;
 
 		MaterialPipeline* m_pCloudPipeline;
+		MaterialPipeline* m_pCloudCoveragePipeline;
 		BufferObject* m_pCloudBuffer;
+
 		TextureResource* m_pSdfTexture;
 		TextureView* m_pSdfView;
+
+		BufferObject* m_pParticleUniformBuffer;
+		TextureResource* m_pParticleCoverageTexture;
+		TextureView* m_pParticleCoverageView;
 
 		GrowingArray<glm::vec2> m_pointsOnTheGPU;
 		GrowingArray<CloudParticle> m_cloudParticles;
@@ -42,6 +55,8 @@ namespace Hail
 		uint32 m_numberOfPointsUploaded;
 
 		CloudParticleSimulator m_simulator;
+
+		ParticleUniformBuffer m_ParticleUniforms;
 	};
 
 }

@@ -3,5 +3,5 @@
 #include "ReflectedShaderData.h"
 namespace Hail
 {
-	void ParseShader(ReflectedShaderData& returnData, const char* shaderName, const char* compiledShader, uint32 shaderLength);
+	void ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage, const char* shaderName, const char* compiledShader, uint32 shaderLength);
 }

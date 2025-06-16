@@ -15,21 +15,6 @@ using namespace Hail;
 
 namespace
 {
-	VkShaderModule CreateShaderModule(CompiledShader& shader, VlkDevice& device)
-	{
-		VkShaderModuleCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = shader.header.sizeOfShaderData;
-		createInfo.pCode = reinterpret_cast<const uint32_t*>(shader.compiledCode);
-		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(device.GetDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-			
-			// TODO: Throw error and move this to the shader loading stage so we can have an early test for this.
-			return nullptr;
-		}
-		return shaderModule;
-	}
-
 	VkPipelineColorBlendAttachmentState LocalCreateBlendMode(eBlendMode blendMode)
 	{
 		VkPipelineColorBlendAttachmentState colorBlendAttachment{};
@@ -116,29 +101,31 @@ namespace
 	}
 
 	void localGetDescriptorsFromDecoration(
-		const VectorOnStack<ShaderDecoration, 8>* decoration1,
+		const SetDecoration* decoration1,
 		VkShaderStageFlags stageFlag1,
-		const VectorOnStack<ShaderDecoration, 8>* decoration2,
+		const SetDecoration* decoration2,
 		VkShaderStageFlags stageFlag2,
 		VkDescriptorType descriptorType,
 		GrowingArray<VlkLayoutDescriptor>& descriptorToFill)
 	{
-		VectorOnStack<VlkLayoutDescriptor, 8> descriptors;
+		VectorOnStack<VlkLayoutDescriptor, 16> descriptors;
 
-		for (int i = 0; i < decoration1->Size(); i++)
+		for (int i = 0; i < decoration1->m_indices.Size(); i++)
 		{
 			VlkLayoutDescriptor descriptor;
-			descriptor.bindingPoint = (*decoration1)[i].m_bindingLocation;
+			const ShaderDecoration& decoration = decoration1->m_decorations[decoration1->m_indices[i]];
+			descriptor.bindingPoint = decoration.m_bindingLocation;
 			descriptor.type = descriptorType;
 			descriptor.flags = stageFlag1;
-			descriptor.decorationType = (*decoration1)[i].m_type;
+			descriptor.decorationType = decoration.m_type;
 			descriptors.Add(descriptor);
 		}
 		if (decoration2)
 		{
-			for (int i = 0; i < decoration2->Size(); i++)
+			for (int i = 0; i < decoration2->m_indices.Size(); i++)
 			{
-				const uint32 bindingPoint = (*decoration2)[i].m_bindingLocation;
+				const ShaderDecoration& decoration = decoration2->m_decorations[decoration2->m_indices[i]];
+				const uint32 bindingPoint = decoration.m_bindingLocation;
 				bool foundDescriptor = false;
 				for (size_t iPreviousDescriptors = 0; iPreviousDescriptors < descriptors.Size(); iPreviousDescriptors++)
 				{
@@ -155,7 +142,7 @@ namespace
 					descriptor.bindingPoint = bindingPoint;
 					descriptor.type = descriptorType;
 					descriptor.flags = stageFlag2;
-					descriptor.decorationType = (*decoration2)[i].m_type;
+					descriptor.decorationType = decoration.m_type;
 					descriptors.Add(descriptor);
 				}
 			}
@@ -167,29 +154,40 @@ namespace
 	}
 
 	void localGetImageDescriptorsFromDecoration(
-		const VectorOnStack<ShaderDecoration, 8>* decoration1,
+		const SetDecoration* decoration1,
 		VkShaderStageFlags stageFlag1,
-		const VectorOnStack<ShaderDecoration, 8>* decoration2,
+		const SetDecoration* decoration2,
 		VkShaderStageFlags stageFlag2,
 		VkDescriptorType descriptorType,
-		GrowingArray<VlkLayoutDescriptor>& descriptorToFill)
+		GrowingArray<VlkLayoutDescriptor>& descriptorToFill,
+		bool bCheckIfSampledOrStorageImage)
 	{
-		VectorOnStack<VlkLayoutDescriptor, 8> descriptors;
+		VectorOnStack<VlkLayoutDescriptor, 16> descriptors;
 
-		for (int i = 0; i < decoration1->Size(); i++)
+		for (int i = 0; i < decoration1->m_indices.Size(); i++)
 		{
 			VlkLayoutDescriptor descriptor;
-			descriptor.bindingPoint = (*decoration1)[i].m_bindingLocation;
+			const ShaderDecoration& decoration = decoration1->m_decorations[decoration1->m_indices[i]];
+			descriptor.bindingPoint = decoration.m_bindingLocation;
 			descriptor.type = descriptorType;
 			descriptor.flags = stageFlag1;
-			descriptor.decorationType = (*decoration1)[i].m_type;
+			descriptor.decorationType = decoration.m_type;
+			if (bCheckIfSampledOrStorageImage)
+			{
+				// If the image is write in any way it is a storage image
+				if (decoration.m_accessQualifier != eShaderAccessQualifier::ReadOnly)
+				{
+					descriptor.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+				}
+			}
 			descriptors.Add(descriptor);
 		}
 		if (decoration2)
 		{
-			for (int i = 0; i < decoration2->Size(); i++)
+			for (int i = 0; i < decoration2->m_indices.Size(); i++)
 			{
-				const uint32 bindingPoint = (*decoration2)[i].m_bindingLocation;
+				const ShaderDecoration& decoration = decoration2->m_decorations[decoration2->m_indices[i]];
+				const uint32 bindingPoint = decoration.m_bindingLocation;
 				bool foundDescriptor = false;
 				for (size_t iPreviousDescriptors = 0; iPreviousDescriptors < descriptors.Size(); iPreviousDescriptors++)
 				{
@@ -206,7 +204,15 @@ namespace
 					descriptor.bindingPoint = bindingPoint;
 					descriptor.type = descriptorType;
 					descriptor.flags = stageFlag2;
-					descriptor.decorationType = (*decoration2)[i].m_type;
+					descriptor.decorationType = decoration.m_type;
+					if (bCheckIfSampledOrStorageImage)
+					{
+						// If the image is write in any way it is a storage image
+						if (decoration.m_accessQualifier != eShaderAccessQualifier::ReadOnly)
+						{
+							descriptor.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+						}
+					}
 					descriptors.Add(descriptor);
 				}
 			}
@@ -217,62 +223,61 @@ namespace
 		}
 	}
 
-	GrowingArray<VlkLayoutDescriptor> localGetSetLayoutDescription(eShaderType primaryShaderType, eDecorationSets domainToFetch, ReflectedShaderData* pMainData, ReflectedShaderData* pSecondaryData)
+	GrowingArray<VlkLayoutDescriptor> localGetSetLayoutDescription(eShaderStage primaryShaderType, eDecorationSets domainToFetch, ReflectedShaderData* pMainData, ReflectedShaderData* pSecondaryData)
 	{
 		GrowingArray<VlkLayoutDescriptor> typeSetDescriptors;
 		VkShaderStageFlagBits flagBit = VK_SHADER_STAGE_ALL;
 		VkShaderStageFlagBits secondaryFlagBit = VK_SHADER_STAGE_ALL;
-		const SetDecorations& setDecorations = pMainData->m_setDecorations[domainToFetch];
-		bool use2Shaders = false;
-		if (primaryShaderType == eShaderType::Compute)
+		bool bUse2Shaders = false;
+		if (primaryShaderType == eShaderStage::Compute)
 		{
 			flagBit = VK_SHADER_STAGE_COMPUTE_BIT;
 		}
-		else if (primaryShaderType == eShaderType::Fragment)
+		else if (primaryShaderType == eShaderStage::Fragment)
 		{
 			flagBit = VK_SHADER_STAGE_FRAGMENT_BIT;
 			secondaryFlagBit = VK_SHADER_STAGE_VERTEX_BIT;
-			use2Shaders = true;
+			bUse2Shaders = true;
 		}
-		else if (primaryShaderType == eShaderType::Vertex)
+		else if (primaryShaderType == eShaderStage::Vertex)
 		{
 			flagBit = VK_SHADER_STAGE_VERTEX_BIT;
 			secondaryFlagBit = VK_SHADER_STAGE_FRAGMENT_BIT;
-			use2Shaders = true;
+			bUse2Shaders = true;
 		}
-		else if (primaryShaderType == eShaderType::Mesh)
+		else if (primaryShaderType == eShaderStage::Mesh)
 		{
 			flagBit = VK_SHADER_STAGE_MESH_BIT_EXT;
 			secondaryFlagBit = VK_SHADER_STAGE_FRAGMENT_BIT;
-			use2Shaders = true;
+			bUse2Shaders = true;
 		}
-		SetDecorations* pSecondarySetDecorations = use2Shaders ? &pSecondaryData->m_setDecorations[domainToFetch] : nullptr;
+		H_ASSERT(bUse2Shaders ? (pSecondaryData != nullptr) : (pSecondaryData == nullptr));
 		pMainData->m_setDecorations[domainToFetch];
 
 		localGetDescriptorsFromDecoration(
-			&setDecorations.m_uniformBuffers, flagBit,
-			use2Shaders ? &pSecondarySetDecorations->m_uniformBuffers : nullptr, secondaryFlagBit,
+			&pMainData->m_setDecorations[domainToFetch][(uint32)eDecorationType::UniformBuffer], flagBit,
+			bUse2Shaders ? &pSecondaryData->m_setDecorations[domainToFetch][(uint32)eDecorationType::UniformBuffer] : nullptr, secondaryFlagBit,
 			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, typeSetDescriptors);
 
 		localGetDescriptorsFromDecoration(
-			&setDecorations.m_storageBuffers, flagBit,
-			use2Shaders ? &pSecondarySetDecorations->m_storageBuffers : nullptr, secondaryFlagBit,
+			&pMainData->m_setDecorations[domainToFetch][(uint32)eDecorationType::ShaderStorageBuffer], flagBit,
+			bUse2Shaders ? &pSecondaryData->m_setDecorations[domainToFetch][(uint32)eDecorationType::ShaderStorageBuffer] : nullptr, secondaryFlagBit,
 			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, typeSetDescriptors);
 
 		localGetImageDescriptorsFromDecoration(
-			&setDecorations.m_sampledImages, flagBit,
-			use2Shaders ? &pSecondarySetDecorations->m_sampledImages : nullptr, secondaryFlagBit,
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeSetDescriptors);
+			&pMainData->m_setDecorations[domainToFetch][(uint32)eDecorationType::SampledImage], flagBit,
+			bUse2Shaders ? &pSecondaryData->m_setDecorations[domainToFetch][(uint32)eDecorationType::SampledImage] : nullptr, secondaryFlagBit,
+			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeSetDescriptors, false);
 
 		localGetImageDescriptorsFromDecoration(
-			&setDecorations.m_images, flagBit,
-			use2Shaders ? &pSecondarySetDecorations->m_images : nullptr, secondaryFlagBit,
-			VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, typeSetDescriptors);
+			&pMainData->m_setDecorations[domainToFetch][(uint32)eDecorationType::Image], flagBit,
+			bUse2Shaders ? &pSecondaryData->m_setDecorations[domainToFetch][(uint32)eDecorationType::Image] : nullptr, secondaryFlagBit,
+			VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, typeSetDescriptors, true);
 
 		localGetImageDescriptorsFromDecoration(
-			&setDecorations.m_samplers, flagBit,
-			use2Shaders ? &pSecondarySetDecorations->m_samplers : nullptr, secondaryFlagBit,
-			VK_DESCRIPTOR_TYPE_SAMPLER, typeSetDescriptors);
+			&pMainData->m_setDecorations[domainToFetch][(uint32)eDecorationType::Sampler], flagBit,
+			bUse2Shaders ? &pSecondaryData->m_setDecorations[domainToFetch][(uint32)eDecorationType::Sampler] : nullptr, secondaryFlagBit,
+			VK_DESCRIPTOR_TYPE_SAMPLER, typeSetDescriptors, false);
 
 		return typeSetDescriptors;
 	}
@@ -333,11 +338,10 @@ namespace
 	{
 		GrowingArray<VkWriteDescriptorSet> outSetWrites(8);
 		GrowingArray<VlkLayoutDescriptor> globalDescriptors = localGetSetLayoutDescription(
-			(eShaderType)vlkPipeline.m_pShaders[0]->header.shaderType,
+			(eShaderStage)vlkPipeline.m_pShaders[0]->header.shaderType,
 			GlobalDomain, &vlkPipeline.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 		VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)pRenderingResourceManager)->GetRenderingResources();
 
-		// TODO flytta ut globala descriptors till en egen funktion.
 		for (size_t i = 0; i < globalDescriptors.Size(); i++)
 		{
 			VlkLayoutDescriptor& descriptor = globalDescriptors[i];
@@ -347,7 +351,7 @@ namespace
 				eBufferType bufferType = descriptor.decorationType == eDecorationType::ShaderStorageBuffer ? eBufferType::structured : eBufferType::uniform;
 				VlkBufferObject* vlkBuffer = (VlkBufferObject*)pRenderingResourceManager->GetGlobalBuffer(GlobalDomain, bufferType, descriptor.bindingPoint);
 				bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
-				bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+				bufferDescriptorInfo.offset = 0u;
 				bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
 
 				VkDescriptorType vkBufferType = descriptor.decorationType == eDecorationType::ShaderStorageBuffer ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -390,7 +394,7 @@ void VlkMaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* 
 	MaterialManager::Init(renderingDevice, textureResourceManager, renderingResourceManager, swapChain);
 }
 
-void Hail::VlkMaterialManager::BindPipelineToContext(Pipeline* pPipeline, RenderContext* pRenderContext)
+void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeline, RenderContext* pRenderContext)
 {
 	H_ASSERT(pPipeline, "Must have a valid pipeline");
 	VlkPipeline& vlkPipeline = *(VlkPipeline*)pPipeline;
@@ -407,16 +411,20 @@ void Hail::VlkMaterialManager::BindPipelineToContext(Pipeline* pPipeline, Render
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
 	VlkMaterialTypeObject& typeDescriptor = *(VlkMaterialTypeObject*)vlkPipeline.m_pTypeDescriptor;
 
+	// Only Custom pipelines without a bounds global material and global set should be setting a manual pipeline 
 	if (typeDescriptor.m_bBoundTypeData[frameInFlight])
 		return;
+
+	H_ASSERT(pPipeline->m_type == eMaterialType::CUSTOM, "Only custom pipelines should use this function");
 
 	DescriptorInfos descriptorInfos{};
 
 	GrowingArray< VkWriteDescriptorSet> setWrites = localGetGlobalPipelineDescriptor(descriptorInfos, vlkPipeline, pSecondaryShaderData, typeDescriptor, m_textureManager, m_renderingResourceManager, frameInFlight);
 
 	GrowingArray<VlkLayoutDescriptor> materialDescriptors = localGetSetLayoutDescription(
-		(eShaderType)vlkPipeline.m_pShaders[0]->header.shaderType, MaterialTypeDomain, &vlkPipeline.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+		(eShaderStage)vlkPipeline.m_pShaders[0]->header.shaderType, MaterialTypeDomain, &vlkPipeline.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 
+	// Lägg till mera data för dem nya data typerna
 	for (size_t i = 0; i < materialDescriptors.Size(); i++)
 	{
 		VlkLayoutDescriptor& descriptor = materialDescriptors[i];
@@ -429,7 +437,7 @@ void Hail::VlkMaterialManager::BindPipelineToContext(Pipeline* pPipeline, Render
 			H_ASSERT(vlkBuffer, "Nothing bound to the context slot.");
 
 			bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
-			bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+			bufferDescriptorInfo.offset = 0u; // TODO: Använd view property här
 			bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
 			VkDescriptorType vkBufferType = descriptor.decorationType == eDecorationType::ShaderStorageBuffer ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			setWrites.Add(WriteDescriptorBuffer(vkBufferType, typeDescriptor.m_typeDescriptors[frameInFlight], &bufferDescriptorInfo, descriptor.bindingPoint));
@@ -445,6 +453,7 @@ void Hail::VlkMaterialManager::BindPipelineToContext(Pipeline* pPipeline, Render
 			imageDescriptorInfo.imageView = vlkTexture->GetVkImageView();
 			imageDescriptorInfo.sampler = ((VlkSamplerObject*)m_renderingResourceManager->GetGlobalSampler(GlobalSamplers::Point))->GetInternalSampler();
 			setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
+
 		}
 		else if (descriptor.decorationType == eDecorationType::Image)
 		{
@@ -455,7 +464,15 @@ void Hail::VlkMaterialManager::BindPipelineToContext(Pipeline* pPipeline, Render
 
 			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageDescriptorInfo.imageView = vlkTexture->GetVkImageView();
-			setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
+			if (vlkTexture->GetProps().pTextureToView->m_accessQualifier != eShaderAccessQualifier::ReadOnly)
+			{
+				imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
+			}
+			else
+			{
+				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
+			}
 		}
 	}
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
@@ -504,7 +521,7 @@ bool VlkMaterialManager::InitMaterialInternal(Material* pMaterial, uint32 frameI
 			{
 				pSecondaryShaderData = &pVlkPipeline->m_pShaders[1]->reflectedShaderData;
 			}
-			GrowingArray<VlkLayoutDescriptor> materialSetLayoutDescriptors = localGetSetLayoutDescription((eShaderType)pVlkPipeline->m_pShaders[0]->header.shaderType, InstanceDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+			GrowingArray<VlkLayoutDescriptor> materialSetLayoutDescriptors = localGetSetLayoutDescription((eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType, InstanceDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 			if (!localCreateSetLayoutDescriptor(materialSetLayoutDescriptors, pVlkMat->m_instanceSetLayout, device))
 			{
 				return false;
@@ -592,7 +609,7 @@ bool Hail::VlkMaterialManager::CreateMaterialTypeObject(Pipeline* pPipeline)
 	typeDescriptor.m_type = pVlkPipeline->m_type;
 	if (pVlkPipeline->m_pShaders[0]->loadState == eShaderLoadState::LoadedToRAM)
 	{
-		const eShaderType shader1Type = (eShaderType)pVlkPipeline->m_pShaders[0]->header.shaderType;
+		const eShaderStage shader1Type = (eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType;
 
 		ReflectedShaderData* pSecondaryShaderData = nullptr;
 		if (pVlkPipeline->m_pShaders.Size() > 1)
@@ -600,12 +617,12 @@ bool Hail::VlkMaterialManager::CreateMaterialTypeObject(Pipeline* pPipeline)
 			pSecondaryShaderData = &pVlkPipeline->m_pShaders[1]->reflectedShaderData;
 		}
 
-		GrowingArray<VlkLayoutDescriptor> globalSetDescriptors = localGetSetLayoutDescription((eShaderType)pVlkPipeline->m_pShaders[0]->header.shaderType, GlobalDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+		GrowingArray<VlkLayoutDescriptor> globalSetDescriptors = localGetSetLayoutDescription((eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType, GlobalDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 		if (!localCreateSetLayoutDescriptor(globalSetDescriptors, typeDescriptor.m_globalSetLayout, device))
 		{
 			return false;
 		}
-		GrowingArray<VlkLayoutDescriptor> typeSetDescriptors = localGetSetLayoutDescription((eShaderType)pVlkPipeline->m_pShaders[0]->header.shaderType, MaterialTypeDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
+		GrowingArray<VlkLayoutDescriptor> typeSetDescriptors = localGetSetLayoutDescription((eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType, MaterialTypeDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 		if (!localCreateSetLayoutDescriptor(typeSetDescriptors, typeDescriptor.m_typeSetLayout, device))
 		{
 			return false;
@@ -676,21 +693,21 @@ bool Hail::VlkMaterialManager::CreatePipelineLayout(VlkPipeline& vlkPipeline, Vl
 			pushConstant.size = reflectedPushConstant.m_byteSize; // Check if this length is correct 
 			//this push constant range is accessible only in the vertex and compute shader
 
-			eShaderType shaderType = (eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType;
+			eShaderStage shaderType = (eShaderStage)vlkPipeline.m_pShaders[i]->header.shaderType;
 
-			if (shaderType == eShaderType::Vertex)
+			if (shaderType == eShaderStage::Vertex)
 			{
 				pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 			}
-			else if (shaderType == eShaderType::Compute)
+			else if (shaderType == eShaderStage::Compute)
 			{
 				pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 			}
-			else if (shaderType == eShaderType::Mesh)
+			else if (shaderType == eShaderStage::Mesh)
 			{
 				pushConstant.stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
 			}
-			else if (shaderType == eShaderType::Fragment)
+			else if (shaderType == eShaderStage::Fragment)
 			{
 				pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 			}
@@ -747,7 +764,7 @@ void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkPipeline& vlkPipeline,
 	GrowingArray< VkWriteDescriptorSet> setWrites = localGetGlobalPipelineDescriptor(descriptorInfos, vlkPipeline, pSecondaryShaderData, typeDescriptor, m_textureManager, m_renderingResourceManager, frameInFlight);
 
 	GrowingArray<VlkLayoutDescriptor> materialDescriptors = localGetSetLayoutDescription(
-		(eShaderType)vlkPipeline.m_pShaders[0]->header.shaderType,
+		(eShaderStage)vlkPipeline.m_pShaders[0]->header.shaderType,
 		MaterialTypeDomain, &vlkPipeline.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 	for (size_t i = 0; i < materialDescriptors.Size(); i++)
 	{
@@ -758,7 +775,7 @@ void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkPipeline& vlkPipeline,
 			eBufferType bufferType = descriptor.decorationType == eDecorationType::ShaderStorageBuffer ? eBufferType::structured : eBufferType::uniform;
 			VlkBufferObject* vlkBuffer = (VlkBufferObject*)m_renderingResourceManager->GetGlobalBuffer(MaterialTypeDomain, bufferType, descriptor.bindingPoint);
 			bufferDescriptorInfo.buffer = vlkBuffer->GetBuffer(frameInFlight);
-			bufferDescriptorInfo.offset = vlkBuffer->GetProperties().offset;
+			bufferDescriptorInfo.offset = 0u;
 			bufferDescriptorInfo.range = vlkBuffer->GetBufferSize();
 			VkDescriptorType vkBufferType = descriptor.decorationType == eDecorationType::ShaderStorageBuffer ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 			setWrites.Add(WriteDescriptorBuffer(vkBufferType, typeDescriptor.m_typeDescriptors[frameInFlight], &bufferDescriptorInfo, descriptor.bindingPoint));
@@ -831,7 +848,7 @@ bool VlkMaterialManager::InitMaterialInstanceInternal(MaterialInstance& instance
 	}
 
 	GrowingArray<VlkLayoutDescriptor> instanceDescriptors = localGetSetLayoutDescription(
-		(eShaderType)pVlkPipeline->m_pShaders[0]->header.shaderType,
+		(eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType,
 		InstanceDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
 
 	GrowingArray<VkWriteDescriptorSet> descriptorWrites(instanceDescriptors.Size());

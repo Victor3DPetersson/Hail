@@ -289,6 +289,13 @@ void VlkDevice::PickPhysicalDevice()
 		if (IsDeviceSuitable(devices[device])) 
 		{
 			m_physicalDevice = devices[device];
+
+			VkPhysicalDeviceProperties deviceProperties;
+			vkGetPhysicalDeviceProperties(devices[device], &deviceProperties);
+
+			m_deviceLimits.m_maxComputeWorkGroupInvocations = deviceProperties.limits.maxComputeWorkGroupInvocations;
+			m_deviceLimits.m_maxComputeSharedMemorySize = deviceProperties.limits.maxComputeSharedMemorySize;
+
 			break;
 		}
 	}

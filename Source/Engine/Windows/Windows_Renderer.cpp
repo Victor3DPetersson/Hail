@@ -43,16 +43,9 @@ using namespace Hail;
 
 bool Hail::VlkRenderer::Initialize()
 {
+	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
 	Renderer::Initialize();
 
-	//Create initial buffers
-	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
-	m_pContext->StartTransferPass();
-	CreateSpriteVertexBuffer();
-	CreateVertexBuffer();
-	CreateIndexBuffer();
-	InitImGui();
-	m_pContext->EndTransferPass();
 	////clear font textures from cpu data, so clearing ImGui for Vlk
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 	return true;
@@ -139,17 +132,6 @@ void VlkRenderer::InitImGui()
 	VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
 	VkCommandBuffer cmd = pVlkCommandBfr->m_commandBuffer;
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
-	////execute a gpu command to upload imgui font textures
-	//immediate_submit([&](VkCommandBuffer cmd) {
-	//	ImGui_ImplVulkan_CreateFontsTexture(cmd);
-	//	});
-
-	////add the destroy the imgui created structures
-	//_mainDeletionQueue.push_function([=]() {
-
-	//	vkDestroyDescriptorPool(_device, imguiPool, nullptr);
-	//	ImGui_ImplVulkan_Shutdown();
-	//	});
 }
 
 void Hail::VlkRenderer::WaitForGPU()

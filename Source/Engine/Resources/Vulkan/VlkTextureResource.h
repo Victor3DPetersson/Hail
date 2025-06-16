@@ -25,8 +25,8 @@ namespace Hail
 		{
 			VmaAllocation allocation = VK_NULL_HANDLE;
 			VkImage textureImage = VK_NULL_HANDLE;
-
-			// TODO: Add current texture state so we can track it for transitions
+			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			VkImageUsageFlags currentUsage = VK_PIPELINE_STAGE_NONE;
 		};
 
 		void CleanupResource(RenderingDevice* device) override;

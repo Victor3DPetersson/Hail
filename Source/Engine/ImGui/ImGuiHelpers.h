@@ -21,7 +21,7 @@ namespace Hail
 
 		const char* GetMaterialTypeStringFromEnum(eMaterialType type);
 		const char* GetMaterialBlendModeFromEnum(eBlendMode mode);
-		const char* GetShaderTypeFromEnum(eShaderType mode);
+		const char* GetShaderTypeFromEnum(eShaderStage mode);
 
 		int GetMaterialTypeComboBox(uint32 index);
 	}

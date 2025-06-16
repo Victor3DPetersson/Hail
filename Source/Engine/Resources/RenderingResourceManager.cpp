@@ -65,24 +65,26 @@ bool Hail::RenderingResourceManager::InternalInit()
     {
         properties.type = eBufferType::uniform;
         properties.numberOfElements = 1;
-        properties.offset = 0;
         properties.numberOfElements = 0;
         properties.elementByteSize = 0;
+        String64 name; 
         switch ((eGlobalUniformBuffers)i)
         {
         case Hail::eGlobalUniformBuffers::frameData:
             properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(PerFrameUniformBuffer);
             properties.domain = eShaderBufferDomain::CpuToGpu;
-            properties.usage = eShaderBufferUsage::Read;
+            properties.accessQualifier = eShaderAccessQualifier::ReadOnly;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+            name = "Global Frame Data Buffer";
             break;
         case Hail::eGlobalUniformBuffers::viewData:
             properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(PerCameraUniformBuffer);
             properties.domain = eShaderBufferDomain::CpuToGpu;
-            properties.usage = eShaderBufferUsage::Read;
+            properties.accessQualifier = eShaderAccessQualifier::ReadOnly;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+            name = "Global Per Camera Buffer";
             break;
         case Hail::eGlobalUniformBuffers::count:
         default:
@@ -90,13 +92,12 @@ bool Hail::RenderingResourceManager::InternalInit()
         }
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
-        assignBuffer(CreateBuffer(properties), eDecorationSets::GlobalDomain);
+        assignBuffer(CreateBuffer(properties, name), eDecorationSets::GlobalDomain);
     }
     for (size_t i = 0; i < (uint32)eGlobalStructuredBuffers::count; i++)
     {
         properties.type = eBufferType::structured;
         properties.numberOfElements = 1;
-        properties.offset = 0;
         properties.numberOfElements = 0;
         properties.elementByteSize = 0;
         switch ((eGlobalStructuredBuffers)i)
@@ -108,14 +109,13 @@ bool Hail::RenderingResourceManager::InternalInit()
         }
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
-        assignBuffer(CreateBuffer(properties), eDecorationSets::GlobalDomain);
+        assignBuffer(CreateBuffer(properties, ""), eDecorationSets::GlobalDomain);
     }
 
     for (size_t i = 0; i < (uint32)eMaterialUniformBuffers::count; i++)
     {
         properties.type = eBufferType::uniform;
         properties.numberOfElements = 0;
-        properties.offset = 0;
         properties.numberOfElements = 0;
         properties.elementByteSize = 0;
         switch ((eMaterialUniformBuffers)i)
@@ -124,7 +124,7 @@ bool Hail::RenderingResourceManager::InternalInit()
             properties.numberOfElements = 1;
             properties.elementByteSize = sizeof(TutorialUniformBufferObject);
             properties.domain = eShaderBufferDomain::CpuToGpu;
-            properties.usage = eShaderBufferUsage::Read;
+            properties.accessQualifier = eShaderAccessQualifier::ReadOnly;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
 
             break;
@@ -135,30 +135,32 @@ bool Hail::RenderingResourceManager::InternalInit()
         }
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
-        assignBuffer(CreateBuffer(properties), eDecorationSets::MaterialTypeDomain);
+        assignBuffer(CreateBuffer(properties, "3D Object Instance Buffer"), eDecorationSets::MaterialTypeDomain);
     }
 
     for (size_t i = 0; i < (uint32)eMaterialBuffers::count; i++)
     {
         properties.type = eBufferType::structured;
-        properties.offset = 0;
         properties.numberOfElements = 0;
         properties.elementByteSize = 0;
+        String64 name;
         switch ((eMaterialBuffers)i)
         {
         case Hail::eMaterialBuffers::instanceBuffer2D:
             properties.numberOfElements = MAX_NUMBER_OF_2D_RENDER_COMMANDS;
             properties.elementByteSize = sizeof(RenderCommand2DBase);
             properties.domain = eShaderBufferDomain::CpuToGpu;
-            properties.usage = eShaderBufferUsage::Read;
+            properties.accessQualifier = eShaderAccessQualifier::ReadOnly;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+            name = "2D Base Command Instance Data Buffer";
             break;
         case Hail::eMaterialBuffers::spriteDataBuffer:
             properties.numberOfElements = MAX_NUMBER_OF_SPRITES;
             properties.elementByteSize = sizeof(RenderData_Sprite);
             properties.domain = eShaderBufferDomain::CpuToGpu;
-            properties.usage = eShaderBufferUsage::Read;
+            properties.accessQualifier = eShaderAccessQualifier::ReadOnly;
             properties.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+            name = "Sprite Instance Data Buffer";
             break;
         case Hail::eMaterialBuffers::count:
         default:
@@ -167,7 +169,7 @@ bool Hail::RenderingResourceManager::InternalInit()
         if (properties.numberOfElements == 0 || properties.elementByteSize == 0)
             continue;
 
-        assignBuffer(CreateBuffer(properties), eDecorationSets::MaterialTypeDomain);
+        assignBuffer(CreateBuffer(properties, name), eDecorationSets::MaterialTypeDomain);
     }
 
     m_samplers[(uint32)GlobalSamplers::Point] = CreateSamplerObject(SamplerProperties());

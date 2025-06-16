@@ -155,7 +155,269 @@ eShaderValueType LocalGetValueTypeFromSpirVType(spirv_cross::SPIRType::BaseType 
 	}
 }
 
-uint32 GetTypeByteSize(spirv_cross::SPIRType::BaseType type)
+void LocalSetImageTypeDataFromFormat(ShaderDecoration& decorationToFill, spv::ImageFormat imageFormat)
+{
+	decorationToFill.m_elementCount = 0;
+	decorationToFill.m_valueType = eShaderValueType::none;
+	switch (imageFormat)
+	{
+		case spv::ImageFormatRgba32f:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::float32;
+			break;
+		}
+		case spv::ImageFormatRgba16f:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::float16;
+			break;
+		}
+		case spv::ImageFormatR32f:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::float32;
+			break;
+		}
+		case spv::ImageFormatRgba8:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::uint8norm;
+			break;
+		}
+		case spv::ImageFormatRgba8Snorm:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::int8norm;
+			break;
+		}
+		case spv::ImageFormatRg32f:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::float32;
+			break;
+		}
+		case spv::ImageFormatRg16f:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::float16;
+			break;
+		}
+		case spv::ImageFormatR11fG11fB10f:
+		{
+			decorationToFill.m_elementCount = 3;
+			decorationToFill.m_valueType = eShaderValueType::composite;
+			break;
+		}
+		case spv::ImageFormatR16f:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::float16;
+			break;
+		}
+		case spv::ImageFormatRgba16:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::uint16;
+			break;
+		}
+		case spv::ImageFormatRgb10A2:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::composite;
+			break;
+		}
+		case spv::ImageFormatRg16:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::uint16;
+			break;
+		}
+		case spv::ImageFormatRg8:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::uint8;
+			break;
+		}
+		case spv::ImageFormatR16:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::uint16;
+			break;
+		}
+		case spv::ImageFormatR8:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::uint8norm;
+			break;
+		}
+		case spv::ImageFormatRgba16Snorm:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::int16norm;
+			break;
+		}
+		case spv::ImageFormatRg16Snorm:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::int16norm;
+			break;
+		}
+		case spv::ImageFormatRg8Snorm:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::int8norm;
+			break;
+		}
+		case spv::ImageFormatR16Snorm:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::int16norm;
+			break;
+		}
+		case spv::ImageFormatR8Snorm:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::int8norm;
+			break;
+		}
+		case spv::ImageFormatRgba32i:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::int32;
+			break;
+		}
+		case spv::ImageFormatRgba16i:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::int16;
+			break;
+		}
+		case spv::ImageFormatRgba8i:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::int8;
+			break;
+		}
+		case spv::ImageFormatR32i:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::int32;
+			break;
+		}
+		case spv::ImageFormatRg32i:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::int32;
+			break;
+		}
+		case spv::ImageFormatRg16i:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::int16;
+			break;
+		}
+		case spv::ImageFormatRg8i:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::int8;
+			break;
+		}
+		case spv::ImageFormatR16i:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::float32;
+			break;
+		}
+		case spv::ImageFormatR8i:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::int8;
+			break;
+		}
+		case spv::ImageFormatRgba32ui:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::uint32;
+			break;
+		}
+		case spv::ImageFormatRgba16ui:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::uint16;
+			break;
+		}
+		case spv::ImageFormatRgba8ui:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::uint8;
+			break;
+		}
+		case spv::ImageFormatR32ui:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::uint32;
+			break;
+		}
+		case spv::ImageFormatRgb10a2ui:
+		{
+			decorationToFill.m_elementCount = 4;
+			decorationToFill.m_valueType = eShaderValueType::composite;
+			break;
+		}
+		case spv::ImageFormatRg32ui:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::uint32;
+			break;
+		}
+		case spv::ImageFormatRg16ui:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::uint16;
+			break;
+		}
+		case spv::ImageFormatRg8ui:
+		{
+			decorationToFill.m_elementCount = 2;
+			decorationToFill.m_valueType = eShaderValueType::uint8;
+			break;
+		}
+		case spv::ImageFormatR16ui:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::uint16;
+			break;
+		}
+		case spv::ImageFormatR8ui:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::uint8;
+			break;
+		}
+		case spv::ImageFormatR64ui:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::uint64;
+			break;
+		}
+		case spv::ImageFormatR64i:
+		{
+			decorationToFill.m_elementCount = 1;
+			decorationToFill.m_valueType = eShaderValueType::int64;
+			break;
+		}
+		case spv::ImageFormatMax:
+		case spv::ImageFormatUnknown:
+		default:
+		{
+			// Optional: handle unknown or unsupported formats
+			break;
+		}
+	}
+}
+
+uint32 LocalGetTypeByteSize(spirv_cross::SPIRType::BaseType type)
 {
 	switch (type)
 	{
@@ -212,29 +474,91 @@ uint32 LocalGetStructByteSize(spirv_cross::CompilerReflection& compiler, const s
 			}
 			else
 			{
-				currentByteSize += GetTypeByteSize(structMemberType.basetype) * structMemberType.vecsize;
+				currentByteSize += LocalGetTypeByteSize(structMemberType.basetype) * structMemberType.vecsize;
 			}
 		}
 	}
 	else
 	{
-		currentByteSize += GetTypeByteSize(typeToCheck.basetype);
+		currentByteSize += LocalGetTypeByteSize(typeToCheck.basetype);
 	}
 	return currentByteSize;
 }
 
-void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, const char* compiledShader, uint32 shaderLength)
+void LocalFillDispatchWorkgroups(ReflectedShaderData& returnData, const spirv_cross::SPIREntryPoint& entryPoint, const spirv_cross::CompilerReflection& comp)
 {
+	const spirv_cross::SPIRConstant& x = comp.get_constant(entryPoint.workgroup_size.id_x);
+	const spirv_cross::SPIRType& xType = comp.get_type(x.constant_type);
+	H_ASSERT(xType.basetype == spirv_cross::SPIRType::BaseType::UInt);
+	returnData.m_entryDecorations.workGroupSize.x = x.m.c->r->u32;
+
+	const spirv_cross::SPIRConstant& y = comp.get_constant(entryPoint.workgroup_size.id_y);
+	const spirv_cross::SPIRType& yType = comp.get_type(y.constant_type);
+	H_ASSERT(yType.basetype == spirv_cross::SPIRType::BaseType::UInt);
+	returnData.m_entryDecorations.workGroupSize.y = y.m.c->r->u32;
+
+	const spirv_cross::SPIRConstant& z = comp.get_constant(entryPoint.workgroup_size.id_z);
+	const spirv_cross::SPIRType& zType = comp.get_type(z.constant_type);
+	H_ASSERT(zType.basetype == spirv_cross::SPIRType::BaseType::UInt);
+	returnData.m_entryDecorations.workGroupSize.z = z.m.c->r->u32;
+}
+
+void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage, const char* shaderName, const char* compiledShader, uint32 shaderLength)
+{
+	returnData.m_bIsValid = true;
 	const uint32 uintShaderLength = shaderLength / 4u;
 	GrowingArray<uint32> compiledCode;
 	compiledCode.Resize(uintShaderLength);
 	compiledCode.Fill();
 	memcpy(compiledCode.Data(), compiledShader, shaderLength);
-	spirv_cross::CompilerReflection comp(std::move(compiledCode.Data()), compiledCode.Size()); // const uint32_t *, size_t interface is also available
+	spirv_cross::CompilerReflection* pComp = new spirv_cross::CompilerReflection(std::move(compiledCode.Data()), compiledCode.Size()); // const uint32_t *, size_t interface is also available
+	spirv_cross::CompilerReflection& comp = *pComp;
 
 	spirv_cross::ShaderResources res = comp.get_shader_resources();
-
+	auto specializationConstants = comp.get_specialization_constants();
 	Debug_PrintConsoleStringL(StringL::Format("\nShader: %s\n", shaderName));
+
+	spirv_cross::SPIREntryPoint entryPoint;
+	bool bUsesWorkGroups = false;
+	switch (shaderStage)
+	{
+	case Hail::eShaderStage::Compute:
+		entryPoint = comp.get_entry_point("main", spv::ExecutionModelGLCompute);
+		LocalFillDispatchWorkgroups(returnData, entryPoint, comp);
+		bUsesWorkGroups = true;
+		break;
+	case Hail::eShaderStage::Vertex:
+		entryPoint = comp.get_entry_point("main", spv::ExecutionModelVertex);
+		returnData.m_entryDecorations.workGroupSize = glm::uvec3(0u);
+		break;
+	case Hail::eShaderStage::Fragment:
+		entryPoint = comp.get_entry_point("main", spv::ExecutionModelFragment);
+		returnData.m_entryDecorations.workGroupSize = glm::uvec3(0u);
+		break;
+	case Hail::eShaderStage::Amplification:
+		entryPoint = comp.get_entry_point("main", spv::ExecutionModelTaskEXT);
+		LocalFillDispatchWorkgroups(returnData, entryPoint, comp);
+		bUsesWorkGroups = true;
+		break;
+	case Hail::eShaderStage::Mesh:
+		entryPoint = comp.get_entry_point("main", spv::ExecutionModelMeshEXT);
+		LocalFillDispatchWorkgroups(returnData, entryPoint, comp);
+		bUsesWorkGroups = true;
+		break;
+	case Hail::eShaderStage::None:
+		break;
+	default:
+		break;
+	}
+	
+	if (bUsesWorkGroups && 
+		(returnData.m_entryDecorations.workGroupSize.x == 0u || 
+			returnData.m_entryDecorations.workGroupSize.y == 0u || 
+			returnData.m_entryDecorations.workGroupSize.z == 0u))
+	{
+		returnData.m_bIsValid = false;
+		H_ERROR("Workgroup size can not be 0");
+	}
 
 	for (auto& resource : res.stage_inputs)
 	{
@@ -244,13 +568,15 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Input %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
 
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_bindingLocation = location;
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_valueType = LocalGetValueTypeFromSpirVType(type.basetype);
 		decoration.m_set = 0xff;
+		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
 		returnData.m_shaderInputs.Add(decoration);
 	}
+
 	for (auto& resource : res.stage_outputs)
 	{
 		unsigned location = comp.get_decoration(resource.id, spv::DecorationLocation);
@@ -259,14 +585,16 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Output %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
 		if (type.basetype == spirv_cross::SPIRType::Struct)
 		{
-			// TODO: Throw error 
+			H_ERROR("Base type of output is a struct, invalid output");
+			returnData.m_bIsValid = false;
 		}
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_bindingLocation = location;
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_valueType = LocalGetValueTypeFromSpirVType(type.basetype);
 		decoration.m_set = 0xff;
+		decoration.m_accessQualifier = eShaderAccessQualifier::WriteOnly;
 		returnData.m_shaderOutputs.Add(decoration);
 	}
 
@@ -279,13 +607,15 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_bindingLocation = binding;
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_valueType = eShaderValueType::none;
 		decoration.m_type = eDecorationType::SampledImage;
 		decoration.m_set = set;
-		returnData.m_setDecorations[set].m_sampledImages.Add(decoration);
+		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
 
 		if (set < InstanceDomain)
 		{
@@ -301,14 +631,73 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
 		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
+		H_ASSERT(type.basetype == spirv_cross::SPIRType::BaseType::Image);
+
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_bindingLocation = binding;
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_valueType = eShaderValueType::none;
 		decoration.m_type = eDecorationType::Image;
 		decoration.m_set = set;
-		returnData.m_setDecorations[set].m_images.Add(decoration);
+		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
+
+		if (set < InstanceDomain)
+		{
+			returnData.m_globalMaterialDecorations.Add(decoration);
+		}
+	}
+
+	for (auto& resource : res.storage_images)
+	{
+		unsigned int set = comp.get_decoration(resource.id, spv::DecorationDescriptorSet);
+		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
+		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
+		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
+		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+
+		H_ASSERT(type.basetype == spirv_cross::SPIRType::BaseType::Image);
+
+		if (returnData.m_setDecorations[set][(uint32)eDecorationType::Image].m_decorations[binding].m_type != eDecorationType::Count)
+		{
+			H_ERROR("Duplicate decoration at binding slot");
+			returnData.m_bIsValid = false;
+			continue;
+		}
+
+		ShaderDecoration decoration;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
+		decoration.m_bindingLocation = binding;
+		LocalSetImageTypeDataFromFormat(decoration, type.image.format);
+
+		decoration.m_type = eDecorationType::Image;
+		decoration.m_set = set;
+		if (comp.has_decoration(resource.id, spv::DecorationNonWritable))
+		{
+			decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		}
+		else if (comp.has_decoration(resource.id, spv::DecorationNonReadable))
+		{
+			decoration.m_accessQualifier = eShaderAccessQualifier::WriteOnly;
+			if (decoration.m_valueType == eShaderValueType::none)
+			{
+				H_ERROR("Invalid image as no defined value type is present in shader code");
+				returnData.m_bIsValid = false;
+			}
+		}
+		else
+		{
+			decoration.m_accessQualifier = eShaderAccessQualifier::ReadWrite;
+			if (decoration.m_valueType == eShaderValueType::none)
+			{
+				H_ERROR("Invalid image as no defined value type is present in shader code");
+				returnData.m_bIsValid = false;
+			}
+		}
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
 
 		if (set < InstanceDomain)
 		{
@@ -325,13 +714,15 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Sampler %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 		H_ASSERT(set == 0, "Samplers should only reside at set 0");
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_bindingLocation = binding;
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_valueType = eShaderValueType::none;
 		decoration.m_type = eDecorationType::Sampler;
 		decoration.m_set = set;
-		returnData.m_setDecorations[set].m_samplers.Add(decoration);
+		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
 
 		if (set < InstanceDomain)
 		{
@@ -348,13 +739,15 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Uniform Buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_bindingLocation = binding;
 		decoration.m_valueType = eShaderValueType::none;
 		decoration.m_type = eDecorationType::UniformBuffer;
 		decoration.m_set = set;
-		returnData.m_setDecorations[set].m_uniformBuffers.Add(decoration);
+		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
 		if (set < InstanceDomain)
 		{
 			returnData.m_globalMaterialDecorations.Add(decoration);
@@ -369,13 +762,29 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Storage buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_bindingLocation = binding;
 		decoration.m_valueType = LocalGetValueTypeFromSpirVType(type.basetype);
 		decoration.m_type = eDecorationType::ShaderStorageBuffer;
 		decoration.m_set = set;
-		returnData.m_setDecorations[set].m_storageBuffers.Add(decoration);
+		spirv_cross::Bitset bufferFlags = comp.get_buffer_block_flags(resource.id);
+		decoration.m_accessQualifier = bufferFlags.get(spv::DecorationNonWritable) ? eShaderAccessQualifier::ReadOnly : eShaderAccessQualifier::ReadWrite;
+
+		if (bufferFlags.get(spv::DecorationNonWritable))
+		{
+			decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		}
+		else if (bufferFlags.get(spv::DecorationNonReadable))
+		{
+			decoration.m_accessQualifier = eShaderAccessQualifier::WriteOnly;
+		}
+		else
+		{
+			decoration.m_accessQualifier = eShaderAccessQualifier::ReadWrite;
+		}
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
 		if (set < InstanceDomain)
 		{
 			returnData.m_globalMaterialDecorations.Add(decoration);
@@ -392,12 +801,14 @@ void Hail::ParseShader(ReflectedShaderData& returnData, const char* shaderName, 
 		Debug_PrintConsoleStringL(StringL::Format("Push constant %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
-		decoration.m_byteSize = LocalGetStructByteSize(comp, type) * type.vecsize;
+		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
 		decoration.m_bindingLocation = binding;
 		decoration.m_elementCount = type.vecsize;
 		decoration.m_valueType = LocalGetValueTypeFromSpirVType(type.basetype);
 		decoration.m_type = eDecorationType::PushConstant;
 		decoration.m_set = set;
+		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
 		returnData.m_pushConstants.Add(decoration);
 	}
+	SAFEDELETE(pComp);
 }

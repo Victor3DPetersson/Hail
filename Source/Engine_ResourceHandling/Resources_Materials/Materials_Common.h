@@ -35,12 +35,24 @@ namespace Hail
 		int32,
 		uint32,
 		int16,
+		int16norm,
 		uint16,
+		uint16norm,
 		int8,
+		int8norm,
 		uint8,
+		uint8norm,
 		float16,
 		float32,
 		float64,
+		composite // used when shader values are for example 11f with 10f for an rgb value of 32bits
+	};
+
+	enum class eShaderAccessQualifier : uint8
+	{
+		ReadOnly,
+		WriteOnly,
+		ReadWrite
 	};
 
 	// Each set corresponds to the update frequency of the data to the GPU
@@ -62,6 +74,9 @@ namespace Hail
 		SampledImage,
 		Image,
 		Sampler,
-		PushConstant
+		PushConstant,
+		Count
 	};
+
+
 }

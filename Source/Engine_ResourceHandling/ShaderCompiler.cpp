@@ -12,33 +12,33 @@
 namespace Hail
 {
 
-	bool LocalCompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, eShaderType type, const char* shaderName, GrowingArray<char>& shaderData, shaderc_compile_options_t compileOptions, MetaResource metaResource);
+	bool LocalCompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, eShaderStage type, const char* shaderName, GrowingArray<char>& shaderData, shaderc_compile_options_t compileOptions, MetaResource metaResource);
 	bool LocalCompileShaderInternalHLSL(const char* relativePath, const char* shaderName);
 	bool LocalCompileShaderInternalMETAL(const char* relativePath, const char* shaderName);
 	bool LocalExportCompiledShader(const char* shaderName, const char* compiledShaderData, ShaderHeader shaderHeader, MetaResource metaResource);
 
-	bool ShaderCompiler::CompileSpecificShader(const char* shaderName, eShaderType shaderType)
+	bool ShaderCompiler::CompileSpecificShader(const char* shaderName, eShaderStage shaderType)
 	{
 		shaderc_compiler_t compiler = shaderc_compiler_initialize();
 		WString64 extension{};
 		WString64 wShaderName;
 		FromConstCharToWChar(shaderName, wShaderName, 64);
-		H_ASSERT(shaderType != eShaderType::None, "incorrect shader type");
+		H_ASSERT(shaderType != eShaderStage::None, "incorrect shader type");
 		switch (shaderType)
 		{
-		case Hail::eShaderType::Compute:
+		case Hail::eShaderStage::Compute:
 			extension = L"cmp";
 			break;
-		case Hail::eShaderType::Vertex:
+		case Hail::eShaderStage::Vertex:
 			extension = L"vert";
 			break;
-		case Hail::eShaderType::Amplification:
+		case Hail::eShaderStage::Amplification:
 			extension = L"amp";
 			break;
-		case Hail::eShaderType::Mesh:
+		case Hail::eShaderStage::Mesh:
 			extension = L"mesh";
 			break;
-		case Hail::eShaderType::Fragment:
+		case Hail::eShaderStage::Fragment:
 			extension = L"frag";
 			break;
 		default:
@@ -94,22 +94,23 @@ namespace Hail
 	}
 
 
-	bool LocalCompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, eShaderType type, const char* shaderName, GrowingArray<char>& shaderData, shaderc_compile_options_t compileOptions, MetaResource metaResource)
+	bool LocalCompileShaderInternalGLSL(shaderc_compiler_t shaderCCompiler, eShaderStage type, const char* shaderName, GrowingArray<char>& shaderData, shaderc_compile_options_t compileOptions, MetaResource metaResource)
 	{
 		shaderc_compilation_result_t compiledShader{};
 		switch (type)
 		{
-		case eShaderType::Compute:
+		case eShaderStage::Compute:
+			compiledShader = shaderc_compile_into_spv(shaderCCompiler, shaderData.Data(), shaderData.Size(), shaderc_shader_kind::shaderc_glsl_compute_shader, shaderName, "main", compileOptions);
 			break;
-		case eShaderType::Vertex:
+		case eShaderStage::Vertex:
 			compiledShader = shaderc_compile_into_spv(shaderCCompiler, shaderData.Data(), shaderData.Size(), shaderc_shader_kind::shaderc_glsl_vertex_shader, shaderName, "main", compileOptions);
 			break;
-		case eShaderType::Amplification:
+		case eShaderStage::Amplification:
 			break;
-		case eShaderType::Mesh:
+		case eShaderStage::Mesh:
 			compiledShader = shaderc_compile_into_spv(shaderCCompiler, shaderData.Data(), shaderData.Size(), shaderc_shader_kind::shaderc_glsl_mesh_shader, shaderName, "main", compileOptions);
 			break;
-		case eShaderType::Fragment:
+		case eShaderStage::Fragment:
 			compiledShader = shaderc_compile_into_spv(shaderCCompiler, shaderData.Data(), shaderData.Size(), shaderc_shader_kind::shaderc_glsl_fragment_shader, shaderName, "main", compileOptions);
 			break;
 		default:
@@ -178,20 +179,20 @@ namespace Hail
 	}
 
 
-	eShaderType ShaderCompiler::CheckShaderType(const char* shaderExtension)
+	eShaderStage ShaderCompiler::CheckShaderType(const char* shaderExtension)
 	{
 		if (strcmp(shaderExtension, "vert") == 0)
 		{
-			return eShaderType::Vertex;
+			return eShaderStage::Vertex;
 		}
 		else if (strcmp(shaderExtension, "frag") == 0)
 		{
-			return eShaderType::Fragment;
+			return eShaderStage::Fragment;
 		}
 		else if (strcmp(shaderExtension, "mesh") == 0)
 		{
-			return eShaderType::Mesh;
+			return eShaderStage::Mesh;
 		}
-		return eShaderType::None;
+		return eShaderStage::None;
 	}
 }

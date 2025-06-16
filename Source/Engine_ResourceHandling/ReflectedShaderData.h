@@ -10,12 +10,13 @@ namespace Hail
 {
 	struct ShaderDecoration
 	{
-		uint16 m_bindingLocation;
-		uint16 m_elementCount;
-		uint32 m_byteSize;
-		eShaderValueType m_valueType;
-		eDecorationType m_type;
-		uint8 m_set;
+		uint16 m_bindingLocation = MAX_UINT16;
+		uint16 m_elementCount = MAX_UINT16;
+		uint32 m_byteSize = MAX_UINT;
+		eShaderValueType m_valueType = eShaderValueType::none;
+		eDecorationType m_type = eDecorationType::Count;
+		uint8 m_set = 0xffff;
+		eShaderAccessQualifier m_accessQualifier;
 	};
 
 	static bool operator==(const ShaderDecoration& other, const ShaderDecoration& otherB)
@@ -32,13 +33,16 @@ namespace Hail
 		return false;
 	}
 
-	struct SetDecorations
+	//TODO: Replace this struct with a hasmap like structure
+	struct SetDecoration
 	{
-		VectorOnStack<ShaderDecoration, 8> m_sampledImages;
-		VectorOnStack<ShaderDecoration, 8> m_images;
-		VectorOnStack<ShaderDecoration, 8> m_samplers;
-		VectorOnStack<ShaderDecoration, 8> m_uniformBuffers;
-		VectorOnStack<ShaderDecoration, 8> m_storageBuffers;
+		StaticArray<ShaderDecoration, 16u> m_decorations;
+		VectorOnStack<uint32, 16u> m_indices;
+	};
+
+	struct EntryDecorations
+	{
+		glm::uvec3 workGroupSize;
 	};
 
 	struct ReflectedShaderData
@@ -46,7 +50,9 @@ namespace Hail
 		VectorOnStack<ShaderDecoration, 8> m_shaderInputs;
 		VectorOnStack<ShaderDecoration, 8> m_shaderOutputs;
 		VectorOnStack<ShaderDecoration, 8> m_pushConstants;
-		StaticArray<SetDecorations, (uint32)eDecorationSets::Count> m_setDecorations;
+		StaticArray<StaticArray<SetDecoration, (uint32)eDecorationType::Count>, (uint32)eDecorationSets::Count> m_setDecorations;
 		GrowingArray<ShaderDecoration> m_globalMaterialDecorations;
+		EntryDecorations m_entryDecorations;
+		bool m_bIsValid;
 	};
 }

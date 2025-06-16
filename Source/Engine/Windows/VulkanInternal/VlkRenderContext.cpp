@@ -33,6 +33,7 @@ namespace Internal
         case eFrameBufferLayoutState::DepthAttachment:
             return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         }
+        return VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
     void TransitionImageLayout(VkImage image, bool bHasStencil, VkImageLayout oldLayout, VkImageLayout newLayout, VkCommandBuffer commandBuffer)
@@ -134,14 +135,7 @@ namespace Internal
             H_ASSERT(false, "Invalid image transition operation");
         }
 
-        vkCmdPipelineBarrier(
-            commandBuffer,
-            sourceStage, destinationStage,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier
-        );
+        vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
     }
 
@@ -357,7 +351,7 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
         bufMemBarrier.offset = 0;
         bufMemBarrier.size = VK_WHOLE_SIZE;
 
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             0, 0, nullptr, 1, &bufMemBarrier, 0, nullptr);
     }
     else
@@ -384,7 +378,7 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
         bufMemBarrier2.offset = 0;
         bufMemBarrier2.size = VK_WHOLE_SIZE;
 
-        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+        vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             0, 0, nullptr, 1, &bufMemBarrier2, 0, nullptr);
 
         m_stagingBuffers.Add(vlkBuffer);
@@ -460,7 +454,34 @@ void Hail::VlkRenderContext::TransferFramebufferLayoutInternal(TextureResource* 
         Internal::VkImageLayoutFromLayoutState(sourceState), Internal::VkImageLayoutFromLayoutState(destinationState), cmdBuffer);
 }
 
-void Hail::VlkRenderContext::RenderMeshlets(glm::uvec3 dispatchSize) 
+void Hail::VlkRenderContext::Dispatch(glm::uvec3 dispatchSize)
+{
+    // TODO lägg till så att jag vet ifall jag har varit i en dispatch för att skapa flera memory barriers. Eller låt resurserna veta om hur dem används. 
+    RenderContext::Dispatch(dispatchSize);
+    H_ASSERT(m_pBoundMaterialPipeline->m_bIsCompute);
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+
+    vkCmdDispatch(vlkCommandBuffer.m_commandBuffer, dispatchSize.x, dispatchSize.y, dispatchSize.z);
+
+    //VkMemoryBarrier barrier{};
+    //barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    //barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    //barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+
+
+    //vkCmdPipelineBarrier(
+    //    vlkCommandBuffer.m_commandBuffer,
+    //    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    //    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    //    0,
+    //    1, &barrier,
+    //    0, nullptr,
+    //    0, nullptr
+    //);
+    // Synchronize 
+}
+
+void Hail::VlkRenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
 {
     RenderContext::RenderMeshlets(dispatchSize);
     VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
@@ -532,7 +553,7 @@ bool Hail::VlkRenderContext::BindMaterialInternal(Pipeline* pPipeline)
     VlkPipeline* pVlkPipeline = (VlkPipeline*)pPipeline;
     H_ASSERT(pVlkPipeline->m_pipelineLayout, "Uninitialized material used when binding material");
 
-    VlkMaterialFrameBufferConnection* vkMatFbPipeline = (VlkMaterialFrameBufferConnection*)CreateMaterialFrameBufferConnection();
+    VlkMaterialFrameBufferConnection* vkMatFbPipeline = new VlkRenderContext::VlkMaterialFrameBufferConnection();
     vkMatFbPipeline->m_pBoundFrameBuffer = m_pBoundFrameBuffers[0];
     vkMatFbPipeline->m_pMaterialPipeline = pPipeline;
     vkMatFbPipeline->m_pipelineLayout = pVlkPipeline->m_pipelineLayout;
@@ -543,6 +564,39 @@ bool Hail::VlkRenderContext::BindMaterialInternal(Pipeline* pPipeline)
         BindMaterialFrameBufferConnection(vkMatFbPipeline);
         return true;
     }
+    vkMatFbPipeline->Cleanup(m_pDevice);
+    SAFEDELETE(vkMatFbPipeline);
+    return false;
+}
+
+bool Hail::VlkRenderContext::BindComputePipelineInternal(Pipeline* pPipeline)
+{
+    // Check if we already have this combination ready, otherwise create it.
+    for (uint32 i = 0; i < m_pComputePipelines.Size(); i++)
+    {
+        VlkComputePipeline& computePipeline = *(VlkComputePipeline*)m_pComputePipelines[i];
+
+        if (computePipeline.m_pMaterialPipeline == pPipeline)
+        {
+            BindComputePipeline(m_pComputePipelines[i]);
+            return true;
+        }
+    }
+
+    VlkPipeline* pVlkPipeline = (VlkPipeline*)pPipeline;
+    H_ASSERT(pVlkPipeline->m_pipelineLayout, "Uninitialized material used when binding material");
+
+    VlkComputePipeline* pComputePipeline = new VlkRenderContext::VlkComputePipeline();;
+    pComputePipeline->m_pMaterialPipeline = pPipeline;
+    pComputePipeline->m_pipelineLayout = pVlkPipeline->m_pipelineLayout;
+    if (CreateComputePipeline(*pComputePipeline))
+    {
+        m_pComputePipelines.Add(pComputePipeline);
+        BindComputePipeline(pComputePipeline);
+        return true;
+    }
+    pComputePipeline->Cleanup(m_pDevice);
+    SAFEDELETE(pComputePipeline);
     return false;
 }
 
@@ -597,17 +651,17 @@ void Hail::VlkRenderContext::SetPushConstantInternal(void* pPushConstant)
     {
         for (uint32 i = 0; i < vlkPipeline.m_pShaders.Size(); i++)
         {
-            const eShaderType shaderType = (eShaderType)vlkPipeline.m_pShaders[i]->header.shaderType;
+            const eShaderStage shaderType = (eShaderStage)vlkPipeline.m_pShaders[i]->header.shaderType;
             bool bContainsPushConstants = vlkPipeline.m_pShaders[i]->reflectedShaderData.m_pushConstants.Size();
 
             if (!bContainsPushConstants)
                 continue;
 
-            if (shaderType == eShaderType::Vertex || shaderType == eShaderType::Mesh)
+            if (shaderType == eShaderStage::Vertex || shaderType == eShaderStage::Mesh)
             {
-                stage |= shaderType == eShaderType::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_MESH_BIT_EXT;
+                stage |= shaderType == eShaderStage::Vertex ? VK_SHADER_STAGE_VERTEX_BIT : VK_SHADER_STAGE_MESH_BIT_EXT;
             }
-            else if (shaderType == eShaderType::Fragment)
+            else if (shaderType == eShaderStage::Fragment)
             {
                 stage |= VK_SHADER_STAGE_FRAGMENT_BIT;
             }
@@ -623,17 +677,12 @@ void Hail::VlkRenderContext::SetPushConstantInternal(void* pPushConstant)
 
 void Hail::VlkRenderContext::EndRenderPass()
 {
-    if (m_currentlyBoundPipeline != MAX_UINT)
+    if (m_currentlyBoundPipeline != MAX_UINT && m_lastBoundShaderStages != ComputeShaderStage)
     {
         VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
         VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
         vkCmdEndRenderPass(commandBuffer);
-        // TODO make a proper state cleanup function and check all the places where cleanup happens so it is done properly.
-        m_currentlyBoundPipeline = MAX_UINT;
-        m_pBoundMaterial = nullptr;
-        m_pBoundMaterialPipeline = nullptr;
-        m_pBoundVertexBuffer = nullptr;
-        m_pBoundIndexBuffer = nullptr;
+        CleanupAndEndPass();
     }
 }
 
@@ -667,6 +716,113 @@ void Hail::VlkRenderContext::SubmitFinalFrameCommandBuffer()
     pVlkSwapChain->FrameEnd(signalSemaphores, device.GetPresentQueue());
 }
 
+VkAccessFlags LocalAccessMaskFromAccessFlag(eShaderAccessQualifier qualifier)
+{
+    if (qualifier == eShaderAccessQualifier::ReadOnly)
+    {
+        return VK_ACCESS_SHADER_READ_BIT;
+    }
+    else if (qualifier == eShaderAccessQualifier::WriteOnly)
+    {
+        return VK_ACCESS_SHADER_WRITE_BIT;
+    }
+    else
+    {
+        return VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
+    }
+}
+
+void Hail::VlkRenderContext::TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState)
+{
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
+
+    VlkTextureResource* pVlkTexture = (VlkTextureResource*)pTexture;
+
+    VkImageSubresourceRange imageSubRange{};
+    imageSubRange.baseMipLevel = 0;
+    imageSubRange.layerCount = 1;
+    imageSubRange.levelCount = 1;
+    imageSubRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+    VkImageMemoryBarrier imageBarrier{};
+    imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    imageBarrier.pNext = NULL;
+    imageBarrier.srcAccessMask = LocalAccessMaskFromAccessFlag(pVlkTexture->m_accessQualifier);
+    imageBarrier.dstAccessMask = LocalAccessMaskFromAccessFlag(newState);
+    imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imageBarrier.subresourceRange = imageSubRange;
+    imageBarrier.image = pVlkTexture->GetVlkTextureData().textureImage;
+    imageBarrier.oldLayout = pVlkTexture->GetVlkTextureData().imageLayout;
+
+    VkPipelineStageFlags sourceUsage = pVlkTexture->GetVlkTextureData().currentUsage;
+    VkPipelineStageFlags destinationUsage;
+    if (newState == eShaderAccessQualifier::ReadOnly)
+    {
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+        destinationUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    }
+    else if (newState == eShaderAccessQualifier::ReadWrite)
+    {
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        destinationUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+    }
+    else
+    {
+        imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        destinationUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+    }
+
+    if (pVlkTexture->GetVlkTextureData().imageLayout == imageBarrier.newLayout)
+    {
+        H_ASSERT(pVlkTexture->m_accessQualifier == newState, "Probably a logic error going on here");
+        return;
+    }
+
+    pVlkTexture->m_accessQualifier = newState;
+    pVlkTexture->GetVlkTextureData().imageLayout = imageBarrier.newLayout;
+    pVlkTexture->GetVlkTextureData().currentUsage = destinationUsage;
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        sourceUsage,
+        destinationUsage,
+        0,
+        0, NULL,
+        0, NULL,
+        1, &imageBarrier
+    );
+
+}
+
+void Hail::VlkRenderContext::TransferBufferStateInternal(BufferObject* /*pBuffer*/, eShaderAccessQualifier /*newState*/)
+{
+    //VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    //VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
+
+    //VkBufferMemoryBarrier bufferBarrier{};
+    //bufferBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    //bufferBarrier.pNext = NULL;
+    //bufferBarrier.srcAccessMask = LocalAccessMaskFromAccessFlag(pBuffer->GetAccessQualifier());
+    //bufferBarrier.dstAccessMask = LocalAccessMaskFromAccessFlag(newState);
+    //bufferBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    //bufferBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    //bufferBarrier.buffer = yourBuffer;
+    //bufferBarrier.offset = 0;
+    //bufferBarrier.size = VK_WHOLE_SIZE;
+
+    //vkCmdPipelineBarrier(
+    //    commandBuffer,
+    //    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    //    VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    //    0,
+    //    0, NULL,           
+    //    1, &bufferBarrier,
+    //    0, NULL
+    //);
+}
+
 void Hail::VlkRenderContext::StartFrame()
 {
     H_ASSERT(m_currentState == eContextState::TransitionBetweenStates && m_pCurrentCommandBuffer == nullptr);
@@ -683,11 +839,6 @@ void Hail::VlkRenderContext::StartFrame()
     }
 }
 
-RenderContext::MaterialFrameBufferConnection* Hail::VlkRenderContext::CreateMaterialFrameBufferConnection()
-{
-    return new VlkRenderContext::VlkMaterialFrameBufferConnection();
-}
-
 VlkBufferObject* Hail::VlkRenderContext::CreateStagingBufferAndMemoryBarrier(uint32 bufferSize, void* pDataToUpload)
 {
     VlkDevice* pVlkDevice = (VlkDevice*)m_pDevice;
@@ -698,12 +849,11 @@ VlkBufferObject* Hail::VlkRenderContext::CreateStagingBufferAndMemoryBarrier(uin
     BufferProperties stagingBufProperties{};
     stagingBufProperties.elementByteSize = bufferSize;
     stagingBufProperties.numberOfElements = 1;
-    stagingBufProperties.usage = eShaderBufferUsage::ReadWrite;
     stagingBufProperties.domain = eShaderBufferDomain::CpuToGpu;
     stagingBufProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
     stagingBufProperties.type = eBufferType::staging;
 
-    H_ASSERT(vlkStagingBuffer->Init(m_pDevice, stagingBufProperties), "Failed to create staging buffer, should not happen");
+    H_ASSERT(vlkStagingBuffer->Init(m_pDevice, stagingBufProperties, "Temp Staging"), "Failed to create staging buffer, should not happen");
 
     Internal::UploadMemoryToBuffer(vlkStagingBuffer, pDataToUpload, bufferSize, 0u, (VlkDevice*)m_pDevice, m_pResourceManager->GetSwapChain()->GetFrameInFlight());
 
@@ -748,7 +898,7 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
 
         CompiledShader* pVertShader = materialFrameBufferConnection.m_pMaterialPipeline->m_pShaders[0];
 
-        if (bUseVertexBuffer && pVertShader->header.shaderType == (uint32)eShaderType::Vertex)
+        if (bUseVertexBuffer && pVertShader->header.shaderType == (uint32)eShaderStage::Vertex)
         {
             uint32 currentOffset = 0u;
             for (uint32 i = 0; i < pVertShader->reflectedShaderData.m_shaderInputs.Size(); i++)
@@ -786,15 +936,15 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
     for (size_t i = 0; i < materialFrameBufferConnection.m_pMaterialPipeline->m_pShaders.Size(); i++)
     {
         CompiledShader* pShader = materialFrameBufferConnection.m_pMaterialPipeline->m_pShaders[i];
-        if ((eShaderType)pShader->header.shaderType == eShaderType::Vertex)
+        if ((eShaderStage)pShader->header.shaderType == eShaderStage::Vertex)
         {
             vertShaderModule = Internal::CreateShaderModule(*pShader, device);
         }
-        else if ((eShaderType)pShader->header.shaderType == eShaderType::Fragment)
+        else if ((eShaderStage)pShader->header.shaderType == eShaderStage::Fragment)
         {
             fragShaderModule = Internal::CreateShaderModule(*pShader, device);
         }
-        else if ((eShaderType)pShader->header.shaderType == eShaderType::Mesh)
+        else if ((eShaderStage)pShader->header.shaderType == eShaderStage::Mesh)
         {
             vertShaderModule = Internal::CreateShaderModule(*pShader, device);
             bUsesMeshShaders = true;
@@ -938,6 +1088,27 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
     return true;
 }
 
+bool Hail::VlkRenderContext::CreateComputePipeline(VlkComputePipeline& computePipeline)
+{
+    VlkDevice& device = *(VlkDevice*)(m_pDevice);
+    CompiledShader* pShader = computePipeline.m_pMaterialPipeline->m_pShaders[0];
+    H_ASSERT(computePipeline.m_pMaterialPipeline->m_pShaders.Size() == 1 && (eShaderStage)pShader->header.shaderType == eShaderStage::Compute, "Compute pipeline should only have 1 shader");
+    VkShaderModule computeShaderModule = Internal::CreateShaderModule(*pShader, device);
+
+    VkPipelineShaderStageCreateInfo computeShaderStageInfo{};
+    computeShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    computeShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    computeShaderStageInfo.module = computeShaderModule;
+    computeShaderStageInfo.pName = "main";
+
+    VkComputePipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipelineInfo.layout = computePipeline.m_pipelineLayout;
+    pipelineInfo.stage = computeShaderStageInfo;
+
+    return vkCreateComputePipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline.m_pipeline) == VK_SUCCESS;
+}
+
 void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* pConnectionToBind)
 {
     H_ASSERT(m_pCurrentCommandBuffer, "No command buffer started.");
@@ -1019,6 +1190,26 @@ void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBuff
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkConnectionToBind.m_pipeline);
 }
 
+void Hail::VlkRenderContext::BindComputePipeline(ComputePipeline* pPipelineToBind)
+{
+    H_ASSERT(m_pCurrentCommandBuffer, "No command buffer started.");
+    if (m_currentlyBoundPipeline == pPipelineToBind->m_pMaterialPipeline->m_sortKey)
+        return;
+
+    EndRenderPass();
+
+    VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
+    VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
+    VlkComputePipeline* pVlkComputePipeline = (VlkComputePipeline*)pPipelineToBind;
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pVlkComputePipeline->m_pipeline);
+
+    const uint32_t frameInFlightIndex = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
+    VlkPipeline* pVlkPipeline = (VlkPipeline*)pPipelineToBind->m_pMaterialPipeline;
+    VectorOnStack< VkDescriptorSet, 3> descriptorSets = Internal::GetMaterialDescriptors(m_pResourceManager, pVlkPipeline, frameInFlightIndex);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pVlkComputePipeline->m_pipelineLayout, 0, descriptorSets.Size(), descriptorSets.Data(), 0, nullptr);
+}
+
 void Hail::VlkRenderContext::BindVertexBufferInternal()
 {
     VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
@@ -1090,4 +1281,14 @@ void VlkRenderContext::VlkMaterialFrameBufferConnection::Cleanup(RenderingDevice
         m_pipeline = VK_NULL_HANDLE;
     }
     m_validator = ResourceValidator();
+}
+
+void Hail::VlkRenderContext::VlkComputePipeline::Cleanup(RenderingDevice* pDevice)
+{
+    VlkDevice& vlkDevice = *(VlkDevice*)pDevice;
+    if (m_pipeline != VK_NULL_HANDLE)
+    {
+        vkDestroyPipeline(vlkDevice.GetDevice(), m_pipeline, nullptr);
+        m_pipeline = VK_NULL_HANDLE;
+    }
 }

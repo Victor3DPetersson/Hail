@@ -142,7 +142,7 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 			}
 
 			if (pSelectedShader && pMaterialManager->IsShaderValidWithMaterialType(m_materialToEdit.m_materialObject.m_baseMaterialType,
-				(eShaderType)pSelectedShader->header.shaderType, pSelectedShader->reflectedShaderData))
+				(eShaderStage)pSelectedShader->header.shaderType, pSelectedShader->reflectedShaderData))
 			{
 				pShaderData = pSelectedShader;
 				m_materialToEdit.m_materialObject.m_shaders[i].m_id = selectedShaderMetaResource.GetGUID();
@@ -155,15 +155,16 @@ void Hail::ImGuiMaterialEditor::RenderImGuiCommands(ImGuiFileBrowser* fileBrowse
 			m_selectedShader = 0;
 		}
 
-		const VectorOnStack<ShaderDecoration, 8>& shaderTextures = pShaderData->reflectedShaderData.m_setDecorations[InstanceDomain].m_sampledImages;
-		for (size_t iTexture = 0; iTexture < shaderTextures.Size(); iTexture++)
+		const VectorOnStack<uint32, 16>& shaderTexturesIndices = pShaderData->reflectedShaderData.m_setDecorations[InstanceDomain][(uint32)eDecorationType::SampledImage].m_indices;
+		const StaticArray<ShaderDecoration, 16>& shaderTextures = pShaderData->reflectedShaderData.m_setDecorations[InstanceDomain][(uint32)eDecorationType::SampledImage].m_decorations;
+		for (size_t iTexture = 0; iTexture < shaderTexturesIndices.Size(); iTexture++)
 		{
-			textures.Add(shaderTextures[iTexture]);
+			textures.Add(shaderTextures[shaderTexturesIndices[iTexture]]);
 			numberOfTextureSlots++;
 		}
-		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderType)pShaderData->header.shaderType));
+		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderStage)pShaderData->header.shaderType));
 		ImGui::Text("Shader Name: %s", pShaderData->shaderName.Data());
-		if (ImGui::Button(String64::Format("Change Shader: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderType)pShaderData->header.shaderType))) && fileBrowser->Init(&g_shaderFileBrowserData))
+		if (ImGui::Button(String64::Format("Change Shader: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderStage)pShaderData->header.shaderType))) && fileBrowser->Init(&g_shaderFileBrowserData))
 		{
 			m_bOpenFileBrowser = true;
 			m_selectedShader = i;

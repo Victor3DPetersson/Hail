@@ -183,6 +183,7 @@ ImGuiTextureResource* Hail::VlkTextureResourceManager::CreateImGuiTextureResourc
 	TextureViewProperties props{};
 	props.pTextureToView = pVlkTexture;
 	props.viewUsage = eTextureUsage::Texture;
+	props.accessQualifier = eShaderAccessQualifier::ReadOnly;
 	H_ASSERT(pView->InitView(m_device, props));
 
 	// Move data to imgui texture

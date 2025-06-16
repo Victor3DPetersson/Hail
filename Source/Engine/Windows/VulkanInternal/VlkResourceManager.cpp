@@ -82,10 +82,10 @@ void* VlkRenderingResourceManager::GetRenderingResources()
 	return &m_resources;
 }
 
-BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties)
+BufferObject* VlkRenderingResourceManager::CreateBuffer(BufferProperties properties, const char* name)
 {
 	VlkBufferObject* vlkBuffer = new VlkBufferObject();
-	if (vlkBuffer->Init(m_renderDevice, properties))
+	if (vlkBuffer->Init(m_renderDevice, properties, name))
 		return vlkBuffer;
 
 	vlkBuffer->CleanupResource(m_renderDevice);

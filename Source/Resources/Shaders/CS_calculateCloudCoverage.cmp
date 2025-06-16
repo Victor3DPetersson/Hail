@@ -1,0 +1,143 @@
+#version 450
+
+layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
+{
+    uvec2 renderResolution;
+    uvec2 screenResolution;
+	uvec2 renderTargetRes;
+	vec2 totalTime_HorizonPosition;
+} constantVariables;
+
+layout(set = 0, binding = 2) uniform sampler samplerLinear;
+layout(set = 0, binding = 3) uniform sampler samplerBilinear;
+
+struct FluidParticle 
+{
+    vec2 pos;
+    vec2 velocity;
+    vec2 intermediateVelocity;
+    vec2 pressureForce;
+    vec2 pressureNearPressure;
+    vec2 densityNearDensity;
+};
+
+// layout(binding = 1, set = 1, std140) readonly buffer ParticleSSBOIn 
+// {
+//    FluidParticle particlesIn[];
+// };
+layout(binding = 0, set = 1, std430) buffer readonly PointBuffer 
+{
+   	vec2 g_cloudPoints[];
+};
+
+layout(binding = 2, set = 1, std140) uniform ParticleUniformBuffer 
+{
+	uint numberOfParticles;
+	float particleSize;
+	vec2 cloudTextureDimensions;
+} particleVariables;
+
+// layout(binding = 2, set = 1, std140) buffer ParticleSSBOOut
+// {
+//    FluidParticle particlesOut[];
+// };
+
+layout(binding = 1, set = 1, rgba8) uniform writeonly image2D outputImage;
+
+layout (local_size_x = 64, local_size_y = 8, local_size_z = 1) in;
+
+vec2 hash2f(vec2 p)
+{
+	vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+    p3 += dot(p3, p3.yzx+33.33);
+    return fract((p3.xx+p3.yz)*p3.zy);
+}
+
+float voronoi(vec2 x)
+{
+    ivec2 p = ivec2(floor(x));
+    vec2  f = fract(x);
+
+    float res = 8.0;
+    for( int j=-1; j<=1; j++ )
+		for( int i=-1; i<=1; i++ )
+		{
+			ivec2 b = ivec2( i, j );
+			vec2  r = vec2( b ) - f + hash2f( vec2(p.x + b.x, p.y + b.y) );
+			float d = dot( r, r );
+			res = min( res, d );
+		}
+    return sqrt( res );
+}
+
+bool CircleInRect(vec2 circlePos, float circleRadius, vec2 aabbMin, vec2 aabbMax)
+{
+	float sqDist = 0.0;
+	for (int i = 0; i < 2; i++) 
+	{
+		// For each axis count any excess distance outside box extents
+		float v = circlePos[i];
+		sqDist += v < aabbMin[i] ? (aabbMin[i] - v) * (aabbMin[i] - v) : 0.0;
+		sqDist += v > aabbMax[i] ? (v - aabbMax[i]) * (v - aabbMax[i]) : 0.0;
+	}
+	return sqDist <= circleRadius * circleRadius;
+}
+
+void main() 
+{
+    uvec2 samplePoint = uvec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+	float renderTexelSizeX = 1.0 / float(constantVariables.renderTargetRes.x);
+	float renderTexelSizeY = 1.0 / float(constantVariables.renderTargetRes.y);
+
+	if (samplePoint.x > constantVariables.renderTargetRes.x || samplePoint.y > constantVariables.renderTargetRes.y)
+		return;
+
+	float sampleRadiusPixelSpace = particleVariables.particleSize;
+	// Should be constants
+	vec2 cloudPos = vec2(0.5, 0.5);
+	vec2 cloudDimensions = particleVariables.cloudTextureDimensions;
+	float cloudRatioY = cloudDimensions.x / cloudDimensions.y;
+
+	vec2 cloudToPixelDimensions = cloudDimensions / constantVariables.renderTargetRes;
+	float sampleRadiusCloudSpace = sampleRadiusPixelSpace / cloudDimensions.y;
+	vec2 fragTexCoord = vec2(float(samplePoint.x) / float(constantVariables.renderTargetRes.x), float(samplePoint.y) / float(constantVariables.renderTargetRes.y));
+	vec2 fragCoordInCloudSpace = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5)) / cloudToPixelDimensions;
+
+	vec2 cloudMinPos = (cloudPos - (cloudToPixelDimensions * 0.5)) / cloudToPixelDimensions;
+
+	// Move the fragCoord in to the normalized space of the cloud so we can iterate over the normalized points and do the transformation once. 
+	vec2 pixelCloudSpacePos = fragCoordInCloudSpace - cloudMinPos;
+
+	bool bInRect = CircleInRect(pixelCloudSpacePos, sampleRadiusCloudSpace, vec2(0.0, 0.0), vec2(1.0, 1.0));
+
+	float sampleRadiusSq = sampleRadiusCloudSpace * sampleRadiusCloudSpace;
+	float distanceToReachForDraw = sampleRadiusSq + sampleRadiusCloudSpace * 0.1;
+	if (bInRect)
+	{
+		uint numberOfPointsInRadius = 0;
+		for (int i = 0; i < 256; i++)
+		{
+			if (i == particleVariables.numberOfParticles)
+				break;
+
+			vec2 normalizedCloudPoint = g_cloudPoints[i];
+			normalizedCloudPoint.y = 1.0 - normalizedCloudPoint.y;
+			//vec2 noise = vec2(0.0, 0.0);
+			float noise = voronoi((normalizedCloudPoint + fragTexCoord) * 10.0) * 2.0 - 1.0;
+			vec2 cloudPointToSamplePoint = pixelCloudSpacePos - normalizedCloudPoint + noise * 0.01;
+			float distanceSquared = dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
+
+			if (distanceSquared <= sampleRadiusSq)
+			{
+				distanceToReachForDraw -= sampleRadiusSq - distanceSquared;
+				numberOfPointsInRadius++;
+			}
+		}
+	}
+
+	bool bIsAValidSample = distanceToReachForDraw < 0.0;
+
+	vec4 pixel = vec4(bIsAValidSample ? 1.0 : 0.0, 0.0, 0.0, 1.0);
+
+	imageStore(outputImage, ivec2(gl_GlobalInvocationID.xy), pixel);
+}

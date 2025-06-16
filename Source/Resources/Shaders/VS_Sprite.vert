@@ -35,7 +35,7 @@ struct Instance2D
 	uint dataIndex; // index to the sprite specific data
 };
 
-layout(std140, set = 1, binding = 0) buffer InstanceBuffer 
+layout(std140, set = 1, binding = 0) buffer readonly InstanceBuffer 
 {
    	Instance2D g_instances[];
 };
@@ -48,7 +48,7 @@ struct SpriteData
 	vec4 padding; // f, f3
 };
 
-layout(std140, set = 1, binding = 1) buffer SpriteDataBuffer 
+layout(std140, set = 1, binding = 1) buffer readonly SpriteDataBuffer 
 {
    	SpriteData g_spriteData[];
 };

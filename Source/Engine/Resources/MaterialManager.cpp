@@ -13,6 +13,8 @@
 #include "ImGui\ImGuiContext.h"
 #include "Hashing\xxh64_en.hpp"
 
+#include "Rendering\RenderDevice.h"
+
 namespace Hail
 {
 
@@ -135,19 +137,20 @@ namespace Hail
 		if (m_materials[(uint32_t)type].Empty())
 		{
 			Material* pMaterial = CreateUnderlyingMaterial();
+			pMaterial->m_pPipeline->m_shaderStages = 0u;
 			switch (type)
 			{
 			case eMaterialType::SPRITE:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_Sprite", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_Sprite", eShaderType::Fragment, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_Sprite", eShaderStage::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_Sprite", eShaderStage::Fragment, reloadShader));
 				break;
 			case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_fullscreenPass", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_fullscreenPass", eShaderType::Fragment, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_fullscreenPass", eShaderStage::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_fullscreenPass", eShaderStage::Fragment, reloadShader));
 				break;
 			case eMaterialType::MODEL3D:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_triangle", eShaderType::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_triangle", eShaderType::Fragment, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_triangle", eShaderStage::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_triangle", eShaderStage::Fragment, reloadShader));
 				break;
 			case eMaterialType::COUNT:
 				break;
@@ -171,6 +174,7 @@ namespace Hail
 				}
 				shaders[i] = pMaterial->m_pPipeline->m_pShaders[i];
 				m_defaultShaders[(uint32)type].Add(pMaterial->m_pPipeline->m_pShaders[i]);
+				pMaterial->m_pPipeline->m_shaderStages |= (1 << pMaterial->m_pPipeline->m_pShaders[i]->header.shaderType);
 			}
 			uint32 combinedShaderHash = LocalGetCombinedShaderHash(shaders[0], shaders[1]);
 			const uint64 materialSortKey = GetMaterialSortValue(pMaterial->m_pPipeline->m_type, pMaterial->m_pPipeline->m_blendMode, combinedShaderHash);
@@ -205,6 +209,7 @@ namespace Hail
 		default:
 			break;
 		}
+		return false;
 	}
 
 	struct ShaderMetaData
@@ -219,16 +224,16 @@ namespace Hail
 		switch (materialType)
 		{
 		case eMaterialType::SPRITE:
-			shaders.Add({ eShaderType::Vertex, GuidZero, "VS_Sprite"});
-			shaders.Add({ eShaderType::Fragment, GuidZero, "FS_Sprite" });
+			shaders.Add({ eShaderStage::Vertex, GuidZero, "VS_Sprite"});
+			shaders.Add({ eShaderStage::Fragment, GuidZero, "FS_Sprite" });
 			break;
 		case eMaterialType::MODEL3D:
-			shaders.Add({ eShaderType::Vertex, GuidZero, "VS_triangle" });
-			shaders.Add({ eShaderType::Fragment, GuidZero, "FS_triangle" });
+			shaders.Add({ eShaderStage::Vertex, GuidZero, "VS_triangle" });
+			shaders.Add({ eShaderStage::Fragment, GuidZero, "FS_triangle" });
 			break;
 		case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-			shaders.Add({ eShaderType::Vertex, GuidZero, "VS_fullscreenPass" });
-			shaders.Add({ eShaderType::Fragment, GuidZero, "FS_fullscreenPass" });
+			shaders.Add({ eShaderStage::Vertex, GuidZero, "VS_fullscreenPass" });
+			shaders.Add({ eShaderStage::Fragment, GuidZero, "FS_fullscreenPass" });
 			break;
 		case eMaterialType::COUNT:
 			break;
@@ -240,7 +245,7 @@ namespace Hail
 
 	ShaderMetaData LocalGetDefaultVertexShaderForMaterial(eMaterialType matType)
 	{
-		const eShaderType type = eShaderType::Vertex;
+		const eShaderStage type = eShaderStage::Vertex;
 		String64 shaderString;
 		switch (matType)
 		{
@@ -261,7 +266,7 @@ namespace Hail
 	}
 	ShaderMetaData LocalGetDefaultFragmentShaderForMaterial(eMaterialType matType)
 	{
-		const eShaderType type = eShaderType::Fragment;
+		const eShaderStage type = eShaderStage::Fragment;
 		String64 shaderString;
 		switch (matType)
 		{
@@ -281,25 +286,25 @@ namespace Hail
 		return { type, GuidZero, shaderString };
 	}
 
-	ShaderMetaData LocalGetDefaultPairShaderFromShaderMaterialTypePair(eShaderType shaderType, eMaterialType matType)
+	ShaderMetaData LocalGetDefaultPairShaderFromShaderMaterialTypePair(eShaderStage shaderStage, eMaterialType matType)
 	{
-		switch (shaderType)
+		switch (shaderStage)
 		{
-		case Hail::eShaderType::Vertex:
+		case Hail::eShaderStage::Vertex:
 			return LocalGetDefaultFragmentShaderForMaterial(matType);
-		case Hail::eShaderType::Fragment:
+		case Hail::eShaderStage::Fragment:
 			return LocalGetDefaultVertexShaderForMaterial(matType);
-		case Hail::eShaderType::Mesh:
+		case Hail::eShaderStage::Mesh:
 			return LocalGetDefaultFragmentShaderForMaterial(matType);
-		case Hail::eShaderType::Compute:
-		case Hail::eShaderType::Amplification:
-		case Hail::eShaderType::None:
+		case Hail::eShaderStage::Compute:
+		case Hail::eShaderStage::Amplification:
+		case Hail::eShaderStage::None:
 			break;
 		default:
 			break;
 		}
 		H_ASSERT(false, "Should not get here.");
-		return { eShaderType::None, GuidZero, "" };
+		return { eShaderStage::None, GuidZero, "" };
 	}
 
 	VectorOnStack<ShaderMetaData, 2> LocalGetShadersForMaterial(eMaterialType materialType, ShaderProperties shader1, ShaderProperties shader2, bool createDefaultMaterial)
@@ -331,7 +336,7 @@ namespace Hail
 		{
 			shaders.Add(LocalGetDefaultPairShaderFromShaderMaterialTypePair(shaders[0].m_serializeableType.m_type, materialType));
 
-			if (shaders[0].m_serializeableType.m_type == eShaderType::Fragment)
+			if (shaders[0].m_serializeableType.m_type == eShaderStage::Fragment)
 			{
 				ShaderMetaData fragmentShader = shaders[0];
 				shaders[0] = shaders[1];
@@ -370,6 +375,7 @@ namespace Hail
 		pMaterial->m_pPipeline->m_typeRenderPass = loadedMaterialInstance.m_baseMaterialType;
 		pMaterial->m_pPipeline->m_blendMode = loadedMaterialInstance.m_blendMode;
 		pMaterial->m_pPipeline->m_bUseTypePasses = true;
+		pMaterial->m_pPipeline->m_shaderStages = 0u;
 		for (size_t i = 0; i < shaders.Size(); i++)
 		{
 			pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
@@ -378,6 +384,7 @@ namespace Hail
 				SAFEDELETE(pMaterial);
 				return MAX_UINT;
 			}
+			pMaterial->m_pPipeline->m_shaderStages |= (1 << (uint8)shaders[i].m_serializeableType.m_type);
 		}
 
 		bool result = true;
@@ -434,6 +441,7 @@ namespace Hail
 		pPipeline->m_type = props.m_baseMaterialType;
 		pPipeline->m_blendMode = props.m_blendMode;
 		pPipeline->m_bIsWireFrame = props.m_bIsWireFrame;
+		pPipeline->m_shaderStages = 0u;
 		for (size_t i = 0; i < shaders.Size(); i++)
 		{
 			pPipeline->m_pShaders.Add(LoadShader(shaders[i].m_name, shaders[i].m_serializeableType.m_type, false));
@@ -442,12 +450,13 @@ namespace Hail
 				SAFEDELETE(pPipeline);
 				return nullptr;
 			}
+			pPipeline->m_shaderStages |= (1 << (uint8)shaders[i].m_serializeableType.m_type);
 		}
-		pPipeline->m_bIsCompute = props.m_shaders[0].m_type == eShaderType::Compute;
+		pPipeline->m_bIsCompute = props.m_shaders[0].m_type == eShaderStage::Compute;
 		pPipeline->m_bUseTypePasses = props.m_bUsesMaterialTypeData;
 		pPipeline->m_typeRenderPass = props.m_typeRenderPass;
 
-		if (pPipeline->m_pShaders[0]->header.shaderType == (uint32)eShaderType::Vertex)
+		if (pPipeline->m_pShaders[0]->header.shaderType == (uint32)eShaderStage::Vertex)
 		{
 			pPipeline->m_bUsesVertexBuffer = pPipeline->m_pShaders[0]->reflectedShaderData.m_shaderInputs.Size() > 0u;
 		}
@@ -738,22 +747,22 @@ namespace Hail
 	}
 
 	//TODO: Add relative path support in the shader output
-	CompiledShader* MaterialManager::LoadShader(const char* shaderName, eShaderType shaderType, bool reloadShader, const char* shaderExtension)
+	CompiledShader* MaterialManager::LoadShader(const char* shaderName, eShaderStage shaderStage, bool reloadShader, const char* shaderExtension)
 	{
 		const uint64 shaderHash = LocalGetShaderHash(shaderName);
-		if (shaderType != eShaderType::None)
+		if (shaderStage != eShaderStage::None)
 		{
-			for (uint32 i = 0; i < m_loadedShaders[(uint32)shaderType].Size(); i++)
+			for (uint32 i = 0; i < m_loadedShaders[(uint32)shaderStage].Size(); i++)
 			{
-				if (m_loadedShaders[(uint32)shaderType][i].m_nameHash == shaderHash)
-					return &m_loadedShaders[(uint32)shaderType][i];
+				if (m_loadedShaders[(uint32)shaderStage][i].m_nameHash == shaderHash)
+					return &m_loadedShaders[(uint32)shaderStage][i];
 			}
 		}
 		else
 		{
-			if (shaderType == eShaderType::None)
+			if (shaderStage == eShaderStage::None)
 			{
-				shaderType = ShaderCompiler::CheckShaderType(shaderExtension);
+				shaderStage = ShaderCompiler::CheckShaderType(shaderExtension);
 			}
 		}
 
@@ -776,21 +785,21 @@ namespace Hail
 			}
 		}
 
-		InitCompiler();
 		if (!doesCompiledShaderExist || reloadShader)
 		{
-			if (!m_compiler->CompileSpecificShader(shaderName, shaderType))
+			InitCompiler();
+			if (!m_compiler->CompileSpecificShader(shaderName, shaderStage))
 			{
 				DeInitCompiler();
 				H_ERROR(StringL::Format("Failed to load shader: %s", shaderName));
 				return nullptr;
 			}
+			DeInitCompiler();
 		}
 
-		DeInitCompiler();
 		inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
 
-		CompiledShader& shader = m_loadedShaders[(uint32)shaderType].Add();
+		CompiledShader& shader = m_loadedShaders[(uint32)shaderStage].Add();
 
 		shader.m_metaData.Deserialize(inStream);
 		inStream.Read((char*)&shader.header, sizeof(ShaderHeader));
@@ -799,13 +808,34 @@ namespace Hail
 		inStream.Read((char*)shader.compiledCode, sizeof(char) * shader.header.sizeOfShaderData);
 		inStream.CloseFile();
 		shader.shaderName = shaderName;
-		ParseShader(shader.reflectedShaderData, shader.shaderName.Data(), shader.compiledCode, shader.header.sizeOfShaderData);
+		ParseShader(shader.reflectedShaderData, shaderStage, shader.shaderName.Data(), shader.compiledCode, shader.header.sizeOfShaderData);
+
 		shader.loadState = eShaderLoadState::LoadedToRAM;
 		shader.m_nameHash = shaderHash;
+
+		if (shaderStage == eShaderStage::Compute)
+		{
+			glm::uvec3 workGroupSize = shader.reflectedShaderData.m_entryDecorations.workGroupSize;
+			const uint32 workGroupTotalInvocations = workGroupSize.x * workGroupSize.y * workGroupSize.z;
+			if (workGroupTotalInvocations >= m_renderDevice->GetDeviceLimits().m_maxComputeWorkGroupInvocations)
+			{
+				H_ERROR(StringL::Format("Local shader %s invocation size %u is larger than allowed. Limit is: %u", shader.shaderName.Data(), workGroupTotalInvocations, m_renderDevice->GetDeviceLimits().m_maxComputeWorkGroupInvocations));
+				shader.reflectedShaderData.m_bIsValid = false;
+			}
+		}
 
 		// Add the created shader to the registry
 		ResourceRegistry& resourceRegistry = GetResourceRegistry();
 		resourceRegistry.AddToRegistry(inPath.Data(), ResourceType::Shader);
+
+		if (!shader.reflectedShaderData.m_bIsValid)
+		{
+			shader.loadState = eShaderLoadState::Unloaded;
+			SAFEDELETE_ARRAY(shader.compiledCode);
+			resourceRegistry.SetResourceLoadFailed(ResourceType::Shader, shader.m_metaData.GetGUID());
+
+			return nullptr;
+		}
 		resourceRegistry.SetResourceLoaded(ResourceType::Shader, shader.m_metaData.GetGUID());
 
 		return &shader;
@@ -876,12 +906,12 @@ namespace Hail
 		switch (type)
 		{
 		case Hail::eMaterialType::SPRITE:
-			resource.m_shaders[0].m_type = eShaderType::Vertex;
-			resource.m_shaders[1].m_type = eShaderType::Fragment;
+			resource.m_shaders[0].m_type = eShaderStage::Vertex;
+			resource.m_shaders[1].m_type = eShaderStage::Fragment;
 			break;
 		case Hail::eMaterialType::MODEL3D:
-			resource.m_shaders[0].m_type = eShaderType::Vertex;
-			resource.m_shaders[1].m_type = eShaderType::Fragment;
+			resource.m_shaders[0].m_type = eShaderStage::Vertex;
+			resource.m_shaders[1].m_type = eShaderStage::Fragment;
 			break;
 		case Hail::eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
 		case Hail::eMaterialType::COUNT:
@@ -945,15 +975,15 @@ namespace Hail
 		return returnResource;
 	}
 
-	CompiledShader* MaterialManager::GetDefaultCompiledLoadedShader(eShaderType shaderType)
+	CompiledShader* MaterialManager::GetDefaultCompiledLoadedShader(eShaderStage shaderStage)
 	{
-		return &m_loadedShaders[(uint32)shaderType][0];
+		return &m_loadedShaders[(uint32)shaderStage][0];
 	}
 
 	CompiledShader* MaterialManager::GetCompiledLoadedShader(GUID shaderGUID)
 	{
 		// TODO: better data structure
-		for (uint32 iType = 0; iType < (uint32)eShaderType::None; iType++)
+		for (uint32 iType = 0; iType < (uint32)eShaderStage::None; iType++)
 		{
 			for (uint32 i = 0; i < m_loadedShaders[iType].Size(); i++)
 			{
@@ -971,12 +1001,12 @@ namespace Hail
 	{
 		ResourceRegistry& reg = GetResourceRegistry();
 		const FilePath shaderSourcePath = reg.GetSourcePath(ResourceType::Shader, shaderGUID);
-		return LoadShader(shaderSourcePath.Object().Name().CharString(), eShaderType::None, false, shaderSourcePath.Object().Extension().CharString());
+		return LoadShader(shaderSourcePath.Object().Name().CharString(), eShaderStage::None, false, shaderSourcePath.Object().Extension().CharString());
 	}
 
 	FilePath MaterialManager::ImportShaderResource(const FilePath& filepath)
 	{
-		CompiledShader* pShader = LoadShader(filepath.Object().Name().CharString(), eShaderType::None, false, filepath.Object().Extension().CharString());
+		CompiledShader* pShader = LoadShader(filepath.Object().Name().CharString(), eShaderStage::None, false, filepath.Object().Extension().CharString());
 		if (pShader)
 		{
 			return pShader->m_metaData.GetProjectFilePath().GetFilePath();
@@ -984,9 +1014,9 @@ namespace Hail
 		return FilePath();
 	}
 
-	FilePath MaterialManager::ImportShaderResource(const FilePath& filepath, eShaderType shaderType)
+	FilePath MaterialManager::ImportShaderResource(const FilePath& filepath, eShaderStage shaderStage, bool bForceReload)
 	{
-		CompiledShader* pShader = LoadShader(filepath.Object().Name().CharString(), shaderType, false, filepath.Object().Extension().CharString());
+		CompiledShader* pShader = LoadShader(filepath.Object().Name().CharString(), shaderStage, bForceReload, filepath.Object().Extension().CharString());
 		if (pShader)
 		{
 			return pShader->m_metaData.GetProjectFilePath().GetFilePath();
@@ -994,9 +1024,9 @@ namespace Hail
 		return FilePath();
 	}
 
-	const bool MaterialManager::IsShaderValidWithMaterialType(eMaterialType materialType, eShaderType shaderType, ReflectedShaderData& shaderDataToCheck) const
+	const bool MaterialManager::IsShaderValidWithMaterialType(eMaterialType materialType, eShaderStage shaderStage, ReflectedShaderData& shaderDataToCheck) const
 	{
-		const ReflectedShaderData* defaultShader = GetDefaultShaderData(materialType, shaderType);
+		const ReflectedShaderData* defaultShader = GetDefaultShaderData(materialType, shaderStage);
 		if (!defaultShader)
 			return false;
 
@@ -1015,13 +1045,13 @@ namespace Hail
 		return true;
 	}
 
-	const ReflectedShaderData* MaterialManager::GetDefaultShaderData(eMaterialType materialType, eShaderType shaderType) const
+	const ReflectedShaderData* MaterialManager::GetDefaultShaderData(eMaterialType materialType, eShaderStage shaderStage) const
 	{
-		if (m_defaultShaders[(uint32)materialType][0]->header.shaderType == (uint8)shaderType)
+		if (m_defaultShaders[(uint32)materialType][0]->header.shaderType == (uint8)shaderStage)
 		{
 			return &m_defaultShaders[(uint32)materialType][0]->reflectedShaderData;
 		}
-		if (m_defaultShaders[(uint32)materialType].Size() > 1 && m_defaultShaders[(uint32)materialType][1]->header.shaderType == (uint8)shaderType)
+		if (m_defaultShaders[(uint32)materialType].Size() > 1 && m_defaultShaders[(uint32)materialType][1]->header.shaderType == (uint8)shaderStage)
 		{
 			return &m_defaultShaders[(uint32)materialType][1]->reflectedShaderData;
 		}

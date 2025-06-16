@@ -16,6 +16,7 @@ Hail::Renderer::~Renderer()
 
 bool Hail::Renderer::Initialize()
 {
+	m_pContext->StartTransferPass();
 	bool initializationResult = true;
 	m_pFontRenderer = new FontRenderer(this, m_pResourceManager);
 	m_pCloudRenderer = new CloudRenderer(this, m_pResourceManager);
@@ -24,13 +25,20 @@ bool Hail::Renderer::Initialize()
 	initializationResult &= m_pCloudRenderer->Initialize();
 	initializationResult &= m_pDebugRenderingManager->Initialize();
 
+	CreateSpriteVertexBuffer();
+	CreateVertexBuffer();
+	CreateIndexBuffer();
+	InitImGui();
+
+	m_pContext->EndTransferPass();
+
 	return initializationResult;
 }
 
 void Hail::Renderer::Cleanup()
 {
-	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.")
-		m_pFontRenderer->Cleanup();
+	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.");
+	m_pFontRenderer->Cleanup();
 	SAFEDELETE(m_pFontRenderer);
 	m_pCloudRenderer->Cleanup();
 	SAFEDELETE(m_pCloudRenderer);
@@ -130,12 +138,10 @@ void Hail::Renderer::CreateSpriteVertexBuffer()
 	BufferProperties spriteVertexBufferProperties;
 	spriteVertexBufferProperties.elementByteSize = sizeof(uint32_t);
 	spriteVertexBufferProperties.numberOfElements = 6;
-	spriteVertexBufferProperties.offset = 0;
 	spriteVertexBufferProperties.type = eBufferType::vertex;
 	spriteVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-	spriteVertexBufferProperties.usage = eShaderBufferUsage::Read;
 	spriteVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-	m_pSpriteVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(spriteVertexBufferProperties);
+	m_pSpriteVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(spriteVertexBufferProperties, "Sprite Vertex Buffer");
 
 	m_pContext->UploadDataToBuffer(m_pSpriteVertexBuffer, vertices, sizeof(uint32_t) * 6);
 }
@@ -145,12 +151,10 @@ void Hail::Renderer::CreateVertexBuffer()
 	BufferProperties vertexBufferProperties;
 	vertexBufferProperties.elementByteSize = sizeof(VertexModel);
 	vertexBufferProperties.numberOfElements = m_pResourceManager->m_unitCube.vertices.Size();
-	vertexBufferProperties.offset = 0;
 	vertexBufferProperties.type = eBufferType::vertex;
 	vertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-	vertexBufferProperties.usage = eShaderBufferUsage::Read;
 	vertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-	m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(vertexBufferProperties);
+	m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(vertexBufferProperties, "Unit Cube Vertex Buffer");
 
 	m_pContext->UploadDataToBuffer(m_pVertexBuffer, m_pResourceManager->m_unitCube.vertices.Data(), sizeof(VertexModel) * m_pResourceManager->m_unitCube.vertices.Size());
 }
@@ -160,11 +164,9 @@ void Hail::Renderer::CreateIndexBuffer()
 	BufferProperties indexBufferProperties;
 	indexBufferProperties.elementByteSize = sizeof(uint32_t);
 	indexBufferProperties.numberOfElements = m_pResourceManager->m_unitCube.indices.Size();
-	indexBufferProperties.offset = 0;
 	indexBufferProperties.type = eBufferType::index;
 	indexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-	indexBufferProperties.usage = eShaderBufferUsage::Read;
 	indexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-	m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(indexBufferProperties);
+	m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(indexBufferProperties, "Unit Cube Index Buffer");
 	m_pContext->UploadDataToBuffer(m_pIndexBuffer, m_pResourceManager->m_unitCube.indices.Data(), sizeof(uint32_t) * m_pResourceManager->m_unitCube.indices.Size());
 }

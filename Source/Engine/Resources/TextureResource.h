@@ -33,6 +33,9 @@ namespace Hail
 		ResourceValidator m_validator;
 		MetaResource m_metaResource;
 
+		// The state with which this resource memory is held on the GPU
+		eShaderAccessQualifier m_accessQualifier;
+
 	protected: 
 
 		friend class TextureManager;
@@ -46,6 +49,8 @@ namespace Hail
 	{
 		TextureResource* pTextureToView;
 		eTextureUsage viewUsage;
+		eShaderAccessQualifier accessQualifier;
+		uint32 lastBoundShaderStages = 0u;
 	};
 
 	class TextureView
@@ -54,8 +59,10 @@ namespace Hail
 		virtual void CleanupResource(RenderingDevice* pDevice) = 0;
 
 		virtual bool InitView(RenderingDevice* pDevice, TextureViewProperties properties) = 0;
+		const TextureViewProperties& GetProps() const { return m_props; }
 	protected:
 		uint32 m_textureIndex{ MAX_UINT };
+		TextureViewProperties m_props;
 	};
 
 	// Only use for ImGui data

@@ -88,13 +88,13 @@ float voronoi(vec2 x)
 
     float res = 8.0;
     for( int j=-1; j<=1; j++ )
-    for( int i=-1; i<=1; i++ )
-    {
-        ivec2 b = ivec2( i, j );
-        vec2  r = vec2( b ) - f + hash2f( vec2(p.x + b.x, p.y + b.y) );
-        float d = dot( r, r );
-        res = min( res, d );
-    }
+		for( int i=-1; i<=1; i++ )
+		{
+			ivec2 b = ivec2( i, j );
+			vec2  r = vec2( b ) - f + hash2f( vec2(p.x + b.x, p.y + b.y) );
+			float d = dot( r, r );
+			res = min( res, d );
+		}
     return sqrt( res );
 }
 
@@ -111,11 +111,11 @@ layout(set = 0, binding = 0, std140) uniform UniformBufferObject
 layout(set = 0, binding = 2) uniform sampler samplerLinear;
 layout(set = 0, binding = 3) uniform sampler samplerBilinear;
 
-layout(std430, set = 1, binding = 0) buffer PointBuffer 
+layout(std430, set = 1, binding = 0) buffer readonly PointBuffer 
 {
    	vec2 g_cloudPoints[];
 };
-layout(set = 1, binding = 1) uniform sampler2D cloudSdfTexture;
+//layout(set = 1, binding = 1) uniform texture2D cloudCoverageTexture;
 layout(set = 1, binding = 2) uniform texture2D cloudSdfTextureNoSampler;
 
 layout(location = 0) out vec4 outColor;
@@ -195,6 +195,8 @@ void main()
 			numberOfPointsInRadius++;
 		}
 	}
+
+	//float cloudSample = texture(sampler2D(cloudCoverageTexture, samplerBilinear), fragTexCoord).r;
 	//bool bIsAValidSample = numberOfPointsInRadius > 2;
 	bool bIsAValidSample = distanceToReachForDraw < 0.0;
 	if (!bIsAValidSample)

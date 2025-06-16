@@ -4,6 +4,7 @@
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
 #include "DebugMacros.h"
+#include "ReflectedShaderData.h"
 
 namespace Hail
 {
@@ -253,6 +254,7 @@ namespace Hail
         eTextureUsage textureUsage = eTextureUsage::Texture;
         eTextureFormat format = eTextureFormat::UNDEFINED;
         TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED; // only used if the texture is a frame buffer attachment
+        eShaderAccessQualifier accessQualifier = eShaderAccessQualifier::ReadOnly;
 	};
 
 	enum class TEXTURE_LOADSTATE
@@ -275,5 +277,7 @@ namespace Hail
 
     eTextureFormat SerializeableTextureTypeToTextureFormat(eTextureSerializeableType type);
     const char* GetSerializeableTextureTypeAsText(eTextureSerializeableType type);
+
+    bool TextureFormatMatchesDecoration(eTextureFormat textureFormat, const ShaderDecoration& decorationToCheck);
 }
 

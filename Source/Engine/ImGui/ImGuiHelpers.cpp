@@ -197,21 +197,21 @@ const char* Hail::ImGuiHelpers::GetMaterialBlendModeFromEnum(eBlendMode mode)
     return nullptr;
 }
 
-const char* Hail::ImGuiHelpers::GetShaderTypeFromEnum(eShaderType mode)
+const char* Hail::ImGuiHelpers::GetShaderTypeFromEnum(eShaderStage mode)
 {
     switch (mode)
     {
-    case Hail::eShaderType::Compute:
+    case Hail::eShaderStage::Compute:
         return "Compute";
-    case Hail::eShaderType::Vertex:
+    case Hail::eShaderStage::Vertex:
         return "Vertex";
-    case Hail::eShaderType::Fragment:
+    case Hail::eShaderStage::Fragment:
         return "Fragment";
-    case Hail::eShaderType::Amplification:
+    case Hail::eShaderStage::Amplification:
         return "Amplification";
-    case Hail::eShaderType::Mesh:
+    case Hail::eShaderStage::Mesh:
         return "Mesh";
-    case Hail::eShaderType::None:
+    case Hail::eShaderStage::None:
         return "None";
     default:
         break;

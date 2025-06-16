@@ -17,7 +17,7 @@ namespace Hail
 		void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain) override;
 
 	private:
-		void BindPipelineToContext(Pipeline* pPipeline, RenderContext* pRenderContext) override;
+		void UpdateCustomPipelineDescriptors(Pipeline* pPipeline, RenderContext* pRenderContext) override;
 
 		void BindFrameBuffer(eMaterialType materialType, FrameBufferTexture* frameBufferToBindToMaterial) override;
 		bool InitMaterialInternal(Material* pMaterial, uint32 frameInFlight) override;

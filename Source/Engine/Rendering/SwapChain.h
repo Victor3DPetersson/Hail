@@ -22,7 +22,9 @@ namespace Hail
 		//On systems without any frames in flight this will always return 0
 		virtual uint32 GetFrameInFlight() = 0;
 		glm::uvec2 GetSwapChainResolution() const { return m_windowResolution; }
+		// The resolution of the rendertarget after blackboarding and window resize
 		glm::uvec2 GetRenderTargetResolution() const { return m_renderTargetResolution; }
+		// The resolution of the main render target
 		glm::uvec2 GetTargetResolution() const { return m_targetResolution; }
 		float GetTargetHorizontalAspectRatio() const { return m_targetHorizontalAspectRatio; }
 		float GetHorizontalAspectRatio() const { return m_horizontalAspectRatio; }

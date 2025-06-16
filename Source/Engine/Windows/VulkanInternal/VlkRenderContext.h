@@ -34,13 +34,16 @@ namespace Hail
 		void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) override;
 		void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 		void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) override;
-		
+		void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState) override;
+
+		void Dispatch(glm::uvec3 dispatchSize) override;
 		void RenderMeshlets(glm::uvec3 dispatchSize) override;
 		void RenderFullscreenPass() override;
 		void RenderInstances(uint32 numberOfInstances, uint32 offset) override;
 		void RenderDebugLines(uint32 numberOfLinesToRender) override;
 
 		bool BindMaterialInternal(Pipeline* pPipeline) override;
+		bool BindComputePipelineInternal(Pipeline* pPipeline) override;
 		void ClearFrameBufferInternal(FrameBufferTexture* pFrameBuffer) override;
 
 		void SetPushConstantInternal(void* pPushConstant) override;
@@ -48,10 +51,12 @@ namespace Hail
 		void StartFrame() override;
 		void EndRenderPass() override;
 		void SubmitFinalFrameCommandBuffer() override;
+
+		void TransferBufferStateInternal(BufferObject* pBuffer, eShaderAccessQualifier newState) override;
 	private:
 		void BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* connectionToBind) override;
+		void BindComputePipeline(ComputePipeline* pPipelineToBind) override;
 		void BindVertexBufferInternal() override;
-		MaterialFrameBufferConnection* CreateMaterialFrameBufferConnection() override;
 		VlkBufferObject* CreateStagingBufferAndMemoryBarrier(uint32 bufferSize, void* pDataToUpload);
 
 		class VlkMaterialFrameBufferConnection : public MaterialFrameBufferConnection
@@ -63,7 +68,16 @@ namespace Hail
 			VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
 		};
 
+		class VlkComputePipeline : public ComputePipeline
+		{
+		public:
+			void Cleanup(RenderingDevice* pDevice) override;
+			VkPipeline m_pipeline = VK_NULL_HANDLE;
+			VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+		};
+
 		bool CreateGraphicsPipeline(VlkMaterialFrameBufferConnection& materialFrameBufferConnection);
+		bool CreateComputePipeline(VlkComputePipeline& computePipeline);
 
 		VkSemaphore m_imageAvailableSemaphores[MAX_FRAMESINFLIGHT];
 		VkSemaphore m_renderFinishedSemaphores[MAX_FRAMESINFLIGHT];

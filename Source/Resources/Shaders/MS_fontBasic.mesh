@@ -25,12 +25,12 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 	vec2 totalTime_HorizonPosition;
 } constantVariables;
 
-layout(binding = 0, set = 1, std140) buffer GlyphVertexBuffer
+layout(binding = 0, set = 1, std140) buffer readonly GlyphVertexBuffer
 {
    	vec4 glyphVerts[];
 };
 
-layout(binding = 1, set = 1, std140) buffer GlyphPrimitiveBuffers
+layout(binding = 1, set = 1, std140) buffer readonly GlyphPrimitiveBuffers
 {
    	uvec4 glyphPrimitives[];// xyz indices, w for flags.
 };
@@ -47,12 +47,12 @@ struct RenderInstance
     uint commandBufferIndex;
 };
 
-layout(binding = 2, set = 1, std140) buffer InstanceBuffer
+layout(binding = 2, set = 1, std140) buffer readonly InstanceBuffer
 {
    	RenderInstance renderInstances[];
 };
 
-layout(binding = 3, set = 1, std140) buffer TextCommandBuffer
+layout(binding = 3, set = 1, std140) buffer readonly TextCommandBuffer
 {
     // vec2 for command position (aka pivot), float for rotation  // TODO bake in 2D Scale 
    	vec4 g_positionRotation[];
@@ -60,7 +60,6 @@ layout(binding = 3, set = 1, std140) buffer TextCommandBuffer
 
 layout(binding = 4, set = 1, std140) uniform BatchToFirstInstanceBuffer
 {
-    // vec2 for command position (aka pivot), float for rotation  // TODO bake in 2D Scale 
    	uvec4 g_batchOffsets[32];
 };
 

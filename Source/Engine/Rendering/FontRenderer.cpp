@@ -39,52 +39,47 @@ namespace Hail
 		BufferProperties fontVertexBufferProperties;
 		fontVertexBufferProperties.elementByteSize = sizeof(glm::vec4);
 		fontVertexBufferProperties.numberOfElements = m_fontData.m_renderVerts.Size();
-		fontVertexBufferProperties.offset = 0;
 		fontVertexBufferProperties.type = eBufferType::structured;
 		fontVertexBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-		fontVertexBufferProperties.usage = eShaderBufferUsage::Read;
+		fontVertexBufferProperties.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		fontVertexBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-		m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontVertexBufferProperties);
+		m_pVertexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontVertexBufferProperties, "Font Vertex Buffer");
 
 		BufferProperties triangleListBufferProperties;
 		triangleListBufferProperties.elementByteSize = sizeof(GlyphTri);
 		triangleListBufferProperties.numberOfElements = m_fontData.m_glyphData.m_triangles.Size();
-		triangleListBufferProperties.offset = 0;
 		triangleListBufferProperties.type = eBufferType::structured;
 		triangleListBufferProperties.domain = eShaderBufferDomain::GpuOnly;
-		triangleListBufferProperties.usage = eShaderBufferUsage::Read;
+		triangleListBufferProperties.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		triangleListBufferProperties.updateFrequency = eShaderBufferUpdateFrequency::Once;
-		m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(triangleListBufferProperties);
+		m_pIndexBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(triangleListBufferProperties, "Font Glyph Triangle Buffer");
 
 		BufferProperties glyphletInstanceListProps;
 		glyphletInstanceListProps.elementByteSize = sizeof(RenderGlypghlet);
 		glyphletInstanceListProps.numberOfElements = locMaxNumberOfGlyphlets;
-		glyphletInstanceListProps.offset = 0;
 		glyphletInstanceListProps.type = eBufferType::structured;
 		glyphletInstanceListProps.domain = eShaderBufferDomain::CpuToGpu;
-		glyphletInstanceListProps.usage = eShaderBufferUsage::Read;
+		glyphletInstanceListProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		glyphletInstanceListProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-		m_pGlyphletBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(glyphletInstanceListProps);
+		m_pGlyphletBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(glyphletInstanceListProps, "Font Glyphlet Buffer");
 
 		BufferProperties fontTextCommandBufferProps;
 		fontTextCommandBufferProps.elementByteSize = sizeof(glm::vec4);
 		fontTextCommandBufferProps.numberOfElements = MAX_NUMBER_OF_TEXT_COMMANDS;
-		fontTextCommandBufferProps.offset = 0;
 		fontTextCommandBufferProps.type = eBufferType::structured;
 		fontTextCommandBufferProps.domain = eShaderBufferDomain::CpuToGpu;
-		fontTextCommandBufferProps.usage = eShaderBufferUsage::Read;
+		fontTextCommandBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		fontTextCommandBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-		m_pTextCommandBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontTextCommandBufferProps);
+		m_pTextCommandBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(fontTextCommandBufferProps, "Font Instance Position Buffer");
 
 		BufferProperties textBatchOffsetBufferProps;
-		textBatchOffsetBufferProps.elementByteSize = sizeof(uint32);
-		textBatchOffsetBufferProps.numberOfElements = MAX_NUMBER_OF_TEXT_COMMANDS;
-		textBatchOffsetBufferProps.offset = 0;
+		textBatchOffsetBufferProps.elementByteSize = sizeof(uint32) * 4u;
+		textBatchOffsetBufferProps.numberOfElements = MAX_NUMBER_OF_TEXT_COMMANDS / 4;
 		textBatchOffsetBufferProps.type = eBufferType::uniform;
 		textBatchOffsetBufferProps.domain = eShaderBufferDomain::CpuToGpu;
-		textBatchOffsetBufferProps.usage = eShaderBufferUsage::Read;
+		textBatchOffsetBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		textBatchOffsetBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-		m_pBatchOffsetBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(textBatchOffsetBufferProps);
+		m_pBatchOffsetBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(textBatchOffsetBufferProps, "Font Batch Offset Buffer");
 
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
@@ -93,18 +88,18 @@ namespace Hail
 
 		RelativeFilePath meshProjectPath("resources/shaders/MS_fontBasic.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-		pMatManager->ImportShaderResource(meshProjectPath.GetFilePath(), eShaderType::Mesh)))
+		pMatManager->ImportShaderResource(meshProjectPath.GetFilePath(), eShaderStage::Mesh)))
 		{
 			matProperties.m_shaders[0].m_id = metaData->GetGUID();
-			matProperties.m_shaders[0].m_type = eShaderType::Mesh;
+			matProperties.m_shaders[0].m_type = eShaderStage::Mesh;
 		}
 
 		RelativeFilePath fragmentProjectPath("resources/shaders/FS_fontBasic.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderType::Fragment)))
+			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderStage::Fragment)))
 		{
 			matProperties.m_shaders[1].m_id = metaData->GetGUID();
-			matProperties.m_shaders[1].m_type = eShaderType::Fragment;
+			matProperties.m_shaders[1].m_type = eShaderStage::Fragment;
 		}
 
 		matProperties.m_baseMaterialType = eMaterialType::CUSTOM;
@@ -112,10 +107,8 @@ namespace Hail
 		m_pFontPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
-		pContext->StartTransferPass();
 		pContext->UploadDataToBuffer(m_pVertexBuffer, m_fontData.m_renderVerts.Data(), m_fontData.m_renderVerts.Size() * sizeof(glm::vec2));
 		pContext->UploadDataToBuffer(m_pIndexBuffer, m_fontData.m_glyphData.m_triangles.Data(), m_fontData.m_glyphData.m_triangles.Size() * sizeof(GlyphTri));
-		pContext->EndTransferPass();
 
 		m_glyphletsToRender.Prepare(locMaxNumberOfGlyphlets);
 		m_textCommandsToRender.Prepare(MAX_NUMBER_OF_TEXT_COMMANDS);
@@ -286,7 +279,6 @@ namespace Hail
 		pContext->SetBufferAtSlot(m_pBatchOffsetBuffer, 4);
 
 		pContext->BindMaterial(m_pFontPipeline->m_pPipeline);
-		pContext->SetPipelineState(m_pFontPipeline->m_pPipeline);
 		glm::uvec4 pushConstantData = glm::uvec4(batchOffset, 0, 0, 0);
 		pContext->SetPushConstantValue(&pushConstantData);
 

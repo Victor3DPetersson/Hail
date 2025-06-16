@@ -8,6 +8,7 @@
 #include "Resources\RenderingResourceManager.h"
 #include "SwapChain.h"
 #include "MathUtils.h"
+#include "Resources\TextureREsource.h"
 
 using namespace Hail;
 
@@ -67,6 +68,8 @@ void RenderContext::BindMaterial(Material* pMaterial)
 
 	H_ASSERT(m_pBoundFrameBuffers[0], "No framebuffer bound");
 
+	ValidatePipelineAndUpdateDescriptors(pMaterial->m_pPipeline);
+
 	if (!BindMaterialInternal(pMaterial->m_pPipeline))
 	{
 		m_pBoundMaterial = m_pResourceManager->GetMaterialManager()->GetDefaultMaterial(pMaterial->m_pPipeline->m_type);
@@ -78,6 +81,7 @@ void RenderContext::BindMaterial(Material* pMaterial)
 		m_pBoundMaterial = pMaterial;
 		m_pBoundMaterialPipeline = pMaterial->m_pPipeline;
 	}
+	m_lastBoundShaderStages = m_pBoundMaterialPipeline->m_shaderStages;
 }
 
 void RenderContext::BindMaterial(Pipeline* pPipeline)
@@ -87,17 +91,29 @@ void RenderContext::BindMaterial(Pipeline* pPipeline)
 	if (m_pBoundMaterialPipeline && m_pBoundMaterialPipeline == pPipeline)
 		return;
 
+	ValidatePipelineAndUpdateDescriptors(pPipeline);
+
 	m_pBoundMaterial = nullptr;
-	H_ASSERT(m_pBoundFrameBuffers[0], "No framebuffer bound");
-	if (!BindMaterialInternal(pPipeline))
+	if (!pPipeline->m_bIsCompute)
 	{
-		m_pBoundMaterialPipeline = m_pResourceManager->GetMaterialManager()->GetDefaultMaterial(pPipeline->m_type)->m_pPipeline;
-		H_ASSERT(BindMaterialInternal(m_pBoundMaterialPipeline));
+		H_ASSERT(m_pBoundFrameBuffers[0], "No framebuffer bound");
+		if (!BindMaterialInternal(pPipeline))
+		{
+			H_ASSERT(pPipeline->m_bIsCompute);
+			m_pBoundMaterialPipeline = m_pResourceManager->GetMaterialManager()->GetDefaultMaterial(pPipeline->m_type)->m_pPipeline;
+			H_ASSERT(BindMaterialInternal(m_pBoundMaterialPipeline));
+		}
+		else
+		{
+			m_pBoundMaterialPipeline = pPipeline;
+		}
 	}
 	else
 	{
+		H_ASSERT(BindComputePipelineInternal(pPipeline));
 		m_pBoundMaterialPipeline = pPipeline;
 	}
+	m_lastBoundShaderStages = m_pBoundMaterialPipeline->m_shaderStages;
 }
 
 void RenderContext::BindFrameBufferAtSlot(FrameBufferTexture* pFrameBuffer, uint32 bindSlot)
@@ -121,15 +137,127 @@ void Hail::RenderContext::BindVertexBuffer(BufferObject* pVertexBufferToBind, Bu
 	BindVertexBufferInternal();
 }
 
-void RenderContext::SetPipelineState(Pipeline* pPipeline)
+inline uint32 hasha(glm::ivec2& p) {
+	int ix = (unsigned int)((p[0] + 2) / 5);
+	int iy = (unsigned int)((p[1] + 2) / 5);
+	return (unsigned int)((ix * 73856093) ^ (iy * 19349663)) % 1000000;
+}
+
+void RenderContext::ValidatePipelineAndUpdateDescriptors(Pipeline* pPipeline)
 {
 	if (!pPipeline->m_pTypeDescriptor)
 	{
-		H_ERROR(StringL::Format("No bound type data for the pipeline that is being set %u", pPipeline->m_sortKey));
+		//H_ERROR(StringL::Format("No bound type data for the pipeline that is being set %u", pPipeline->m_sortKey));
 		return;
 	}
-	// TODO: move this to the context instead of the indirection
-	m_pResourceManager->GetMaterialManager()->BindPipelineToContext(pPipeline, this);
+
+	// Null last state och lägg till last state för bundna resurser
+	//for (uint32 i = 0; i < 16u; i++)
+	//{
+	//	if (m_pBoundTextures[i])
+	//		m_pBoundTextures[i]->GetProps().pTextureToView->m_accessQualifier
+	//}
+
+	for (uint32 iShader = 0; iShader < pPipeline->m_pShaders.Size(); iShader++)
+	{
+		if (!pPipeline->m_pShaders[iShader])
+		{
+			continue;
+		}
+		ReflectedShaderData& shaderData = pPipeline->m_pShaders[iShader]->reflectedShaderData;
+		H_ASSERT(shaderData.m_bIsValid);
+
+		// if pipeline is custom, no instance set should exist
+		uint32 numberOfSetsToValidate = pPipeline->m_type == eMaterialType::CUSTOM ? 2u : 3u;
+		
+		for (uint32 iSet = 1u; iSet < numberOfSetsToValidate; iSet++)
+		{
+			for (uint32 iDecorationType = 0; iDecorationType < (uint32)eDecorationType::Count; iDecorationType++)
+			{
+				if (pPipeline->m_typeRenderPass == eMaterialType::CUSTOM)
+					CheckBoundDataAgainstSetDecoration(shaderData.m_setDecorations[iSet][iDecorationType], (eDecorationType)iDecorationType);
+			}
+		}
+	}
+	
+	m_pResourceManager->GetMaterialManager()->UpdateCustomPipelineDescriptors(pPipeline, this);
+}
+
+void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration& setDecoration, eDecorationType decorationType)
+{
+	if (decorationType == eDecorationType::PushConstant)
+		return;
+
+	uint32 currentBindingPointSum = 0u;
+	uint32 resourceIDSum = 0u;
+
+	for (uint32 i = 0; i < setDecoration.m_indices.Size(); i++)
+	{
+		const uint32 bindingPoint = setDecoration.m_indices[i];
+		const ShaderDecoration& decoration = setDecoration.m_decorations[bindingPoint];
+
+		uint32 assetIndex = 0u;
+		eShaderAccessQualifier assetAccessQualifier{};
+		switch (decorationType)
+		{
+		case Hail::eDecorationType::UniformBuffer:
+		{
+			H_ASSERT(m_pBoundUniformBuffers[bindingPoint], "Nothing bound at the current slot");
+			const BufferProperties& props = m_pBoundUniformBuffers[bindingPoint]->GetProperties();
+
+			assetAccessQualifier = m_pBoundUniformBuffers[bindingPoint]->GetAccessQualifier();
+			H_ASSERT(assetAccessQualifier == eShaderAccessQualifier::ReadOnly);
+			assetIndex = m_pBoundUniformBuffers[bindingPoint]->GetID();
+			H_ASSERT(decoration.m_byteSize == props.elementByteSize, "Element size on bound buffer does not match shader buffer");
+		}
+		break;
+		case Hail::eDecorationType::ShaderStorageBuffer:
+		{
+			H_ASSERT(m_pBoundStructuredBuffers[bindingPoint], "Nothing bound at the current slot");
+			const BufferProperties& props = m_pBoundStructuredBuffers[bindingPoint]->GetProperties();
+
+			assetAccessQualifier = m_pBoundStructuredBuffers[bindingPoint]->GetAccessQualifier();
+			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
+			assetIndex = m_pBoundStructuredBuffers[bindingPoint]->GetID();
+			H_ASSERT(decoration.m_byteSize == props.elementByteSize, "Element size on bound buffer does not match shader buffer");
+		}
+		break;
+		case Hail::eDecorationType::SampledImage:
+		{
+			H_ASSERT(m_pBoundTextures[bindingPoint], "Nothing bound at the current slot");
+			const TextureViewProperties& viewProps = m_pBoundTextures[bindingPoint]->GetProps();
+
+			assetAccessQualifier = viewProps.pTextureToView->m_accessQualifier;
+			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
+			assetIndex = viewProps.pTextureToView->m_index;
+		}
+		break;
+		case Hail::eDecorationType::Image:
+		{
+			H_ASSERT(m_pBoundTextures[bindingPoint], "Nothing bound at the current slot");
+			const TextureViewProperties& viewProps = m_pBoundTextures[bindingPoint]->GetProps();
+			assetAccessQualifier = viewProps.pTextureToView->m_accessQualifier;
+			assetIndex = viewProps.pTextureToView->m_index;
+
+			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
+			if (decoration.m_valueType != eShaderValueType::none)
+			{
+				H_ASSERT(TextureFormatMatchesDecoration(viewProps.pTextureToView->m_properties.format, decoration));
+			}
+		}
+		break;
+		case Hail::eDecorationType::Sampler:
+		case Hail::eDecorationType::PushConstant:
+		case Hail::eDecorationType::Count:
+		default:
+			break;
+		}
+
+		if (decoration.m_accessQualifier == eShaderAccessQualifier::ReadOnly)
+		{
+			H_ASSERT(assetAccessQualifier != eShaderAccessQualifier::WriteOnly);
+		}
+	}
 }
 
 void Hail::RenderContext::SetPushConstantValue(void* pPushConstant)
@@ -198,6 +326,21 @@ void RenderContext::TransferFramebufferLayout(FrameBufferTexture* pTextureToTran
 	}
 }
 
+void Hail::RenderContext::TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier)
+{
+	H_ASSERT(pTextureToTransfer);
+	H_ASSERT(pTextureToTransfer->m_properties.textureUsage == eTextureUsage::Texture);
+	H_ASSERT(m_pCurrentCommandBuffer && m_pCurrentCommandBuffer->m_contextState != eContextState::TransitionBetweenStates);
+	
+	TransferImageStateInternal(pTextureToTransfer, newQualifier);
+}
+
+void Hail::RenderContext::Dispatch(glm::uvec3 dispatchSize)
+{
+	uint32 minDispatchSize = Math::Min(dispatchSize.x, Math::Min(dispatchSize.y, dispatchSize.z));
+	H_ASSERT(minDispatchSize != 0u, "A dispatch of 0 is not allowed in any dimension");
+}
+
 void Hail::RenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
 {
 	uint32 minDispatchSize = Math::Min(dispatchSize.x, Math::Min(dispatchSize.y, dispatchSize.z));
@@ -218,9 +361,10 @@ void RenderContext::EndGraphicsPass()
 {
 	H_ASSERT(m_currentState == eContextState::Graphics, "Wrong context state for ending the graphics pass.");
 	H_ASSERT(m_boundMaterialType != eMaterialType::COUNT, "Wrong material context state for ending the graphics pass.");
+	eMaterialType previousBoundsPassType = m_boundMaterialType;
 	EndRenderPass();
 
-	if (m_boundMaterialType == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
+	if (previousBoundsPassType == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		SubmitFinalFrameCommandBuffer();
 		m_pCurrentCommandBuffer->m_bIsRecording = false;
@@ -230,15 +374,20 @@ void RenderContext::EndGraphicsPass()
 		m_pCurrentCommandBuffer->EndBuffer(false);
 	}
 
+	m_pCurrentCommandBuffer = nullptr;
+	m_currentState = eContextState::TransitionBetweenStates;
+}
+
+void Hail::RenderContext::CleanupAndEndPass()
+{
+	m_currentlyBoundPipeline = MAX_UINT;
 	m_pBoundMaterial = nullptr;
 	m_pBoundMaterialPipeline = nullptr;
 	m_pBoundVertexBuffer = nullptr;
-
-	m_pCurrentCommandBuffer = nullptr;
-	m_currentlyBoundPipeline = MAX_UINT;
-	m_currentState = eContextState::TransitionBetweenStates;
+	m_pBoundIndexBuffer = nullptr;
 	m_boundMaterialType = eMaterialType::COUNT;
 }
+
 
 CommandBuffer::CommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) :
 	m_contextState(contextStateForCommandBuffer),
@@ -292,5 +441,39 @@ void RenderContext::EndTransferPass()
 		SAFEDELETE(m_stagingBuffers[i]);
 	}
 	m_stagingBuffers.RemoveAll();
+}
+
+void Hail::RenderContext::StartComputePass()
+{
+	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "Wrong context state for starting a graphics pass.");
+	const uint32 frameInFlight = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
+	// TODO: Kolla in att använda en egen command buffer
+	m_pCurrentCommandBuffer = m_pGraphicsCommandBuffers[frameInFlight];
+	m_pCurrentCommandBuffer->BeginBuffer();
+	m_currentState = eContextState::Compute;
+}
+
+void Hail::RenderContext::EndComputePass()
+{
+	H_ASSERT(m_currentState == eContextState::Compute, "Wrong context state for ending the compute pass.");
+	H_ASSERT(m_boundMaterialType != eMaterialType::COUNT, "Wrong material context state for ending the compute pass.");
+	
+	m_pCurrentCommandBuffer->EndBuffer(false);
+
+	CleanupAndEndPass();
+
+	m_pCurrentCommandBuffer = nullptr;
+	m_currentState = eContextState::TransitionBetweenStates;
+}
+
+void Hail::RenderContext::TransferBufferState(BufferObject* pBuffer, eShaderAccessQualifier newState)
+{
+	if (pBuffer->GetAccessQualifier() == newState)
+	{
+		H_ERROR("Setting shaderState that is already set");
+		return;
+	}
+	TransferBufferStateInternal(pBuffer, newState);
+	pBuffer->SetAccessQualifier(newState);
 }
 

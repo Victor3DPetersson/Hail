@@ -12,7 +12,7 @@ struct DebugLineData
     vec4 color; 
 };
 
-layout(std140, set = 1, binding = 0) buffer LineDataBuffer 
+layout(std140, set = 1, binding = 0) buffer readonly LineDataBuffer 
 {
    	DebugLineData lineDataBuffer[];
 };

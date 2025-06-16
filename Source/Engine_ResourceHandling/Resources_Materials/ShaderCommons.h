@@ -7,7 +7,7 @@
 
 namespace Hail
 {
-	enum class eShaderType : uint8
+	enum class eShaderStage : uint8
 	{
 		Compute,
 		Vertex,
@@ -16,6 +16,9 @@ namespace Hail
 		Mesh,
 		None
 	};
+
+	constexpr uint32 ComputeShaderStage = 1 << (uint32)eShaderStage::Compute;
+	constexpr uint32 VertexFragmentShaderStage = (1 << (uint32)eShaderStage::Vertex) | (1 << (uint32)eShaderStage::Fragment);
 
 	enum class SHADERLANGUAGETARGET
 	{
@@ -28,7 +31,7 @@ namespace Hail
 	struct ShaderHeader
 	{
 		uint32_t sizeOfShaderData = 0;
-		uint32_t shaderType = 0;
+		uint32_t shaderType = 0; // ShaderStage, rename in another MR
 	};
 
 	enum class eShaderLoadState

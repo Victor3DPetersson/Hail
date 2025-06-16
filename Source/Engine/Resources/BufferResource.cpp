@@ -5,13 +5,13 @@ using namespace Hail;
 
 uint32 BufferObject::g_idCounter = 0;
 
-bool Hail::BufferObject::Init(RenderingDevice* pDevice, BufferProperties properties)
+bool Hail::BufferObject::Init(RenderingDevice* pDevice, BufferProperties properties, const char* name)
 {
 	m_properties = properties;
 
 	bool bIsAValidBuffer = false;
 
-	if (properties.usage != eShaderBufferUsage::Undefined && properties.domain != eShaderBufferDomain::Undefined)
+	if (properties.domain != eShaderBufferDomain::Undefined)
 	{
 		bIsAValidBuffer = true;
 		if (properties.domain != eShaderBufferDomain::GpuOnly && properties.updateFrequency == eShaderBufferUpdateFrequency::Undefined)
@@ -33,7 +33,10 @@ bool Hail::BufferObject::Init(RenderingDevice* pDevice, BufferProperties propert
 	const bool result = InternalInit(pDevice);
 
 	if (result)
+	{
 		m_id = g_idCounter++;
+		m_name = name;
+	}
 
 	return result;
 }

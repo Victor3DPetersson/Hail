@@ -272,7 +272,6 @@ namespace Hail
 		m_pointsOnTheGPU.Add(glm::vec2(0.8, 0.23));
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
-		pContext->StartTransferPass();
 
 		CompiledTexture sdfTextureValues;
 		sdfTextureValues.properties.height = height;
@@ -291,30 +290,29 @@ namespace Hail
 		BufferProperties cloudPointBufferProps;
 		cloudPointBufferProps.elementByteSize = sizeof(glm::vec2);
 		cloudPointBufferProps.numberOfElements = m_pointsOnTheGPU.Size();
-		cloudPointBufferProps.offset = 0;
 		cloudPointBufferProps.type = eBufferType::structured;
 		cloudPointBufferProps.domain = eShaderBufferDomain::CpuToGpu;
-		cloudPointBufferProps.usage = eShaderBufferUsage::Read;
+		cloudPointBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		cloudPointBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-		m_pCloudBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(cloudPointBufferProps);
+		m_pCloudBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(cloudPointBufferProps, "Cloud PointBuffer");
 
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
 		MaterialCreationProperties matProperties{};
 		RelativeFilePath vertexProjectPath("resources/shaders/VS_fullscreenPass.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource(vertexProjectPath.GetFilePath(), eShaderType::Vertex)))
+			pMatManager->ImportShaderResource(vertexProjectPath.GetFilePath(), eShaderStage::Vertex)))
 		{
 			matProperties.m_shaders[0].m_id = metaData->GetGUID();
-			matProperties.m_shaders[0].m_type = eShaderType::Vertex;
+			matProperties.m_shaders[0].m_type = eShaderStage::Vertex;
 		}
 
 		RelativeFilePath fragmentProjectPath("resources/shaders/FS_cloudDrawing.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderType::Fragment)))
+			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderStage::Fragment)))
 		{
 			matProperties.m_shaders[1].m_id = metaData->GetGUID();
-			matProperties.m_shaders[1].m_type = eShaderType::Fragment;
+			matProperties.m_shaders[1].m_type = eShaderStage::Fragment;
 		}
 
 		matProperties.m_baseMaterialType = eMaterialType::CUSTOM;
@@ -322,8 +320,41 @@ namespace Hail
 		m_pCloudPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
 		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
-		pContext->EndTransferPass();
 		m_numberOfPointsUploaded = m_pointsOnTheGPU.Size();
+
+		MaterialCreationProperties computeMatProperties{};
+		RelativeFilePath computeProjectPath("resources/shaders/CS_calculateCloudCoverage.shr");
+		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
+			pMatManager->ImportShaderResource(computeProjectPath.GetFilePath(), eShaderStage::Compute, false)))
+		{
+			computeMatProperties.m_shaders[0].m_id = metaData->GetGUID();
+			computeMatProperties.m_shaders[0].m_type = eShaderStage::Compute;
+		}
+		computeMatProperties.m_baseMaterialType = eMaterialType::CUSTOM;
+		computeMatProperties.m_typeRenderPass = eMaterialType::CUSTOM;
+		m_pCloudCoveragePipeline = pMatManager->CreateMaterialPipeline(computeMatProperties);
+
+		BufferProperties particleUniformBufferProps;
+		particleUniformBufferProps.elementByteSize = sizeof(ParticleUniformBuffer);
+		particleUniformBufferProps.numberOfElements = 1;
+		particleUniformBufferProps.type = eBufferType::uniform;
+		particleUniformBufferProps.domain = eShaderBufferDomain::CpuToGpu;
+		particleUniformBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
+		particleUniformBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
+		m_pParticleUniformBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleUniformBufferProps, "Particle Uniform Buffer");
+
+		TextureProperties particleCoverageTextureProps;
+		particleCoverageTextureProps.height = m_pResourceManager->GetSwapChain()->GetTargetResolution().y;
+		particleCoverageTextureProps.width = m_pResourceManager->GetSwapChain()->GetTargetResolution().x;
+		particleCoverageTextureProps.format = eTextureFormat::R8G8B8A8_UNORM;
+		particleCoverageTextureProps.accessQualifier = eShaderAccessQualifier::WriteOnly;
+		
+		m_pParticleCoverageTexture = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "Particle Coverage Texture", particleCoverageTextureProps);
+
+		TextureViewProperties particleCoverageProps;
+		particleCoverageProps.pTextureToView = m_pParticleCoverageTexture;
+		particleCoverageProps.viewUsage = eTextureUsage::Texture;
+		m_pParticleCoverageView = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoverageProps);
 
 
 		CloudParticle particle;
@@ -335,12 +366,19 @@ namespace Hail
 			m_cloudParticles.Add(particle);
 		}
 
-		return m_pCloudPipeline != nullptr;
+		return m_pCloudPipeline != nullptr && m_pCloudCoveragePipeline != nullptr;
 	}
 
 	void CloudRenderer::Cleanup()
 	{
-		H_ASSERT(m_pCloudBuffer);
+		m_pParticleUniformBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pParticleUniformBuffer);
+		m_pParticleCoverageView->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pParticleCoverageView);
+		m_pParticleCoverageTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pParticleCoverageTexture);
+
+
 		m_pCloudBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pCloudBuffer);
 
@@ -352,6 +390,9 @@ namespace Hail
 
 		m_pCloudPipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pCloudPipeline);
+
+		m_pCloudCoveragePipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pCloudCoveragePipeline);
 	}
 
 	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
@@ -373,14 +414,19 @@ namespace Hail
 		debugCircle.pos.x /= aspectRatio;
 		debugCircle.scale = 30.0;
 		debugCircle.color = Color::Orange;
-		//poolOfCommands.m_debugCircles.Add(debugCircle);
 
-		// TODO add debug line for the bounds: 
+		// Bounds lines
 		//DrawRect2D(poolOfCommands.m_debugLineCommands, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f / aspectRatio, 1.0f) );
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->StartTransferPass();
 		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
+
+		m_ParticleUniforms.numberOfParticles = m_pointsOnTheGPU.Size();
+		m_ParticleUniforms.particleSize = 20.f;
+
+		pContext->UploadDataToBuffer(m_pParticleUniformBuffer, &m_ParticleUniforms, sizeof(ParticleUniformBuffer));
+
 		pContext->EndTransferPass();
 
 	}
@@ -389,11 +435,18 @@ namespace Hail
 	{
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
+		// Bind Dispatch stuff
 		pContext->SetBufferAtSlot(m_pCloudBuffer, 0);
-		pContext->SetTextureAtSlot(m_pSdfView, 1);
+		pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 2);
+		pContext->SetTextureAtSlot(m_pParticleCoverageView, 1);
+
+		pContext->BindMaterial(m_pCloudCoveragePipeline->m_pPipeline);
+		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
+		pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
+
+		pContext->SetTextureAtSlot(m_pParticleCoverageView, 1);
 		pContext->SetTextureAtSlot(m_pSdfView, 2);
 
-		pContext->SetPipelineState(m_pCloudPipeline->m_pPipeline);
 		pContext->BindMaterial(m_pCloudPipeline->m_pPipeline);
 		glm::uvec4 pushConstantData = glm::uvec4(m_numberOfPointsUploaded, 0, 0, 0);
  		pContext->SetPushConstantValue(&pushConstantData);

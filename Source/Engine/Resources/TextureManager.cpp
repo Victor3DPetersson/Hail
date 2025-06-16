@@ -106,6 +106,7 @@ void TextureManager::Update(RenderContext* pRenderContext)
 			TextureViewProperties props{};
 			props.pTextureToView = loadedTexture.m_pTexture;
 			props.viewUsage = eTextureUsage::Texture;
+			props.accessQualifier = eShaderAccessQualifier::ReadOnly;
 			if (!loadedTexture.m_pView->InitView(m_device, props))
 			{
 				successfulLoad = false;
@@ -147,6 +148,7 @@ bool Hail::TextureManager::LoadTexture(const char* textureName)
 		TextureViewProperties props{};
 		props.pTextureToView = textureAndView.m_pTexture;
 		props.viewUsage = eTextureUsage::Texture;
+		props.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		if (!textureAndView.m_pView->InitView(m_device, props))
 		{
 			textureAndView.m_pView->CleanupResource(m_device);
@@ -486,6 +488,21 @@ TextureResource* Hail::TextureManager::CreateTexture(RenderContext* pRenderConte
 	return pTexture;
 }
 
+TextureResource* Hail::TextureManager::CreateTexture(RenderContext* pRenderContext, const char* name, TextureProperties& textureProperties)
+{
+	TextureResource* pTexture = CreateTextureInternalNoLoad();
+	pTexture->textureName = name;
+	pTexture->m_index = TextureResource::g_idCounter++;
+	pTexture->m_properties = textureProperties;
+	CompiledTexture compiledTextureData{};
+	compiledTextureData.properties = textureProperties;
+	compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
+	compiledTextureData.compiledColorValues = nullptr;
+	H_ASSERT(CreateTextureGPUData(pRenderContext, compiledTextureData, pTexture), "Failed to create texture");
+	pRenderContext->TransferTextureLayout(pTexture, textureProperties.accessQualifier);
+	return pTexture;
+}
+
 
 FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
@@ -590,6 +607,7 @@ void Hail::TextureManager::CreateDefaultTexture(RenderContext* pRenderContext)
 	TextureViewProperties props{};
 	props.pTextureToView = m_defaultTexture.m_pTexture;
 	props.viewUsage = eTextureUsage::Texture;
+	props.accessQualifier = eShaderAccessQualifier::ReadOnly;
 	H_ASSERT(m_defaultTexture.m_pView->InitView(m_device, props));
 
 	pRenderContext->EndTransferPass();

@@ -20,6 +20,8 @@ namespace Hail
 	class TextureView;
 	class Pipeline;
 
+	struct SetDecoration;
+
 	enum class eContextState
 	{
 		TransitionBetweenStates,
@@ -60,8 +62,6 @@ namespace Hail
 		virtual void BindMaterialInstance(uint32 materialInstanceIndex) = 0;
 		void BindFrameBufferAtSlot(FrameBufferTexture* pFrameBuffer, uint32 bindSlot);
 		void BindVertexBuffer(BufferObject* pVertexBufferToBind, BufferObject* pIndexBufferToBind);
-		// Creates a complete state for a pipeline if it does not exist, this pipeline will be with the bound resources. 
-		void SetPipelineState(Pipeline* pPipeline);
 		// Takes any 16 byte sized data
 		void SetPushConstantValue(void* pPushConstant);
 
@@ -80,7 +80,10 @@ namespace Hail
 		void UploadDataToTexture(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 
 		void TransferFramebufferLayout(FrameBufferTexture* pTextureToTransfer, eFrameBufferLayoutState colorState, eFrameBufferLayoutState depthState);
+		void TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier);
+		void TransferBufferState(BufferObject* pBuffer, eShaderAccessQualifier newState);
 
+		virtual void Dispatch(glm::uvec3 dispatchSize);
 		virtual void RenderMeshlets(glm::uvec3 dispatchSize);
 		virtual void RenderFullscreenPass() = 0;
 		virtual void RenderInstances(uint32 numberOfInstances, uint32 offset) = 0;
@@ -90,15 +93,17 @@ namespace Hail
 		// Will end the frame if the last bound material that was bound is FULLSCREEN_PRESENT_LETTERBOX
 		void StartGraphicsPass();
 		void EndGraphicsPass();
-		//void StartComputePass();
-		//void EndComputePass();
 		void StartTransferPass();
 		void EndTransferPass();
+		void StartComputePass();
+		virtual void EndComputePass();
+
 
 		virtual void StartFrame() = 0;
 		virtual void EndRenderPass() = 0;
 
 	protected:
+		void CleanupAndEndPass();
 
 		class MaterialFrameBufferConnection
 		{
@@ -109,26 +114,39 @@ namespace Hail
 			FrameBufferTexture* m_pBoundFrameBuffer = nullptr;
 		};
 
+		class ComputePipeline
+		{
+		public:
+			virtual void Cleanup(RenderingDevice* pDevice) = 0;
+			Pipeline* m_pMaterialPipeline = nullptr;
+		};
+
 		void Init();
 
+		// Creates a complete state for a pipeline if it does not exist, this pipeline will be with the bound resources. 
+		void ValidatePipelineAndUpdateDescriptors(Pipeline* pPipeline);
+		void CheckBoundDataAgainstSetDecoration(const SetDecoration& setDecoration, eDecorationType decorationType);
 		virtual void SubmitFinalFrameCommandBuffer() = 0;
 
 		virtual CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) = 0;
 		virtual void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) = 0;
 		virtual void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel) = 0;
-		virtual void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) = 0;
 		virtual bool BindMaterialInternal(Pipeline* pMaterial) = 0;
+		virtual bool BindComputePipelineInternal(Pipeline* pPipeline) = 0;
 		virtual void ClearFrameBufferInternal(FrameBufferTexture* pFrameBuffer) = 0;
-		virtual MaterialFrameBufferConnection* CreateMaterialFrameBufferConnection() = 0;
 		virtual void BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* connectionToBind) = 0;
+		virtual void BindComputePipeline(ComputePipeline* pPipelineToBind) = 0;
 		virtual void BindVertexBufferInternal() = 0;
 		virtual void SetPushConstantInternal(void* pPushConstant) = 0;
-
+		virtual void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) = 0;
+		virtual void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState) = 0;
+		virtual void TransferBufferStateInternal(BufferObject* pBuffer, eShaderAccessQualifier newState) = 0;
 
 		RenderingDevice* m_pDevice;
 		ResourceManager* m_pResourceManager;
 
 		eContextState m_currentState;
+		uint32 m_lastBoundShaderStages;
 		CommandBuffer* m_pCurrentCommandBuffer;
 
 		Material* m_pBoundMaterial;
@@ -136,9 +154,9 @@ namespace Hail
 		BufferObject* m_pBoundVertexBuffer;
 		BufferObject* m_pBoundIndexBuffer;
 
-		StaticArray<TextureView*, 16> m_pBoundTextures;
-		StaticArray<BufferObject*, 16> m_pBoundStructuredBuffers;
-		StaticArray<BufferObject*, 16> m_pBoundUniformBuffers;
+		StaticArray<TextureView*, 16u> m_pBoundTextures;
+		StaticArray<BufferObject*, 16u> m_pBoundStructuredBuffers;
+		StaticArray<BufferObject*, 16u> m_pBoundUniformBuffers;
 		StaticArray<FrameBufferTexture*, 8> m_pBoundFrameBuffers;
 
 		GrowingArray<BufferObject*> m_stagingBuffers;
@@ -149,5 +167,6 @@ namespace Hail
 		eMaterialType m_boundMaterialType;
 
 		GrowingArray<MaterialFrameBufferConnection*> m_pFrameBufferMaterialPipelines;
+		GrowingArray<ComputePipeline*> m_pComputePipelines;
 	};
 }

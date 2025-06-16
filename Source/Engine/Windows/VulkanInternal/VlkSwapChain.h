@@ -25,7 +25,7 @@ namespace Hail
 		VkExtent2D GetSwapChainExtent() { return m_swapChainExtent; }
 		VkFormat GetSwapChainFormat() { return m_swapChainImageFormat; }
 		uint32_t GetCurrentSwapImageIndex() { return m_currentImageIndex; }
-		uint32_t GetSwapchainImageCount(){ return m_imageCount; }
+		uint32_t GetSwapchainImageCount() { return m_imageCount; }
 		VkRenderPass GetRenderPass() { return m_finalRenderPass; }
 		VkFramebuffer GetFrameBuffer(uint32_t index);
 		VkFormat FindSupportedFormat(VlkDevice& device, const GrowingArray<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);

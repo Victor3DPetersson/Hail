@@ -51,7 +51,7 @@ namespace Hail
 
 		MaterialTypeObject* GetTypeData(Pipeline* pPipeline);
 
-		virtual void BindPipelineToContext(Pipeline* pPipeline, RenderContext* pRenderContext) = 0;
+		virtual void UpdateCustomPipelineDescriptors(Pipeline* pPipeline, RenderContext* pRenderContext) = 0;
 
 		// Resource handling functionality
 		FilePath CreateMaterial(const FilePath& outPath, const String64& name, eMaterialType type) const;
@@ -59,13 +59,13 @@ namespace Hail
 		static void LoadMaterialMetaData(const FilePath& materialPath, MetaResource& resourceToFill);
 		static SerializeableMaterial LoadMaterialSerializeableInstance(const FilePath& materialPath);
 		static MetaResource LoadShaderMetaData(const FilePath& shaderPath);
-		CompiledShader* GetDefaultCompiledLoadedShader(eShaderType shaderType);
+		CompiledShader* GetDefaultCompiledLoadedShader(eShaderStage shaderType);
 		CompiledShader* GetCompiledLoadedShader(GUID shaderGUID);
 		CompiledShader* LoadShaderResource(GUID shaderGUID);
 		FilePath ImportShaderResource(const FilePath& filepath);
-		FilePath ImportShaderResource(const FilePath& filepath, eShaderType shaderType);
+		FilePath ImportShaderResource(const FilePath& filepath, eShaderStage shaderType, bool bForceReload = false);
 
-		const bool IsShaderValidWithMaterialType(eMaterialType materialType, eShaderType shaderType, ReflectedShaderData& shaderDataToCheck) const;
+		const bool IsShaderValidWithMaterialType(eMaterialType materialType, eShaderStage shaderType, ReflectedShaderData& shaderDataToCheck) const;
 
 	protected:
 
@@ -88,12 +88,12 @@ namespace Hail
 		void CheckMaterialInstancesToReload(uint32 frameInFlight);
 
 
-		CompiledShader* LoadShader(const char* shaderName, eShaderType shaderType, bool reloadShader, const char* shaderExtension = "");
+		CompiledShader* LoadShader(const char* shaderName, eShaderStage shaderType, bool reloadShader, const char* shaderExtension = "");
 		void InitCompiler();
 		void DeInitCompiler();
 
 		ResourceValidator& GetDefaultMaterialValidator(eMaterialType type);
-		const ReflectedShaderData* GetDefaultShaderData(eMaterialType materialType, eShaderType shaderType) const;
+		const ReflectedShaderData* GetDefaultShaderData(eMaterialType materialType, eShaderStage shaderType) const;
 
 		// Resource dependencies
 		RenderingDevice* m_renderDevice = nullptr;
@@ -125,7 +125,7 @@ namespace Hail
 		ResourceValidator m_default3DMaterialsInstanceValidationData;
 
 		// TODO: better data structure
-		StaticArray<GrowingArray<CompiledShader>, (uint32)eShaderType::None> m_loadedShaders;
+		StaticArray<GrowingArray<CompiledShader>, (uint32)eShaderStage::None> m_loadedShaders;
 		StaticArray<VectorOnStack<CompiledShader*, 2>, (uint32)eMaterialType::COUNT> m_defaultShaders;
 	};
 }

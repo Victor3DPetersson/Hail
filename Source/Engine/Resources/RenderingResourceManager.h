@@ -32,7 +32,7 @@ namespace Hail
 
 		BufferObject* GetGlobalBuffer(eDecorationSets setToGet, eBufferType bufferType, uint8 bindingPoint);
 		SamplerObject* GetGlobalSampler(GlobalSamplers samplerToGet);
-		virtual BufferObject* CreateBuffer(BufferProperties properties) = 0;
+		virtual BufferObject* CreateBuffer(BufferProperties properties, const char* name) = 0;
 		virtual SamplerObject* CreateSamplerObject(SamplerProperties properties) = 0;
 
 	protected:

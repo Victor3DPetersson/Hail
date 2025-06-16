@@ -115,9 +115,24 @@ bool Hail::VlkTextureResource::InternalInit(RenderingDevice* pDevice)
 	imgCreateInfo.format = m_properties.depthFormat == TEXTURE_DEPTH_FORMAT::UNDEFINED ? ToVkFormat(m_properties.format) : ToVkFormat(m_properties.depthFormat);
 	imgCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	imgCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	VkImageUsageFlags usage;
+	VkImageUsageFlags usage{};
 
-	if (m_properties.textureUsage != eTextureUsage::Texture)
+	if (m_properties.textureUsage == eTextureUsage::Texture)
+	{
+		if (m_properties.accessQualifier == eShaderAccessQualifier::ReadOnly)
+		{
+			usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		}
+		else if (m_properties.accessQualifier == eShaderAccessQualifier::ReadWrite)
+		{
+			usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+		}
+		else
+		{
+			usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+		}
+	}
+	else // Framebuffer textures
 	{
 		// TODO figure out if I need VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT on all types or if I can flag this nicely
 		if (m_properties.textureUsage == eTextureUsage::FramebufferColor)
@@ -133,10 +148,6 @@ bool Hail::VlkTextureResource::InternalInit(RenderingDevice* pDevice)
 			usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		}
 	}
-	else
-	{
-		usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	}
 
 	imgCreateInfo.usage = usage;
 	imgCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -147,6 +158,9 @@ bool Hail::VlkTextureResource::InternalInit(RenderingDevice* pDevice)
 	allocCreateInfo.priority = 1.0f;
 	VmaAllocator allocator = ((VlkDevice*)pDevice)->GetMemoryAllocator();
  	VkResult result = vmaCreateImage(allocator, &imgCreateInfo, &allocCreateInfo, &m_textureData.textureImage, &m_textureData.allocation, nullptr);
+
+	m_textureData.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	m_textureData.currentUsage = usage;
 
 	return result == VK_SUCCESS;
 }
@@ -198,6 +212,7 @@ bool Hail::VlkTextureView::InitView(RenderingDevice* pDevice, TextureViewPropert
 	H_ASSERT(vkCreateImageView(vlkDevice.GetDevice(), &viewInfo, nullptr, &m_textureImageView) == VK_SUCCESS);
 
 	m_textureIndex = properties.pTextureToView->m_index;
+	m_props = properties;
 
 	return true;
 }

@@ -118,7 +118,6 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-
 	ResourceInterface::InitializeResourceInterface(*g_engineData->resourceManager);
 
 	g_engineData->inputActionMap.Init(g_engineData->inputHandler);

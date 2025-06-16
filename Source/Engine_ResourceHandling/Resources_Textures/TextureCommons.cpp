@@ -194,4 +194,265 @@ namespace Hail
 		}
 		return "";
 	}
+	bool TextureFormatMatchesDecoration(eTextureFormat textureFormat, const ShaderDecoration& decorationToCheck)
+	{
+		bool bIsMatching = true;
+		switch (textureFormat)
+		{
+		case Hail::eTextureFormat::UNDEFINED:
+			// Unsupported for now, will be matching and checked for when engine support implements it
+		case Hail::eTextureFormat::R4G4_UNORM_PACK8:
+		case Hail::eTextureFormat::R4G4B4A4_UNORM_PACK16:
+		case Hail::eTextureFormat::B4G4R4A4_UNORM_PACK16:
+		case Hail::eTextureFormat::R5G6B5_UNORM_PACK16:
+		case Hail::eTextureFormat::B5G6R5_UNORM_PACK16:
+		case Hail::eTextureFormat::R5G5B5A1_UNORM_PACK16:
+		case Hail::eTextureFormat::B5G5R5A1_UNORM_PACK16:
+		case Hail::eTextureFormat::A1R5G5B5_UNORM_PACK16:
+		case Hail::eTextureFormat::A2R10G10B10_UNORM_PACK32:
+		case Hail::eTextureFormat::A2R10G10B10_SNORM_PACK32:
+		case Hail::eTextureFormat::A2R10G10B10_USCALED_PACK32:
+		case Hail::eTextureFormat::A2R10G10B10_SSCALED_PACK32:
+		case Hail::eTextureFormat::A2R10G10B10_UINT_PACK32:
+		case Hail::eTextureFormat::A2R10G10B10_SINT_PACK32:
+		case Hail::eTextureFormat::A2B10G10R10_UNORM_PACK32:
+		case Hail::eTextureFormat::A2B10G10R10_SNORM_PACK32:
+		case Hail::eTextureFormat::A2B10G10R10_USCALED_PACK32:
+		case Hail::eTextureFormat::A2B10G10R10_SSCALED_PACK32:
+		case Hail::eTextureFormat::A2B10G10R10_UINT_PACK32:
+		case Hail::eTextureFormat::A2B10G10R10_SINT_PACK32:
+		case Hail::eTextureFormat::B10G11R11_UFLOAT_PACK32:
+		case Hail::eTextureFormat::E5B9G9R9_UFLOAT_PACK32:
+			bIsMatching = false;
+			break;
+		case Hail::eTextureFormat::R8_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::uint8norm;
+			break;
+		case Hail::eTextureFormat::R8_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::int8norm;
+			break;
+		case Hail::eTextureFormat::R8_UINT:
+		case Hail::eTextureFormat::R8_USCALED:
+		case Hail::eTextureFormat::R8_SRGB:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::uint8;
+			break;
+		case Hail::eTextureFormat::R8_SINT:
+		case Hail::eTextureFormat::R8_SSCALED:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::int8;
+			break;
+		case Hail::eTextureFormat::R8G8_USCALED:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint8norm;
+			break;
+		case Hail::eTextureFormat::R8G8_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::int8norm;
+			break;
+			break;
+			break;
+		case Hail::eTextureFormat::R8G8_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint8norm;
+		case Hail::eTextureFormat::R8G8_UINT:
+		case Hail::eTextureFormat::R8G8_SRGB:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint8;
+			break;
+		case Hail::eTextureFormat::R8G8_SSCALED:
+		case Hail::eTextureFormat::R8G8_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::int8;
+			break;
+		case Hail::eTextureFormat::R8G8B8_UNORM:
+		case Hail::eTextureFormat::B8G8R8_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::uint8norm;
+			break;
+		case Hail::eTextureFormat::R8G8B8_SNORM:
+		case Hail::eTextureFormat::B8G8R8_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::int8norm;
+			break;
+		case Hail::eTextureFormat::R8G8B8_USCALED:
+		case Hail::eTextureFormat::R8G8B8_UINT:
+		case Hail::eTextureFormat::R8G8B8_SRGB:
+		case Hail::eTextureFormat::B8G8R8_USCALED:
+		case Hail::eTextureFormat::B8G8R8_UINT:
+		case Hail::eTextureFormat::B8G8R8_SRGB:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::uint8;
+			break;
+		case Hail::eTextureFormat::R8G8B8_SSCALED:
+		case Hail::eTextureFormat::R8G8B8_SINT:
+		case Hail::eTextureFormat::B8G8R8_SSCALED:
+		case Hail::eTextureFormat::B8G8R8_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::int8;
+			break;
+		case Hail::eTextureFormat::R8G8B8A8_UNORM:
+		case Hail::eTextureFormat::B8G8R8A8_UNORM:
+		case Hail::eTextureFormat::A8B8G8R8_UNORM_PACK32:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::uint8norm;
+			break;
+		case Hail::eTextureFormat::R8G8B8A8_SNORM:
+		case Hail::eTextureFormat::B8G8R8A8_SNORM:
+		case Hail::eTextureFormat::A8B8G8R8_SNORM_PACK32:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::int8norm;
+			break;
+		case Hail::eTextureFormat::R8G8B8A8_USCALED:
+		case Hail::eTextureFormat::R8G8B8A8_UINT:
+		case Hail::eTextureFormat::R8G8B8A8_SRGB:
+		case Hail::eTextureFormat::B8G8R8A8_USCALED:
+		case Hail::eTextureFormat::B8G8R8A8_UINT:
+		case Hail::eTextureFormat::B8G8R8A8_SRGB:
+		case Hail::eTextureFormat::A8B8G8R8_USCALED_PACK32:
+		case Hail::eTextureFormat::A8B8G8R8_UINT_PACK32:
+		case Hail::eTextureFormat::A8B8G8R8_SRGB_PACK32:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::uint8;
+			break;
+		case Hail::eTextureFormat::R8G8B8A8_SSCALED:
+		case Hail::eTextureFormat::R8G8B8A8_SINT:
+		case Hail::eTextureFormat::B8G8R8A8_SSCALED:
+		case Hail::eTextureFormat::B8G8R8A8_SINT:
+		case Hail::eTextureFormat::A8B8G8R8_SSCALED_PACK32:
+		case Hail::eTextureFormat::A8B8G8R8_SINT_PACK32:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::int8;
+			break;
+		case Hail::eTextureFormat::R16_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::uint16norm;
+			break;
+		case Hail::eTextureFormat::R16_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::int16norm;
+			break;
+		case Hail::eTextureFormat::R16_USCALED:
+		case Hail::eTextureFormat::R16_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::uint16;
+			break;
+		case Hail::eTextureFormat::R16_SSCALED:
+		case Hail::eTextureFormat::R16_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::int16;
+			break;
+		case Hail::eTextureFormat::R16_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::float16;
+			break;
+		case Hail::eTextureFormat::R16G16_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint16norm;
+			break;
+		case Hail::eTextureFormat::R16G16_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::int16norm;
+			break;
+		case Hail::eTextureFormat::R16G16_USCALED:
+		case Hail::eTextureFormat::R16G16_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint16;
+			break;
+		case Hail::eTextureFormat::R16G16_SSCALED:
+		case Hail::eTextureFormat::R16G16_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::int16;
+			break;
+		case Hail::eTextureFormat::R16G16_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::float16;
+			break;
+		case Hail::eTextureFormat::R16G16B16_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::uint16norm;
+			break;
+		case Hail::eTextureFormat::R16G16B16_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::int16norm;
+			break;
+		case Hail::eTextureFormat::R16G16B16_USCALED:
+		case Hail::eTextureFormat::R16G16B16_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::uint16;
+			break;
+		case Hail::eTextureFormat::R16G16B16_SSCALED:
+		case Hail::eTextureFormat::R16G16B16_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::int16;
+			break;
+		case Hail::eTextureFormat::R16G16B16_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::float16;
+			break;
+		case Hail::eTextureFormat::R16G16B16A16_UNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::uint16norm;
+			break;
+		case Hail::eTextureFormat::R16G16B16A16_SNORM:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::int16norm;
+			break;
+		case Hail::eTextureFormat::R16G16B16A16_USCALED:
+		case Hail::eTextureFormat::R16G16B16A16_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::uint16;
+			break;
+		case Hail::eTextureFormat::R16G16B16A16_SSCALED:
+		case Hail::eTextureFormat::R16G16B16A16_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::int16;
+			break;
+		case Hail::eTextureFormat::R16G16B16A16_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::float16;
+			break;
+		case Hail::eTextureFormat::R32_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::uint32;
+			break;
+		case Hail::eTextureFormat::R32_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::int32;
+			break;
+		case Hail::eTextureFormat::R32_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::float32;
+			break;
+		case Hail::eTextureFormat::R32G32_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint32;
+			break;
+		case Hail::eTextureFormat::R32G32_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::int32;
+			break;
+		case Hail::eTextureFormat::R32G32_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::float32;
+			break;
+		case Hail::eTextureFormat::R32G32B32_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::uint32;
+			break;
+		case Hail::eTextureFormat::R32G32B32_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::int32;
+			break;
+		case Hail::eTextureFormat::R32G32B32_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::float32;
+			break;
+		case Hail::eTextureFormat::R32G32B32A32_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::uint32;
+			break;
+		case Hail::eTextureFormat::R32G32B32A32_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::int32;
+			break;
+		case Hail::eTextureFormat::R32G32B32A32_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::float32;
+			break;
+		case Hail::eTextureFormat::R64_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::uint64;
+			break;
+		case Hail::eTextureFormat::R64_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::int64;
+			break;
+		case Hail::eTextureFormat::R64_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 1 && decorationToCheck.m_valueType == eShaderValueType::float64;
+			break;
+		case Hail::eTextureFormat::R64G64_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::uint64;
+			break;
+		case Hail::eTextureFormat::R64G64_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::int64;
+			break;
+		case Hail::eTextureFormat::R64G64_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 2 && decorationToCheck.m_valueType == eShaderValueType::float64;
+			break;
+		case Hail::eTextureFormat::R64G64B64_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::uint64;
+			break;
+		case Hail::eTextureFormat::R64G64B64_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::int64;
+			break;
+		case Hail::eTextureFormat::R64G64B64_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 3 && decorationToCheck.m_valueType == eShaderValueType::float64;
+			break;
+		case Hail::eTextureFormat::R64G64B64A64_UINT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::uint64;
+			break;
+		case Hail::eTextureFormat::R64G64B64A64_SINT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::int64;
+			break;
+		case Hail::eTextureFormat::R64G64B64A64_SFLOAT:
+			bIsMatching = decorationToCheck.m_elementCount == 4 && decorationToCheck.m_valueType == eShaderValueType::float64;
+			break;
+		default:
+			bIsMatching = false;
+			break;
+		}
+		return bIsMatching;
+	}
 }

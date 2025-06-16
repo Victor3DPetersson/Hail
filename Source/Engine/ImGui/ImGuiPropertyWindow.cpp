@@ -38,7 +38,7 @@ namespace
 	{
 		ImGui::Separator();
 		ImGui::Text("Shader Name: %s", pShader->shaderName.Data());
-		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderType)pShader->header.shaderType));
+		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderStage)pShader->header.shaderType));
 	}
 
 	void RenderTextureProperty(Hail::ImGuiContext* context)
@@ -112,7 +112,7 @@ namespace
 		ShaderResourceContextObject& shader = *(ShaderResourceContextObject*)context->GetCurrentContextObject();
 		ImGui::Text("Shader Asset\nName: %s", shader.m_pFileObject->m_fileObject.Name().CharString());
 
-		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderType)shader.m_pShader->header.shaderType));
+		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderStage)shader.m_pShader->header.shaderType));
 
 		return ImGuiPropertyWindowReturnValue::NoOp;
 	}

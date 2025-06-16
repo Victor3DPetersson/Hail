@@ -28,7 +28,7 @@ namespace Hail
 
 		void* GetRenderingResources() override;
 
-		BufferObject* CreateBuffer(BufferProperties properties) override;
+		BufferObject* CreateBuffer(BufferProperties properties, const char* name) override;
 		SamplerObject* CreateSamplerObject(SamplerProperties properties) override;
 
 	private:

@@ -13,6 +13,8 @@ bool Hail::TextureResource::Init(RenderingDevice* pDevice)
         return false;
     }
 
+    m_accessQualifier = m_properties.accessQualifier;
+
     if (m_index != MAX_UINT)
         return InternalInit(pDevice);
 

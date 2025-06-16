@@ -3,7 +3,6 @@
 #include "VlkFrameBufferTexture.h"
 #include "VlkDevice.h"
 #include "Resources\Vulkan\VlkTextureResource.h"
-
 #include "Containers\VectorOnStack\VectorOnStack.h"
 using namespace Hail;
 
@@ -90,6 +89,7 @@ void VlkFrameBufferTexture::CreateTextureResources(bool bIsColorTexture, Renderi
 		TextureViewProperties viewProps{};
 		viewProps.viewUsage = props.textureUsage;
 		viewProps.pTextureToView = vlkTextureResource;
+		viewProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		H_ASSERT(pVlkTextureView->InitView(pDevice, viewProps));
 
 		if (bIsColorTexture)
@@ -168,7 +168,6 @@ bool VlkFrameBufferTexture::CreateRenderpass(RenderingDevice* pDevice)
 		attachmentDescriptors.Add(depthAttachment);
 	}
 
-	//Todo set up dependencies depending on pass
 	VkSubpassDependency dependency{};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;

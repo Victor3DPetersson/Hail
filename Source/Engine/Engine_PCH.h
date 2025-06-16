@@ -11,6 +11,7 @@
 #include "InternalMessageHandling\InternalMessageHandling.h"
 
 #include "glm\geometric.hpp"
+#include "Resources_Materials\Materials_Common.h"
 
 #ifdef DEBUG
 #include <stdexcept>
