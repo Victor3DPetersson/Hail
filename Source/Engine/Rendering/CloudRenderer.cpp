@@ -12,6 +12,7 @@
 #include "MathUtils.h"
 #include "RenderCommands.h"
 #include "Utility\DebugLineHelpers.h"
+#include "imgui.h"
 
 namespace Hail
 {
@@ -285,6 +286,7 @@ namespace Hail
 		TextureViewProperties viewProps;
 		viewProps.pTextureToView = m_pSdfTexture;
 		viewProps.viewUsage = eTextureUsage::Texture;
+		viewProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		m_pSdfView = m_pResourceManager->GetTextureManager()->CreateTextureView(viewProps);
 
 		BufferProperties cloudPointBufferProps;
@@ -347,15 +349,21 @@ namespace Hail
 		particleCoverageTextureProps.height = m_pResourceManager->GetSwapChain()->GetTargetResolution().y;
 		particleCoverageTextureProps.width = m_pResourceManager->GetSwapChain()->GetTargetResolution().x;
 		particleCoverageTextureProps.format = eTextureFormat::R8G8B8A8_UNORM;
-		particleCoverageTextureProps.accessQualifier = eShaderAccessQualifier::WriteOnly;
+		particleCoverageTextureProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
 		
 		m_pParticleCoverageTexture = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "Particle Coverage Texture", particleCoverageTextureProps);
 
 		TextureViewProperties particleCoverageProps;
 		particleCoverageProps.pTextureToView = m_pParticleCoverageTexture;
 		particleCoverageProps.viewUsage = eTextureUsage::Texture;
-		m_pParticleCoverageView = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoverageProps);
+		particleCoverageProps.accessQualifier = eShaderAccessQualifier::WriteOnly;
+		m_pParticleCoverageViewWrite = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoverageProps);
 
+		TextureViewProperties particleCoveragePropsRead;
+		particleCoveragePropsRead.pTextureToView = m_pParticleCoverageTexture;
+		particleCoveragePropsRead.viewUsage = eTextureUsage::Texture;
+		particleCoveragePropsRead.accessQualifier = eShaderAccessQualifier::ReadOnly;
+		m_pParticleCoverageViewRead = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoveragePropsRead);
 
 		CloudParticle particle;
 		particle.velocity = glm::vec2(0.f);
@@ -373,8 +381,10 @@ namespace Hail
 	{
 		m_pParticleUniformBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pParticleUniformBuffer);
-		m_pParticleCoverageView->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pParticleCoverageView);
+		m_pParticleCoverageViewWrite->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pParticleCoverageViewWrite);
+		m_pParticleCoverageViewRead->CleanupResource(m_pRenderer->GetRenderingDevice());
+		SAFEDELETE(m_pParticleCoverageViewRead);
 		m_pParticleCoverageTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pParticleCoverageTexture);
 
@@ -397,6 +407,10 @@ namespace Hail
 
 	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
 	{
+		ImGui::Begin("Particle test window");
+
+		ImGui::SliderFloat("Particle Render Size", &m_ParticleUniforms.particleSize, 0.01f, 100.f);
+
 		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
 		m_simulator.UpdateParticles(m_cloudParticles, poolOfCommands, m_pResourceManager->GetSwapChain()->GetTargetResolution(), m_cloudSdfTexture);
 		DebugCircle debugCircle;
@@ -423,11 +437,12 @@ namespace Hail
 		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
 
 		m_ParticleUniforms.numberOfParticles = m_pointsOnTheGPU.Size();
-		m_ParticleUniforms.particleSize = 20.f;
 
 		pContext->UploadDataToBuffer(m_pParticleUniformBuffer, &m_ParticleUniforms, sizeof(ParticleUniformBuffer));
 
 		pContext->EndTransferPass();
+
+		ImGui::End();
 
 	}
 
@@ -438,13 +453,13 @@ namespace Hail
 		// Bind Dispatch stuff
 		pContext->SetBufferAtSlot(m_pCloudBuffer, 0);
 		pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 2);
-		pContext->SetTextureAtSlot(m_pParticleCoverageView, 1);
+		pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite, 1);
 
 		pContext->BindMaterial(m_pCloudCoveragePipeline->m_pPipeline);
 		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
 		pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
 
-		pContext->SetTextureAtSlot(m_pParticleCoverageView, 1);
+		pContext->SetTextureAtSlot(m_pParticleCoverageViewRead, 1);
 		pContext->SetTextureAtSlot(m_pSdfView, 2);
 
 		pContext->BindMaterial(m_pCloudPipeline->m_pPipeline);

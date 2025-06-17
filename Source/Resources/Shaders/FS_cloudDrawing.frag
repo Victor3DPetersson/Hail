@@ -115,7 +115,7 @@ layout(std430, set = 1, binding = 0) buffer readonly PointBuffer
 {
    	vec2 g_cloudPoints[];
 };
-//layout(set = 1, binding = 1) uniform texture2D cloudCoverageTexture;
+layout(set = 1, binding = 1) uniform texture2D cloudCoverageTexture;
 layout(set = 1, binding = 2) uniform texture2D cloudSdfTextureNoSampler;
 
 layout(location = 0) out vec4 outColor;
@@ -156,10 +156,8 @@ void main()
 	// Should be constants
 	vec2 cloudPos = vec2(0.5, 0.5);
 	vec2 cloudDimensions = vec2(240.0, 240.0);
-	float cloudRatioY = cloudDimensions.x / cloudDimensions.y;
 
 	vec2 cloudToPixelDimensions = cloudDimensions / constantVariables.renderTargetRes;
-	float sampleRadiusCloudSpace = sampleRadiusPixelSpace / cloudDimensions.y;
 
 	vec2 fragCoordInCloudSpace = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5)) / cloudToPixelDimensions;
 
@@ -168,37 +166,8 @@ void main()
 	// Move the fragCoord in to the normalized space of the cloud so we can iterate over the normalized points and do the transformation once. 
 	vec2 pixelCloudSpacePos = fragCoordInCloudSpace - cloudMinPos;
 
-	bool bInRect = CircleInRect(pixelCloudSpacePos, sampleRadiusCloudSpace, vec2(0.0, 0.0), vec2(1.0, 1.0));
-
-	if (!bInRect)
-		discard;
-		
-	uint numberOfPointsInRadius = 0;
-	float sampleRadiusSq = sampleRadiusCloudSpace * sampleRadiusCloudSpace;
-	float distanceToReachForDraw = sampleRadiusSq + sampleRadiusCloudSpace * 0.1;
-	for (int i = 0; i < 256; i++)
-	{
-		if (i == PushConstants.numberOfPoints_padding.x)
-			break;
-
-		vec2 normalizedCloudPoint = g_cloudPoints[i];
-		normalizedCloudPoint.y = 1.0 - normalizedCloudPoint.y;
-		//vec2 noise = vec2(0.0, 0.0);
-		float noise = voronoi((normalizedCloudPoint + fragTexCoord) * 10.0) * 2.0 - 1.0;
-		//noise = (hash2f((normalizedCloudPoint + pixelPos)) * 2.0 - 1.0) * 0.02;
-		vec2 cloudPointToSamplePoint = pixelCloudSpacePos - normalizedCloudPoint + noise * 0.01;
-		float distanceSquared = dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
-
-		if (distanceSquared <= sampleRadiusSq)
-		{
-			distanceToReachForDraw -= sampleRadiusSq - distanceSquared;
-			numberOfPointsInRadius++;
-		}
-	}
-
-	//float cloudSample = texture(sampler2D(cloudCoverageTexture, samplerBilinear), fragTexCoord).r;
-	//bool bIsAValidSample = numberOfPointsInRadius > 2;
-	bool bIsAValidSample = distanceToReachForDraw < 0.0;
+	float cloudSample = texture(sampler2D(cloudCoverageTexture, samplerBilinear), fragTexCoord).r;
+	bool bIsAValidSample = cloudSample > 0.0;
 	if (!bIsAValidSample)
 		discard;
 

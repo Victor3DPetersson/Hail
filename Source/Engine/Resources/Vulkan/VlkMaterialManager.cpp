@@ -458,13 +458,22 @@ void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeli
 		else if (descriptor.decorationType == eDecorationType::Image)
 		{
 			VkDescriptorImageInfo& imageDescriptorInfo = descriptorInfos.imageDescriptorInfos.Add();
-			VlkTextureView* vlkTexture = (VlkTextureView*)pRenderContext->GetBoundTextureAtSlot(descriptor.bindingPoint);
+			VlkTextureView* vlkTextureView = (VlkTextureView*)pRenderContext->GetBoundTextureAtSlot(descriptor.bindingPoint);
 
-			H_ASSERT(vlkTexture, "Nothing bound to the texture context slot.");
+			H_ASSERT(vlkTextureView, "Nothing bound to the texture context slot.");
+
+			{
+				VlkTextureResource* pVlkTexture = (VlkTextureResource*)vlkTextureView->GetProps().pTextureToView;
+				bool bTextureIsWrite = (pVlkTexture->m_accessQualifier == eShaderAccessQualifier::WriteOnly || pVlkTexture->m_accessQualifier == eShaderAccessQualifier::ReadWrite);
+				bool bViewIsWrite = (vlkTextureView->GetProps().accessQualifier == eShaderAccessQualifier::WriteOnly || vlkTextureView->GetProps().accessQualifier == eShaderAccessQualifier::ReadWrite);
+
+				if ((bTextureIsWrite != bViewIsWrite && pVlkTexture->m_accessQualifier != vlkTextureView->GetProps().accessQualifier) || pPipeline->m_shaderStages != pVlkTexture->GetVlkTextureData().currentStageUsage)
+					pRenderContext->TransferTextureLayout(vlkTextureView->GetProps().pTextureToView, vlkTextureView->GetProps().accessQualifier, pPipeline->m_shaderStages);
+			}
 
 			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			imageDescriptorInfo.imageView = vlkTexture->GetVkImageView();
-			if (vlkTexture->GetProps().pTextureToView->m_accessQualifier != eShaderAccessQualifier::ReadOnly)
+			imageDescriptorInfo.imageView = vlkTextureView->GetVkImageView();
+			if (vlkTextureView->GetProps().accessQualifier != eShaderAccessQualifier::ReadOnly)
 			{
 				imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));

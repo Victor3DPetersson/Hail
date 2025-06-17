@@ -67,6 +67,7 @@ void RenderContext::BindMaterial(Material* pMaterial)
 		return;
 
 	H_ASSERT(m_pBoundFrameBuffers[0], "No framebuffer bound");
+	EndRenderPass();
 
 	ValidatePipelineAndUpdateDescriptors(pMaterial->m_pPipeline);
 
@@ -90,6 +91,8 @@ void RenderContext::BindMaterial(Pipeline* pPipeline)
 
 	if (m_pBoundMaterialPipeline && m_pBoundMaterialPipeline == pPipeline)
 		return;
+
+	EndRenderPass();
 
 	ValidatePipelineAndUpdateDescriptors(pPipeline);
 
@@ -227,7 +230,7 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 			H_ASSERT(m_pBoundTextures[bindingPoint], "Nothing bound at the current slot");
 			const TextureViewProperties& viewProps = m_pBoundTextures[bindingPoint]->GetProps();
 
-			assetAccessQualifier = viewProps.pTextureToView->m_accessQualifier;
+			assetAccessQualifier = viewProps.accessQualifier;
 			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
 			assetIndex = viewProps.pTextureToView->m_index;
 		}
@@ -236,7 +239,7 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 		{
 			H_ASSERT(m_pBoundTextures[bindingPoint], "Nothing bound at the current slot");
 			const TextureViewProperties& viewProps = m_pBoundTextures[bindingPoint]->GetProps();
-			assetAccessQualifier = viewProps.pTextureToView->m_accessQualifier;
+			assetAccessQualifier = viewProps.accessQualifier;
 			assetIndex = viewProps.pTextureToView->m_index;
 
 			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
@@ -326,13 +329,13 @@ void RenderContext::TransferFramebufferLayout(FrameBufferTexture* pTextureToTran
 	}
 }
 
-void Hail::RenderContext::TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier)
+void Hail::RenderContext::TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier, uint32 newStageCombination)
 {
 	H_ASSERT(pTextureToTransfer);
 	H_ASSERT(pTextureToTransfer->m_properties.textureUsage == eTextureUsage::Texture);
 	H_ASSERT(m_pCurrentCommandBuffer && m_pCurrentCommandBuffer->m_contextState != eContextState::TransitionBetweenStates);
 	
-	TransferImageStateInternal(pTextureToTransfer, newQualifier);
+	TransferImageStateInternal(pTextureToTransfer, newQualifier, newStageCombination);
 }
 
 void Hail::RenderContext::Dispatch(glm::uvec3 dispatchSize)
@@ -376,6 +379,7 @@ void RenderContext::EndGraphicsPass()
 
 	m_pCurrentCommandBuffer = nullptr;
 	m_currentState = eContextState::TransitionBetweenStates;
+	m_lastBoundShaderStages = 0u;
 }
 
 void Hail::RenderContext::CleanupAndEndPass()

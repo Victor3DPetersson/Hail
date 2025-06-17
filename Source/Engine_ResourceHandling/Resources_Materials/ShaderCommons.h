@@ -19,6 +19,8 @@ namespace Hail
 
 	constexpr uint32 ComputeShaderStage = 1 << (uint32)eShaderStage::Compute;
 	constexpr uint32 VertexFragmentShaderStage = (1 << (uint32)eShaderStage::Vertex) | (1 << (uint32)eShaderStage::Fragment);
+	constexpr uint32 MeshFragmentShaderStage = (1 << (uint32)eShaderStage::Mesh) | (1 << (uint32)eShaderStage::Fragment);
+	constexpr uint32 AmpMeshFragmentShaderStage = (1 << (uint32)eShaderStage::Amplification) | (1 << (uint32)eShaderStage::Mesh) | (1 << (uint32)eShaderStage::Fragment);
 
 	enum class SHADERLANGUAGETARGET
 	{

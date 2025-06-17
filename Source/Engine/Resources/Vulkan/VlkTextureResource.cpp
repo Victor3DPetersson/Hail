@@ -158,9 +158,9 @@ bool Hail::VlkTextureResource::InternalInit(RenderingDevice* pDevice)
 	allocCreateInfo.priority = 1.0f;
 	VmaAllocator allocator = ((VlkDevice*)pDevice)->GetMemoryAllocator();
  	VkResult result = vmaCreateImage(allocator, &imgCreateInfo, &allocCreateInfo, &m_textureData.textureImage, &m_textureData.allocation, nullptr);
-
+	
 	m_textureData.imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	m_textureData.currentUsage = usage;
+	m_textureData.currentStageUsage = 0u;
 
 	return result == VK_SUCCESS;
 }
@@ -177,6 +177,32 @@ void Hail::VlkTextureView::CleanupResource(RenderingDevice* pDevice)
 
 bool Hail::VlkTextureView::InitView(RenderingDevice* pDevice, TextureViewProperties properties)
 {
+	H_ASSERT(properties.pTextureToView);
+
+	bool bValidViewForTexture = properties.accessQualifier == eShaderAccessQualifier::ReadWrite;
+
+	if (!bValidViewForTexture)
+	{
+		if (properties.pTextureToView->m_accessQualifier == eShaderAccessQualifier::ReadOnly)
+		{
+			bValidViewForTexture = properties.accessQualifier == eShaderAccessQualifier::ReadOnly;
+		}
+		else if (properties.pTextureToView->m_accessQualifier == eShaderAccessQualifier::WriteOnly)
+		{
+			bValidViewForTexture = properties.accessQualifier == eShaderAccessQualifier::WriteOnly;
+		}
+		else
+		{
+			bValidViewForTexture = true;
+		}
+	}
+
+	if (!bValidViewForTexture)
+	{
+		H_ERROR("Failed to init texture view");
+		return false;
+	}
+
 	const TextureProperties& props = properties.pTextureToView->m_properties;
 	VlkDevice& vlkDevice = *(VlkDevice*)pDevice;
 	VkImageViewCreateInfo viewInfo{};

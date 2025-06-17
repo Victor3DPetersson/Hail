@@ -34,7 +34,7 @@ namespace Hail
 		void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) override;
 		void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 		void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) override;
-		void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState) override;
+		void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState, uint32 newStageCombination) override;
 
 		void Dispatch(glm::uvec3 dispatchSize) override;
 		void RenderMeshlets(glm::uvec3 dispatchSize) override;

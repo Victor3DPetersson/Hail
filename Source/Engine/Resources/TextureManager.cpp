@@ -499,7 +499,7 @@ TextureResource* Hail::TextureManager::CreateTexture(RenderContext* pRenderConte
 	compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 	compiledTextureData.compiledColorValues = nullptr;
 	H_ASSERT(CreateTextureGPUData(pRenderContext, compiledTextureData, pTexture), "Failed to create texture");
-	pRenderContext->TransferTextureLayout(pTexture, textureProperties.accessQualifier);
+	pRenderContext->TransferTextureLayout(pTexture, textureProperties.accessQualifier, 0u);
 	return pTexture;
 }
 

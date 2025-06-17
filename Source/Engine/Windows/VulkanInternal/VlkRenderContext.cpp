@@ -732,7 +732,28 @@ VkAccessFlags LocalAccessMaskFromAccessFlag(eShaderAccessQualifier qualifier)
     }
 }
 
-void Hail::VlkRenderContext::TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState)
+VkPipelineStageFlags LocalStageFlagsFromPipelineCombination(uint32 pipeline)
+{
+    if (pipeline == VertexFragmentShaderStage)
+    {
+        return VK_PIPELINE_STAGE_VERTEX_INPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (pipeline == ComputeShaderStage)
+    {
+        return VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    }
+    else if (pipeline == MeshFragmentShaderStage)
+    {
+        return VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (pipeline == AmpMeshFragmentShaderStage)
+    {
+        return VK_PIPELINE_STAGE_TASK_SHADER_BIT_EXT | VK_PIPELINE_STAGE_MESH_SHADER_BIT_EXT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    return VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+}
+
+void Hail::VlkRenderContext::TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState, uint32 newStageCombination)
 {
     VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
     VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;
@@ -756,38 +777,29 @@ void Hail::VlkRenderContext::TransferImageStateInternal(TextureResource* pTextur
     imageBarrier.image = pVlkTexture->GetVlkTextureData().textureImage;
     imageBarrier.oldLayout = pVlkTexture->GetVlkTextureData().imageLayout;
 
-    VkPipelineStageFlags sourceUsage = pVlkTexture->GetVlkTextureData().currentUsage;
-    VkPipelineStageFlags destinationUsage;
+    VkPipelineStageFlags sourceStageUsage = LocalStageFlagsFromPipelineCombination(pVlkTexture->GetVlkTextureData().currentStageUsage);
+    VkPipelineStageFlags destinationStageUsage = LocalStageFlagsFromPipelineCombination(newStageCombination);
     if (newState == eShaderAccessQualifier::ReadOnly)
     {
         imageBarrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
-        destinationUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     }
     else if (newState == eShaderAccessQualifier::ReadWrite)
     {
         imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-        destinationUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
     }
     else
     {
         imageBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-        destinationUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-    }
-
-    if (pVlkTexture->GetVlkTextureData().imageLayout == imageBarrier.newLayout)
-    {
-        H_ASSERT(pVlkTexture->m_accessQualifier == newState, "Probably a logic error going on here");
-        return;
     }
 
     pVlkTexture->m_accessQualifier = newState;
     pVlkTexture->GetVlkTextureData().imageLayout = imageBarrier.newLayout;
-    pVlkTexture->GetVlkTextureData().currentUsage = destinationUsage;
+    pVlkTexture->GetVlkTextureData().currentStageUsage = destinationStageUsage;
 
     vkCmdPipelineBarrier(
         commandBuffer,
-        sourceUsage,
-        destinationUsage,
+        sourceStageUsage,
+        destinationStageUsage,
         0,
         0, NULL,
         0, NULL,
@@ -1116,8 +1128,6 @@ void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBuff
     {
         return;
     }
-
-    EndRenderPass();
 
     VlkCommandBuffer& vlkCommandBuffer = *(VlkCommandBuffer*)m_pCurrentCommandBuffer;
     VkCommandBuffer& commandBuffer = vlkCommandBuffer.m_commandBuffer;

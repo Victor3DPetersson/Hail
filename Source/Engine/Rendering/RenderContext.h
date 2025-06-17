@@ -80,7 +80,7 @@ namespace Hail
 		void UploadDataToTexture(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 
 		void TransferFramebufferLayout(FrameBufferTexture* pTextureToTransfer, eFrameBufferLayoutState colorState, eFrameBufferLayoutState depthState);
-		void TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier);
+		void TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier, uint32 newStageCombination);
 		void TransferBufferState(BufferObject* pBuffer, eShaderAccessQualifier newState);
 
 		virtual void Dispatch(glm::uvec3 dispatchSize);
@@ -139,7 +139,7 @@ namespace Hail
 		virtual void BindVertexBufferInternal() = 0;
 		virtual void SetPushConstantInternal(void* pPushConstant) = 0;
 		virtual void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) = 0;
-		virtual void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState) = 0;
+		virtual void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState, uint32 newStageCombination) = 0;
 		virtual void TransferBufferStateInternal(BufferObject* pBuffer, eShaderAccessQualifier newState) = 0;
 
 		RenderingDevice* m_pDevice;

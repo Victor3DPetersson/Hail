@@ -26,7 +26,7 @@ namespace Hail
 			VmaAllocation allocation = VK_NULL_HANDLE;
 			VkImage textureImage = VK_NULL_HANDLE;
 			VkImageLayout imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-			VkImageUsageFlags currentUsage = VK_PIPELINE_STAGE_NONE;
+			uint32 currentStageUsage = 0u;
 		};
 
 		void CleanupResource(RenderingDevice* device) override;

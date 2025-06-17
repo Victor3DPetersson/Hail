@@ -194,7 +194,6 @@ namespace Hail
 		}
 
 
-		ImGui::Begin("Particle test window");
 
 		ImGui::SliderFloat("Mouse force", &m_mouseForceStrength, 0.f, 100.f);
 		ImGui::SliderFloat("Mouse radius", &m_mouseForceRadius, 0.f, 1.f);
@@ -283,7 +282,6 @@ namespace Hail
 		ImGui::SameLine();
 		ImGui::Text("Near pressure: %f", particlesToSimulate[m_particleToDebug].nearPressure);
 		ImGui::Text("Particle pressureForce x: %f y: %f", particlesToSimulate[m_particleToDebug].pressureForce.x, particlesToSimulate[m_particleToDebug].pressureForce.y);
-		ImGui::End();
 
 		DebugCircle debugCircle;
 		debugCircle.scale = (h * (float)resolution.y) / spaceModifier.x;

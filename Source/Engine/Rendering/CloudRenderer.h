@@ -18,7 +18,7 @@ namespace Hail
 	struct ParticleUniformBuffer
 	{
 		uint32 numberOfParticles;
-		float particleSize;
+		float particleSize = 20.f;
 		glm::vec2 cloudTextureDimensions = { 240.f, 240.f };
 	};
 
@@ -46,7 +46,8 @@ namespace Hail
 
 		BufferObject* m_pParticleUniformBuffer;
 		TextureResource* m_pParticleCoverageTexture;
-		TextureView* m_pParticleCoverageView;
+		TextureView* m_pParticleCoverageViewWrite;
+		TextureView* m_pParticleCoverageViewRead;
 
 		GrowingArray<glm::vec2> m_pointsOnTheGPU;
 		GrowingArray<CloudParticle> m_cloudParticles;
