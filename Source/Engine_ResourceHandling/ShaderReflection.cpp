@@ -783,11 +783,26 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		{
 			decoration.m_accessQualifier = eShaderAccessQualifier::ReadWrite;
 		}
-		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
-		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
-		if (set < InstanceDomain)
+
+		if (returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding].m_bindingLocation != MAX_UINT16)
 		{
-			returnData.m_globalMaterialDecorations.Add(decoration);
+			const ShaderDecoration alreadySetDecoration = returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding];
+			H_ASSERT(alreadySetDecoration.m_bindingLocation == decoration.m_bindingLocation);
+			H_ASSERT(alreadySetDecoration.m_elementCount == decoration.m_elementCount);
+			H_ASSERT(alreadySetDecoration.m_byteSize == decoration.m_byteSize);
+			H_ASSERT(alreadySetDecoration.m_valueType == decoration.m_valueType);
+			H_ASSERT(alreadySetDecoration.m_type == decoration.m_type);
+			H_ASSERT(alreadySetDecoration.m_set == decoration.m_set);
+			H_ASSERT(alreadySetDecoration.m_accessQualifier == decoration.m_accessQualifier);
+		}
+		else
+		{
+			returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
+			returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
+			if (set < InstanceDomain)
+			{
+				returnData.m_globalMaterialDecorations.Add(decoration);
+			}
 		}
 	}
 

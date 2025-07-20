@@ -49,8 +49,8 @@ void Hail::VlkPipeline::CleanupResource(RenderingDevice& device)
 		vkDestroyPipelineLayout(vlkDevice.GetDevice(), m_pipelineLayout, nullptr);
 		m_pipelineLayout = VK_NULL_HANDLE;
 	}
-	if (m_pTypeDescriptor && !m_bUseTypePasses)
-		m_pTypeDescriptor->CleanupResource(device);
+	if (m_pTypeObject && !m_bUseTypePasses)
+		m_pTypeObject->CleanupResource(device);
 }
 
 void Hail::VlkMaterialPipeline::CleanupResource(RenderingDevice& device)

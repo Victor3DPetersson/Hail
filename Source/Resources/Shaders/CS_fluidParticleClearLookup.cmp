@@ -1,0 +1,26 @@
+#include "fluidParticleCommons.hs"
+
+// This buffer is the keys that will be sorted in the radix sort
+layout(binding = 5, set = 1, std430) buffer GlobalSpatialLookupSortIndexList
+{
+    uint globalSpatialLookupSortIndex[];
+};
+
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID = gl_LocalInvocationID.x;
+    uint groupID = gl_WorkGroupID.x;
+
+    uint numberOfParticles = g_particleVariables.numberOfParticles;
+	if (globalThreadID >= numberOfParticles)
+		return;
+
+    uint lookupKey = ComputeParticleKeyLookup(globalParticleList[globalThreadID].pos , numberOfParticles, g_particleVariables.particleKernelRadius);
+    globalSpatialLookupKeyIndexList[globalThreadID] = uvec2(lookupKey, globalThreadID);
+    globalSpatialLookupStartIndices[globalThreadID] = 0xffff;
+    globalSpatialLookupSortIndex[globalThreadID] = lookupKey;
+}

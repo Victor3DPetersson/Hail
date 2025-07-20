@@ -32,6 +32,7 @@ namespace Hail
 
 		CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) override;
 		void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) override;
+		void CopyDataToBufferInternal(BufferObject* pDstBuffer, BufferObject* pSrcBuffer) override;
 		void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
 		void TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState) override;
 		void TransferImageStateInternal(TextureResource* pTexture, eShaderAccessQualifier newState, uint32 newStageCombination) override;
@@ -49,7 +50,7 @@ namespace Hail
 		void SetPushConstantInternal(void* pPushConstant) override;
 
 		void StartFrame() override;
-		void EndRenderPass() override;
+		void EndCurrentPass(uint32 nextShaderStage) override;
 		void SubmitFinalFrameCommandBuffer() override;
 
 		void TransferBufferStateInternal(BufferObject* pBuffer, eShaderAccessQualifier newState) override;

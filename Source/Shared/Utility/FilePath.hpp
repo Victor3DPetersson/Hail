@@ -191,6 +191,8 @@ namespace Hail
 		static const FilePath& GetUserProjectDirectory();
 		// Generated/bin/Scripts
 		static const FilePath& GetAngelscriptDirectory();
+		// Folder of shader base
+		static const FilePath& GetShaderResourceDirectory();
 
 		//returns -1 if no common directory is found
 		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
@@ -208,6 +210,7 @@ namespace Hail
 		static FilePath ProjectCurrentWorkingDirectory;
 		static FilePath UserProjectDirectory;
 		static FilePath AngelscriptDirectory;
+		static FilePath ShaderResourceDirectory;
 		friend class RelativeFilePath;
 		void Reset();
 		wchar_t m_data[MAX_FILE_LENGTH];

@@ -1,4 +1,4 @@
-#version 450
+#include "shaderCommons.hs"
 
 // TODO: create a utility header for shaders with common operations
 vec4 ColorFromPackedColor(uint packedColor)
@@ -10,14 +10,6 @@ vec4 ColorFromPackedColor(uint packedColor)
     returnColor.w = float((packedColor) & 0xff) / 255.0;
     return returnColor;
 }
-
-layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
-{
-    uvec2 renderResolution;
-    uvec2 screenResolution;
-	uvec2 renderTargetRes;
-	vec2 totalTime_HorizonPosition;
-} constantVariables;
 
 layout( push_constant ) uniform constants
 {
@@ -79,7 +71,7 @@ void main()
 	SpriteData spriteData = g_spriteData[instanceData.dataIndex];
 	//UIData instanceData = uiInstanceData[PushConstants.instanceID_padding.x];
 
-	vec2 renderRes = vec2(constantVariables.renderResolution);
+	vec2 renderRes = vec2(g_constantVariables.renderResolution);
 	vec2 finalScale = vec2(instanceData.position_scale.zw);
 
 	float ratio = renderRes.y / renderRes.x;

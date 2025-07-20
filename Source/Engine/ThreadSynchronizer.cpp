@@ -254,6 +254,9 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	
 	RenderCommandPool& writePool = GetRenderPool();
 	writePool.camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
+	writePool.camera2D.SetResolution(readPool.camera2D.GetResolution());
+	writePool.camera2D.SetZoom(Math::Lerp(readPool.camera2D.GetZoom(), lastReadPool.camera2D.GetZoom(), tValue));
+	writePool.camera2D.SetPosition(glm::mix(readPool.camera2D.GetPosition(), lastReadPool.camera2D.GetPosition(), tValue));
 
 	writePool.m_2DRenderCommands.Clear();
 	writePool.m_2DRenderCommands.AddN_NoConstruction(readPool.m_2DRenderCommands.Size());

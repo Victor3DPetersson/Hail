@@ -1,4 +1,48 @@
-#version 450
+#include "shaderCommons.hs"
+
+layout(binding = 3, set = 1) uniform texture2D cloudSdfTexture;
+
+vec2 CalculateForceToSdf(vec2 cloudParticlePos)
+{
+	cloudParticlePos.x -= 25.0;
+	float xShift = 1.0 / 128.0;
+	float yShift = 1.0 / 128.0;
+	vec2 normalizedParticlePos = cloudParticlePos / 50.0;
+	vec2 clampedParticlePos = normalizedParticlePos;
+	clampedParticlePos.x = clamp(clampedParticlePos.x, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
+	clampedParticlePos.y = clamp(clampedParticlePos.y, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
+	float sdfAtPos = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), clampedParticlePos).r;
+
+	if (sdfAtPos < -4.0)
+		return vec2(0.0, 0.0);
+	// else
+	// {
+	// 	return normalize(normalizedParticlePos - vec2(0.5));
+	// }
+
+	ivec2 particlePixelSdfPos = ivec2(int(normalizedParticlePos.x * 128.0), int(normalizedParticlePos.y * 128.0));
+
+	vec2 xShiftCoord = vec2(clampedParticlePos.x + xShift, clampedParticlePos.y);
+	vec2 yShiftCoord = vec2(clampedParticlePos.x, clampedParticlePos.y + yShift);
+
+	float xSdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), xShiftCoord).r;
+	float ySdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), yShiftCoord).r;
+
+ 	// calculate the normal to the closest cloud point
+	float xGradient = xSdf - sdfAtPos;
+	float yGradient = ySdf - sdfAtPos;
+
+	xGradient = abs(xGradient) <= EpsilonF ? xShift * 128.0 : xGradient;
+	yGradient = abs(yGradient) <= EpsilonF ? yShift * 128.0 : yGradient;
+
+	vec2 gradientVector = vec2(xGradient, yGradient);
+	float gradientLength = dot(gradientVector, gradientVector);
+
+	if (gradientLength <= EpsilonF)
+		return vec2(0.0, 0.0);
+
+	return normalize(gradientVector);
+}
 
 //  Mark Jarzynski and Marc Olano, Hash Functions for GPU Rendering, 
 //  Journal of Computer Graphics Techniques (JCGT), vol. 9, no. 3, 21-38, 2020
@@ -98,46 +142,11 @@ float voronoi(vec2 x)
     return sqrt( res );
 }
 
-//Add to include file later
-layout(set = 0, binding = 0, std140) uniform UniformBufferObject 
-{
-    uvec2 renderResolution;
-    uvec2 screenResolution;
-	uvec2 renderTargetRes; // Main rendertargets resolution
-	vec2 totalTime_HorizonPosition;
-} constantVariables;
-
-// TODO: move global set data to a global include
-layout(set = 0, binding = 2) uniform sampler samplerLinear;
-layout(set = 0, binding = 3) uniform sampler samplerBilinear;
-
-layout(std430, set = 1, binding = 0) buffer readonly PointBuffer 
-{
-   	vec2 g_cloudPoints[];
-};
 layout(set = 1, binding = 1) uniform texture2D cloudCoverageTexture;
 layout(set = 1, binding = 2) uniform texture2D cloudSdfTextureNoSampler;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 0) in vec2 fragTexCoord;
-
-layout( push_constant ) uniform constants
-{
-	uvec4 numberOfPoints_padding; // uint uvec3 padding
-} PushConstants;
-
-bool CircleInRect(vec2 circlePos, float circleRadius, vec2 aabbMin, vec2 aabbMax)
-{
-	float sqDist = 0.0;
-	for (int i = 0; i < 2; i++) 
-	{
-		// For each axis count any excess distance outside box extents
-		float v = circlePos[i];
-		sqDist += v < aabbMin[i] ? (aabbMin[i] - v) * (aabbMin[i] - v) : 0.0;
-		sqDist += v > aabbMax[i] ? (v - aabbMax[i]) * (v - aabbMax[i]) : 0.0;
-	}
-	return sqDist <= circleRadius * circleRadius;
-}
 
 float HenyeyGreensteinPhaseFunction(float g, float theta)
 {
@@ -148,16 +157,16 @@ const float cloudTextureSdfDimensions = 128.0;
 
 void main() 
 {
-	float renderTexelSizeX = 1.0 / float(constantVariables.renderTargetRes.x);
-	float renderTexelSizeY = 1.0 / float(constantVariables.renderTargetRes.y);
+	float renderTexelSizeX = 1.0 / float(g_constantVariables.renderTargetRes.x);
+	float renderTexelSizeY = 1.0 / float(g_constantVariables.renderTargetRes.y);
 
-	vec2 pixelPos = fragTexCoord * constantVariables.renderTargetRes + 0.5; 
+	vec2 pixelPos = fragTexCoord * g_constantVariables.renderTargetRes + 0.5; 
 	float sampleRadiusPixelSpace = 20.0;
 	// Should be constants
 	vec2 cloudPos = vec2(0.5, 0.5);
 	vec2 cloudDimensions = vec2(240.0, 240.0);
 
-	vec2 cloudToPixelDimensions = cloudDimensions / constantVariables.renderTargetRes;
+	vec2 cloudToPixelDimensions = cloudDimensions / g_constantVariables.renderTargetRes;
 
 	vec2 fragCoordInCloudSpace = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5)) / cloudToPixelDimensions;
 
@@ -166,18 +175,23 @@ void main()
 	// Move the fragCoord in to the normalized space of the cloud so we can iterate over the normalized points and do the transformation once. 
 	vec2 pixelCloudSpacePos = fragCoordInCloudSpace - cloudMinPos;
 
-	float cloudSample = texture(sampler2D(cloudCoverageTexture, samplerBilinear), fragTexCoord).r;
+	float cloudSample = texture(sampler2D(cloudCoverageTexture, g_samplerBilinear), fragTexCoord).r;
 	bool bIsAValidSample = cloudSample > 0.0;
 	if (!bIsAValidSample)
 		discard;
 
-	float sunDirectionRad = mod(3.925 + constantVariables.totalTime_HorizonPosition.x * 0.3, 3.1415926 * 2.0);
+	vec2 cloudSdf = (CalculateForceToSdf(pixelPos * 0.1) + 1.0) * 0.5;
+	vec3 debugColor = vec3(cloudSdf, 0.5);
+	outColor = vec4(debugColor, 1.0);
+	return;
+
+	float sunDirectionRad = mod(3.925 + g_constantVariables.totalTime_HorizonPosition.x * 0.3, 3.1415926 * 2.0);
 	//float sunDirectionRad = 0.0;
 	vec2 sunDirection = normalize(vec2(cos(sunDirectionRad), sin(sunDirectionRad) * (-1.0)));
 
 	float sdfValue = 0.0;
 	vec2 sdfTexCoord = vec2(clamp(pixelCloudSpacePos.x, 0.0, 1.0), clamp(1.0 - pixelCloudSpacePos.y, 0.0, 1.0));
-	sdfValue = texture(sampler2D(cloudSdfTextureNoSampler, samplerBilinear), sdfTexCoord + snoise(fragTexCoord * 10.0) * 0.01).r;
+	sdfValue = texture(sampler2D(cloudSdfTextureNoSampler, g_samplerBilinear), sdfTexCoord + snoise(fragTexCoord * 10.0) * 0.01).r;
 
 	float rayInCloudDistance = 0.0;
 	vec2 currentSamplePoint = sdfTexCoord;
@@ -197,7 +211,7 @@ void main()
 		float randomDirectionShift = (voronoi(currentSamplePoint * 10.0) * 2.0 - 1.0) * 0.5 + snoise(currentSamplePoint * 2.0) * 0.2;
 		vec2 rayToAdd = (rayDistance / cloudTextureSdfDimensions) * (toSunDirection + randomDirectionShift);
 		currentSamplePoint = rayToAdd + currentSamplePoint;
-		sdfValue = texture(sampler2D(cloudSdfTextureNoSampler, samplerBilinear), clamp(currentSamplePoint, vec2(0.0, 0.0), vec2(1.0, 1.0))).r - 2.0;
+		sdfValue = texture(sampler2D(cloudSdfTextureNoSampler, g_samplerBilinear), clamp(currentSamplePoint, vec2(0.0, 0.0), vec2(1.0, 1.0))).r - 2.0;
 	}
 
 	float hg = HenyeyGreensteinPhaseFunction(0.95, sunDirectionRad);

@@ -23,7 +23,7 @@ namespace Hail
 	public:
 		virtual void CleanupResource(RenderingDevice* device) = 0;
 		virtual void CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth) = 0;
-
+		virtual uint32 GetCurrentStageUsage() = 0;
 		bool Init(RenderingDevice* pDevice);
 
 		String64 textureName;

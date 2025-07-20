@@ -77,6 +77,7 @@ namespace Hail
 
 	struct RenderCommandPool
 	{
+		Camera2D camera2D;
 		Camera camera3D;
 		VectorOnStack<Batch2DInfo, MAX_NUMBER_OF_SPRITES, false> m_batches;
 		// Keeps the offset in to the batch list for each index, also is the counter for how many layers we will render

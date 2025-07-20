@@ -15,6 +15,7 @@ namespace Hail
 	{
 		Point,
 		Bilinear,
+		BilinearClampBorder,
 		Count
 	};
 

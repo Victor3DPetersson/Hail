@@ -1,12 +1,4 @@
-#version 450
-//Add to include file later
-layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
-{
-    uvec2 renderResolution;
-    uvec2 screenResolution;
-	uvec2 renderTargetRes;
-	vec2 totalTime_HorizonPosition;
-} constantVariables;
+#include "shaderCommons.hs"
 
 layout(binding = 0, set = 2) uniform sampler2D texSampler;
 layout(binding = 1, set = 2) uniform sampler2D texSamplerOverlay;
@@ -19,7 +11,7 @@ layout(location = 2) in float inCutoutThreshold;
 
 void main() 
 {
-	vec2 timeOffset = vec2(constantVariables.totalTime_HorizonPosition.x * -1.0, constantVariables.totalTime_HorizonPosition.x * -1.0);
+	vec2 timeOffset = vec2(g_constantVariables.totalTime_HorizonPosition.x * -1.0, g_constantVariables.totalTime_HorizonPosition.x * -1.0);
 	vec4 color = texture(texSampler, vec2(inTexCoord.x, inTexCoord.y) + timeOffset).rgba;
 	float alpha = texture(texSamplerOverlay, vec2(inTexCoord.x, inTexCoord.y)).a;
 	if(alpha < inCutoutThreshold)

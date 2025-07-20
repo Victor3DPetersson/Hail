@@ -1,0 +1,24 @@
+#include "fluidParticleCommons.hs"
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 5, set = 1, std430) buffer readonly GlobalParticleListFromCPU
+{
+    FluidParticle inGlobalParticleList[];
+};
+
+void main() 
+{
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID = gl_LocalInvocationID.x;
+    uint groupID = gl_WorkGroupID.x;
+
+    uint numberOfParticles = g_particleVariables.numberOfParticles;
+    if (globalThreadID == 0)
+        g_dynamicParticleVariables.maxVelocity = 0.0;
+        
+	if (globalThreadID >= numberOfParticles)
+		return;
+
+    globalParticleList[globalThreadID] = inGlobalParticleList[globalThreadID];
+}

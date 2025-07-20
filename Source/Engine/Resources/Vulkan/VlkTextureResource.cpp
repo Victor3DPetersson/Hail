@@ -103,6 +103,11 @@ void Hail::VlkTextureResource::CleanupResourceForReload(RenderingDevice* device,
 	}
 }
 
+uint32 Hail::VlkTextureResource::GetCurrentStageUsage()
+{
+	return m_textureData.currentStageUsage;
+}
+
 bool Hail::VlkTextureResource::InternalInit(RenderingDevice* pDevice)
 {
 	VkImageCreateInfo imgCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };

@@ -1,0 +1,230 @@
+#include "shaderCommons.hs"
+
+const uint NumBuckets = 16u;
+
+layout( push_constant ) uniform constants
+{
+    uint currentOffset;
+	uint totalNumberOfElements;
+    uint numberOfGroups;
+    uint padding; 
+} PushConstants;
+
+layout(binding = 1, set = 1, std430) buffer InBuffer 
+{
+    uint inKeys[];
+};
+
+layout(binding = 2, set = 1, std430) buffer LocalHistogramBuffer 
+{
+    uint outHistogram[];
+};
+
+// layout(binding = 3, set = 1, std430) buffer LocalOutputBuffer 
+// {
+//     uvec4 output[];
+// };
+
+// layout(binding = 4, set = 1, std430) buffer LocalSumsBuffer 
+// {
+//     uint sums[];
+// };
+
+shared uint localHistogramCount[NumBuckets]; 
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+// const uint bank_size = 32u;
+// const uint n = 512u;
+// shared uint temp0 [532];
+// shared uint temp1 [532];
+// shared uint temp2 [532];
+// shared uint temp3 [532];
+
+// uint bank_conflict_free_idx(uint idx)
+// {
+//     uint var chunk_id = idx / bank_size;
+//     return idx + chunk_id;
+// }
+
+void main() 
+{
+    // new cool way of doing it
+    // uint thid = gl_LocalInvocationID.x;
+    // uint globalThid = gl_GlobalInvocationID.x;
+    // uint mask = uint(3) << (PushConstants.currentOffset << 1);
+    // if (thid < (n>>1))
+    // {
+    //     uint val = (inKeys[2 * globalThid] & mask) >> (PushConstants.currentOffset << 1);
+
+    //     if (val == 0) 
+    //     {
+    //         temp0[bank_conflict_free_idx(2*thid)] = 1;
+    //     }
+    //     else if (val == 1) 
+    //     {
+    //         temp1[bank_conflict_free_idx(2*thid)] = 1;
+    //     }
+    //     else if (val == 2) 
+    //     {
+    //         temp2[bank_conflict_free_idx(2*thid)] = 1;
+    //     }
+    //     else if (val == 3) 
+    //     {
+    //         temp3[bank_conflict_free_idx(2*thid)] = 1;
+    //     }
+
+    //     val = (inKeys[2 * globalThid + 1] & mask) >> (PushConstants.currentOffset << 1);
+
+    //     if (val == 0) 
+    //     {
+    //         temp0[bank_conflict_free_idx(2*thid+1)] = 1;
+    //     }
+    //     else if (val == 1) 
+    //     {
+    //         temp1[bank_conflict_free_idx(2*thid+1)] = 1;
+    //     }
+    //     else if (val == 2) 
+    //     {
+    //         temp2[bank_conflict_free_idx(2*thid+1)] = 1;
+    //     }
+    //     else if (val == 3) 
+    //     {
+    //         temp3[bank_conflict_free_idx(2*thid+1)] = 1;
+    //     }
+    // }
+    // barrier();
+    // uint offset = 1;
+
+    // for (uint d = n >> 1; d > 0; d >>= 1)
+    // { 
+    //     if (thid < d)    
+    //     {
+    //         uint ai = offset * (2 * thid + 1) - 1;     
+    //         uint bi = offset * (2 * thid + 2) - 1;  
+    //         temp0[bank_conflict_free_idx(bi)] += temp0[bank_conflict_free_idx(ai)]; 
+    //         temp1[bank_conflict_free_idx(bi)] += temp1[bank_conflict_free_idx(ai)]; 
+    //         temp2[bank_conflict_free_idx(bi)] += temp2[bank_conflict_free_idx(ai)]; 
+    //         temp3[bank_conflict_free_idx(bi)] += temp3[bank_conflict_free_idx(ai)]; 
+    //     }    
+    //     offset *= 2; 
+
+    //     barrier();   
+    // }
+
+    // if (thid == 0) 
+    // { 
+    //     temp0[bank_conflict_free_idx(n - 1)] = 0; 
+    //     temp1[bank_conflict_free_idx(n - 1)] = 0; 
+    //     temp2[bank_conflict_free_idx(n - 1)] = 0; 
+    //     temp3[bank_conflict_free_idx(n - 1)] = 0; 
+    // }
+    // barrier();      
+
+    // for (uint d = 1; d < n; d *= 2) // traverse down tree & build scan 
+    // {      
+    //     offset >>= 1;      
+    //     if (thid < d)      
+    //     { 
+    //         uint ai = offset * (2 * thid + 1) - 1;     
+    //         uint bi = offset * (2 * thid + 2) - 1; 
+    //         uint t = temp0[bank_conflict_free_idx(ai)]; 
+    //         temp0[bank_conflict_free_idx(ai)] = temp0[bank_conflict_free_idx(bi)]; 
+    //         temp0[bank_conflict_free_idx(bi)] += t;     
+            
+    //         t = temp1[bank_conflict_free_idx(ai)]; 
+    //         temp1[bank_conflict_free_idx(ai)] = temp1[bank_conflict_free_idx(bi)]; 
+    //         temp1[bank_conflict_free_idx(bi)] += t; 
+            
+    //         t = temp2[bank_conflict_free_idx(ai)]; 
+    //         temp2[bank_conflict_free_idx(ai)] = temp2[bank_conflict_free_idx(bi)]; 
+    //         temp2[bank_conflict_free_idx(bi)] += t;  
+            
+    //         t = temp3[bank_conflict_free_idx(ai)]; 
+    //         temp3[bank_conflict_free_idx(ai)] = temp3[bank_conflict_free_idx(bi)]; 
+    //         temp3[bank_conflict_free_idx(bi)] += t;     
+    //     } 
+    //     barrier();      
+    // }
+
+    // uint groupID  = gl_WorkGroupID.x
+
+    // if (thid == 0) 
+    // {
+    //     uint count0 = temp0[bank_conflict_free_idx(2 * 255)];
+    //     uint count1 = temp1[bank_conflict_free_idx(2 * 255)];
+    //     uint count2 = temp2[bank_conflict_free_idx(2 * 255)];
+    //     uint count3 = temp3[bank_conflict_free_idx(2 * 255)];
+
+    //     uint last =  (inKeys[2 * ((groupID + 1) * 256 - 1)] & mask) >> (PushConstants.currentOffset << 1); 
+    //     switch(last) 
+    //     {
+    //         case 0: {count0 += 1;}
+    //         case 1: {count1 += 1;}
+    //         case 2: {count2 += 1;}
+    //         case 3: {count3 += 1;}
+    //         default {}
+    //     }
+
+    //     last = (inKeys[2 * ((groupID + 1) * 256 - 1) + 1] & mask) >> (PushConstants.currentOffset << 1); 
+    //     switch(last) 
+    //     {
+    //         case 0: {count0 += 1;}
+    //         case 1: {count1 += 1;}
+    //         case 2: {count2 += 1;}
+    //         case 3: {count3 += 1;}
+    //         default {}
+    //     }
+
+    //     sums[groupID * 4] = count0;
+    //     sums[groupID * 4+1] = count1;
+    //     sums[groupID * 4+2] = count2;
+    //     sums[groupID * 4+3] = count3;
+    // }
+
+    // if (thid < (n>>1))
+    // {
+    //     output[2*globalThid].x = temp0[bank_conflict_free_idx(2*thid)]; 
+    //     output[2*globalThid+1].x = temp0[bank_conflict_free_idx(2*thid+1)]; 
+
+    //     output[2*globalThid].y = temp1[bank_conflict_free_idx(2*thid)]; 
+    //     output[2*globalThid+1].y = temp1[bank_conflict_free_idx(2*thid+1)]; 
+
+    //     output[2*globalThid].z = temp2[bank_conflict_free_idx(2*thid)]; 
+    //     output[2*globalThid+1].z = temp2[bank_conflict_free_idx(2*thid+1)]; 
+
+    //     output[2*globalThid].w = temp3[bank_conflict_free_idx(2*thid)]; 
+    //     output[2*globalThid+1].w = temp3[bank_conflict_free_idx(2*thid+1)]; 
+    // }
+
+	uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID  = gl_LocalInvocationID.x;
+    uint groupID  = gl_WorkGroupID.x;
+    uint localSize = gl_WorkGroupSize.x;
+
+    if (localThreadID < NumBuckets) 
+	{
+        localHistogramCount[localThreadID] = 0;
+    }
+    memoryBarrierShared();
+    barrier();
+
+	{
+        uint key = inKeys[globalThreadID];
+        uint fourBitDigit = (key >> PushConstants.currentOffset) & 0xF;
+		// will be from 0-15, so 4 bits of sums
+        atomicAdd(localHistogramCount[fourBitDigit], 1);
+    }
+
+    barrier(); 
+
+    if (localThreadID < NumBuckets) 
+	{
+        uint outIndex = groupID * NumBuckets + localThreadID;
+        outHistogram[outIndex] = localHistogramCount[localThreadID];
+    }
+
+
+
+
+}

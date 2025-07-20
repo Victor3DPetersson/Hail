@@ -1,0 +1,43 @@
+#include "fluidParticleCommons.hs"
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID = gl_LocalInvocationID.x;
+    uint groupID = gl_WorkGroupID.x;
+
+    uint numberOfParticles = g_particleVariables.numberOfParticles;
+	if (globalThreadID >= numberOfParticles)
+		return;
+
+	float h = g_particleVariables.particleKernelRadius;
+    float mass = g_particleVariables.mass;
+
+    vec2 particlePos = globalParticleList[globalThreadID].pos;
+    ivec2 cellCoord = PositionToCellCoord(particlePos, h);
+
+    vec2 calculatedDensity = vec2(0.0, 0.0);
+    for (uint iCellID = 0; iCellID < 9; iCellID++)
+    {
+        ivec2 cellCoordToTest = cellCoord + CellOffsets[iCellID];
+        uint key = GenerateKeyFromCellPos(cellCoordToTest, numberOfParticles);
+        uint cellStartIndex = globalSpatialLookupStartIndices[key];
+        for (uint i = cellStartIndex; i < numberOfParticles; i++)
+        {
+            if (globalSpatialLookupKeyIndexList[i].x != key)
+                break;
+            uint particleIndex = globalSpatialLookupKeyIndexList[i].y;
+
+            vec2 rij = particlePos - globalParticleList[particleIndex].pos;
+            float r = length(rij);
+            calculatedDensity.x += mass * CubicSplineKernel(r, h);
+            calculatedDensity.y += mass * NearSmoothingKernel(h, r);
+        }
+    }
+    
+    globalParticleList[globalThreadID].densityNearDensity = calculatedDensity;
+    globalParticleList[globalThreadID].pressureNearPressure.x = g_particleVariables.stiffness * (calculatedDensity.x - g_particleVariables.restDensity);
+    globalParticleList[globalThreadID].pressureNearPressure.y = g_particleVariables.nearPressureMultiplier * (calculatedDensity.y);
+}

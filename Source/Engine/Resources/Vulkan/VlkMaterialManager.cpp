@@ -409,7 +409,7 @@ void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeli
 	}
 
 	VlkRenderingResources* vlkRenderingResources = (VlkRenderingResources*)((RenderingResourceManager*)m_renderingResourceManager)->GetRenderingResources();
-	VlkMaterialTypeObject& typeDescriptor = *(VlkMaterialTypeObject*)vlkPipeline.m_pTypeDescriptor;
+	VlkMaterialTypeObject& typeDescriptor = *(VlkMaterialTypeObject*)vlkPipeline.m_pTypeObject;
 
 	// Only Custom pipelines without a bounds global material and global set should be setting a manual pipeline 
 	if (typeDescriptor.m_bBoundTypeData[frameInFlight])
@@ -419,7 +419,7 @@ void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeli
 
 	DescriptorInfos descriptorInfos{};
 
-	GrowingArray< VkWriteDescriptorSet> setWrites = localGetGlobalPipelineDescriptor(descriptorInfos, vlkPipeline, pSecondaryShaderData, typeDescriptor, m_textureManager, m_renderingResourceManager, frameInFlight);
+	GrowingArray<VkWriteDescriptorSet> setWrites = localGetGlobalPipelineDescriptor(descriptorInfos, vlkPipeline, pSecondaryShaderData, typeDescriptor, m_textureManager, m_renderingResourceManager, frameInFlight);
 
 	GrowingArray<VlkLayoutDescriptor> materialDescriptors = localGetSetLayoutDescription(
 		(eShaderStage)vlkPipeline.m_pShaders[0]->header.shaderType, MaterialTypeDomain, &vlkPipeline.m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
@@ -462,24 +462,16 @@ void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeli
 
 			H_ASSERT(vlkTextureView, "Nothing bound to the texture context slot.");
 
-			{
-				VlkTextureResource* pVlkTexture = (VlkTextureResource*)vlkTextureView->GetProps().pTextureToView;
-				bool bTextureIsWrite = (pVlkTexture->m_accessQualifier == eShaderAccessQualifier::WriteOnly || pVlkTexture->m_accessQualifier == eShaderAccessQualifier::ReadWrite);
-				bool bViewIsWrite = (vlkTextureView->GetProps().accessQualifier == eShaderAccessQualifier::WriteOnly || vlkTextureView->GetProps().accessQualifier == eShaderAccessQualifier::ReadWrite);
-
-				if ((bTextureIsWrite != bViewIsWrite && pVlkTexture->m_accessQualifier != vlkTextureView->GetProps().accessQualifier) || pPipeline->m_shaderStages != pVlkTexture->GetVlkTextureData().currentStageUsage)
-					pRenderContext->TransferTextureLayout(vlkTextureView->GetProps().pTextureToView, vlkTextureView->GetProps().accessQualifier, pPipeline->m_shaderStages);
-			}
-
-			imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			imageDescriptorInfo.imageLayout = ((VlkTextureResource*)vlkTextureView->GetProps().pTextureToView)->GetVlkTextureData().imageLayout;
 			imageDescriptorInfo.imageView = vlkTextureView->GetVkImageView();
 			if (vlkTextureView->GetProps().accessQualifier != eShaderAccessQualifier::ReadOnly)
 			{
-				imageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+				H_ASSERT(imageDescriptorInfo.imageLayout == VK_IMAGE_LAYOUT_GENERAL);
 				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 			}
 			else
 			{
+				H_ASSERT(imageDescriptorInfo.imageLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
 				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 			}
 		}
@@ -607,11 +599,11 @@ bool Hail::VlkMaterialManager::CreateMaterialTypeObject(Pipeline* pPipeline)
 	if (pVlkPipeline->m_bUseTypePasses && m_MaterialTypeObjects[(uint32)pVlkPipeline->m_type])
 	{
 		// TODO: Check if the reflected shader data matches, otherwise assert
-		pVlkPipeline->m_pTypeDescriptor = m_MaterialTypeObjects[(uint32)pVlkPipeline->m_type];
+		pVlkPipeline->m_pTypeObject = m_MaterialTypeObjects[(uint32)pVlkPipeline->m_type];
 		return true;
 	}
 
-	MaterialTypeObject** pTypeObjectToCreate = pVlkPipeline->m_bUseTypePasses ? &m_MaterialTypeObjects[(uint32)pVlkPipeline->m_type] : &pVlkPipeline->m_pTypeDescriptor;
+	MaterialTypeObject** pTypeObjectToCreate = pVlkPipeline->m_bUseTypePasses ? &m_MaterialTypeObjects[(uint32)pVlkPipeline->m_type] : &pVlkPipeline->m_pTypeObject;
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	(*pTypeObjectToCreate) = new VlkMaterialTypeObject();
 	VlkMaterialTypeObject& typeDescriptor = *(VlkMaterialTypeObject*)(*pTypeObjectToCreate);
@@ -619,11 +611,12 @@ bool Hail::VlkMaterialManager::CreateMaterialTypeObject(Pipeline* pPipeline)
 	if (pVlkPipeline->m_pShaders[0]->loadState == eShaderLoadState::LoadedToRAM)
 	{
 		const eShaderStage shader1Type = (eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType;
-
+		(*pTypeObjectToCreate)->m_boundResources.Add();
 		ReflectedShaderData* pSecondaryShaderData = nullptr;
 		if (pVlkPipeline->m_pShaders.Size() > 1)
 		{
 			pSecondaryShaderData = &pVlkPipeline->m_pShaders[1]->reflectedShaderData;
+			(*pTypeObjectToCreate)->m_boundResources.Add();
 		}
 
 		GrowingArray<VlkLayoutDescriptor> globalSetDescriptors = localGetSetLayoutDescription((eShaderStage)pVlkPipeline->m_pShaders[0]->header.shaderType, GlobalDomain, &pVlkPipeline->m_pShaders[0]->reflectedShaderData, pSecondaryShaderData);
@@ -724,7 +717,7 @@ bool Hail::VlkMaterialManager::CreatePipelineLayout(VlkPipeline& vlkPipeline, Vl
 		}
 	}
 
-	MaterialTypeObject* pTypeObject = vlkPipeline.m_bUseTypePasses ? m_MaterialTypeObjects[(uint32)vlkPipeline.m_type] : vlkPipeline.m_pTypeDescriptor;
+	MaterialTypeObject* pTypeObject = vlkPipeline.m_bUseTypePasses ? m_MaterialTypeObjects[(uint32)vlkPipeline.m_type] : vlkPipeline.m_pTypeObject;
 	VlkMaterialTypeObject& typeDescriptor = *(VlkMaterialTypeObject*)pTypeObject;
 	VlkMaterial* material = (VlkMaterial*)pMaterial;
 	VectorOnStack<VkDescriptorSetLayout, eDecorationSets::Count> layouts;
@@ -767,7 +760,7 @@ void Hail::VlkMaterialManager::AllocateTypeDescriptors(VlkPipeline& vlkPipeline,
 		pSecondaryShaderData = &vlkPipeline.m_pShaders[1]->reflectedShaderData;
 	}
 
-	VlkMaterialTypeObject& typeDescriptor = vlkPipeline.m_bUseTypePasses ? *(VlkMaterialTypeObject*)m_MaterialTypeObjects[(uint32)vlkPipeline.m_type] : *(VlkMaterialTypeObject*)vlkPipeline.m_pTypeDescriptor;
+	VlkMaterialTypeObject& typeDescriptor = vlkPipeline.m_bUseTypePasses ? *(VlkMaterialTypeObject*)m_MaterialTypeObjects[(uint32)vlkPipeline.m_type] : *(VlkMaterialTypeObject*)vlkPipeline.m_pTypeObject;
 
 	DescriptorInfos descriptorInfos{};
 	GrowingArray< VkWriteDescriptorSet> setWrites = localGetGlobalPipelineDescriptor(descriptorInfos, vlkPipeline, pSecondaryShaderData, typeDescriptor, m_textureManager, m_renderingResourceManager, frameInFlight);

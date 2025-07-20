@@ -2,6 +2,7 @@
 #include "CloudRenderer.h"
 
 #include "HailEngine.h"
+#include "Settings.h"
 #include "Renderer.h"
 #include "Resources\ResourceManager.h"
 #include "Resources\TextureManager.h"
@@ -16,6 +17,70 @@
 
 namespace Hail
 {
+	bool localCreateComputeShaderPipeline(MaterialManager* pMatManager, MaterialPipeline** pPipelineToCreate, const char* relativePath)
+	{
+		MaterialCreationProperties computeradixBuildHistogramProperties{};
+		RelativeFilePath computeProjectPath(relativePath);
+		ResourceRegistry& reg = GetResourceRegistry();
+		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
+			pMatManager->ImportShaderResource(computeProjectPath.GetFilePath(), eShaderStage::Compute, false)))
+		{
+			computeradixBuildHistogramProperties.m_shaders[0].m_id = metaData->GetGUID();
+			computeradixBuildHistogramProperties.m_shaders[0].m_type = eShaderStage::Compute;
+		}
+		computeradixBuildHistogramProperties.m_baseMaterialType = eMaterialType::CUSTOM;
+		computeradixBuildHistogramProperties.m_typeRenderPass = eMaterialType::CUSTOM;
+		
+		*pPipelineToCreate = pMatManager->CreateMaterialPipeline(computeradixBuildHistogramProperties);
+		return pPipelineToCreate != nullptr;
+	}
+
+	glm::vec2 Vogel(uint32 sampleIndex, uint32 samplesCount, float Offset)
+	{
+		float r = sqrt(float(sampleIndex) + 0.5f) / sqrt(float(samplesCount));
+		float theta = float(sampleIndex) * Math::GoldenAngle + Offset;
+		return r * glm::vec2(cos(theta), sin(theta));
+	}
+
+	const uint32 HASH_SIZE = 0xffff;
+	const float L = 0.2f;
+
+	inline uint32 hasha(glm::ivec2& p) {
+		int ix = (unsigned int)((p[0] + 2.f) / L);
+		int iy = (unsigned int)((p[1] + 2.f) / L);
+		return (unsigned int)((ix * 73856093) ^ (iy * 19349663)) % HASH_SIZE;
+	}
+
+	GrowingArray<uint32> g_randomizedKeyes;
+
+	void localCreateTempBufferToSort()
+	{
+		g_randomizedKeyes.Prepare(MaxNumberOfFluidParticles);
+		StaticArray<uint32, 0xf + 1u> numbers;
+		numbers.Fill(0u);
+		uint32 above16Count = 0u;
+		for (uint32 i = 0; i < MaxNumberOfFluidParticles; i++)
+		{
+			glm::vec2 randomPos = Vogel(i, 0xfff, 0.f) * 1024.f;
+			uint32 hashValue = hasha(glm::ivec2(randomPos));
+
+			//if (hashValue > 0xf)
+			{
+				uint32 digit = (hashValue >> 4) & 0xF;
+				numbers[digit]++;
+				above16Count++;
+			}
+
+			g_randomizedKeyes.Add(hashValue);
+		}
+
+		for (uint32 i = 0; i < 0xf + 1u; i++)
+		{
+			Debug_PrintConsoleString64(String64::Format("Number %u : %u", i + 0xf + 1u, numbers[i]));
+		}
+	}
+
+
 	// TODO, link to website for credit
 	// Dead reckoning alghorithm to generate a SDF to a texture from point data, found on the web. 
 	void DeadReckoning(int width, int height, const GrowingArray<uint8>& binaryPixels, GrowingArray<float>& setSignedDistance) 
@@ -168,29 +233,24 @@ namespace Hail
 	CloudRenderer::~CloudRenderer()
 	{
 		H_ASSERT(m_pCloudPipeline == nullptr);
-		H_ASSERT(m_pCloudBuffer == nullptr);
+		//H_ASSERT(m_pCloudBuffer == nullptr);
 	}
 
 	CloudRenderer::CloudRenderer(Renderer* pRenderer, ResourceManager* pResourceManager)
 		: m_pRenderer(pRenderer)
 		, m_pResourceManager(pResourceManager) 
 		, m_pCloudPipeline(nullptr)
-		, m_pCloudBuffer(nullptr)
+		//, m_pCloudBuffer(nullptr)
 		, m_pSdfTexture(nullptr)
 		, m_pSdfView(nullptr)
 		, m_numberOfPointsUploaded(0u)
 	{
 	}
 
-	glm::vec2 Vogel(uint32 sampleIndex, uint32 samplesCount, float Offset)
-	{
-		float r = sqrt(float(sampleIndex) + 0.5f) / sqrt(float(samplesCount));
-		float theta = float(sampleIndex) * Math::GoldenAngle + Offset;
-		return r * glm::vec2(cos(theta), sin(theta));
-	}
-
 	bool CloudRenderer::Initialize()
 	{
+		// Hard coded random array to sort
+		localCreateTempBufferToSort();
 		// Hard coded shape for debugging
 		GrowingArray<glm::uvec2> pointBaseList = {
 			{1, 7},
@@ -228,6 +288,13 @@ namespace Hail
 			{9, 7}
 		};
 
+		CloudParticle particle;
+		particle.velocity = glm::vec2(0.f);
+		m_cloudParticles.Prepare(pointBaseList.Size() + 2u);
+		for (size_t i = 0; i < m_numberOfPointsUploaded; i++)
+		{
+
+		}
 		for (uint32 i = 0; i < pointBaseList.Size(); i++)
 		{
 			const uint32 rnd = ((pointBaseList[i].x * 5u + pointBaseList[i].y * 7u) >> (pointBaseList[i].x & 3u));
@@ -236,7 +303,8 @@ namespace Hail
 				glm::vec2 vogelNoise = Vogel(rnd + iPRand, 128u, 0.1 * iPRand) * 0.5f;
 				glm::vec2 finalPos = (glm::vec2( pointBaseList[i].x + 0.5, pointBaseList[i].y + 0.5) / 11.f + vogelNoise / 11.f);
 
-				m_pointsOnTheGPU.Add(finalPos);
+				particle.pos = finalPos;
+				m_cloudParticles.Add(particle);
 			}
 		}
 		const float cloudPointRadius = 0.1f;
@@ -252,9 +320,9 @@ namespace Hail
 				uint32 imageCoord = x + y * height;
 				glm::vec2 cloudCoord = glm::vec2((float)(x + 0.5) / width, (float)(y + 0.5) / height);
 				uint32 numberOfPointsInRadius = 0;
-				for (uint32 iPoint = 0; iPoint < m_pointsOnTheGPU.Size(); iPoint++)
+				for (uint32 iPoint = 0; iPoint < m_cloudParticles.Size(); iPoint++)
 				{
-					glm::vec2 cloudPointToSamplePoint = cloudCoord - m_pointsOnTheGPU[iPoint];
+					glm::vec2 cloudPointToSamplePoint = cloudCoord - m_cloudParticles[iPoint].pos;
 					float distanceSquared = glm::dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
 					if (distanceSquared <= cloudPointRadiusSq)
 					{
@@ -267,10 +335,10 @@ namespace Hail
 		m_cloudSdfTexture.PrepareAndFill(width * height);
 		DeadReckoning(width, height, imageRepresentationOfCloud, m_cloudSdfTexture);
 
-		//pointsToPutOnTheGpu.Add(glm::vec2(0.95, 0.05));
-		m_pointsOnTheGPU.Add(glm::vec2(0.9, 0.1));
-		//pointsToPutOnTheGpu.Add(glm::vec2(0.85, 0.15));
-		m_pointsOnTheGPU.Add(glm::vec2(0.8, 0.23));
+		particle.pos = glm::vec2(0.9, 0.1);
+		m_cloudParticles.Add(particle);
+		particle.pos = glm::vec2(0.8, 0.23);
+		m_cloudParticles.Add(particle);
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
@@ -289,14 +357,34 @@ namespace Hail
 		viewProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		m_pSdfView = m_pResourceManager->GetTextureManager()->CreateTextureView(viewProps);
 
-		BufferProperties cloudPointBufferProps;
-		cloudPointBufferProps.elementByteSize = sizeof(glm::vec2);
-		cloudPointBufferProps.numberOfElements = m_pointsOnTheGPU.Size();
-		cloudPointBufferProps.type = eBufferType::structured;
-		cloudPointBufferProps.domain = eShaderBufferDomain::CpuToGpu;
-		cloudPointBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
-		cloudPointBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
-		m_pCloudBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(cloudPointBufferProps, "Cloud PointBuffer");
+		BufferProperties particleBufferProps;
+		particleBufferProps.elementByteSize = sizeof(CloudParticle);
+		particleBufferProps.numberOfElements = MaxNumberOfFluidParticles;
+		particleBufferProps.type = eBufferType::structured;
+		particleBufferProps.domain = eShaderBufferDomain::GpuOnly;
+		particleBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
+		particleBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Never;
+		m_pParticleBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleBufferProps, "Fluid Particle Buffer");
+
+		particleBufferProps.domain = eShaderBufferDomain::CpuToGpu;
+		particleBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Sporadic;
+		particleBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
+		m_pParticleUploadBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleBufferProps, "Fluid Particle Upload Buffer");
+
+		BufferProperties particleLookupBufferProps;
+		particleLookupBufferProps.elementByteSize = sizeof(glm::uvec2);
+		particleLookupBufferProps.numberOfElements = MaxNumberOfFluidParticles;
+		particleLookupBufferProps.type = eBufferType::structured;
+		particleLookupBufferProps.domain = eShaderBufferDomain::GpuOnly;
+		particleLookupBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
+		particleLookupBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Never;
+		// Create 2 as we need to have two for sorting
+		m_pParticleLookupBufferRead = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleLookupBufferProps, "Fluid Particle Lookup Buffer Read");
+		m_pParticleLookupBufferWrite = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleLookupBufferProps, "Fluid Particle Lookup Buffer Write");
+		particleLookupBufferProps.elementByteSize = sizeof(uint32);
+		m_pParticleLookupStartIndicesBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleLookupBufferProps, "Fluid Particle Lookup StartIndices Buffer");
+		m_pParticleLookupSortIndicesBufferRead = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleLookupBufferProps, "Fluid Particle Lookup SortIndices Buffer Read");
+		m_pParticleLookupSortIndicesBufferWrite = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleLookupBufferProps, "Fluid Particle Lookup SortIndices Buffer Write");
 
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
@@ -321,20 +409,80 @@ namespace Hail
 		matProperties.m_typeRenderPass = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 		m_pCloudPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
-		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
-		m_numberOfPointsUploaded = m_pointsOnTheGPU.Size();
+		m_numberOfPointsUploaded = m_cloudParticles.Size();
+		bool bValidComputePasses = true;
 
-		MaterialCreationProperties computeMatProperties{};
-		RelativeFilePath computeProjectPath("resources/shaders/CS_calculateCloudCoverage.shr");
-		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource(computeProjectPath.GetFilePath(), eShaderStage::Compute, false)))
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pCloudCoveragePipeline, "resources/shaders/CS_calculateCloudCoverage.shr"))
 		{
-			computeMatProperties.m_shaders[0].m_id = metaData->GetGUID();
-			computeMatProperties.m_shaders[0].m_type = eShaderStage::Compute;
+			bValidComputePasses = false;
 		}
-		computeMatProperties.m_baseMaterialType = eMaterialType::CUSTOM;
-		computeMatProperties.m_typeRenderPass = eMaterialType::CUSTOM;
-		m_pCloudCoveragePipeline = pMatManager->CreateMaterialPipeline(computeMatProperties);
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pRadixBuildHistogramPipeline, "resources/shaders/CS_fluidParticleRadixSort_buildHistogram.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pRadixBuildOffsetTablePipeline, "resources/shaders/CS_fluidParticleRadixSort_buildOffsetTable.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pRadixShuffleDataPipeline, "resources/shaders/CS_fluidParticleRadixSort_shuffleData.shr"))
+		{
+			bValidComputePasses = false;
+		}
+
+ 		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationCalculateDensity, "resources/shaders/CS_fluidParticleCalculateDensity.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationCalculateIntermediateVelocity, "resources/shaders/CS_fluidParticleCalculateIntermediateVelocity.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationCalculatePressureForce, "resources/shaders/CS_fluidParticleCalculatePressureForce.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationApplyPosition, "resources/shaders/CS_fluidParticleApplyPosition.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationBuildPartialLookup, "resources/shaders/CS_fluidParticleBuildPartialLook.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationClearPartialLookup, "resources/shaders/CS_fluidParticleClearLookup.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationUpdateUniforms, "resources/shaders/CS_fluidParticleUpdateUniforms.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationUpdateParticleListFromCPU, "resources/shaders/CS_fluidParticleUpdateParticleListFromCPU.shr"))
+		{
+			bValidComputePasses = false;
+		}
+
+		{
+			BufferProperties particleSortGlobalHistogramBufferProps;
+			particleSortGlobalHistogramBufferProps.elementByteSize = sizeof(uint32);
+			particleSortGlobalHistogramBufferProps.numberOfElements = 16u * (MaxNumberOfSortBuckets);
+			particleSortGlobalHistogramBufferProps.type = eBufferType::structured;
+			particleSortGlobalHistogramBufferProps.domain = eShaderBufferDomain::GpuOnly;
+			particleSortGlobalHistogramBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
+			particleSortGlobalHistogramBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Never;
+			m_pParticleSortGlobalHistogramBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleSortGlobalHistogramBufferProps, "Particle Sorting Global Histogram Buffer");
+			m_pParticleSortLocalHistogramBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleSortGlobalHistogramBufferProps, "Particle Sorting Local Histogram Buffer");
+		}
+		{
+			BufferProperties particleSortGlobalBucketOffsetBufferProps;
+			particleSortGlobalBucketOffsetBufferProps.elementByteSize = sizeof(uint32);
+			particleSortGlobalBucketOffsetBufferProps.numberOfElements = 16u;
+			particleSortGlobalBucketOffsetBufferProps.type = eBufferType::structured;
+			particleSortGlobalBucketOffsetBufferProps.domain = eShaderBufferDomain::GpuOnly;
+			particleSortGlobalBucketOffsetBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
+			particleSortGlobalBucketOffsetBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Never;
+			m_pParticleSortBucketOffsetBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleSortGlobalBucketOffsetBufferProps, "Particle Sorting Global Bucket Offset Buffer");
+		}
 
 		BufferProperties particleUniformBufferProps;
 		particleUniformBufferProps.elementByteSize = sizeof(ParticleUniformBuffer);
@@ -344,6 +492,15 @@ namespace Hail
 		particleUniformBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		particleUniformBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
 		m_pParticleUniformBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleUniformBufferProps, "Particle Uniform Buffer");
+
+		BufferProperties particleDynamicBufferProps;
+		particleDynamicBufferProps.elementByteSize = sizeof(ParticleDynamicVariableBuffer);
+		particleDynamicBufferProps.numberOfElements = 1;
+		particleDynamicBufferProps.type = eBufferType::structured;
+		particleDynamicBufferProps.domain = eShaderBufferDomain::GpuOnly;
+		particleDynamicBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
+		particleDynamicBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Never;
+		m_pDynamicParticleVariableBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleDynamicBufferProps, "Particle Dynamic Variable Buffer");
 
 		TextureProperties particleCoverageTextureProps;
 		particleCoverageTextureProps.height = m_pResourceManager->GetSwapChain()->GetTargetResolution().y;
@@ -365,16 +522,9 @@ namespace Hail
 		particleCoveragePropsRead.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		m_pParticleCoverageViewRead = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoveragePropsRead);
 
-		CloudParticle particle;
-		particle.velocity = glm::vec2(0.f);
-		m_cloudParticles.Prepare(m_numberOfPointsUploaded);
-		for (size_t i = 0; i < m_numberOfPointsUploaded; i++)
-		{
-			particle.pos = m_pointsOnTheGPU[i];
-			m_cloudParticles.Add(particle);
-		}
 
-		return m_pCloudPipeline != nullptr && m_pCloudCoveragePipeline != nullptr;
+
+		return m_pCloudPipeline != nullptr && bValidComputePasses;
 	}
 
 	void CloudRenderer::Cleanup()
@@ -387,10 +537,6 @@ namespace Hail
 		SAFEDELETE(m_pParticleCoverageViewRead);
 		m_pParticleCoverageTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pParticleCoverageTexture);
-
-
-		m_pCloudBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pCloudBuffer);
 
 		m_pSdfTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pSdfTexture);
@@ -410,33 +556,111 @@ namespace Hail
 		ImGui::Begin("Particle test window");
 
 		ImGui::SliderFloat("Particle Render Size", &m_ParticleUniforms.particleSize, 0.01f, 100.f);
+		ImGui::Checkbox("Render GPU particles", &GetEngineSettings().b_enableGpuParticles);
 
 		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
-		m_simulator.UpdateParticles(m_cloudParticles, poolOfCommands, m_pResourceManager->GetSwapChain()->GetTargetResolution(), m_cloudSdfTexture);
-		DebugCircle debugCircle;
-		debugCircle.scale = 20.0;
-		debugCircle.color = { 3.0 / 255.f, 169.f / 255.f, 252.f / 255.f };
-		for (uint32 i = 0; i < m_cloudParticles.Size(); i++)
+
+		bool respawnGrid = false;
+		if (GetEngineSettings().b_enableGpuParticles)
 		{
-			m_pointsOnTheGPU[i] = m_cloudParticles[i].pos;
-			debugCircle.pos = m_cloudParticles[i].pos;
-			debugCircle.pos.x /= aspectRatio;
-			//poolOfCommands.m_debugCircles.Add(debugCircle);
+			if (!m_bUpdatedParticleGrid)
+			{
+				respawnGrid = true;
+				m_cloudParticlesToSimulate.PrepareAndFill(m_cloudParticles.Size());
+				for (uint32 i = 0; i < m_cloudParticles.Size(); i++)
+				{
+					m_cloudParticlesToSimulate[i] = m_cloudParticles[i];
+					m_cloudParticlesToSimulate[i].pos *= glm::vec2(100.f, 100.f);
+				}
+				m_bUpdatedParticleGrid = true;
+			}
+
+			ImGui::SliderFloat("Mouse force", &m_ParticleUniforms.mouseForceStrength, 0.f, 100.f);
+			ImGui::SliderFloat("Mouse radius", &m_ParticleUniforms.mouseForceRadius, 0.f, 1.f);
+			if (ImGui::SliderInt2("NumberOfPoints", &m_numberOfPointsToSpawn.x, 1, 100))
+			{
+				respawnGrid = true;
+			}
+			if (ImGui::SliderFloat("Grid Spacing", &m_particleSpacing, -1.f, 1.f))
+			{
+				respawnGrid = true;
+			}
+			// Settings
+			if (ImGui::Checkbox("Simulate Grid", &m_bSimulateGrid))
+			{
+				respawnGrid = true;
+			}
+			m_ParticleUniforms.bSimulateCloud = m_bSimulateGrid == false;
+
+			if (respawnGrid)
+			{
+				m_cloudGridParticles.RemoveAll();
+				uint32 numberOfParticles = m_numberOfPointsToSpawn.x * m_numberOfPointsToSpawn.y;
+				m_cloudGridParticles.PrepareAndFill(numberOfParticles);
+
+				float spacing = m_ParticleUniforms.particleKernelRadius * 2 + m_particleSpacing * 100.f;
+				float rowLength = (1.f / (float)m_numberOfPointsToSpawn.x) * 0.5f * 100.f;
+				float columnLength = (1.f / (float)m_numberOfPointsToSpawn.y) * 0.5f * 100.f;
+
+				//glm::vec2 minSpace = glm::vec2(spaceModifier.x / 2 - rowLength / 2, spaceModifier.y / 2 - columnLength / 2);
+				glm::vec2 minSpace = glm::vec2(100.f / 2, 100.f / 2) - glm::vec2((float)m_numberOfPointsToSpawn.x * spacing / 2, (float)m_numberOfPointsToSpawn.y * spacing / 2);
+
+				uint32 numberOfPointsToSpawn = m_numberOfPointsToSpawn.x * m_numberOfPointsToSpawn.y;
+				for (uint32 i = 0; i < numberOfPointsToSpawn; i++)
+				{
+					CloudParticle particle;
+
+					uint32 xCoord = i % m_numberOfPointsToSpawn.x;
+					uint32 yCoord = i / m_numberOfPointsToSpawn.x;
+					particle.velocity = glm::vec2(0.f);
+					float x = minSpace.x + xCoord * spacing;
+					float y = minSpace.y + yCoord * spacing;
+					particle.pos = glm::vec2(x, y);
+					m_cloudGridParticles[i] = particle;
+				}
+			}
+
+			ImGui::SliderFloat("Particle Radius", &m_ParticleUniforms.particleKernelRadius, 0.1f, 5.f);
+			ImGui::SliderFloat("Mass", &m_ParticleUniforms.mass, 0.01f, 5.f);
+			ImGui::SliderFloat("Rest density", &m_ParticleUniforms.restDensity, -10.f, 10.f);
+			ImGui::SliderFloat("Stiffness", &m_ParticleUniforms.stiffness, 0.f, 10.f);
+			ImGui::SliderFloat("Near Pressure", &m_ParticleUniforms.nearPressureMultiplier, 0.f, 50.f);
+			ImGui::SliderFloat("Viscosity", &m_ParticleUniforms.viscosityModifier, 0.01f, 200.f);
+			ImGui::SliderFloat("Gravitic Force", &m_ParticleUniforms.graviticForce, -10.f, 10.f);
+			ImGui::SliderFloat("Cloud dampening multiplier", &m_ParticleUniforms.cloudDampeningMultiplier, 0, 1.f);
+			ImGui::SliderFloat("Deltatime modifier", &m_ParticleUniforms.deltaTimeModifier, 0.1f, 5.f);
 		}
+		else
+		{
+			m_simulator.UpdateParticles(m_cloudParticles, poolOfCommands, m_pResourceManager->GetSwapChain()->GetTargetResolution(), m_cloudSdfTexture);
 
-		debugCircle.pos = glm::vec2(1.0, 0.5);
-		debugCircle.pos.x /= aspectRatio;
-		debugCircle.scale = 30.0;
-		debugCircle.color = Color::Orange;
-
-		// Bounds lines
-		//DrawRect2D(poolOfCommands.m_debugLineCommands, glm::vec2(0.0f, 0.0f), glm::vec2(1.0f / aspectRatio, 1.0f) );
+		}
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->StartTransferPass();
-		pContext->UploadDataToBuffer(m_pCloudBuffer, m_pointsOnTheGPU.Data(), m_pointsOnTheGPU.Size() * sizeof(glm::vec2));
 
-		m_ParticleUniforms.numberOfParticles = m_pointsOnTheGPU.Size();
+		if (GetEngineSettings().b_enableGpuParticles)
+		{
+			if (respawnGrid)
+			{
+				if (m_bUpdatedParticleGrid)
+				{
+					m_ParticleUniforms.numberOfParticles = m_numberOfPointsToSpawn.x * m_numberOfPointsToSpawn.y;
+					pContext->UploadDataToBuffer(m_pParticleUploadBuffer, m_cloudGridParticles.Data(), m_cloudGridParticles.Size() * sizeof(CloudParticle));
+				}
+				else
+				{
+					pContext->UploadDataToBuffer(m_pParticleUploadBuffer, m_cloudParticlesToSimulate.Data(), m_cloudParticlesToSimulate.Size() * sizeof(CloudParticle));
+					m_ParticleUniforms.numberOfParticles = m_cloudParticlesToSimulate.Size();
+				}
+			}
+		}
+		else
+		{
+			m_ParticleUniforms.numberOfParticles = m_cloudParticles.Size();
+		}
+
+		m_bRespawnGrid = respawnGrid;
 
 		pContext->UploadDataToBuffer(m_pParticleUniformBuffer, &m_ParticleUniforms, sizeof(ParticleUniformBuffer));
 
@@ -450,21 +674,121 @@ namespace Hail
 	{
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 
-		// Bind Dispatch stuff
-		pContext->SetBufferAtSlot(m_pCloudBuffer, 0);
-		pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 2);
-		pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite, 1);
+		if (GetEngineSettings().b_enableGpuParticles)
+		{
+			uint32 currentDoubleBufferWrite = pContext->GetCurrentRenderFrame() % 2u;
+			uint32 currentDoubleBufferRead = (pContext->GetCurrentRenderFrame() + 1) % 2u;
+			SortConstants sortingConstants{};
+			// Will be number of Active Particles
+			sortingConstants.numberOfGroups = Math::Max(m_ParticleUniforms.numberOfParticles / 255u, 1u);
+			sortingConstants.totalNumberOfElements = m_ParticleUniforms.numberOfParticles;
 
-		pContext->BindMaterial(m_pCloudCoveragePipeline->m_pPipeline);
-		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
-		pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
+			// global cloud data
+			pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
+			pContext->SetBufferAtSlot(m_pParticleBuffer, 1);
+			pContext->SetBufferAtSlot(m_pParticleLookupStartIndicesBuffer, 2);
+			pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
+			pContext->SetBufferAtSlot(m_pDynamicParticleVariableBuffer, 4);
+
+			if (m_bRespawnGrid)
+			{
+				pContext->SetBufferAtSlot(m_pParticleUploadBuffer, 5);
+				pContext->BindMaterial(m_pSimulationUpdateParticleListFromCPU->m_pPipeline);
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+				m_bRespawnGrid = false;
+			}
+
+			pContext->BindMaterial(m_pSimulationUpdateUniforms->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+			// Clearing lookup data and setting data straight
+			pContext->SetBufferAtSlot(m_pParticleLookupSortIndicesBufferWrite, 5);
+			pContext->BindMaterial(m_pSimulationClearPartialLookup->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+			pContext->CopyDataToBuffer(m_pParticleLookupBufferRead, m_pParticleLookupBufferWrite);
+			pContext->CopyDataToBuffer(m_pParticleLookupSortIndicesBufferRead, m_pParticleLookupSortIndicesBufferWrite);
+			// Sort the data
+			for (uint32 i = 0; i < NumberOfDispatches; i++)
+			{
+				// Build Histogram
+				BufferObject* pReadBuffer = m_pParticleLookupSortIndicesBufferRead;
+				BufferObject* pWriteBuffer = m_pParticleLookupSortIndicesBufferWrite;
+
+				pContext->SetBufferAtSlot(pReadBuffer, 1);
+				pContext->SetBufferAtSlot(m_pParticleSortLocalHistogramBuffer, 2);
+
+				pContext->BindMaterial(m_pRadixBuildHistogramPipeline->m_pPipeline);
+
+				sortingConstants.currentOffset = i * 4u; // 4 bit shift per dispatch round
+				pContext->SetPushConstantValue(&sortingConstants);
+
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+				// Build OffsetTable
+
+				pContext->SetBufferAtSlot(m_pParticleSortLocalHistogramBuffer, 1);
+				pContext->SetBufferAtSlot(m_pParticleSortGlobalHistogramBuffer, 2);
+				pContext->SetBufferAtSlot(m_pParticleSortBucketOffsetBuffer, 3);
+
+				pContext->BindMaterial(m_pRadixBuildOffsetTablePipeline->m_pPipeline);
+
+				pContext->Dispatch(glm::uvec3(1u, 1u, 1u));
+
+				//// Reshuffle the data
+
+				pContext->SetBufferAtSlot(pReadBuffer, 1);
+				pContext->SetBufferAtSlot(pWriteBuffer, 2);
+				pContext->SetBufferAtSlot(m_pParticleSortGlobalHistogramBuffer, 3);
+				pContext->SetBufferAtSlot(m_pParticleSortBucketOffsetBuffer, 4);
+
+				pContext->SetBufferAtSlot(m_pParticleLookupBufferRead, 5);
+				pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 6);
+
+				pContext->BindMaterial(m_pRadixShuffleDataPipeline->m_pPipeline);
+
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+				// Copy data from Write to read for next pass
+				pContext->CopyDataToBuffer(pReadBuffer, pWriteBuffer);
+				pContext->CopyDataToBuffer(m_pParticleLookupBufferRead, m_pParticleLookupBufferWrite);
+			}
+
+			pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
+			pContext->SetBufferAtSlot(m_pParticleBuffer, 1);
+			pContext->SetBufferAtSlot(m_pParticleLookupStartIndicesBuffer, 2);
+			pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
+			pContext->SetBufferAtSlot(m_pDynamicParticleVariableBuffer, 4);
+
+			// Build lookup table and update max velocity
+			pContext->BindMaterial(m_pSimulationBuildPartialLookup->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+			// Density
+			pContext->BindMaterial(m_pSimulationCalculateDensity->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+			// Intermediate Velocity
+			pContext->SetTextureAtSlot(m_pSdfView, 5);
+			pContext->BindMaterial(m_pSimulationCalculateIntermediateVelocity->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+			// Pressure Force
+			pContext->BindMaterial(m_pSimulationCalculatePressureForce->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+			// Apply everything
+			pContext->BindMaterial(m_pSimulationApplyPosition->m_pPipeline);
+			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+			pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite, 5);
+
+			pContext->BindMaterial(m_pCloudCoveragePipeline->m_pPipeline);
+			glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
+			pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
+		}
 
 		pContext->SetTextureAtSlot(m_pParticleCoverageViewRead, 1);
 		pContext->SetTextureAtSlot(m_pSdfView, 2);
+		pContext->SetTextureAtSlot(m_pSdfView, 3);
 
 		pContext->BindMaterial(m_pCloudPipeline->m_pPipeline);
-		glm::uvec4 pushConstantData = glm::uvec4(m_numberOfPointsUploaded, 0, 0, 0);
- 		pContext->SetPushConstantValue(&pushConstantData);
 
 		pContext->RenderFullscreenPass();
 	}

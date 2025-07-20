@@ -349,11 +349,13 @@ namespace Hail
 		StringL& operator=(const char* const pString);
 		StringL& operator+=(StringL& anotherString);
 		StringL& operator+=(const char* pString);
+		StringL& operator+=(const char character);
 		StringL operator+(const StringL& string1);
 
 		char* Data();
 		const char* const Data() const;
 		void Reserve(uint32 numOfChars);
+		void RemoveCharsFromBack(uint32 numOfChars);
 		// DeAllocates memory if this string uses a memory pool, and sets length to 0.
 		void Clear();
 

@@ -8,6 +8,7 @@
 #include "Timer.h"
 #include "Resources\ResourceManager.h"
 #include "Resources\ResourceRegistry.h"
+#include "Settings.h"
 #include "Interface\ResourceInterface.h"
 #include "ThreadSynchronizer.h"
 
@@ -47,7 +48,7 @@ namespace Hail
 		ImGuiCommandManager imguiCommandRecorder;
 		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
-
+		Settings settings;
 
 		std::atomic<bool> runApplication = false;
 		std::atomic<bool> pauseApplication = false;
@@ -164,6 +165,11 @@ Hail::ResourceRegistry& Hail::GetResourceRegistry()
 const Hail::Timer& Hail::GetRenderLoopTimer()
 {
 	return g_engineData->timer;
+}
+
+Hail::Settings& Hail::GetEngineSettings()
+{
+	return g_engineData->settings;
 }
 
 bool Hail::IsRunning()

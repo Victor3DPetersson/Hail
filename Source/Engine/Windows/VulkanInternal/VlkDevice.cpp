@@ -29,7 +29,7 @@ PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT_ = nullptr;
 
 using namespace Hail;
 
-constexpr uint32_t DEVICEEXTENSIONCOUNT = 6;
+constexpr uint32_t DEVICEEXTENSIONCOUNT = 7;
 // VK_KHR_SPIRV_1_4_EXTENSION_NAME, "VK_KHR_shader_float_controls" are both required by the mesh shader extension
 const char* deviceExtensions[DEVICEEXTENSIONCOUNT] = { 
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -37,7 +37,9 @@ const char* deviceExtensions[DEVICEEXTENSIONCOUNT] = {
 	, VK_KHR_SPIRV_1_4_EXTENSION_NAME
 	, VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME
 	, VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME
-	, VK_KHR_MAINTENANCE_4_EXTENSION_NAME };
+	, VK_KHR_MAINTENANCE_4_EXTENSION_NAME
+	, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME
+};
 
 
 #ifdef NDEBUG
@@ -448,7 +450,14 @@ void VlkDevice::CreateLogicalDevice()
 	maintenance4Features.maintenance4 = VK_TRUE;
 	maintenance4Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
 	requested_fragment_shader_barycentric_features.pNext = &maintenance4Features;
-	maintenance4Features.pNext = nullptr;
+
+	VkPhysicalDeviceShaderAtomicFloatFeaturesEXT floatFeatures{};
+	floatFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT;
+	floatFeatures.shaderBufferFloat32AtomicAdd = true;
+	floatFeatures.shaderBufferFloat32Atomics = true;
+	maintenance4Features.pNext = &floatFeatures;
+
+	floatFeatures.pNext = nullptr;
 
 
 	if (enableValidationLayers) 

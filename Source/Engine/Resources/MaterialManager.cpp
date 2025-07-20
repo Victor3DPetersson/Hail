@@ -25,6 +25,7 @@ namespace Hail
 		m_textureManager = textureResourceManager;
 		m_swapChain = swapChain;
 		m_renderingResourceManager = renderingResourceManager;
+		m_loadedShaders[0].Prepare(32u);
 	}
 
 	void MaterialManager::Update()
@@ -743,7 +744,7 @@ namespace Hail
 		{
 			return m_MaterialTypeObjects[(int)pPipeline->m_type];
 		}
-		return pPipeline->m_pTypeDescriptor;
+		return pPipeline->m_pTypeObject;
 	}
 
 	//TODO: Add relative path support in the shader output

@@ -1,12 +1,4 @@
 #version 450
-//Add to include file later
-layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
-{
-    uvec2 renderResolution;
-    uvec2 screenResolution;
-	uvec2 renderTargetRes;
-	vec2 totalTime_HorizonPosition;
-} constantVariables;
 
 layout(binding = 1, set = 2) uniform sampler2D texSampler;
 

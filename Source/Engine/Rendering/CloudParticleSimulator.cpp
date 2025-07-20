@@ -105,7 +105,7 @@ namespace Hail
 		return r * glm::vec2(cos(theta), sin(theta));
 	}
 
-	const int32 HASH_SIZE = 200;
+	const int32 HASH_SIZE = 0xffff;
 	const float L = 0.2f;
 
 	inline uint32 hasha(glm::ivec2& p) {

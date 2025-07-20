@@ -5,6 +5,7 @@
 #include "Renderer.h"
 #include "RenderCommands.h"
 #include "Timer.h"
+#include "Input\InputHandler.h"
 
 #include "ResourceRegistry.h"
 #include "HailEngine.h"
@@ -202,6 +203,16 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
 	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
 	perFrameData.renderTargetRes = m_swapChain->GetTargetResolution();
+	perFrameData.deltaTime_cameraZoom = glm::vec2(deltaTime, renderPool.camera2D.GetZoom());
+	perFrameData.cameraPos = glm::vec2((float)renderPool.camera2D.GetPosition().x / (float)perFrameData.mainWindowResolution.x,
+		(float)renderPool.camera2D.GetPosition().y / (float)perFrameData.mainWindowResolution.y);
+	perFrameData.mousePos = glm::vec2((float)GetInputHandler().GetInputMap().mouse.mousePos.x / (float)perFrameData.mainWindowResolution.x,
+		(float)GetInputHandler().GetInputMap().mouse.mousePos.y / (float)perFrameData.mainWindowResolution.y);
+
+	const bool lmbDown = GetInputHandler().GetInputMap().mouse.keys[(uint32)eMouseMapping::LMB] == (uint8)eInputState::Down;
+	const bool rmbDown = GetInputHandler().GetInputMap().mouse.keys[(uint32)eMouseMapping::RMB] == (uint8)eInputState::Down;
+	perFrameData.mouseRMBLMBDeltas = glm::vec2(lmbDown, rmbDown);
+
 	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
 	pRenderContext->UploadDataToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
 

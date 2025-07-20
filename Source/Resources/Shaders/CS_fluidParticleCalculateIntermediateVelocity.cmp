@@ -1,0 +1,152 @@
+#include "fluidParticleCommons.hs"
+
+layout(binding = 5, set = 1) uniform texture2D cloudSdfTexture;
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+vec2 MouseForce(float radius, vec2 posToCheck, vec2 velocityOfParticle)
+{
+	float mouseForceStrength = g_particleVariables.mouseForceStrength; 
+	vec2 renderResolution = vec2(g_constantVariables.renderResolution);
+	vec2 screenLetterboxHalfRes = vec2(g_constantVariables.screenResolution - g_constantVariables.renderResolution) / 2.0;
+	vec2 mouseRenderTargetPos = ((vec2(g_constantVariables.mousePos.x, 1.0 - g_constantVariables.mousePos.y) * vec2(g_constantVariables.screenResolution)) - screenLetterboxHalfRes);
+	
+	vec2 mouseForce = vec2(0.0, 0.0);
+
+	vec2 mouseParticleSpacePos = mouseRenderTargetPos * 0.1;
+
+	vec2 offset = posToCheck - mouseParticleSpacePos;
+	float sqrDistance = dot(offset, offset);
+
+	bool lmbDown = g_constantVariables.mouseRMBLMBDeltas.x == 1.0;
+	bool rmbDown = g_constantVariables.mouseRMBLMBDeltas.y == 1.0;
+
+	float strength = 0.f;
+	if (lmbDown)
+	{
+		strength = 1.f * mouseForceStrength;
+	}
+	else if (rmbDown)
+	{
+		strength = -1.f * mouseForceStrength;
+	}
+
+	if (strength != 0.f && sqrDistance < radius * radius)
+	{
+		float offsetDistance = length(offset);
+
+		// Normalized or Zero
+		vec2 dirToMouse = offsetDistance <= EpsilonF ? vec2(0.0, 0.0) : offset / offsetDistance;
+
+		float centreT = min(1.f - offsetDistance / radius, 0.8);
+		mouseForce += (dirToMouse * strength - velocityOfParticle) * centreT;
+	}
+	return mouseForce;
+}
+
+vec2 CalculateForceToSdf(vec2 cloudParticlePos, vec2 particleVelocityToCancel)
+{
+	cloudParticlePos.x -= 25.0;
+	float xShift = 1.0 / 128.0;
+	float yShift = 1.0 / 128.0;
+	vec2 normalizedParticlePos = cloudParticlePos / 50.0;
+	vec2 clampedParticlePos = normalizedParticlePos;
+	clampedParticlePos.x = clamp(clampedParticlePos.x, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
+	clampedParticlePos.y = clamp(clampedParticlePos.y, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
+	float sdfAtPos = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), clampedParticlePos).r;
+
+	if (sdfAtPos < -4.0)
+	{
+		vec2 reverseVelocity = particleVelocityToCancel;
+		return reverseVelocity * g_particleVariables.cloudDampeningMultiplier;
+	}
+	
+	ivec2 particlePixelSdfPos = ivec2(int(normalizedParticlePos.x * 128.0), int(normalizedParticlePos.y * 128.0));
+
+	vec2 xShiftCoord = vec2(clampedParticlePos.x + xShift, clampedParticlePos.y);
+	vec2 yShiftCoord = vec2(clampedParticlePos.x, clampedParticlePos.y + yShift);
+
+	float xSdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), xShiftCoord).r;
+	float ySdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), yShiftCoord).r;
+
+ 	// calculate the normal to the closest cloud point
+	float xGradient = xSdf - sdfAtPos;
+	float yGradient = ySdf - sdfAtPos;
+
+	xGradient = abs(xGradient) <= EpsilonF ? xShift * 128.0 : xGradient;
+	yGradient = abs(yGradient) <= EpsilonF ? yShift * 128.0 : yGradient;
+
+	vec2 gradientVector = vec2(xGradient, yGradient);
+	float gradientLength = dot(gradientVector, gradientVector);
+
+	if (gradientLength <= EpsilonF)
+		return vec2(0.0, 0.0);
+
+	return normalize(gradientVector);
+}
+
+void main() 
+{
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID = gl_LocalInvocationID.x;
+    uint groupID = gl_WorkGroupID.x;
+
+	uint numberOfParticles = g_particleVariables.numberOfParticles;
+	if (globalThreadID >= numberOfParticles)
+		return;
+
+	float mass = g_particleVariables.mass;
+	float h = g_particleVariables.particleKernelRadius;
+
+	vec2 piPos = globalParticleList[globalThreadID].pos;
+	vec2 piVelocity = globalParticleList[globalThreadID].velocity;
+	ivec2 cellCoord = PositionToCellCoord(piPos, h);
+
+	vec2 viscosityForce = vec2(0.0, 0.0);
+	for (uint iCellID = 0; iCellID < 9; iCellID++)
+	{
+		ivec2 cellCoordToTest = cellCoord + CellOffsets[iCellID];
+		uint key = GenerateKeyFromCellPos(cellCoordToTest, numberOfParticles);
+		uint cellStartIndex = globalSpatialLookupStartIndices[key];
+		for (uint i = cellStartIndex; i < numberOfParticles; i++)
+		{
+			if (globalSpatialLookupKeyIndexList[i].x != key)
+				break;
+
+			uint particleIndex = globalSpatialLookupKeyIndexList[i].y;
+			if (particleIndex == globalThreadID)
+				continue;
+
+			FluidParticle pj = globalParticleList[particleIndex];
+
+			vec2 rij = piPos - pj.pos;
+			float r = length(rij);
+			if (r == 0.0 || pj.densityNearDensity.x == 0.0) continue; // avoid division by zero
+
+			vec2 velocityDiff = pj.velocity - piVelocity;
+
+			float smoothingKernelGradient = CubicSplineGradient(r, h);
+			
+			float gradW = smoothingKernelGradient;
+			vec2 gradientOfKernel = (rij / r) * gradW;
+			float kernelGradientNormalized = (length(gradientOfKernel) * 2.0) / r;
+
+			viscosityForce += ((mass / pj.densityNearDensity.x) * velocityDiff * kernelGradientNormalized);
+		}
+	}
+
+	viscosityForce = viscosityForce * g_particleVariables.viscosityModifier * mass;
+
+    vec2 mouseForce = MouseForce(g_particleVariables.mouseForceRadius * 100.0, piPos, piVelocity);
+	vec2 gravity = vec2(0.0, 1.0) * g_particleVariables.graviticForce;
+    vec2 graviticForce = g_particleVariables.bSimulateCloud == 1 ? CalculateForceToSdf(piPos, piVelocity) * g_particleVariables.graviticForce : gravity;
+
+    vec2 F_ext = mass * (graviticForce + mouseForce);
+
+    vec2 acceleration = (viscosityForce + F_ext);
+
+	const float adjustedDeltaTime = (g_particleVariables.particleSize / g_dynamicParticleVariables.maxVelocity);
+	const float deltaTimeByMass = min(g_constantVariables.deltaTime_cameraZoom.x, adjustedDeltaTime) * g_particleVariables.deltaTimeModifier;
+
+    globalParticleList[globalThreadID].intermediateVelocity = piVelocity + deltaTimeByMass * acceleration;
+}

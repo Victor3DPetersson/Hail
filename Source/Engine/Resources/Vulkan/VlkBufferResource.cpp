@@ -180,11 +180,11 @@ bool Hail::VlkBufferObject::InternalInit(RenderingDevice* pDevice)
 	VkBufferUsageFlags typeFlag;
 	if (m_properties.type == eBufferType::uniform)
 	{
-		typeFlag = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		typeFlag = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	}
 	else if (m_properties.type == eBufferType::structured)
 	{
-		typeFlag = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+		typeFlag = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 	}
 	else if (m_properties.type == eBufferType::index)
 	{

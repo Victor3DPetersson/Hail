@@ -1,0 +1,79 @@
+#include "shaderCommons.hs"
+
+layout( push_constant ) uniform constants
+{
+    uint currentOffset;
+	uint totalNumberOfElements;
+    uint numberOfGroups;
+    uint padding; 
+} PushConstants;
+
+layout(binding = 1, set = 1, std430) buffer InBuffer 
+{
+    uint inKeys[];
+};
+
+layout(binding = 2, set = 1, std430) buffer OutKeyBuffer 
+{
+    uint outKeys[];
+};
+
+layout(binding = 3, set = 1, std430) buffer GlobalHistograms 
+{
+    uint globalHistograms[];
+};
+
+const uint NumBuckets = 16u;
+
+layout(binding = 4, set = 1, std430) buffer BucketOffsets 
+{
+    // 16 elements, 16 is from that we work on 4 bits at a time
+    uint globalBucketOffsets[NumBuckets];
+};
+
+// What we are sorting
+layout(binding = 5, set = 1, std430) buffer GlobalSpatialLookupKeyIndexListIn
+{
+    uvec2 globalSpatialLookupKeyIndexListIn[];
+};
+
+layout(binding = 6, set = 1, std430) buffer GlobalSpatialLookupKeyIndexListOut
+{
+    uvec2 globalSpatialLookupKeyIndexListOut[];
+};
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+shared uint localHistogram[NumBuckets];
+shared uint localPrefix[NumBuckets];
+
+void main() 
+{
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID = gl_LocalInvocationID.x;
+    uint groupID = gl_WorkGroupID.x;
+
+    if (localThreadID < 16) 
+    {
+        uint threadHistogramIndex = groupID * NumBuckets + localThreadID;
+        uint sum = globalHistograms[threadHistogramIndex] + globalBucketOffsets[localThreadID];
+        localHistogram[localThreadID] = sum;
+        localPrefix[localThreadID] = 0;
+    }
+    barrier();
+   
+    for (uint i = 0; i < gl_WorkGroupSize.x; ++i) 
+    {
+        if (localThreadID == i) 
+        {
+            uint key = inKeys[globalThreadID];
+            uint digit = (key >> PushConstants.currentOffset) & 0xF;
+
+            uint rankInBucket = atomicAdd(localPrefix[digit], 1);
+            uint pos = localHistogram[digit] + rankInBucket;
+
+            outKeys[pos] = key;
+            globalSpatialLookupKeyIndexListOut[pos] = globalSpatialLookupKeyIndexListIn[globalThreadID];
+        }
+        barrier();
+    }
+}

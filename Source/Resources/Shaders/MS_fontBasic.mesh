@@ -1,4 +1,5 @@
-#version 450
+#include "shaderCommons.hs"
+
 #extension GL_EXT_mesh_shader : require
 
 layout( push_constant ) uniform constants
@@ -16,14 +17,6 @@ vec3 ColorFromPackedColor(uint packedColor)
     returnColor.z = float((packedColor >> 8) & 0xff) / 255.0;
     return returnColor;
 }
-
-layout(binding = 0, set = 0, std140) uniform UniformBufferObject 
-{
-    uvec2 renderResolution;
-    uvec2 screenResolution;
-	uvec2 renderTargetRes;
-	vec2 totalTime_HorizonPosition;
-} constantVariables;
 
 layout(binding = 0, set = 1, std140) buffer readonly GlyphVertexBuffer
 {
@@ -91,7 +84,7 @@ void main()
 
     SetMeshOutputsEXT(numberOfVertices, numberOfPrimitives);
     
-    vec2 renderRes = vec2(constantVariables.renderTargetRes);
+    vec2 renderRes = vec2(g_constantVariables.renderTargetRes);
     float resolutionRatio = renderRes.y / renderRes.x;
     vec2 pixelSize = vec2((1.0 / renderRes.y) * glyphletInstance.PixelSize, (1.0 / renderRes.y) * glyphletInstance.PixelSize);
 

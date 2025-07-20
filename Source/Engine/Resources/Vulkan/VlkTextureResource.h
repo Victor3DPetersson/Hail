@@ -31,6 +31,8 @@ namespace Hail
 
 		void CleanupResource(RenderingDevice* device) override;
 		void CleanupResourceForReload(RenderingDevice* device, uint32 frameInFligth) override;
+		uint32 GetCurrentStageUsage() override;
+
 		VlkTextureInternalData& GetVlkTextureData() { return m_textureData; }
 		ResourceValidator& GetValidator() { return m_validator; }
 	private:

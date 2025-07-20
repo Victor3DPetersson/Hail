@@ -25,7 +25,7 @@ bool Hail::BufferObject::Init(RenderingDevice* pDevice, BufferProperties propert
 		return false;
 
 
-	if (m_properties.updateFrequency == eShaderBufferUpdateFrequency::Once)
+	if (m_properties.updateFrequency == eShaderBufferUpdateFrequency::Once || m_properties.updateFrequency == eShaderBufferUpdateFrequency::Never)
 		m_bUsesFramesInFlight = false;
 	else
 		m_bUsesFramesInFlight = true;

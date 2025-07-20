@@ -180,5 +180,12 @@ bool Hail::RenderingResourceManager::InternalInit()
     bilinearSamplerProps.filter_min = TEXTURE_FILTER_MODE::LINEAR;
     m_samplers[(uint32)GlobalSamplers::Bilinear] = CreateSamplerObject(bilinearSamplerProps);
 
+    SamplerProperties bilinearClampBorderSamplerProps = bilinearSamplerProps;
+    bilinearClampBorderSamplerProps.wrapMode_u = TEXTURE_WRAP_MODE::CLAMP_TO_EDGE;
+    bilinearClampBorderSamplerProps.wrapMode_v = TEXTURE_WRAP_MODE::CLAMP_TO_EDGE;
+    bilinearClampBorderSamplerProps.wrapMode_w = TEXTURE_WRAP_MODE::CLAMP_TO_EDGE;
+
+    m_samplers[(uint32)GlobalSamplers::BilinearClampBorder] = CreateSamplerObject(bilinearClampBorderSamplerProps);
+
 	return true;
 }

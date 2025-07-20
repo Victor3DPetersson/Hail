@@ -62,6 +62,7 @@ namespace
 FilePath FilePath::ProjectCurrentWorkingDirectory("");
 FilePath FilePath::UserProjectDirectory("");
 FilePath FilePath::AngelscriptDirectory("");
+FilePath FilePath::ShaderResourceDirectory("");
 
 void FilePath::CreateFileObject()
 {
@@ -214,6 +215,16 @@ const FilePath& FilePath::GetAngelscriptDirectory()
 
     AngelscriptDirectory = FilePath(ANGELSCRIPT_DIR);
     return AngelscriptDirectory;
+}
+
+const FilePath& Hail::FilePath::GetShaderResourceDirectory()
+{
+    if (ShaderResourceDirectory.Length() != 0)
+        return ShaderResourceDirectory;
+
+    ShaderResourceDirectory = FilePath(SHADER_DIR_IN);
+    return ShaderResourceDirectory;
+    // TODO: insert return statement here
 }
 
 int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB)

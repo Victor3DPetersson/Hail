@@ -121,7 +121,7 @@ void Hail::Renderer::Render()
 	m_pDebugRenderingManager->Render();
 
 	// Finished rendering to our main framebuffer
-	m_pContext->EndRenderPass();
+	m_pContext->EndCurrentPass(VertexFragmentShaderStage);
 
 	m_pContext->TransferFramebufferLayout(m_pResourceManager->GetMainPassFBTexture(), eFrameBufferLayoutState::ShaderRead, eFrameBufferLayoutState::ShaderRead);
 	m_pContext->BindFrameBufferAtSlot(m_pResourceManager->GetSwapChain()->GetFrameBufferTexture(), 0);

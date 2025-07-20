@@ -7,6 +7,7 @@ namespace Hail
 	class ApplicationWindow;
 	class InputHandler;
 	class Timer;
+	struct Settings;
 
 	class ResourceRegistry;
 	bool InitEngine(StartupAttributes startupData);
@@ -16,6 +17,7 @@ namespace Hail
 	InputHandler& GetInputHandler();
 	ResourceRegistry& GetResourceRegistry();
 	const Timer& GetRenderLoopTimer();
+	Settings& GetEngineSettings();
 
 	bool IsRunning();
 	// A getter for locking operations to see if the engine or window has been terminated from an OS command.

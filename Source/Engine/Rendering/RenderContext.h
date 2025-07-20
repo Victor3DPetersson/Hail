@@ -72,12 +72,14 @@ namespace Hail
 		virtual void DeleteFramebuffer(FrameBufferTexture* pFrameBufferToDelete);
 		virtual void DeleteMaterial(Material* pMaterialToDelete);
 
+		uint64 GetCurrentRenderFrame() const { return m_currentRenderFrame; }
 		TextureView* GetBoundTextureAtSlot(uint32 slot);
 		BufferObject* GetBoundStructuredBufferAtSlot(uint32 slot);
 		BufferObject* GetBoundUniformBufferAtSlot(uint32 slot);
 
 		void UploadDataToBuffer(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData);
 		void UploadDataToTexture(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
+		void CopyDataToBuffer(BufferObject* pDstBuffer, BufferObject* pSrcBuffer);
 
 		void TransferFramebufferLayout(FrameBufferTexture* pTextureToTransfer, eFrameBufferLayoutState colorState, eFrameBufferLayoutState depthState);
 		void TransferTextureLayout(TextureResource* pTextureToTransfer, eShaderAccessQualifier newQualifier, uint32 newStageCombination);
@@ -100,7 +102,7 @@ namespace Hail
 
 
 		virtual void StartFrame() = 0;
-		virtual void EndRenderPass() = 0;
+		virtual void EndCurrentPass(uint32 nextShaderStage) = 0;
 
 	protected:
 		void CleanupAndEndPass();
@@ -125,12 +127,13 @@ namespace Hail
 
 		// Creates a complete state for a pipeline if it does not exist, this pipeline will be with the bound resources. 
 		void ValidatePipelineAndUpdateDescriptors(Pipeline* pPipeline);
-		void CheckBoundDataAgainstSetDecoration(const SetDecoration& setDecoration, eDecorationType decorationType);
+		bool CheckBoundDataAgainstSetDecoration(Pipeline* pPipeline, const SetDecoration& setDecoration, StaticArray<uint32, MaxShaderBindingCount>* pBoundListToCheck, eDecorationType decorationType);
 		virtual void SubmitFinalFrameCommandBuffer() = 0;
 
 		virtual CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) = 0;
 		virtual void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) = 0;
 		virtual void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel) = 0;
+		virtual void CopyDataToBufferInternal(BufferObject* pDstBuffer, BufferObject* pSrcBuffer) = 0;
 		virtual bool BindMaterialInternal(Pipeline* pMaterial) = 0;
 		virtual bool BindComputePipelineInternal(Pipeline* pPipeline) = 0;
 		virtual void ClearFrameBufferInternal(FrameBufferTexture* pFrameBuffer) = 0;
@@ -168,5 +171,7 @@ namespace Hail
 
 		GrowingArray<MaterialFrameBufferConnection*> m_pFrameBufferMaterialPipelines;
 		GrowingArray<ComputePipeline*> m_pComputePipelines;
+
+		uint64 m_currentRenderFrame;
 	};
 }

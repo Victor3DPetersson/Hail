@@ -12,6 +12,14 @@
 
 using namespace Hail;
 
+bool localIsValidPairOfAccessQualifiers(eShaderAccessQualifier qualifierA, eShaderAccessQualifier qualifierB)
+{
+	if (qualifierA == eShaderAccessQualifier::ReadWrite || qualifierB == eShaderAccessQualifier::ReadWrite)
+		return true;
+	else
+		return qualifierA == qualifierB;
+}
+
 RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pResourceManager)
 	: m_pDevice(device)
 	, m_pResourceManager(pResourceManager)
@@ -22,6 +30,7 @@ RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pResource
 	, m_pBoundVertexBuffer(nullptr)
 	, m_pBoundIndexBuffer(nullptr)
 	, m_boundMaterialType(eMaterialType::COUNT)
+	, m_currentRenderFrame(0)
 {
 	m_pBoundTextures.Fill(nullptr);
 	m_pBoundStructuredBuffers.Fill(nullptr);
@@ -67,7 +76,7 @@ void RenderContext::BindMaterial(Material* pMaterial)
 		return;
 
 	H_ASSERT(m_pBoundFrameBuffers[0], "No framebuffer bound");
-	EndRenderPass();
+	EndCurrentPass(pMaterial->m_pPipeline->m_shaderStages);
 
 	ValidatePipelineAndUpdateDescriptors(pMaterial->m_pPipeline);
 
@@ -92,7 +101,7 @@ void RenderContext::BindMaterial(Pipeline* pPipeline)
 	if (m_pBoundMaterialPipeline && m_pBoundMaterialPipeline == pPipeline)
 		return;
 
-	EndRenderPass();
+	EndCurrentPass(pPipeline->m_shaderStages);
 
 	ValidatePipelineAndUpdateDescriptors(pPipeline);
 
@@ -148,19 +157,16 @@ inline uint32 hasha(glm::ivec2& p) {
 
 void RenderContext::ValidatePipelineAndUpdateDescriptors(Pipeline* pPipeline)
 {
-	if (!pPipeline->m_pTypeDescriptor)
+	if (pPipeline->m_bUseTypePasses)
 	{
+		H_ASSERT(pPipeline->m_type != eMaterialType::CUSTOM, "Non Custom pass should have a type objec");
 		//H_ERROR(StringL::Format("No bound type data for the pipeline that is being set %u", pPipeline->m_sortKey));
 		return;
 	}
 
-	// Null last state och lägg till last state för bundna resurser
-	//for (uint32 i = 0; i < 16u; i++)
-	//{
-	//	if (m_pBoundTextures[i])
-	//		m_pBoundTextures[i]->GetProps().pTextureToView->m_accessQualifier
-	//}
+	bool bNewResourceBound = false;
 
+	const uint32 frameInFlight = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
 	for (uint32 iShader = 0; iShader < pPipeline->m_pShaders.Size(); iShader++)
 	{
 		if (!pPipeline->m_pShaders[iShader])
@@ -170,26 +176,30 @@ void RenderContext::ValidatePipelineAndUpdateDescriptors(Pipeline* pPipeline)
 		ReflectedShaderData& shaderData = pPipeline->m_pShaders[iShader]->reflectedShaderData;
 		H_ASSERT(shaderData.m_bIsValid);
 
-		// if pipeline is custom, no instance set should exist
-		uint32 numberOfSetsToValidate = pPipeline->m_type == eMaterialType::CUSTOM ? 2u : 3u;
-		
+		// As pipeline is custom, no instance set should exist
+		uint32 numberOfSetsToValidate = 2u;
+		MaterialTypeObject::BindingInformation& bindingInformation = pPipeline->m_pTypeObject->m_boundResources[iShader];
 		for (uint32 iSet = 1u; iSet < numberOfSetsToValidate; iSet++)
 		{
 			for (uint32 iDecorationType = 0; iDecorationType < (uint32)eDecorationType::Count; iDecorationType++)
 			{
-				if (pPipeline->m_typeRenderPass == eMaterialType::CUSTOM)
-					CheckBoundDataAgainstSetDecoration(shaderData.m_setDecorations[iSet][iDecorationType], (eDecorationType)iDecorationType);
+				StaticArray<uint32, MaxShaderBindingCount>* pBoundListToCheck = iSet == (uint32)eDecorationSets::MaterialTypeDomain ? 
+					&bindingInformation.GetDecorationBoundList(frameInFlight, (eDecorationType)iDecorationType) : nullptr;
+
+				bNewResourceBound |= CheckBoundDataAgainstSetDecoration(pPipeline, shaderData.m_setDecorations[iSet][iDecorationType], pBoundListToCheck, (eDecorationType)iDecorationType);
 			}
 		}
 	}
-	
-	m_pResourceManager->GetMaterialManager()->UpdateCustomPipelineDescriptors(pPipeline, this);
+	if (bNewResourceBound)
+		m_pResourceManager->GetMaterialManager()->UpdateCustomPipelineDescriptors(pPipeline, this);
 }
 
-void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration& setDecoration, eDecorationType decorationType)
+bool Hail::RenderContext::CheckBoundDataAgainstSetDecoration(Pipeline* pPipeline, const SetDecoration& setDecoration, StaticArray<uint32, MaxShaderBindingCount>* pBoundListToCheck, eDecorationType decorationType)
 {
 	if (decorationType == eDecorationType::PushConstant)
-		return;
+		return false;
+
+	bool bNewResourceBound = false;
 
 	uint32 currentBindingPointSum = 0u;
 	uint32 resourceIDSum = 0u;
@@ -199,6 +209,7 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 		const uint32 bindingPoint = setDecoration.m_indices[i];
 		const ShaderDecoration& decoration = setDecoration.m_decorations[bindingPoint];
 
+		H_ASSERT(decoration.m_type == decorationType);
 		uint32 assetIndex = 0u;
 		eShaderAccessQualifier assetAccessQualifier{};
 		switch (decorationType)
@@ -220,7 +231,7 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 			const BufferProperties& props = m_pBoundStructuredBuffers[bindingPoint]->GetProperties();
 
 			assetAccessQualifier = m_pBoundStructuredBuffers[bindingPoint]->GetAccessQualifier();
-			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
+			H_ASSERT(localIsValidPairOfAccessQualifiers(decoration.m_accessQualifier, assetAccessQualifier));
 			assetIndex = m_pBoundStructuredBuffers[bindingPoint]->GetID();
 			H_ASSERT(decoration.m_byteSize == props.elementByteSize, "Element size on bound buffer does not match shader buffer");
 		}
@@ -231,7 +242,7 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 			const TextureViewProperties& viewProps = m_pBoundTextures[bindingPoint]->GetProps();
 
 			assetAccessQualifier = viewProps.accessQualifier;
-			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
+			H_ASSERT(localIsValidPairOfAccessQualifiers(decoration.m_accessQualifier, assetAccessQualifier));
 			assetIndex = viewProps.pTextureToView->m_index;
 		}
 		break;
@@ -242,11 +253,19 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 			assetAccessQualifier = viewProps.accessQualifier;
 			assetIndex = viewProps.pTextureToView->m_index;
 
-			H_ASSERT(decoration.m_accessQualifier == assetAccessQualifier);
+			H_ASSERT(localIsValidPairOfAccessQualifiers(decoration.m_accessQualifier, assetAccessQualifier));
 			if (decoration.m_valueType != eShaderValueType::none)
 			{
 				H_ASSERT(TextureFormatMatchesDecoration(viewProps.pTextureToView->m_properties.format, decoration));
 			}
+
+			TextureResource* pTexture = viewProps.pTextureToView;
+			bool bTextureIsWrite = (pTexture->m_accessQualifier == eShaderAccessQualifier::WriteOnly || pTexture->m_accessQualifier == eShaderAccessQualifier::ReadWrite);
+			bool bViewIsWrite = (viewProps.accessQualifier == eShaderAccessQualifier::WriteOnly || viewProps.accessQualifier == eShaderAccessQualifier::ReadWrite);
+
+			if ((bTextureIsWrite != bViewIsWrite && pTexture->m_accessQualifier != viewProps.accessQualifier) || pPipeline->m_shaderStages != pTexture->GetCurrentStageUsage())
+				TransferTextureLayout(pTexture, assetAccessQualifier, pPipeline->m_shaderStages);
+
 		}
 		break;
 		case Hail::eDecorationType::Sampler:
@@ -256,11 +275,13 @@ void Hail::RenderContext::CheckBoundDataAgainstSetDecoration(const SetDecoration
 			break;
 		}
 
-		if (decoration.m_accessQualifier == eShaderAccessQualifier::ReadOnly)
+		if (pBoundListToCheck)
 		{
-			H_ASSERT(assetAccessQualifier != eShaderAccessQualifier::WriteOnly);
+			bNewResourceBound |= (*pBoundListToCheck)[bindingPoint] != assetIndex;
+			(*pBoundListToCheck)[bindingPoint] = assetIndex;
 		}
 	}
+	return bNewResourceBound;
 }
 
 void Hail::RenderContext::SetPushConstantValue(void* pPushConstant)
@@ -305,12 +326,23 @@ BufferObject* RenderContext::GetBoundUniformBufferAtSlot(uint32 slot)
 
 void RenderContext::UploadDataToBuffer(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData)
 {
+	if (m_currentState != eContextState::Transfer)
+		EndCurrentPass(0);
+
     UploadDataToBufferInternal(pBuffer, pDataToUpload, sizeOfUploadedData);
 }
 
 void RenderContext::UploadDataToTexture(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel)
 {
 	UploadDataToTextureInternal(pTexture, pDataToUpload, mipLevel);
+}
+
+void Hail::RenderContext::CopyDataToBuffer(BufferObject* pDstBuffer, BufferObject* pSrcBuffer)
+{
+	if (m_currentState != eContextState::Transfer)
+		EndCurrentPass(0);
+
+	CopyDataToBufferInternal(pDstBuffer, pSrcBuffer);
 }
 
 void RenderContext::TransferFramebufferLayout(FrameBufferTexture* pTextureToTransfer, eFrameBufferLayoutState colorState, eFrameBufferLayoutState depthState)
@@ -365,7 +397,7 @@ void RenderContext::EndGraphicsPass()
 	H_ASSERT(m_currentState == eContextState::Graphics, "Wrong context state for ending the graphics pass.");
 	H_ASSERT(m_boundMaterialType != eMaterialType::COUNT, "Wrong material context state for ending the graphics pass.");
 	eMaterialType previousBoundsPassType = m_boundMaterialType;
-	EndRenderPass();
+	EndCurrentPass(m_pBoundMaterialPipeline->m_shaderStages);
 
 	if (previousBoundsPassType == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{

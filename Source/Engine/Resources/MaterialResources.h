@@ -66,6 +66,7 @@ namespace Hail
 	uint64 GetMaterialSortValue(eMaterialType type, eBlendMode blend, uint64 shaderValues);
 
 	// Owns common data for a specific material type, so common textures and descriptors Set 1 and 0 data
+	// If the pipeline is custom this is not a reusable object for other pipelines
 	class MaterialTypeObject
 	{
 	public:
@@ -74,6 +75,18 @@ namespace Hail
 		ResourceValidator m_typeDataValidator;
 		VectorOnStack<ReflectedShaderData, 2> m_expectedShaderData;
 
+		class BindingInformation
+		{
+		public:
+			BindingInformation();
+			void ClearBindings();
+			StaticArray<uint32, MaxShaderBindingCount>& GetDecorationBoundList(uint32 frameInFlight, eDecorationType decoration);
+
+		private:
+			StaticArray<StaticArray<StaticArray<uint32, MaxShaderBindingCount>, (uint32)eDecorationType::Count>, MAX_FRAMESINFLIGHT> m_boundResourceLists;
+		};
+		// There exists one set for each shader
+		GrowingArray<BindingInformation> m_boundResources;
 		StaticArray<bool, MAX_FRAMESINFLIGHT> m_bBoundTypeData = false;
 	};
 	
@@ -99,7 +112,7 @@ namespace Hail
 		bool m_bUseTypePasses = false;
 		eMaterialType m_typeRenderPass = eMaterialType::COUNT;
 		bool m_bIsCompute = false;
-		MaterialTypeObject* m_pTypeDescriptor = nullptr;
+		MaterialTypeObject* m_pTypeObject = nullptr;
 		VectorOnStack<ShaderDecoration, 4> m_pushConstants;
 		uint32 m_shaderStages = 1 << (uint8)eShaderStage::None;
 	};

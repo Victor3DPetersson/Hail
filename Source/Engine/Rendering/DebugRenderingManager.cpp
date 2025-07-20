@@ -101,7 +101,7 @@ bool Hail::DebugRenderingManager::Initialize()
 	debugPointBufferProps.numberOfElements = MAX_NUMBER_OF_DEBUG_CIRCLES;
 	debugPointBufferProps.type = eBufferType::structured;
 	debugPointBufferProps.domain = eShaderBufferDomain::CpuToGpu;
-	debugPointBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
+	debugPointBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
 	debugPointBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
 	m_pDebugCircleBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(debugPointBufferProps, "Debug Circle Point Buffer");
 

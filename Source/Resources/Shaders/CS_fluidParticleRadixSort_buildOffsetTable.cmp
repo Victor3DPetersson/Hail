@@ -1,0 +1,61 @@
+#include "shaderCommons.hs"
+
+layout( push_constant ) uniform constants
+{
+    uint currentOffset;
+	uint totalNumberOfElements;
+    uint numberOfGroups;
+    uint padding; 
+} PushConstants;
+
+layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+
+layout(binding = 1, set = 1, std430) buffer LocalHistogramBuffer 
+{
+    uint localHistograms[];
+};
+
+layout(binding = 2, set = 1, std430) buffer GlobalHistogramBuffer 
+{
+    uint globalHistograms[];
+};
+
+const uint NumBuckets = 16u;
+layout(binding = 3, set = 1, std430) buffer GlobalOffsetTable
+{
+    uint globalOffsetTable[NumBuckets];
+};
+
+shared uint localHist[NumBuckets];
+
+void main() 
+{
+    uint localThreadID = gl_LocalInvocationID.x;
+
+    uint numGroups = PushConstants.numberOfGroups; 
+    uint groupID  = gl_WorkGroupID.x;
+
+    uint groupOffset = 0;
+
+    for (uint g = 0; g < 256; ++g) 
+    {
+        if (g > numGroups)
+            break;
+        uint histogramID = g * NumBuckets + localThreadID;
+        uint nextOffset = localHistograms[histogramID];
+        globalHistograms[histogramID] = groupOffset;
+        groupOffset += nextOffset;
+    }
+
+    localHist[localThreadID] = groupOffset;
+    memoryBarrierShared();
+    barrier();
+
+    uint scanVal = 0;
+    for (uint i = 0; i < localThreadID; ++i) 
+    {
+        scanVal += localHist[i];
+    }
+
+    globalOffsetTable[localThreadID] = scanVal;
+}

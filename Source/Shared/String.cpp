@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include "MathUtils.h"
 #include "Utility/StringUtility.h"
 #include "String.hpp"
 #include "Types.h"
@@ -409,6 +410,51 @@ StringL& Hail::StringL::operator+=(const char* pString)
 	return *this;
 }
 
+StringL& Hail::StringL::operator+=(const char character)
+{
+	const uint32 previousLength = Length();
+	const uint32 newStringLength = 1u;
+	m_length = previousLength + newStringLength;
+	if (m_length > 15)
+	{
+		const StringL previousString = m_allocatedLength > 15 ? m_memory.m_p : m_memory.m_shortString;
+		bool bAllocatedNewMemory = false;
+		if (m_length > m_allocatedLength)
+		{
+ 			if (m_allocatedLength > 15)
+				StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
+
+			StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length + 32u, &m_memory.m_p);
+			m_allocatedLength = m_length + 32u;
+			bAllocatedNewMemory = true;
+		}
+		if (bAllocatedNewMemory)
+		{
+			memcpy(m_memory.m_p, previousString, previousLength);
+			memcpy(m_memory.m_p + (previousLength), &character, newStringLength);
+		}
+		else
+		{
+			m_memory.m_p[m_length - 1u] = character;
+		}
+		m_memory.m_p[m_length] = 0;
+	}
+	else
+	{
+		if (m_allocatedLength > 15)
+		{
+			StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
+			m_allocatedLength = 0;
+		}
+
+		m_memory.m_shortString[m_length - 1u] = character;
+		m_memory.m_shortString[m_length] = 0;
+	}
+
+	return *this;
+}
+
+
 StringL Hail::StringL::operator+(const StringL& string1)
 {
 	const uint32 previousLength = m_length;
@@ -462,6 +508,32 @@ void Hail::StringL::Reserve(uint32 numOfChars)
 	m_length = numOfChars;
 	StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length, &m_memory.m_p);
 	m_allocatedLength = m_length;
+}
+
+void Hail::StringL::RemoveCharsFromBack(uint32 numOfChars)
+{
+	if (m_length == 0u)
+		return;
+
+	int32 newLength = m_length - numOfChars;
+	newLength = Math::Max(0, newLength);
+
+	if (newLength > 15)
+	{
+		H_ASSERT(m_allocatedLength > 15);
+		memset(&m_memory.m_p[newLength], 0, m_length);
+	}
+	else
+	{
+		if (m_allocatedLength > 15)
+		{
+			StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
+			m_allocatedLength = 0;
+		}
+
+		memset(&m_memory.m_shortString[newLength], 0, m_length);
+	}
+	m_length = newLength;
 }
 
 void Hail::StringL::Clear()

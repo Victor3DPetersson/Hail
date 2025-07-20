@@ -8,6 +8,7 @@
 
 namespace Hail
 {
+	constexpr uint32 MaxShaderBindingCount = 16u;
 	struct ShaderDecoration
 	{
 		uint16 m_bindingLocation = MAX_UINT16;
@@ -36,8 +37,8 @@ namespace Hail
 	//TODO: Replace this struct with a hasmap like structure
 	struct SetDecoration
 	{
-		StaticArray<ShaderDecoration, 16u> m_decorations;
-		VectorOnStack<uint32, 16u> m_indices;
+		StaticArray<ShaderDecoration, MaxShaderBindingCount> m_decorations;
+		VectorOnStack<uint32, MaxShaderBindingCount> m_indices;
 	};
 
 	struct EntryDecorations

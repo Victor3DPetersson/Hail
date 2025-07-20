@@ -1,0 +1,80 @@
+#include "fluidParticleCommons.hs"
+
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+void main() 
+{
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint localThreadID = gl_LocalInvocationID.x;
+    uint groupID = gl_WorkGroupID.x;
+
+    uint numberOfParticles = g_particleVariables.numberOfParticles;
+	if (globalThreadID >= numberOfParticles)
+		return;
+
+	float h = g_particleVariables.particleKernelRadius;
+	float mass = g_particleVariables.mass;
+
+	FluidParticle pi = globalParticleList[globalThreadID];
+
+	// Remove 0 to avoid divisions by zero
+	float piNearDensitySquared = (pi.densityNearDensity.y * pi.densityNearDensity.y);
+	piNearDensitySquared = piNearDensitySquared == 0.0 ? 1.0 : piNearDensitySquared;
+	float piDensitySquared = (pi.densityNearDensity.x * pi.densityNearDensity.x);
+	piDensitySquared = piDensitySquared == 0.0 ? 1.0 : piDensitySquared;
+
+	float piNearPressureTerm = pi.pressureNearPressure.y / piNearDensitySquared;
+	float piPressureTerm = pi.pressureNearPressure.x / piDensitySquared;
+
+	vec2 piA = (pi.pos + pi.intermediateVelocity);
+	ivec2 cellCoord = PositionToCellCoord(piA, h);
+	vec2 randomFallbackDirection = VogelDirection(globalThreadID, 512, float(globalThreadID + 1) * 0.01);
+	const float hSquared = h * h;
+
+	vec2 pressureForce = vec2(0.0, 0.0);
+	for (uint iCellID = 0; iCellID < 9; iCellID++)
+	{
+		ivec2 cellCoordToTest = cellCoord + CellOffsets[iCellID];
+		uint key = GenerateKeyFromCellPos(cellCoordToTest, numberOfParticles);
+		uint cellStartIndex = globalSpatialLookupStartIndices[key];
+		for (uint i = cellStartIndex; i < numberOfParticles; i++)
+		{
+			if (globalSpatialLookupKeyIndexList[i].x != key)
+				break;
+			uint particleIndex = globalSpatialLookupKeyIndexList[i].y;
+
+			if (particleIndex == globalThreadID)
+				continue;
+
+			FluidParticle pj = globalParticleList[particleIndex];
+
+			vec2 rij = piA - (pj.pos + pj.intermediateVelocity);
+			const float rijLengthSquard = rij.x * rij.x + rij.y * rij.y;
+			if (rijLengthSquard >= hSquared)
+				continue;
+
+			float pjNearDensitySquared = (pj.densityNearDensity.y * pj.densityNearDensity.y);
+			pjNearDensitySquared = pjNearDensitySquared == 0.0 ? 1.0 : pjNearDensitySquared;
+			float pjDensitySquared = (pj.densityNearDensity.x * pj.densityNearDensity.x);
+			pjDensitySquared = pjDensitySquared == 0.0 ? 1.0 : pjDensitySquared;
+
+			float nearPressureTerm = piNearPressureTerm + (pj.pressureNearPressure.y / pjNearDensitySquared);
+			float pressureTerm = piPressureTerm + (pj.pressureNearPressure.x / pjDensitySquared);
+
+			float r = sqrt(rijLengthSquard);
+			const float pressureModifier = 1.0 - r / h;
+			pressureTerm = pressureTerm * pressureModifier + nearPressureTerm * (pressureModifier * pressureModifier);
+
+			bool useRandomDirection = false;
+			float gradient = CubicSplineGradient(r, h);
+			if (r < EpsilonF)
+				gradient *= 2.0;
+			vec2 normalizedDirection = r < EpsilonF ? randomFallbackDirection : rij / r;
+			vec2 pressureGradient = normalizedDirection * gradient;
+			
+			pressureForce += mass * -pressureTerm * pressureGradient;
+		}
+	}
+
+    globalParticleList[globalThreadID].pressureForce = pressureForce;
+}

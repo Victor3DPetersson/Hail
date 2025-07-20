@@ -17,6 +17,98 @@ namespace Hail
 	bool LocalCompileShaderInternalMETAL(const char* relativePath, const char* shaderName);
 	bool LocalExportCompiledShader(const char* shaderName, const char* compiledShaderData, ShaderHeader shaderHeader, MetaResource metaResource);
 
+	// TODO: add an error enum instead of a false statement
+	bool localCheckForIncludes(GrowingArray<FileObject>& includesAdded, GrowingArray<char>& shaderDataToFill, const FilePath& newPathToCheck)
+	{
+		if (!newPathToCheck.IsValid())
+			return false;
+
+		FileObject fileObjectToCheck = newPathToCheck.Object();
+		for (size_t i = 0; i < includesAdded.Size(); i++)
+		{
+			if (fileObjectToCheck == includesAdded[i])
+				return false;
+		}
+
+		InOutStream stream;
+		if (!stream.OpenFile(newPathToCheck, FILE_OPEN_TYPE::READ, false))
+		{
+			return false;
+		}
+		GrowingArray<char> readShader(stream.GetFileSize(), 0);
+		stream.Read(readShader.Data(), stream.GetFileSize());
+		stream.CloseFile();
+
+		uint32 offsetToAddFrom = 0u;
+		for (uint32 i = 0; i < readShader.Size(); i++)
+		{
+			if (readShader[i] != '#')
+				continue;
+
+			StringL line;
+			bool bFoundEndLine = false;
+			
+			uint32 currentCharacterIndex = i;
+			while (bFoundEndLine == false)
+			{
+				if (readShader[currentCharacterIndex] == '\n')
+				{
+					bFoundEndLine = true;
+				}
+				line += readShader[currentCharacterIndex];
+				currentCharacterIndex++;
+				if (currentCharacterIndex == readShader.Size())
+					break;
+			}
+			H_ASSERT(bFoundEndLine);
+
+			if (int includeStart = StringContainsAndEndsAtIndex(line.Data(), "#include ") != -1)
+			{
+				uint32 lengthOfEntireLine = line.Length();
+				// remove "#include "";
+				line = line.Data() + includeStart + 9u;
+				H_ASSERT(line[line.Length() - 1u] == '\n');
+
+				if (line[0] == '"')
+					return false;
+				if (line[line.Length() - 2u] != '"')
+					return false;
+
+
+				H_ASSERT(i >= offsetToAddFrom);
+
+				// Add what is before the include to the outShaderData
+				uint32 lengthToAdd = i - offsetToAddFrom;
+				uint32 previousLength = shaderDataToFill.Size();
+				if (lengthToAdd)
+				{
+					shaderDataToFill.AddN(lengthToAdd);
+					memcpy(shaderDataToFill.Data() + previousLength, readShader.Data() + offsetToAddFrom, lengthToAdd);
+				}
+
+				// make sure that the rest of the code gets added
+				offsetToAddFrom += lengthOfEntireLine + i;
+				// Remove new line and character
+				line.RemoveCharsFromBack(2u);
+				StringLW lineW = line;
+				FilePath includePath = FilePath::GetShaderResourceDirectory();
+				includePath = includePath + lineW.Data();
+				if (!localCheckForIncludes(includesAdded, shaderDataToFill, includePath))
+					return false;
+
+				includesAdded.Add(includePath.Object());
+				i += lengthOfEntireLine - 1u;
+			}
+		}
+		// no more includes, add the rest of the code
+		uint32 lengthToAdd = readShader.Size() - offsetToAddFrom;
+		uint32 previousLength = shaderDataToFill.Size();
+		shaderDataToFill.AddN(lengthToAdd);
+		memcpy(shaderDataToFill.Data() + previousLength, readShader.Data() + offsetToAddFrom, lengthToAdd);
+
+		return true;
+	}
+
 	bool ShaderCompiler::CompileSpecificShader(const char* shaderName, eShaderStage shaderType)
 	{
 		shaderc_compiler_t compiler = shaderc_compiler_initialize();
@@ -75,10 +167,21 @@ namespace Hail
 		{
 			return false;
 		}
-		GrowingArray<char> readShader(stream.GetFileSize(), 0);
-		stream.Read(readShader.Data(), stream.GetFileSize());
-		//readShader[memblockSize] = '\0';//null terminating the string
-		//DEBUG_PRINT_CONSOLE_CONSTCHAR(readShader.Data());
+		GrowingArray<char> readShader(stream.GetFileSize());
+		stream.CloseFile();
+
+		GrowingArray<FileObject> includesAdded;
+		if (!localCheckForIncludes(includesAdded, readShader, filePath))
+			return false;
+
+		if (!includesAdded.Empty())
+		{
+			StringL debugString;
+			debugString.Reserve(readShader.Size());
+			memcpy(debugString.Data(), readShader.Data(), readShader.Size());
+			Debug_PrintConsoleConstChar(debugString.Data());
+		}
+
 		MetaResource metaResource;
 		metaResource.SetSourcePath(filePath);
 		const bool result = LocalCompileShaderInternalGLSL(compiler, shaderType, shaderName, readShader, compileOptions, metaResource);
