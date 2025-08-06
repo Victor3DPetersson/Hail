@@ -35,6 +35,7 @@ namespace Hail
 		// Checks the source resource and compares it with the project resource to see if it needs to be reloaded. Does not work with all types.
 		bool IsResourceOutOfDate(ResourceType type, GUID resourceGUID);
 
+		// Returns null if the resource is not added to the project
 		const MetaResource* GetResourceMetaInformation(ResourceType type, const FilePath& pathToCheck) const;
 
 	private:

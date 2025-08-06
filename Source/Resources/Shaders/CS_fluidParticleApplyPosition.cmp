@@ -1,7 +1,5 @@
 #include "fluidParticleCommons.hs"
 
-layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
-
 void CollideWithBounds(inout vec2 velocity, inout vec2 pPosToUpdate, float particleRadius)
 {
     float halfRadius = particleRadius * 0.5;
@@ -32,6 +30,7 @@ void CollideWithBounds(inout vec2 velocity, inout vec2 pPosToUpdate, float parti
     }
 }
 
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main() 
 {
     uint globalThreadID = gl_GlobalInvocationID.x;
@@ -52,6 +51,7 @@ void main()
     vec2 acceleration_pressure = particle.pressureForce / mass;
     vec2 velocity = (particle.intermediateVelocity + deltaTimeByMass * acceleration_pressure);
     vec2 position = particle.pos + velocity;
+    
     CollideWithBounds(velocity, position, h);
 
     globalParticleList[globalThreadID].pos = position;

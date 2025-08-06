@@ -18,16 +18,18 @@ namespace Hail
 		eDecorationType m_type = eDecorationType::Count;
 		uint8 m_set = 0xffff;
 		eShaderAccessQualifier m_accessQualifier;
+		uint16 m_flags = 0u; // For images it is used to differentiate between storage images and sampled images for read only textures
 	};
 
 	static bool operator==(const ShaderDecoration& other, const ShaderDecoration& otherB)
 	{
-		if (otherB.m_bindingLocation == other.m_bindingLocation ||
-			otherB.m_elementCount == other.m_elementCount ||
-			otherB.m_byteSize == other.m_byteSize ||
-			otherB.m_valueType == other.m_valueType ||
-			otherB.m_type == other.m_type ||
-			otherB.m_set == other.m_set)
+		if (otherB.m_bindingLocation == other.m_bindingLocation &&
+			otherB.m_elementCount == other.m_elementCount &&
+			otherB.m_byteSize == other.m_byteSize &&
+			otherB.m_valueType == other.m_valueType &&
+			otherB.m_type == other.m_type &&
+			otherB.m_set == other.m_set &&
+			otherB.m_flags == other.m_flags)
 		{
 			return true;
 		}

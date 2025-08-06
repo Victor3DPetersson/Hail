@@ -1,48 +1,16 @@
 #include "shaderCommons.hs"
 
-layout(binding = 3, set = 1) uniform texture2D cloudSdfTexture;
+layout(binding = 1, set = 1) uniform texture2D cloudCoverageSdfTexture;
+layout(binding = 2, set = 1) uniform texture2D tileAbleCloudTexture;
 
-vec2 CalculateForceToSdf(vec2 cloudParticlePos)
-{
-	cloudParticlePos.x -= 25.0;
-	float xShift = 1.0 / 128.0;
-	float yShift = 1.0 / 128.0;
-	vec2 normalizedParticlePos = cloudParticlePos / 50.0;
-	vec2 clampedParticlePos = normalizedParticlePos;
-	clampedParticlePos.x = clamp(clampedParticlePos.x, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
-	clampedParticlePos.y = clamp(clampedParticlePos.y, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
-	float sdfAtPos = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), clampedParticlePos).r;
+const vec3 cloudColorTable[4] = {
+    {115.0 / 255.0, 147.0 / 255.0, 196.0 / 255.0},
+    {153.0 / 255.0, 153.0 / 255.0, 204.0 / 255.0},
+    {179.0 / 255.0, 172.0 / 255.0, 205.0 / 255.0},
+    {212.0 / 255.0, 234.0 / 255.0, 250.0 / 255.0}
+};
 
-	if (sdfAtPos < -4.0)
-		return vec2(0.0, 0.0);
-	// else
-	// {
-	// 	return normalize(normalizedParticlePos - vec2(0.5));
-	// }
-
-	ivec2 particlePixelSdfPos = ivec2(int(normalizedParticlePos.x * 128.0), int(normalizedParticlePos.y * 128.0));
-
-	vec2 xShiftCoord = vec2(clampedParticlePos.x + xShift, clampedParticlePos.y);
-	vec2 yShiftCoord = vec2(clampedParticlePos.x, clampedParticlePos.y + yShift);
-
-	float xSdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), xShiftCoord).r;
-	float ySdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), yShiftCoord).r;
-
- 	// calculate the normal to the closest cloud point
-	float xGradient = xSdf - sdfAtPos;
-	float yGradient = ySdf - sdfAtPos;
-
-	xGradient = abs(xGradient) <= EpsilonF ? xShift * 128.0 : xGradient;
-	yGradient = abs(yGradient) <= EpsilonF ? yShift * 128.0 : yGradient;
-
-	vec2 gradientVector = vec2(xGradient, yGradient);
-	float gradientLength = dot(gradientVector, gradientVector);
-
-	if (gradientLength <= EpsilonF)
-		return vec2(0.0, 0.0);
-
-	return normalize(gradientVector);
-}
+#include "fluidParticleUniform.hs"
 
 //  Mark Jarzynski and Marc Olano, Hash Functions for GPU Rendering, 
 //  Journal of Computer Graphics Techniques (JCGT), vol. 9, no. 3, 21-38, 2020
@@ -142,8 +110,6 @@ float voronoi(vec2 x)
     return sqrt( res );
 }
 
-layout(set = 1, binding = 1) uniform texture2D cloudCoverageTexture;
-layout(set = 1, binding = 2) uniform texture2D cloudSdfTextureNoSampler;
 
 layout(location = 0) out vec4 outColor;
 layout(location = 0) in vec2 fragTexCoord;
@@ -153,50 +119,27 @@ float HenyeyGreensteinPhaseFunction(float g, float theta)
 	return (1.0 / (4.0 * 3.1415926)) * (1.0 - g * g) / pow(1.0 + g * g - 2.0 * g * cos(theta), (1.5));
 }
 
-const float cloudTextureSdfDimensions = 128.0;
-
 void main() 
 {
 	float renderTexelSizeX = 1.0 / float(g_constantVariables.renderTargetRes.x);
 	float renderTexelSizeY = 1.0 / float(g_constantVariables.renderTargetRes.y);
 
-	vec2 pixelPos = fragTexCoord * g_constantVariables.renderTargetRes + 0.5; 
-	float sampleRadiusPixelSpace = 20.0;
-	// Should be constants
-	vec2 cloudPos = vec2(0.5, 0.5);
-	vec2 cloudDimensions = vec2(240.0, 240.0);
+	vec2 fragCoord = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5));
 
-	vec2 cloudToPixelDimensions = cloudDimensions / g_constantVariables.renderTargetRes;
-
-	vec2 fragCoordInCloudSpace = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5)) / cloudToPixelDimensions;
-
-	vec2 cloudMinPos = (cloudPos - (cloudToPixelDimensions * 0.5)) / cloudToPixelDimensions;
-
-	// Move the fragCoord in to the normalized space of the cloud so we can iterate over the normalized points and do the transformation once. 
-	vec2 pixelCloudSpacePos = fragCoordInCloudSpace - cloudMinPos;
-
-	float cloudSample = texture(sampler2D(cloudCoverageTexture, g_samplerBilinear), fragTexCoord).r;
-	bool bIsAValidSample = cloudSample > 0.0;
-	if (!bIsAValidSample)
+	float cloudSample = texture(sampler2D(cloudCoverageSdfTexture, g_samplerBilinear), fragTexCoord).w;
+	if (cloudSample <= 0.0)
 		discard;
 
-	vec2 cloudSdf = (CalculateForceToSdf(pixelPos * 0.1) + 1.0) * 0.5;
-	vec3 debugColor = vec3(cloudSdf, 0.5);
-	outColor = vec4(debugColor, 1.0);
-	return;
-
-	float sunDirectionRad = mod(3.925 + g_constantVariables.totalTime_HorizonPosition.x * 0.3, 3.1415926 * 2.0);
-	//float sunDirectionRad = 0.0;
+	float sunDirectionRad = g_particleVariables.effectSunDirectionRadian;
 	vec2 sunDirection = normalize(vec2(cos(sunDirectionRad), sin(sunDirectionRad) * (-1.0)));
 
-	float sdfValue = 0.0;
-	vec2 sdfTexCoord = vec2(clamp(pixelCloudSpacePos.x, 0.0, 1.0), clamp(1.0 - pixelCloudSpacePos.y, 0.0, 1.0));
-	sdfValue = texture(sampler2D(cloudSdfTextureNoSampler, g_samplerBilinear), sdfTexCoord + snoise(fragTexCoord * 10.0) * 0.01).r;
+	vec2 sdfTexCoord = vec2(clamp(fragCoord.x, 0.0, 1.0), clamp(fragCoord.y, 0.0, 1.0));
+	float sdfValue = texture(sampler2D(cloudCoverageSdfTexture, g_samplerBilinear), sdfTexCoord + snoise(fragTexCoord * 10.0) * 0.01).r;
 
 	float rayInCloudDistance = 0.0;
 	vec2 currentSamplePoint = sdfTexCoord;
 	vec2 toSunDirection = sunDirection * -1.0;
-	float baseRayDistance = 4.0;
+	float baseRayDistance = g_particleVariables.effectStepLength;
 	// Change the bounds of the SDF
 	sdfValue = sdfValue - 2.0;
 
@@ -208,17 +151,42 @@ void main()
 		float rayDistance = sdfValue > 0.0 ? baseRayDistance : sdfValue * -1.0;
 		rayInCloudDistance += rayDistance;
 
-		float randomDirectionShift = (voronoi(currentSamplePoint * 10.0) * 2.0 - 1.0) * 0.5 + snoise(currentSamplePoint * 2.0) * 0.2;
-		vec2 rayToAdd = (rayDistance / cloudTextureSdfDimensions) * (toSunDirection + randomDirectionShift);
+		float randomTurbulence = (voronoi(currentSamplePoint * g_particleVariables.effectTurbulence) * 2.0 - 1.0) * 0.5;
+		float noise = snoise(currentSamplePoint * 2.0) * g_particleVariables.effectNoise;
+		float randomDirectionShift = randomTurbulence + noise;
+		vec2 rayToAdd = (rayDistance / vec2(g_constantVariables.renderTargetRes)) * (toSunDirection + randomDirectionShift);
 		currentSamplePoint = rayToAdd + currentSamplePoint;
-		sdfValue = texture(sampler2D(cloudSdfTextureNoSampler, g_samplerBilinear), clamp(currentSamplePoint, vec2(0.0, 0.0), vec2(1.0, 1.0))).r - 2.0;
+		sdfValue = texture(sampler2D(cloudCoverageSdfTexture, g_samplerBilinear), clamp(currentSamplePoint, vec2(0.0, 0.0), vec2(1.0, 1.0))).r - 2.0;
 	}
 
-	float hg = HenyeyGreensteinPhaseFunction(0.95, sunDirectionRad);
-	float beersLawValue = 1.0 - clamp(rayInCloudDistance / (8.0 * baseRayDistance * 2.0), 0.0, 1.0); 
-	int quantizedValue = int(beersLawValue * 5.0);
+	float hg = HenyeyGreensteinPhaseFunction(g_particleVariables.HenyeyGreensteinPhaseValue, sunDirectionRad);
+	float beersLawValue = 1.0 - clamp(rayInCloudDistance / (g_particleVariables.BeersLawStepLengthMultiplier * baseRayDistance * 2.0), 0.0, 1.0); 
+    
+    vec2 tileableCloudCoord = fragCoord * g_particleVariables.tileableCloudTilingFactor - g_constantVariables.cameraPos * vec2(g_constantVariables.renderTargetRes);
+	float tileableCloudValue = texture(sampler2D(tileAbleCloudTexture, g_samplerLinear), tileableCloudCoord).r;
 
-	vec3 color = vec3(beersLawValue, float(quantizedValue) * 0.2, sdfValue / 32.0);
+    int ditherY = (int(fragTexCoord.y * float(g_constantVariables.renderTargetRes.y)) % 2);
+    int dither = (int(fragTexCoord.x * float(g_constantVariables.renderTargetRes.x)) + ditherY) % 2;
+
+    float numberOfSteps = g_particleVariables.numberOfSteps;
+    float beersLawRemainder = mod(beersLawValue * numberOfSteps, 1.0);
+    int ditherPixel = 0;
+    if (beersLawRemainder < g_particleVariables.ditherThreshold) 
+    {
+        ditherPixel = -1;
+    }
+    else if (beersLawRemainder > (1.0 - g_particleVariables.ditherThreshold))
+    {
+        ditherPixel = 1;
+    }
+
+    if (beersLawValue + g_particleVariables.tileableCloudThreshold > tileableCloudValue && beersLawValue - g_particleVariables.tileableCloudThreshold < tileableCloudValue)
+        beersLawValue = tileableCloudValue;
+        
+	int quantizedBeersLawValue =  clamp(int(beersLawValue * numberOfSteps) + ditherPixel * dither, 0, int(numberOfSteps));
+
+	vec3 color = vec3(hg, float(quantizedBeersLawValue) / numberOfSteps, sdfValue / 32.0);
+    color = cloudColorTable[clamp(quantizedBeersLawValue, 0, 3)];
 	//color.x = 0.0;
 	//color.y = 0.0;
 	//color.z = 0.0;

@@ -516,7 +516,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 
 	spirv_cross::ShaderResources res = comp.get_shader_resources();
 	auto specializationConstants = comp.get_specialization_constants();
-	Debug_PrintConsoleStringL(StringL::Format("\nShader: %s\n", shaderName));
+	//Debug_PrintConsoleStringL(StringL::Format("\nShader: %s\n", shaderName));
 
 	spirv_cross::SPIREntryPoint entryPoint;
 	bool bUsesWorkGroups = false;
@@ -565,7 +565,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned location = comp.get_decoration(resource.id, spv::DecorationLocation);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Input %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
+		//Debug_PrintConsoleStringL(StringL::Format("Input %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
@@ -582,7 +582,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned location = comp.get_decoration(resource.id, spv::DecorationLocation);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Output %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
+		//Debug_PrintConsoleStringL(StringL::Format("Output %s with type: %s, location = %u\n", resource.name.c_str(), typeString.Data(), location));
 		if (type.basetype == spirv_cross::SPIRType::Struct)
 		{
 			H_ERROR("Base type of output is a struct, invalid output");
@@ -604,7 +604,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
@@ -629,7 +629,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		H_ASSERT(type.basetype == spirv_cross::SPIRType::BaseType::Image);
 
@@ -641,6 +641,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		decoration.m_type = eDecorationType::Image;
 		decoration.m_set = set;
 		decoration.m_accessQualifier = eShaderAccessQualifier::ReadOnly;
+		decoration.m_flags = 1;
 		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_decorations[binding] = (decoration);
 		returnData.m_setDecorations[set][(uint32)decoration.m_type].m_indices.Add(binding);
 
@@ -656,7 +657,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Image %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		H_ASSERT(type.basetype == spirv_cross::SPIRType::BaseType::Image);
 
@@ -711,7 +712,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned int binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Sampler %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Sampler %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 		H_ASSERT(set == 0, "Samplers should only reside at set 0");
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
@@ -736,7 +737,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Uniform Buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Uniform Buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
@@ -759,7 +760,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		unsigned binding = comp.get_decoration(resource.id, spv::DecorationBinding);
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
-		Debug_PrintConsoleStringL(StringL::Format("Storage buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Storage buffer %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type);
@@ -813,7 +814,7 @@ void Hail::ParseShader(ReflectedShaderData& returnData, eShaderStage shaderStage
 		const spirv_cross::SPIRType& type = comp.get_type(resource.base_type_id);
 		String64 typeString = LocalGetTypeFromSpirVDataType(type.basetype, type.vecsize);
 
-		Debug_PrintConsoleStringL(StringL::Format("Push constant %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
+		//Debug_PrintConsoleStringL(StringL::Format("Push constant %s at set = %u, binding = %u, with type: %s\n", resource.name.c_str(), set, binding, typeString.Data()));
 
 		ShaderDecoration decoration;
 		decoration.m_byteSize = LocalGetStructByteSize(comp, type);

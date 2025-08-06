@@ -2,6 +2,7 @@
 #include "CloudRenderer.h"
 
 #include "HailEngine.h"
+#include "FrameBufferTexture.h"
 #include "Settings.h"
 #include "Renderer.h"
 #include "Resources\ResourceManager.h"
@@ -32,7 +33,35 @@ namespace Hail
 		computeradixBuildHistogramProperties.m_typeRenderPass = eMaterialType::CUSTOM;
 		
 		*pPipelineToCreate = pMatManager->CreateMaterialPipeline(computeradixBuildHistogramProperties);
-		return pPipelineToCreate != nullptr;
+		return (*pPipelineToCreate) != nullptr;
+	}
+
+	void localCleanupBuffer(RenderingDevice* pDevice, BufferObject** pBuffer)
+	{
+		H_ASSERT((*pBuffer));
+		(*pBuffer)->CleanupResource(pDevice);
+		SAFEDELETE((*pBuffer));
+	}
+
+	void localCleanupPipeline(RenderingDevice* pDevice, MaterialPipeline** pPipeline)
+	{
+		H_ASSERT((*pPipeline));
+		(*pPipeline)->CleanupResource(*pDevice);
+		SAFEDELETE((*pPipeline));
+	}
+
+	void localCleanupTextureView(RenderingDevice* pDevice, TextureView** pTextureView)
+	{
+		H_ASSERT((*pTextureView));
+		(*pTextureView)->CleanupResource(pDevice);
+		SAFEDELETE((*pTextureView));
+	}
+
+	void localCleanupTextureResource(RenderingDevice* pDevice, TextureResource** pTextureResource)
+	{
+		H_ASSERT((*pTextureResource));
+		(*pTextureResource)->CleanupResource(pDevice);
+		SAFEDELETE((*pTextureResource));
 	}
 
 	glm::vec2 Vogel(uint32 sampleIndex, uint32 samplesCount, float Offset)
@@ -388,26 +417,29 @@ namespace Hail
 
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
-		MaterialCreationProperties matProperties{};
-		RelativeFilePath vertexProjectPath("resources/shaders/VS_fullscreenPass.shr");
-		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource(vertexProjectPath.GetFilePath(), eShaderStage::Vertex)))
+		RelativeFilePath fullscreenVertexShaderPath("resources/shaders/VS_fullscreenPass.shr");
 		{
-			matProperties.m_shaders[0].m_id = metaData->GetGUID();
-			matProperties.m_shaders[0].m_type = eShaderStage::Vertex;
+			MaterialCreationProperties matProperties{};
+			if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
+				pMatManager->ImportShaderResource(fullscreenVertexShaderPath.GetFilePath(), eShaderStage::Vertex)))
+			{
+				matProperties.m_shaders[0].m_id = metaData->GetGUID();
+				matProperties.m_shaders[0].m_type = eShaderStage::Vertex;
+			}
+
+			RelativeFilePath fragmentProjectPath("resources/shaders/FS_cloudDrawing.shr");
+			if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
+				pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderStage::Fragment)))
+			{
+				matProperties.m_shaders[1].m_id = metaData->GetGUID();
+				matProperties.m_shaders[1].m_type = eShaderStage::Fragment;
+			}
+
+			matProperties.m_baseMaterialType = eMaterialType::CUSTOM;
+			matProperties.m_typeRenderPass = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
+			m_pCloudPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 		}
 
-		RelativeFilePath fragmentProjectPath("resources/shaders/FS_cloudDrawing.shr");
-		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
-			pMatManager->ImportShaderResource(fragmentProjectPath.GetFilePath(), eShaderStage::Fragment)))
-		{
-			matProperties.m_shaders[1].m_id = metaData->GetGUID();
-			matProperties.m_shaders[1].m_type = eShaderStage::Fragment;
-		}
-
-		matProperties.m_baseMaterialType = eMaterialType::CUSTOM;
-		matProperties.m_typeRenderPass = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
-		m_pCloudPipeline = pMatManager->CreateMaterialPipeline(matProperties);
 
 		m_numberOfPointsUploaded = m_cloudParticles.Size();
 		bool bValidComputePasses = true;
@@ -505,50 +537,95 @@ namespace Hail
 		TextureProperties particleCoverageTextureProps;
 		particleCoverageTextureProps.height = m_pResourceManager->GetSwapChain()->GetTargetResolution().y;
 		particleCoverageTextureProps.width = m_pResourceManager->GetSwapChain()->GetTargetResolution().x;
-		particleCoverageTextureProps.format = eTextureFormat::R8G8B8A8_UNORM;
+		particleCoverageTextureProps.format = eTextureFormat::R32G32B32A32_SFLOAT;
 		particleCoverageTextureProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
+		particleCoverageTextureProps.textureUsage = eTextureUsage::Texture;
 		
-		m_pParticleCoverageTexture = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "Particle Coverage Texture", particleCoverageTextureProps);
+		m_pParticleCoverageTexture[0] = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "Particle Coverage Texture 0", particleCoverageTextureProps);
+		m_pParticleCoverageTexture[1] = m_pResourceManager->GetTextureManager()->CreateTexture(pContext, "Particle Coverage Texture 1", particleCoverageTextureProps);
 
 		TextureViewProperties particleCoverageProps;
-		particleCoverageProps.pTextureToView = m_pParticleCoverageTexture;
+		particleCoverageProps.pTextureToView = m_pParticleCoverageTexture[0];
 		particleCoverageProps.viewUsage = eTextureUsage::Texture;
 		particleCoverageProps.accessQualifier = eShaderAccessQualifier::WriteOnly;
-		m_pParticleCoverageViewWrite = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoverageProps);
+		m_pParticleCoverageViewWrite[0] = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoverageProps);
+		particleCoverageProps.pTextureToView = m_pParticleCoverageTexture[1];
+		m_pParticleCoverageViewWrite[1] = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoverageProps);
 
 		TextureViewProperties particleCoveragePropsRead;
-		particleCoveragePropsRead.pTextureToView = m_pParticleCoverageTexture;
+		particleCoveragePropsRead.pTextureToView = m_pParticleCoverageTexture[0];
 		particleCoveragePropsRead.viewUsage = eTextureUsage::Texture;
 		particleCoveragePropsRead.accessQualifier = eShaderAccessQualifier::ReadOnly;
-		m_pParticleCoverageViewRead = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoveragePropsRead);
+		m_pParticleCoverageViewRead[0] = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoveragePropsRead);
+		particleCoveragePropsRead.pTextureToView = m_pParticleCoverageTexture[1];
+		m_pParticleCoverageViewRead[1] = m_pResourceManager->GetTextureManager()->CreateTextureView(particleCoveragePropsRead);
 
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pJFAPipelines[0], "resources/shaders/CS_jumpFloodAlgo.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pJFAPipelines[1], "resources/shaders/CS_jumpFloodAlgo.shr"))
+		{
+			bValidComputePasses = false;
+		}
+		if (!localCreateComputeShaderPipeline(pMatManager, &m_pCollectJFAPipeline, "resources/shaders/CS_gatherDistancesFromJFA.shr"))
+		{
+			bValidComputePasses = false;
+		}
 
+		m_pTileableCloudTextureView = m_pResourceManager->GetTextureManager()->CreateTextureView(RelativeFilePath("resources/textures/tileAbleCloud.txr"), pContext);
 
-		return m_pCloudPipeline != nullptr && bValidComputePasses;
+		return m_pCloudPipeline != nullptr && bValidComputePasses && m_pTileableCloudTextureView;
 	}
 
 	void CloudRenderer::Cleanup()
 	{
-		m_pParticleUniformBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pParticleUniformBuffer);
-		m_pParticleCoverageViewWrite->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pParticleCoverageViewWrite);
-		m_pParticleCoverageViewRead->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pParticleCoverageViewRead);
-		m_pParticleCoverageTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pParticleCoverageTexture);
+		RenderingDevice* pDevice = m_pRenderer->GetRenderingDevice();
+		localCleanupBuffer(pDevice, &m_pParticleSortGlobalHistogramBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleSortLocalHistogramBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleSortBucketOffsetBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleUploadBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleUniformBuffer);
+		localCleanupBuffer(pDevice, &m_pDynamicParticleVariableBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleLookupBufferRead);
+		localCleanupBuffer(pDevice, &m_pParticleLookupBufferWrite);
+		localCleanupBuffer(pDevice, &m_pParticleLookupStartIndicesBuffer);
+		localCleanupBuffer(pDevice, &m_pParticleLookupSortIndicesBufferRead);
+		localCleanupBuffer(pDevice, &m_pParticleLookupSortIndicesBufferWrite);
 
-		m_pSdfTexture->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pSdfTexture);
+		// Pipelines
+		localCleanupPipeline(pDevice, &m_pCloudPipeline);
+		localCleanupPipeline(pDevice, &m_pCloudCoveragePipeline);
+		localCleanupPipeline(pDevice, &m_pRadixBuildHistogramPipeline);
+		localCleanupPipeline(pDevice, &m_pRadixBuildOffsetTablePipeline);
+		localCleanupPipeline(pDevice, &m_pRadixShuffleDataPipeline);
 
-		m_pSdfView->CleanupResource(m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pSdfView);
+		localCleanupPipeline(pDevice, &m_pSimulationUpdateUniforms);
+		localCleanupPipeline(pDevice, &m_pSimulationUpdateParticleListFromCPU);
+		localCleanupPipeline(pDevice, &m_pSimulationCalculateDensity);
+		localCleanupPipeline(pDevice, &m_pSimulationCalculateIntermediateVelocity);
+		localCleanupPipeline(pDevice, &m_pSimulationCalculatePressureForce);
+		localCleanupPipeline(pDevice, &m_pSimulationApplyPosition);
+		localCleanupPipeline(pDevice, &m_pSimulationBuildPartialLookup);
+		localCleanupPipeline(pDevice, &m_pSimulationClearPartialLookup);
+		localCleanupPipeline(pDevice, &m_pCollectJFAPipeline);
 
-		m_pCloudPipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pCloudPipeline);
+		localCleanupPipeline(pDevice, &m_pJFAPipelines[0]);
+		localCleanupPipeline(pDevice, &m_pJFAPipelines[1]);
 
-		m_pCloudCoveragePipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
-		SAFEDELETE(m_pCloudCoveragePipeline);
+
+		m_pTileableCloudTextureView = nullptr;
+
+		localCleanupTextureView(pDevice, &m_pSdfView);
+		localCleanupTextureResource(pDevice, &m_pSdfTexture);
+
+		localCleanupTextureView(pDevice, &m_pParticleCoverageViewWrite[0]);
+		localCleanupTextureView(pDevice, &m_pParticleCoverageViewRead[0]);
+		localCleanupTextureResource(pDevice, &m_pParticleCoverageTexture[0]);
+		localCleanupTextureView(pDevice, &m_pParticleCoverageViewWrite[1]);
+		localCleanupTextureView(pDevice, &m_pParticleCoverageViewRead[1]);
+		localCleanupTextureResource(pDevice, &m_pParticleCoverageTexture[1]);
 	}
 
 	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
@@ -626,9 +703,27 @@ namespace Hail
 			ImGui::SliderFloat("Stiffness", &m_ParticleUniforms.stiffness, 0.f, 10.f);
 			ImGui::SliderFloat("Near Pressure", &m_ParticleUniforms.nearPressureMultiplier, 0.f, 50.f);
 			ImGui::SliderFloat("Viscosity", &m_ParticleUniforms.viscosityModifier, 0.01f, 200.f);
-			ImGui::SliderFloat("Gravitic Force", &m_ParticleUniforms.graviticForce, -10.f, 10.f);
+			ImGui::SliderFloat("Gravitic Force", &m_ParticleUniforms.graviticForce, -1.f, 1.f);
 			ImGui::SliderFloat("Cloud dampening multiplier", &m_ParticleUniforms.cloudDampeningMultiplier, 0, 1.f);
 			ImGui::SliderFloat("Deltatime modifier", &m_ParticleUniforms.deltaTimeModifier, 0.1f, 5.f);
+
+			ImGui::Separator();
+
+			ImGui::SliderFloat2("Cloud Size", &m_ParticleUniforms.cloudTextureDimensions.x, 0.f, 512.f);
+			ImGui::SliderFloat2("Cloud Position", &m_ParticleUniforms.cloudTexturePosition.x, -512.f, 512.f);
+
+			ImGui::Separator();
+
+			ImGui::SliderFloat("Effect Sun Direction Rad", &m_ParticleUniforms.effectSunDirectionRadian, 0.f, Math::PI2f);
+			ImGui::SliderFloat("Effect Step Length", &m_ParticleUniforms.effectStepLength, 0.f, 64.f);
+			ImGui::SliderFloat("Effect Turbulence", &m_ParticleUniforms.effectTurbulence, 0.f, 32.f);
+			ImGui::SliderFloat("Effect Noise", &m_ParticleUniforms.effectNoise, 0.f, 4.f);
+			ImGui::SliderFloat("Effect Greenstein Value", &m_ParticleUniforms.HenyeyGreensteinPhaseValue, 0.f, 1.f);
+			ImGui::SliderFloat("Effect Beers Law Multiplier", &m_ParticleUniforms.BeersLawStepLengthMultiplier, 0.f, 64.f);
+			ImGui::SliderFloat("Effect tileable threshhold", &m_ParticleUniforms.tileableCloudThreshold, 0.f, 1.f);
+			ImGui::SliderFloat("Effect tileable tile factor", &m_ParticleUniforms.tileableCloudTilingFactor, 0.f, 64.f);
+			ImGui::SliderFloat("Effect dither threshold", &m_ParticleUniforms.ditherThreshold, 0.f, 1.f);
+			ImGui::SliderInt("Effect number of Steps", &m_ParticleUniforms.numberOfSteps, 1, 8);
 		}
 		else
 		{
@@ -673,18 +768,19 @@ namespace Hail
 	void CloudRenderer::Render()
 	{
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
+		uint32 currentDoubleBufferWrite = pContext->GetCurrentRenderFrame() % 2u;
+		glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
+
+		pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
 
 		if (GetEngineSettings().b_enableGpuParticles)
 		{
-			uint32 currentDoubleBufferWrite = pContext->GetCurrentRenderFrame() % 2u;
-			uint32 currentDoubleBufferRead = (pContext->GetCurrentRenderFrame() + 1) % 2u;
 			SortConstants sortingConstants{};
 			// Will be number of Active Particles
 			sortingConstants.numberOfGroups = Math::Max(m_ParticleUniforms.numberOfParticles / 255u, 1u);
 			sortingConstants.totalNumberOfElements = m_ParticleUniforms.numberOfParticles;
 
 			// global cloud data
-			pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
 			pContext->SetBufferAtSlot(m_pParticleBuffer, 1);
 			pContext->SetBufferAtSlot(m_pParticleLookupStartIndicesBuffer, 2);
 			pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
@@ -777,16 +873,43 @@ namespace Hail
 			pContext->BindMaterial(m_pSimulationApplyPosition->m_pPipeline);
 			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 
-			pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite, 5);
+			pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite[currentDoubleBufferWrite], 5);
 
 			pContext->BindMaterial(m_pCloudCoveragePipeline->m_pPipeline);
-			glm::uvec2 resolution = m_pResourceManager->GetSwapChain()->GetTargetResolution();
 			pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
 		}
 
-		pContext->SetTextureAtSlot(m_pParticleCoverageViewRead, 1);
-		pContext->SetTextureAtSlot(m_pSdfView, 2);
-		pContext->SetTextureAtSlot(m_pSdfView, 3);
+		int numberOfJfaIterations = int(log2(resolution.x)) - 1;
+		uint32 currentDoubleBufferRead = (currentDoubleBufferWrite + 1) % 2u;
+		while (numberOfJfaIterations != 0)
+		{
+			// From read to write
+			pContext->SetTextureAtSlot(m_pParticleCoverageViewRead[currentDoubleBufferWrite], 0);
+			pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite[currentDoubleBufferRead], 1);
+			pContext->BindMaterial(m_pJFAPipelines[currentDoubleBufferRead]->m_pPipeline);
+
+			glm::uvec4 stepWidth = glm::uvec4(exp2(numberOfJfaIterations), 0, 0, 0);
+
+			pContext->SetPushConstantValue(&stepWidth);
+			pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
+
+			currentDoubleBufferRead = (currentDoubleBufferRead + 1u) % 2u;
+			currentDoubleBufferWrite = (currentDoubleBufferWrite + 1u) % 2u;
+
+			numberOfJfaIterations--;
+		}
+
+		// From write to read, collecting JFA results
+		pContext->SetTextureAtSlot(m_pParticleCoverageViewRead[currentDoubleBufferRead], 0);
+		pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite[currentDoubleBufferWrite], 1);
+		pContext->BindMaterial(m_pCollectJFAPipeline->m_pPipeline);
+
+		pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
+
+
+
+		pContext->SetTextureAtSlot(m_pParticleCoverageViewRead[currentDoubleBufferWrite], 1);
+		pContext->SetTextureAtSlot(m_pTileableCloudTextureView, 2);
 
 		pContext->BindMaterial(m_pCloudPipeline->m_pPipeline);
 

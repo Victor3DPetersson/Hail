@@ -42,6 +42,9 @@ namespace Hail
 		TextureResource* GetTexture(uint32_t index);
 		TextureResource* CreateTexture(RenderContext* pRenderContext, const char* name, CompiledTexture& compiledTextureData);
 		TextureResource* CreateTexture(RenderContext* pRenderContext, const char* name, TextureProperties& textureProperties);
+		// Imports the resource if it is not present in the compiled texture folder, used for external textures in rendering systems
+		TextureView* CreateTextureView(const RelativeFilePath filepath, RenderContext* pRenderContext);
+		// Creates a view from properties, used for internal resources
 		TextureView* CreateTextureView(TextureViewProperties& viewProps);
 		TextureView* GetTextureView(uint32_t index);
 		TextureView* GetEngineTextureView(eDecorationSets setDomainToGet, uint32_t bindingIndex, uint32 frameInFlight);
@@ -60,8 +63,6 @@ namespace Hail
 		// Creates the texture and its underlying structures
 		virtual TextureResource* CreateTextureInternalNoLoad() = 0;
 	protected:
-
-
 
 		void CreateDefaultTexture(RenderContext* pRenderContext);
 		virtual TextureResource* CreateTextureInternal(const char* name, CompiledTexture& compiledTextureData) = 0;

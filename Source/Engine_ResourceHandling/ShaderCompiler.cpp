@@ -82,12 +82,13 @@ namespace Hail
 				uint32 previousLength = shaderDataToFill.Size();
 				if (lengthToAdd)
 				{
+					// TODO: gör ett test case i en shader där jag lägger till kod emellan två includes
 					shaderDataToFill.AddN(lengthToAdd);
-					memcpy(shaderDataToFill.Data() + previousLength, readShader.Data() + offsetToAddFrom, lengthToAdd);
+					memcpy(shaderDataToFill.Data() + previousLength, readShader.Data() + (offsetToAddFrom - 1u), lengthToAdd);
 				}
 
 				// make sure that the rest of the code gets added
-				offsetToAddFrom += lengthOfEntireLine + i;
+				offsetToAddFrom += lengthOfEntireLine + lengthToAdd;
 				// Remove new line and character
 				line.RemoveCharsFromBack(2u);
 				StringLW lineW = line;
@@ -101,11 +102,11 @@ namespace Hail
 			}
 		}
 		// no more includes, add the rest of the code
-		uint32 lengthToAdd = readShader.Size() - offsetToAddFrom;
+		uint32 lengthToAdd = (readShader.Size() - offsetToAddFrom);
 		uint32 previousLength = shaderDataToFill.Size();
-		shaderDataToFill.AddN(lengthToAdd);
+		shaderDataToFill.AddN(lengthToAdd + 1u);
 		memcpy(shaderDataToFill.Data() + previousLength, readShader.Data() + offsetToAddFrom, lengthToAdd);
-
+		shaderDataToFill[shaderDataToFill.Size() - 1u] = '\n';
 		return true;
 	}
 
@@ -174,14 +175,6 @@ namespace Hail
 		if (!localCheckForIncludes(includesAdded, readShader, filePath))
 			return false;
 
-		if (!includesAdded.Empty())
-		{
-			StringL debugString;
-			debugString.Reserve(readShader.Size());
-			memcpy(debugString.Data(), readShader.Data(), readShader.Size());
-			Debug_PrintConsoleConstChar(debugString.Data());
-		}
-
 		MetaResource metaResource;
 		metaResource.SetSourcePath(filePath);
 		const bool result = LocalCompileShaderInternalGLSL(compiler, shaderType, shaderName, readShader, compileOptions, metaResource);
@@ -224,6 +217,34 @@ namespace Hail
 		shaderc_compilation_status status = shaderc_result_get_compilation_status(compiledShader);
 		if (numberOfErrors > 0 && status != shaderc_compilation_status_success)
 		{
+			StringL line;
+			uint32 currentLineNumb = 1u;
+			for (uint32 i = 0; i < shaderData.Size(); i++)
+			{
+				line += StringL::Format("%u: ", currentLineNumb);
+				bool bFoundEndLine = false;
+
+				uint32 currentCharacterIndex = i;
+				while (bFoundEndLine == false)
+				{
+					if (shaderData[currentCharacterIndex] == '\n')
+					{
+						bFoundEndLine = true;
+					}
+					else
+					{
+						line += shaderData[currentCharacterIndex];
+						currentCharacterIndex++;
+						if (currentCharacterIndex == shaderData.Size())
+							break;
+					}
+				}
+				Debug_PrintConsoleConstChar(line.Data());
+				currentLineNumb++;
+				i = currentCharacterIndex;
+				line = StringL();
+			}
+
 			H_ERROR(shaderc_result_get_error_message(compiledShader));
 		}
 		else

@@ -10,13 +10,11 @@ layout(binding = 5, set = 1, std430) buffer readonly GlobalParticleListFromCPU
 void main() 
 {
     uint globalThreadID = gl_GlobalInvocationID.x;
-    uint localThreadID = gl_LocalInvocationID.x;
-    uint groupID = gl_WorkGroupID.x;
 
-    uint numberOfParticles = g_particleVariables.numberOfParticles;
     if (globalThreadID == 0)
         g_dynamicParticleVariables.maxVelocity = 0.0;
         
+    uint numberOfParticles = g_particleVariables.numberOfParticles;
 	if (globalThreadID >= numberOfParticles)
 		return;
 

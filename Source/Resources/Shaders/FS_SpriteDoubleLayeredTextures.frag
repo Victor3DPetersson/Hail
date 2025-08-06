@@ -9,6 +9,7 @@ layout(location = 1) in vec4 inColor;
 layout(location = 2) in float inCutoutThreshold;
 //layout(location = 2) in uvec2 inInstanceIDEffectID;
 
+
 void main() 
 {
 	vec2 timeOffset = vec2(g_constantVariables.totalTime_HorizonPosition.x * -1.0, g_constantVariables.totalTime_HorizonPosition.x * -1.0);

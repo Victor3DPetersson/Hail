@@ -23,6 +23,7 @@ void main()
     float velocity = sqrt(dot(particleVelocity, particleVelocity));
     if (velocity == 0.0)
         velocity = 0.1;
+        
 	uint velocityAsUint = floatBitsToUint(velocity);
     atomicMax(g_aliasedDynamicParticleVariables.maxVelocity, velocityAsUint);
 }

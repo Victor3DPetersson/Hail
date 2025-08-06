@@ -7,7 +7,6 @@ layout(location = 0) in vec2 fragTexCoord;
 
 void main() 
 {
-
 	float renderTexelSizeX = 1.0 / float(g_constantVariables.renderResolution.x);
 	float renderTexelSizeY = 1.0 / float(g_constantVariables.renderResolution.y);
 	uint xHalfOffset = (g_constantVariables.screenResolution.x - g_constantVariables.renderResolution.x) / 2;

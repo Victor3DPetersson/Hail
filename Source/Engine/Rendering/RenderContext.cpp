@@ -262,9 +262,13 @@ bool Hail::RenderContext::CheckBoundDataAgainstSetDecoration(Pipeline* pPipeline
 			TextureResource* pTexture = viewProps.pTextureToView;
 			bool bTextureIsWrite = (pTexture->m_accessQualifier == eShaderAccessQualifier::WriteOnly || pTexture->m_accessQualifier == eShaderAccessQualifier::ReadWrite);
 			bool bViewIsWrite = (viewProps.accessQualifier == eShaderAccessQualifier::WriteOnly || viewProps.accessQualifier == eShaderAccessQualifier::ReadWrite);
+			bool bTexturePipelineMatchesStages = pPipeline->m_shaderStages == pTexture->GetCurrentStageUsage();
 
-			if ((bTextureIsWrite != bViewIsWrite && pTexture->m_accessQualifier != viewProps.accessQualifier) || pPipeline->m_shaderStages != pTexture->GetCurrentStageUsage())
+			if (((bTextureIsWrite != bViewIsWrite && pTexture->m_accessQualifier != viewProps.accessQualifier) || bTexturePipelineMatchesStages == false) 
+				&& pTexture->m_accessQualifier != eShaderAccessQualifier::ReadWrite)
+			{
 				TransferTextureLayout(pTexture, assetAccessQualifier, pPipeline->m_shaderStages);
+			}
 
 		}
 		break;

@@ -1,5 +1,7 @@
 #include "shaderCommons.hs"
 
+#include "fluidParticleUniform.hs"
+
 const int HASH_SIZE = 0xffff;
 const int MaxNumberOfParticles = 0xff;
 
@@ -93,28 +95,6 @@ vec2 VogelDirection(uint sampleIndex, uint samplesCount, float Offset)
     float theta = float(sampleIndex) * GoldenAngle + Offset;
     return r * vec2(cos(theta), sin(theta));
 }
-
-layout(binding = 0, set = 1, std140) uniform ParticleBuffer 
-{
-	uint numberOfParticles;
-	float particleSize;
-	vec2 cloudTextureDimensions;
-
-    float graviticForce;
-    float cloudDampeningMultiplier;
-    float mouseForceStrength;
-    float mouseForceRadius;
-
-    float mass;
-    float stiffness;
-    float restDensity;
-    float nearPressureMultiplier;
-    
-    float viscosityModifier;
-    float deltaTimeModifier;
-    float particleKernelRadius;
-    uint bSimulateCloud;
-} g_particleVariables;
 
 struct FluidParticle 
 {

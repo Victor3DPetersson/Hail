@@ -55,10 +55,11 @@ namespace
 
 	struct VlkLayoutDescriptor
 	{
-		VkShaderStageFlags flags;
+		VkShaderStageFlags stageFlags;
 		uint32_t bindingPoint;
 		VkDescriptorType type;
 		eDecorationType decorationType;
+		uint16 flags;
 	};
 
 	bool localCreateSetLayoutDescriptor(GrowingArray<VlkLayoutDescriptor> descriptors, VkDescriptorSetLayout& returnDescriptorLayoput, VlkDevice& device)
@@ -80,7 +81,7 @@ namespace
 			descriptor.descriptorCount = 1;
 			descriptor.descriptorType = descriptors[i].type;
 			descriptor.pImmutableSamplers = nullptr;
-			descriptor.stageFlags = descriptors[i].flags;
+			descriptor.stageFlags = descriptors[i].stageFlags;
 			bindings[i] = descriptor;
 		}
 
@@ -116,7 +117,7 @@ namespace
 			const ShaderDecoration& decoration = decoration1->m_decorations[decoration1->m_indices[i]];
 			descriptor.bindingPoint = decoration.m_bindingLocation;
 			descriptor.type = descriptorType;
-			descriptor.flags = stageFlag1;
+			descriptor.stageFlags = stageFlag1;
 			descriptor.decorationType = decoration.m_type;
 			descriptors.Add(descriptor);
 		}
@@ -131,7 +132,7 @@ namespace
 				{
 					if (bindingPoint == descriptors[iPreviousDescriptors].bindingPoint)
 					{
-						descriptors[iPreviousDescriptors].flags |= stageFlag2;
+						descriptors[iPreviousDescriptors].stageFlags |= stageFlag2;
 						foundDescriptor = true;
 						break;
 					}
@@ -140,8 +141,9 @@ namespace
 				{
 					VlkLayoutDescriptor descriptor;
 					descriptor.bindingPoint = bindingPoint;
+					descriptor.flags = 0;
 					descriptor.type = descriptorType;
-					descriptor.flags = stageFlag2;
+					descriptor.stageFlags = stageFlag2;
 					descriptor.decorationType = decoration.m_type;
 					descriptors.Add(descriptor);
 				}
@@ -163,19 +165,20 @@ namespace
 		bool bCheckIfSampledOrStorageImage)
 	{
 		VectorOnStack<VlkLayoutDescriptor, 16> descriptors;
-
 		for (int i = 0; i < decoration1->m_indices.Size(); i++)
 		{
 			VlkLayoutDescriptor descriptor;
 			const ShaderDecoration& decoration = decoration1->m_decorations[decoration1->m_indices[i]];
 			descriptor.bindingPoint = decoration.m_bindingLocation;
+			descriptor.flags = 0;
 			descriptor.type = descriptorType;
-			descriptor.flags = stageFlag1;
+			descriptor.stageFlags = stageFlag1;
 			descriptor.decorationType = decoration.m_type;
 			if (bCheckIfSampledOrStorageImage)
 			{
+				descriptor.flags = decoration.m_flags;
 				// If the image is write in any way it is a storage image
-				if (decoration.m_accessQualifier != eShaderAccessQualifier::ReadOnly)
+				if (decoration.m_flags == 0)
 				{
 					descriptor.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 				}
@@ -193,7 +196,7 @@ namespace
 				{
 					if (bindingPoint == descriptors[iPreviousDescriptors].bindingPoint)
 					{
-						descriptors[iPreviousDescriptors].flags |= stageFlag2;
+						descriptors[iPreviousDescriptors].stageFlags |= stageFlag2;
 						foundDescriptor = true;
 						break;
 					}
@@ -202,13 +205,15 @@ namespace
 				{
 					VlkLayoutDescriptor descriptor;
 					descriptor.bindingPoint = bindingPoint;
+					descriptor.flags = 0;
 					descriptor.type = descriptorType;
-					descriptor.flags = stageFlag2;
+					descriptor.stageFlags = stageFlag2;
 					descriptor.decorationType = decoration.m_type;
 					if (bCheckIfSampledOrStorageImage)
 					{
+						descriptor.flags = decoration.m_flags;
 						// If the image is write in any way it is a storage image
-						if (decoration.m_accessQualifier != eShaderAccessQualifier::ReadOnly)
+						if (decoration.m_flags == 0)
 						{
 							descriptor.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 						}
@@ -467,12 +472,11 @@ void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeli
 			if (vlkTextureView->GetProps().accessQualifier != eShaderAccessQualifier::ReadOnly)
 			{
 				H_ASSERT(imageDescriptorInfo.imageLayout == VK_IMAGE_LAYOUT_GENERAL);
-				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
+				setWrites.Add(WriteDescriptorSampler(descriptor.type, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 			}
 			else
 			{
-				H_ASSERT(imageDescriptorInfo.imageLayout == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-				setWrites.Add(WriteDescriptorSampler(VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
+				setWrites.Add(WriteDescriptorSampler(descriptor.type, typeDescriptor.m_typeDescriptors[frameInFlight], &imageDescriptorInfo, descriptor.bindingPoint));
 			}
 		}
 	}

@@ -1,7 +1,6 @@
 #include "fluidParticleCommons.hs"
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
-
 void main() 
 {
     uint globalThreadID = gl_GlobalInvocationID.x;
@@ -41,8 +40,10 @@ void main()
 		{
 			if (globalSpatialLookupKeyIndexList[i].x != key)
 				break;
+
 			uint particleIndex = globalSpatialLookupKeyIndexList[i].y;
 
+			// Do not calculate pressure against ourself
 			if (particleIndex == globalThreadID)
 				continue;
 

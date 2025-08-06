@@ -503,11 +503,54 @@ TextureResource* Hail::TextureManager::CreateTexture(RenderContext* pRenderConte
 	return pTexture;
 }
 
+TextureView* Hail::TextureManager::CreateTextureView(const RelativeFilePath filepath, RenderContext* pRenderContext)
+{
+	ResourceRegistry& registry = GetResourceRegistry();
+	const FilePath finalPath = filepath.GetFilePath();
+	if (const MetaResource* pResource = registry.GetResourceMetaInformation(ResourceType::Texture, finalPath))
+	{
+		if (registry.GetIsResourceLoaded(ResourceType::Texture, pResource->GetGUID()))
+		{
+			for (uint32 i = 0; i < m_loadedTextures.Size(); i++)
+			{
+				const TextureWithView& textureView = m_loadedTextures[i];
+
+				if (textureView.m_pTexture->m_metaResource.GetGUID() == pResource->GetGUID())
+					return textureView.m_pView;
+			}
+			H_ASSERT(false, "Texture should be loaded in the texture manager, bug in the application");
+		}
+		else
+		{
+			H_ASSERT(LoadTextureRequestInternal(finalPath), "The texture does exist, but failed to create a load request.");
+			Update(pRenderContext);
+			H_ASSERT(m_loadedTextures.GetLast().m_pTexture->m_metaResource.GetGUID() == pResource->GetGUID(), "Logic error in the application if the last request is not the one we just created.");
+			return m_loadedTextures.GetLast().m_pView;
+		}
+	}
+
+	// Texture is not loaded, compile texture here, Fail if we get here in the final build
+	FilePath textureBaseResourcePath = FilePath::GetTextureResourceSourceDirectory();
+	textureBaseResourcePath = textureBaseResourcePath + finalPath.Object();
+	textureBaseResourcePath.ReplaceExtension(L"tga");
+	FilePath projectPath = ImportTextureResource(textureBaseResourcePath);
+	if (projectPath.IsValid())
+	{
+		return CreateTextureView(filepath, pRenderContext);
+	}
+	return nullptr;
+}
+
 
 FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
 	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(filepath);
-	GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
+	if (projectPath.IsValid())
+		GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
+	else
+	{
+		H_ERROR(StringL::Format("Failed to load texture: %s", filepath.Object().Name().CharString()));
+	}
 	return projectPath;
 }
 

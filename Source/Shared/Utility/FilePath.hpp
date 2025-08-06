@@ -193,11 +193,15 @@ namespace Hail
 		static const FilePath& GetAngelscriptDirectory();
 		// Folder of shader base
 		static const FilePath& GetShaderResourceDirectory();
+		// Folder of texture base
+		static const FilePath& GetTextureResourceSourceDirectory();
 
 		//returns -1 if no common directory is found
 		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
 		// Will check the actual file on disk to see when it was most recently written too.
 		uint64_t GetCurrentLastWriteFileTime() const;
+
+		void ReplaceExtension(WString64 newExtension);
 
 	protected:
 		FilePath(const FilePath& path, uint32_t lengthOfPath);
@@ -211,6 +215,7 @@ namespace Hail
 		static FilePath UserProjectDirectory;
 		static FilePath AngelscriptDirectory;
 		static FilePath ShaderResourceDirectory;
+		static FilePath TextureResourceSourceDirectory;
 		friend class RelativeFilePath;
 		void Reset();
 		wchar_t m_data[MAX_FILE_LENGTH];

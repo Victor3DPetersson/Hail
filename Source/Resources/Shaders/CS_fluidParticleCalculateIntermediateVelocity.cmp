@@ -2,7 +2,6 @@
 
 layout(binding = 5, set = 1) uniform texture2D cloudSdfTexture;
 
-layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
 vec2 MouseForce(float radius, vec2 posToCheck, vec2 velocityOfParticle)
 {
@@ -46,13 +45,23 @@ vec2 MouseForce(float radius, vec2 posToCheck, vec2 velocityOfParticle)
 
 vec2 CalculateForceToSdf(vec2 cloudParticlePos, vec2 particleVelocityToCancel)
 {
-	cloudParticlePos.x -= 25.0;
+	vec2 cloudPos = g_particleVariables.cloudTexturePosition;
+	vec2 cloudDimensions = g_particleVariables.cloudTextureDimensions;
+
+	vec2 particlePosInCloud = cloudParticlePos - cloudPos;
+	
+	if (particlePosInCloud.x < 0.0 || particlePosInCloud.y < 0.0 || particlePosInCloud.x > cloudDimensions.x || particlePosInCloud.y > cloudDimensions.y)
+	{
+		return normalize(particlePosInCloud - cloudDimensions * 0.5);
+	}
+
+	vec2 normalizedParticlePosInCloud = particlePosInCloud / cloudDimensions;
 	float xShift = 1.0 / 128.0;
 	float yShift = 1.0 / 128.0;
-	vec2 normalizedParticlePos = cloudParticlePos / 50.0;
-	vec2 clampedParticlePos = normalizedParticlePos;
+	vec2 clampedParticlePos = normalizedParticlePosInCloud;
 	clampedParticlePos.x = clamp(clampedParticlePos.x, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
 	clampedParticlePos.y = clamp(clampedParticlePos.y, xShift + EpsilonF, 1.0 - (xShift + EpsilonF));
+	clampedParticlePos.y = 1.0 - clampedParticlePos.y;
 	float sdfAtPos = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), clampedParticlePos).r;
 
 	if (sdfAtPos < -4.0)
@@ -61,10 +70,8 @@ vec2 CalculateForceToSdf(vec2 cloudParticlePos, vec2 particleVelocityToCancel)
 		return reverseVelocity * g_particleVariables.cloudDampeningMultiplier;
 	}
 	
-	ivec2 particlePixelSdfPos = ivec2(int(normalizedParticlePos.x * 128.0), int(normalizedParticlePos.y * 128.0));
-
 	vec2 xShiftCoord = vec2(clampedParticlePos.x + xShift, clampedParticlePos.y);
-	vec2 yShiftCoord = vec2(clampedParticlePos.x, clampedParticlePos.y + yShift);
+	vec2 yShiftCoord = vec2(clampedParticlePos.x, clampedParticlePos.y - yShift);
 
 	float xSdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), xShiftCoord).r;
 	float ySdf = texture(sampler2D(cloudSdfTexture, g_samplerBilinearClampBorder), yShiftCoord).r;
@@ -85,6 +92,7 @@ vec2 CalculateForceToSdf(vec2 cloudParticlePos, vec2 particleVelocityToCancel)
 	return normalize(gradientVector);
 }
 
+layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 void main() 
 {
     uint globalThreadID = gl_GlobalInvocationID.x;

@@ -1,0 +1,79 @@
+#include "shaderCommons.hs"
+
+layout(binding = 0, set = 1, rgba32f) uniform readonly image2D jumpTargetDistanceIn;
+layout(binding = 1, set = 1, rgba32f) uniform writeonly image2D jumpTargetDistanceOut;
+
+layout( push_constant ) uniform constants
+{
+	uint stepWidth;
+    uvec3 padding; 
+} PushConstants;
+
+layout (local_size_x = 64, local_size_y = 8, local_size_z = 1) in;
+
+float dot2( in ivec2 x ) { return dot(vec2(x),vec2(x)); }
+
+// Credit too Inigo Quilez and his Jump Flooding Alghorithm : https://www.shadertoy.com/view/4XlyW8
+
+void main() 
+{
+    ivec2 samplePoint = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+
+	if (samplePoint.x > g_constantVariables.renderTargetRes.x || samplePoint.y > g_constantVariables.renderTargetRes.y)
+		return;
+
+	float renderTexelSizeX = 1.0 / float(g_constantVariables.renderTargetRes.x);
+	float renderTexelSizeY = 1.0 / float(g_constantVariables.renderTargetRes.y);
+	vec2 fragTexCoord = vec2(float(samplePoint.x) / float(g_constantVariables.renderTargetRes.x), float(samplePoint.y) / float(g_constantVariables.renderTargetRes.y));
+
+	vec2 fragPixelCoord = vec2(samplePoint);
+	int stepwidth = int(PushConstants.stepWidth);
+	
+	vec4 pixelData = imageLoad(jumpTargetDistanceIn, samplePoint);
+	// distance to closest known pixel on the complementary set (interior vs exterior)
+	float currdis = (pixelData.w == 1.0) ? dot2( samplePoint - ivec2(pixelData.yz) ) : 999999.0;
+
+	float currentSampleType = pixelData.x;
+	// pre-clip scan window (removes in-loop conditionals)
+	int minx = samplePoint.x - stepwidth < 0 ? 0 : -1;
+	int miny = samplePoint.y - stepwidth < 0 ? 0 : -1;
+	int maxx = samplePoint.x + stepwidth > int(g_constantVariables.renderTargetRes.x) -1 ? 0 : 1;
+	int maxy = samplePoint.y + stepwidth > int(g_constantVariables.renderTargetRes.y) -1 ? 0 : 1;
+        
+	for(int y=miny; y<=maxy; y++ )
+	{
+		for(int x=minx; x<=maxx; x++ )
+		{
+			// 1. gather a distant pixel
+            ivec2 q_offs = ivec2(x,y)*stepwidth;
+            ivec2 q_pixl = samplePoint + q_offs;
+            vec4 q_data = imageLoad(jumpTargetDistanceIn, q_pixl);
+        
+            // 2. does it belong to the complementary set?
+            if (currentSampleType != q_data.x) 
+            {
+                // if so, is it closer than the closest known pixel so far?
+                float dis = dot2(q_offs);
+                if( dis < currdis )
+                {
+                    // if so, update our record
+                    currdis = dis;
+                    pixelData = vec4(pixelData.x, vec2(q_pixl.xy), 1.0);
+                }     
+           }
+           // 3. or is it maybe an already resolved pixel?
+           else if( q_data.w == 1.0 )
+           {
+                // if so, is its closest known pixel closer than the closest known pixel so far?
+                float dis = dot2(ivec2(q_data.yz - vec2(samplePoint)));
+                if( dis < currdis )
+                {
+                    // if so, update our record
+                    currdis = dis;
+                    pixelData = vec4(pixelData.x, vec2(q_data.yz), 1.0);
+                }
+            }
+		}
+	}        
+	imageStore(jumpTargetDistanceOut, samplePoint, vec4(pixelData));
+}

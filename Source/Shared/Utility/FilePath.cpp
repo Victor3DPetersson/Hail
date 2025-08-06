@@ -63,6 +63,7 @@ FilePath FilePath::ProjectCurrentWorkingDirectory("");
 FilePath FilePath::UserProjectDirectory("");
 FilePath FilePath::AngelscriptDirectory("");
 FilePath FilePath::ShaderResourceDirectory("");
+FilePath FilePath::TextureResourceSourceDirectory("");
 
 void FilePath::CreateFileObject()
 {
@@ -224,7 +225,15 @@ const FilePath& Hail::FilePath::GetShaderResourceDirectory()
 
     ShaderResourceDirectory = FilePath(SHADER_DIR_IN);
     return ShaderResourceDirectory;
-    // TODO: insert return statement here
+}
+
+const FilePath& Hail::FilePath::GetTextureResourceSourceDirectory()
+{
+    if (TextureResourceSourceDirectory.Length() != 0)
+        return TextureResourceSourceDirectory;
+
+    TextureResourceSourceDirectory = FilePath(TEXTURES_DIR_IN);
+    return TextureResourceSourceDirectory;
 }
 
 int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB)
@@ -316,11 +325,13 @@ Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
 Hail::FilePath Hail::FilePath::operator+(const FileObject& object) const
 {
     FilePath returnPath = *this;
-    // If the same directory levels do no addition
-    if (object.GetDirectoryLevel() == returnPath.GetDirectoryLevel() && returnPath.GetDirectoryLevel() != 0)
+
+    const bool bSameDirectoryLevel = object.GetDirectoryLevel() == returnPath.GetDirectoryLevel() && returnPath.GetDirectoryLevel() != 0;
+    if (bSameDirectoryLevel && returnPath.Object() == object)
     {
         return returnPath;
     }
+
     uint32_t length = 0;
     returnPath.m_object = object;
     if (object.IsValid() && m_isDirectory)
@@ -437,6 +448,21 @@ void Hail::FilePath::Slashify()
     }
     m_length = counter;
 }
+
+void Hail::FilePath::ReplaceExtension(WString64 newExtension)
+{
+    if (m_isDirectory || m_length == 0u)
+        return;
+
+    memset(&m_data[m_length - m_object.Extension().Length()], 0, m_object.Extension().Length());
+    m_length -= m_object.Extension().Length();
+
+    memcpy(&m_data[m_length], newExtension.Data(), newExtension.Length() * sizeof(wchar_t));
+    m_length += newExtension.Length();
+
+    m_object.SetExtension(newExtension);
+}
+
 
 bool Hail::FilePath::IsValid() const
 {

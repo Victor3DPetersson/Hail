@@ -14,13 +14,19 @@
 - [x] Texture views to have read only, write only and read write access to textures (might need to add memory barriers for the reading)
 - [x] Sorting with a compute shader.
 - [x] liquid simulation on the GPU.
-- [] Create a sdf texture each frame for all fluids and use it to drive the visual effect. 
+- [x] Create a sdf texture each frame for all fluids and use it to drive the visual effect. 
+- [] Multiple clouds.
+- [] Sky background.
+- [] Crash logger and send out a build for testing. 
+
+
 - [] Look over the Frame In Flight fences as the tutroial I followed was wrong. 
 - [] Improve RadixSort to use a proper reduction for the shuffle step. 
 - [] Look over all resources that are using frame in flight and remove uneccessary uses. 
 - [] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
 - [] Create a pipeline to create sprites render commands from AngelScript
 - [] Fix broken reloading of GPU resources and then remake hot reloading 
+- [] Shader include gets updated, update all shaders that depends on it. 
 
 
 # TODO: unspecified order for Hail Engine
@@ -61,6 +67,7 @@
 - [x] Context, move over rendering and state functions to the context.
 - [x] Depth Sorting of sprite and text commands
 - [x] Explicit setting of Framebuffer bind state through the context object. Make materials transition have a bind state that is not set at Init
+- [] Shader include gets updated, update all shaders that depends on it. 
 - [] Bindless texturing
 - [] RawInput instead of Windows input
 - [] Input queue to make input more predictable

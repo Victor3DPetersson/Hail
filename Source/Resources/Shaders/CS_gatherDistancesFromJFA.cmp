@@ -1,0 +1,20 @@
+#include "shaderCommons.hs"
+
+layout(binding = 0, set = 1, rgba32f) uniform readonly image2D jumpTargetDistanceIn;
+layout(binding = 1, set = 1, rgba32f) uniform writeonly image2D targetTextureOut;
+
+layout (local_size_x = 64, local_size_y = 8, local_size_z = 1) in;
+
+void main() 
+{
+    ivec2 samplePoint = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+
+	if (samplePoint.x > g_constantVariables.renderTargetRes.x || samplePoint.y > g_constantVariables.renderTargetRes.y)
+		return;
+
+	vec2 fragTexCoord = vec2(float(samplePoint.x) / float(g_constantVariables.renderTargetRes.x), float(samplePoint.y) / float(g_constantVariables.renderTargetRes.y));
+	vec3 ntc = imageLoad(jumpTargetDistanceIn, samplePoint).xyz;
+	float dist = length(ntc.yz - vec2(samplePoint));
+	dist = ntc.x == 0.0 ? dist : dist * -1.0;
+	imageStore(targetTextureOut, samplePoint, vec4(dist, 0.0, 0.0, ntc.x));
+}

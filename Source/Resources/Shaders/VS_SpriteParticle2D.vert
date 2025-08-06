@@ -40,8 +40,6 @@ void main()
 	PointData pointData = g_pointData[gl_InstanceIndex];
 	vec2 vertexPos = vertexBasePos[gl_VertexIndex];
 
-	vec2 finalPosition;
-
 	vec2 renderRes = vec2(g_constantVariables.renderTargetRes);
 
 	vec2 scale = pointData.scale / renderRes;

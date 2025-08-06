@@ -36,22 +36,36 @@ namespace Hail
 	{
 		uint32 numberOfParticles;
 		float particleSize = 20.f;
-		glm::vec2 cloudTextureDimensions = { 240.f, 240.f };
+		glm::vec2 cloudTextureDimensions = { 40.f, 20.f };
 
-		float graviticForce = -1.0f;
-		float cloudDampeningMultiplier = 0.5f;
+		float graviticForce = -0.15f;
+		float cloudDampeningMultiplier = 1.0f;
 		float mouseForceStrength = 1.f;
-		float mouseForceRadius = 0.1f;
+		float mouseForceRadius = 0.025f;
 
 		float mass = 1.0f;
 		float stiffness = 2.0f;
-		float restDensity = 3.0f;
-		float nearPressureMultiplier = 5.f;
+		float restDensity = 1.5f;
+		float nearPressureMultiplier = 2.f;
 
 		float viscosityModifier = 1.f;
 		float deltaTimeModifier = 0.4f;
 		float particleKernelRadius = 4.f;
 		uint32 bSimulateCloud  = 0u;
+
+		glm::vec2 cloudTexturePosition = glm::vec2(25.0, 46.0);
+		float effectTurbulence = 16.f;
+		float effectStepLength = 10.f;
+
+		float effectNoise = 0.05f;
+		float effectSunDirectionRadian = 1.0f;
+		float HenyeyGreensteinPhaseValue = .95f;
+		float BeersLawStepLengthMultiplier = 8.0f;
+
+		float tileableCloudThreshold = 0.05f;
+		float tileableCloudTilingFactor = 10.f;
+		int32 numberOfSteps = 4;
+		float ditherThreshold = 0.2f;
 	};
 
 	struct ParticleDynamicVariableBuffer
@@ -113,13 +127,19 @@ namespace Hail
 		MaterialPipeline* m_pSimulationApplyPosition;
 		MaterialPipeline* m_pSimulationBuildPartialLookup;
 		MaterialPipeline* m_pSimulationClearPartialLookup;
+		MaterialPipeline* m_pCollectJFAPipeline;
+
+		TextureView* m_pTileableCloudTextureView;
 
 		TextureResource* m_pSdfTexture;
 		TextureView* m_pSdfView;
 
-		TextureResource* m_pParticleCoverageTexture;
-		TextureView* m_pParticleCoverageViewWrite;
-		TextureView* m_pParticleCoverageViewRead;
+		// Double buffering
+		StaticArray<TextureResource*, 2> m_pParticleCoverageTexture;
+		StaticArray<TextureView*, 2> m_pParticleCoverageViewWrite;
+		StaticArray<TextureView*, 2> m_pParticleCoverageViewRead;
+		StaticArray<MaterialPipeline*, 2u> m_pJFAPipelines;
+
 
 		GrowingArray<CloudParticle> m_cloudParticles;
 		GrowingArray<CloudParticle> m_cloudGridParticles;
@@ -134,7 +154,7 @@ namespace Hail
 
 		// Temp variables, will remove later. 
 		bool m_bUpdatedParticleGrid = false;
-		bool m_bSimulateGrid = true;
+		bool m_bSimulateGrid = false;
 		bool m_bRespawnGrid = false;
 		glm::ivec2 m_numberOfPointsToSpawn = glm::ivec2(5, 5);
 		float m_particleSpacing = 0.1f;

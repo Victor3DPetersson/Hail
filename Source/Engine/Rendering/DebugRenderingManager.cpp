@@ -5,6 +5,7 @@
 #include "RenderCommands.h"
 #include "RenderContext.h"
 #include "Renderer.h"
+#include "Settings.h"
 
 #include "Resources\MaterialManager.h"
 #include "Resources\RenderingResourceManager.h"

@@ -59,117 +59,14 @@ typedef union PixelInfo
     };
 } *PPixelInfo;
 
-void TextureCompiler::CompileAllTextures()
-{
-
-
-}
-
 FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors);
 FilePath ExportCompiled16BitTexture(const FilePath& originalTexturePath, uint16_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors) { return FilePath(); };
 FilePath ExportCompiled32BitTexture(const FilePath& originalTexturePath, uint32_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors){ return FilePath(); };
 
-bool TextureCompiler::CompileAndExportAllRequiredTextures(const char** requiredTextures, uint32 numberOfRequiredTextures)
-{
-	GrowingArray<FilePath> texturesToCompile(numberOfRequiredTextures);
-	RecursiveFileIterator fileIterator = RecursiveFileIterator(TEXTURES_DIR_IN);
-	bool foundTexture = false;
-
-	FilePath currentPath;
-	while (fileIterator.IterateOverFolderRecursively())
-	{
-		currentPath = fileIterator.GetCurrentPath();
-		if (currentPath.IsFile())
-		{
-			const FileObject& currentFileObject = currentPath.Object();
-			String64 filenameStr;
-			FromWCharToConstChar(currentFileObject.Name(), filenameStr, 64);
-			for (uint32_t i = 0; i < numberOfRequiredTextures; i++)
-			{
-				if (StringCompare(requiredTextures[i], filenameStr)
-					&& StringCompare(L"tga", currentFileObject.Extension())
-					|| StringCompare(L"TGA", currentFileObject.Extension()))
-				{
-					texturesToCompile.Add(currentPath);
-				}
-			}
-
-		}
-
-	}
-
-	if (texturesToCompile.Size() < numberOfRequiredTextures)
-	{
-		Debug_PrintConsoleConstChar("Missing a required texture in Texture Folder.");
-		return false;
-	}
-
-	for (uint32_t i = 0; i < numberOfRequiredTextures; i++)
-	{
-		if (!CompileSpecificTGATexture(texturesToCompile[i]))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-bool TextureCompiler::CompileInternalTexture(TextureProperties header, const char* textureName)
-{
-	uint32_t sizeOfColor, numberOfColors;
-	switch (ToEnum<eTextureSerializeableType>(header.textureType))
-	{
-	case eTextureSerializeableType::R8G8B8A8_SRGB:
-		sizeOfColor = 1;
-		numberOfColors = 4;
-		break;
-	case eTextureSerializeableType::R8G8B8_SRGB:
-		sizeOfColor = 1;
-		numberOfColors = 3;
-		break;
-	case eTextureSerializeableType::R16G16B16A16:
-		sizeOfColor = 2;
-		numberOfColors = 4;
-		break;
-	case eTextureSerializeableType::R16G16B16:
-		sizeOfColor = 2;
-		numberOfColors = 3;
-		break;
-	case eTextureSerializeableType::R16:
-		sizeOfColor = 2;
-		numberOfColors = 1;
-		break;
-	case eTextureSerializeableType::R32G32B32A32F:
-	case eTextureSerializeableType::R32G32B32A32:
-		sizeOfColor = 4;
-		numberOfColors = 4;
-		break;
-	case eTextureSerializeableType::R32G32B32F:
-	case eTextureSerializeableType::R32G32B32:
-		sizeOfColor = 4;
-		numberOfColors = 3;
-		break;
-	case eTextureSerializeableType::R32F:
-	case eTextureSerializeableType::R32:
-		sizeOfColor = 4;
-		numberOfColors = 1;
-		break;
-	default:
-		return false;
-		break;
-	}
-	return false;
-}
-
 FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 {
 	TGAHEADER tgaHeader;
-
-	// Holds bitwise flags for TGA file
-	int tgaDesc = 0;
-
 	InOutStream tgaFile;
-
 	if (!tgaFile.OpenFile(filePath, FILE_OPEN_TYPE::READ, true))
 	{
 		return FilePath();
@@ -222,6 +119,9 @@ FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 	tgaFile.Read((char*)(&tgaHeader.height), sizeof(tgaHeader.height));
 	tgaFile.Read(&tgaHeader.bitsPerPixel, sizeof(tgaHeader.bitsPerPixel));
 	tgaFile.Read(&tgaHeader.descriptor, sizeof(tgaHeader.descriptor));
+
+	// Holds bitwise flags for TGA file
+	int tgaDesc = 0;
 
 	switch (tgaHeader.imageType)
 	{
@@ -357,19 +257,6 @@ FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 
 	return ExportCompiled8BitTexture(filePath, pixelData, compileHeader, numberOfColors);
 }
-
-
-bool TextureCompiler::IsTextureCompiled(const char* relativePath, const char* textureName)
-{
-	return false;
-}
-
-
-void TextureCompiler::Init()
-{
-
-}
-
 
 FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties TextureProperties, uint32_t numberOfColors)
 {

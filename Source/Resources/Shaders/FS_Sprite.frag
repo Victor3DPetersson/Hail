@@ -1,4 +1,4 @@
-#version 450
+#include "shaderCommons.hs"
 
 layout(binding = 1, set = 2) uniform sampler2D texSampler;
 

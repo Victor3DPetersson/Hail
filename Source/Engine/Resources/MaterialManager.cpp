@@ -35,7 +35,6 @@ namespace Hail
 		uint32 i = 0u;
 		for (; i < m_loadRequests.Size(); ++i)
 		{
-
 			uint32 numberOfTexturesAreHandled = 0u;
 			for (uint32 iTexture = 0u; iTexture < MAX_TEXTURE_HANDLES; iTexture++)
 			{
