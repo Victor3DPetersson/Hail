@@ -333,6 +333,13 @@ void Hail::VlkRenderContext::Cleanup()
     }
     m_pFrameBufferMaterialPipelines.RemoveAll();
 
+    for (uint32 i = 0; i < m_pComputePipelines.Size(); i++)
+    {
+        m_pComputePipelines[i]->Cleanup(m_pDevice);
+        SAFEDELETE(m_pComputePipelines[i]);
+    }
+    m_pComputePipelines.RemoveAll();
+
 
     for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
     {
@@ -1199,15 +1206,10 @@ bool Hail::VlkRenderContext::CreateGraphicsPipeline(VlkMaterialFrameBufferConnec
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
     pipelineInfo.basePipelineIndex = -1; // Optional
 
-    if (vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &materialFrameBufferConnection.m_pipeline) != VK_SUCCESS)
-    {
-        //TODO ASSERT
-        return false;
-    }
-
+    const bool bResult = vkCreateGraphicsPipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &materialFrameBufferConnection.m_pipeline) == VK_SUCCESS;
     vkDestroyShaderModule(device.GetDevice(), fragShaderModule, nullptr);
     vkDestroyShaderModule(device.GetDevice(), vertShaderModule, nullptr);
-    return true;
+    return bResult;
 }
 
 bool Hail::VlkRenderContext::CreateComputePipeline(VlkComputePipeline& computePipeline)
@@ -1228,7 +1230,9 @@ bool Hail::VlkRenderContext::CreateComputePipeline(VlkComputePipeline& computePi
     pipelineInfo.layout = computePipeline.m_pipelineLayout;
     pipelineInfo.stage = computeShaderStageInfo;
 
-    return vkCreateComputePipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline.m_pipeline) == VK_SUCCESS;
+    const bool bResult = vkCreateComputePipelines(device.GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline.m_pipeline) == VK_SUCCESS;
+    vkDestroyShaderModule(device.GetDevice(), computeShaderModule, nullptr);
+    return bResult;
 }
 
 void Hail::VlkRenderContext::BindMaterialFrameBufferConnection(MaterialFrameBufferConnection* pConnectionToBind)
