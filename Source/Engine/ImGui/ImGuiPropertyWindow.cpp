@@ -41,18 +41,20 @@ namespace
 		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderStage)pShader->header.shaderType));
 	}
 
-	void RenderTextureProperty(Hail::ImGuiContext* context)
+	ImGuiPropertyWindowReturnValue RenderTextureProperty(Hail::ImGuiContext* context)
 	{
 		ImGui::Text("Texture Asset:");
 		ImGui::Separator();
 		if (!context->GetCurrentContextObject())
-			return;
+			return ImGuiPropertyWindowReturnValue::NoOp;
 
 		TextureContextAsset& texture = *(TextureContextAsset*)context->GetCurrentContextObject();
 
 		ImGui::Text("Name: %s", texture.m_fileObject.m_fileObject.Name().CharString());
 		ImGui::Text("Texture Format: %s", GetSerializeableTextureTypeAsText((eTextureSerializeableType)texture.m_TextureProperties.textureType));
 		ImGui::Text("Width: %i Height: %i", texture.m_TextureProperties.width, texture.m_TextureProperties.height);
+		if (ImGui::Button("Reload Texture"))
+			return ImGuiPropertyWindowReturnValue::ReloadResource;
 	}
 
 	ImGuiPropertyWindowReturnValue RenderMaterialProperty(Hail::ImGuiContext* context)
@@ -110,8 +112,16 @@ namespace
 	ImGuiPropertyWindowReturnValue RenderShaderProperty(Hail::ImGuiContext* context)
 	{
 		ShaderResourceContextObject& shader = *(ShaderResourceContextObject*)context->GetCurrentContextObject();
-		ImGui::Text("Shader Asset\nName: %s", shader.m_pFileObject->m_fileObject.Name().CharString());
 
+		if (!shader.m_pShader)
+		{
+			ImGui::Text("Shader Not Loaded");
+			ImGui::Text("Shader Asset\nName: %s", shader.m_pFileObject->m_fileObject.Name().CharString());
+			return ImGuiPropertyWindowReturnValue::NoOp;
+		}
+
+
+		ImGui::Text("Shader Asset\nName: %s", shader.m_pFileObject->m_fileObject.Name().CharString());
 		ImGui::Text("Shader Type: %s", ImGuiHelpers::GetShaderTypeFromEnum((eShaderStage)shader.m_pShader->header.shaderType));
 
 		return ImGuiPropertyWindowReturnValue::NoOp;
@@ -122,28 +132,17 @@ namespace
 ImGuiPropertyWindowReturnValue ImGuiPropertyWindow::RenderImGuiCommands(ImGuiFileBrowser* fileBrowser, ImGuiContext* context)
 {
 	ImGui::BeginChild("Properties", ImGui::GetContentRegionAvail(), true, ImGuiWindowFlags_MenuBar);
+	ImGuiPropertyWindowReturnValue returnResult = ImGuiPropertyWindowReturnValue::NoOp;
 
 	if (context->GetCurrentContextType() == ImGuiContextsType::None)
-	{
 		ImGui::Text("No item selected");
-		ImGui::EndChild();
-		return ImGuiPropertyWindowReturnValue::NoOp;
-	}
-
-	if (context->GetCurrentContextType() == ImGuiContextsType::Texture)
-		RenderTextureProperty(context);
-
-	if (context->GetCurrentContextType() == ImGuiContextsType::Material)
-	{
-		if (RenderMaterialProperty(context) == ImGuiPropertyWindowReturnValue::OpenMaterialWindow)
-		{
-			ImGui::EndChild();
-			return ImGuiPropertyWindowReturnValue::OpenMaterialWindow;
-		}
-	}
-	if (context->GetCurrentContextType() == ImGuiContextsType::Shader)
+	else if (context->GetCurrentContextType() == ImGuiContextsType::Texture)
+		returnResult = RenderTextureProperty(context);
+	else if (context->GetCurrentContextType() == ImGuiContextsType::Material)
+		returnResult = RenderMaterialProperty(context);
+	else if (context->GetCurrentContextType() == ImGuiContextsType::Shader)
 		RenderShaderProperty(context);
 
 	ImGui::EndChild();
-	return ImGuiPropertyWindowReturnValue::NoOp;
+	return returnResult;
 }

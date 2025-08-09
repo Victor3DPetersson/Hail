@@ -275,8 +275,6 @@ void ImGuiAssetBrowser::RenderImGuiCommands(RenderContext* pRenderContext, ImGui
 					m_currentlySelectedShaderResource.m_pFileObject = &currentObject;
 					m_currentlySelectedShaderResource.m_metaResource = m_resourceManager->GetMaterialManager()->LoadShaderMetaData(m_fileSystem.GetCurrentFilePath() + currentObject.m_fileObject);
 					m_currentlySelectedShaderResource.m_pShader = m_resourceManager->GetMaterialManager()->GetCompiledLoadedShader(m_currentlySelectedShaderResource.m_metaResource.GetGUID());
-					if (!m_currentlySelectedShaderResource.m_pShader)
-						H_ASSERT(false, "Should not be possible to not have a shader loaded if it has a shr file.");
 
 					contextObject->SetCurrentContextObject(ImGuiContextsType::Shader, &m_currentlySelectedShaderResource);
 				}
@@ -408,7 +406,8 @@ void Hail::ImGuiAssetBrowser::InitFolder(RenderContext* pRenderContext, const Fi
 		{
 			TextureContextAsset textureAsset;
 			pRenderContext->StartTransferPass();
-			textureAsset.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(pRenderContext, m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject, m_resourceManager->GetRenderingResourceManager(), &textureAsset.m_TextureProperties);
+			textureAsset.m_filePath = m_fileSystem.GetCurrentFilePath() + fileObject.m_fileObject;
+			textureAsset.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(pRenderContext, textureAsset.m_filePath, m_resourceManager->GetRenderingResourceManager(), &textureAsset.m_TextureProperties);
 			pRenderContext->EndTransferPass();
 			textureAsset.m_fileObject = fileObject;
 			textureFolder.folderTextures.Add(textureAsset);

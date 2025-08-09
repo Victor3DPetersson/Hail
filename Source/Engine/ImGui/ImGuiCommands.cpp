@@ -6,9 +6,12 @@
 #include "ImGuiAssetBrowser.h"
 #include "ImGuiMessageLogger.h"
 #include "Resources\ResourceManager.h"
+#include "Resources\TextureManager.h"
 #include "ImGuiPropertyWindow.h"
 #include "ImGuiContext.h"
 #include "ImGuiProfilerWindow.h"
+#include "HailEngine.h"
+#include "Resources/ResourceRegistry.h"
 
 namespace Hail
 {
@@ -531,7 +534,7 @@ void Hail::ImGuiCommandManager::RenderEngineImgui(RenderContext* pRenderContext)
 		}
 		else if (m_openAssetBrowser)
 		{
-			g_assetBrowser.RenderImGuiCommands(pRenderContext , &m_fileBrowser, m_resourceManager, &g_contextObject);
+			g_assetBrowser.RenderImGuiCommands(pRenderContext, &m_fileBrowser, m_resourceManager, &g_contextObject);
 			if (m_openPropertyWindow)
 			{
 				ImGui::SameLine();
@@ -540,6 +543,14 @@ void Hail::ImGuiCommandManager::RenderEngineImgui(RenderContext* pRenderContext)
 				{
 					m_openMaterialWindow = true;
 					g_materialEditor.SetMaterialAsset(&g_contextObject);
+				}
+				else if (propertyReturnValue == ImGuiPropertyWindowReturnValue::ReloadResource)
+				{
+					if (g_contextObject.GetCurrentContextType() == ImGuiContextsType::Texture)
+					{
+						TextureContextAsset* pTextureObject = (TextureContextAsset*)g_contextObject.GetCurrentContextObject();
+						m_resourceManager->GetTextureManager()->ReloadImportTextureResource(pTextureObject->m_filePath);
+					}
 				}
 			}
 		}

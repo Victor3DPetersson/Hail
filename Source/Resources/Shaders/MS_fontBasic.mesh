@@ -2,11 +2,11 @@
 
 #extension GL_EXT_mesh_shader : require
 
+
 layout( push_constant ) uniform constants
 {
 	uvec4 startOffset_padding; // uint uvec3 padding
 } PushConstants;
-
 
 // TODO: create a utility header for shaders with common operations
 vec3 ColorFromPackedColor(uint packedColor)

@@ -17,6 +17,9 @@ layout(binding = 0, set = 0, std140) uniform UniformBufferObject
 	vec2 cameraPos; // normalized
 	vec2 mousePos; // normalized
 	vec2 mouseRMBLMBDeltas;
+
+	vec2 playerPosition; // TEMP;
+	vec2 padding;
 } g_constantVariables;
 
 layout(set = 0, binding = 2) uniform sampler g_samplerLinear;

@@ -97,12 +97,15 @@ namespace Hail
 		g_camera.GetTransform() = glm::lookAt(glm::vec3(300.0f, 300.0f, 300.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		m_inputMapping = *reinterpret_cast<Hail::InputMapping*>(initData);
 		player.transform.SetPosition({ 0.5f, 0.5f });
-		player.bSizeRelativeToRenderTarget = true;
-		player.transform.SetScale({ 0.285f, 0.285f });
+		player.bSizeRelativeToRenderTarget = false;
+		player.transform.SetScale({ 1.f, 1.f });
 		player.m_layer = 0;
 		//sprites[0].materialInstanceID = 2;
 		sprites[0].transform.SetPosition({ 0.5f, 0.5f });
 		sprites[0].m_layer = -1;
+		sprites[0].bIsAffectedBy2DCamera = false;
+		sprites[0].bSizeRelativeToRenderTarget = true;
+		sprites[0].transform.SetScale({ 1.f, 1.f });
 
 		sprites[1].transform.SetPosition({ -400, -200 });
 		sprites[2].transform.SetPosition({ 200, 200 });
@@ -309,7 +312,7 @@ namespace Hail
 		for (uint32_t i = 1; i < 5; i++)
 		{
 			sprites[i].transform.AddToRotationEuler({ 0.15f * (i + 1) });
-			DrawLine2DPixelSpace(*frameData.commandPoolToFill, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f), true);
+			//DrawLine2DPixelSpace(*frameData.commandPoolToFill, sprites[i].transform.GetPosition(), sprites[i].transform.GetRotationRad(), 10.f * (i * 10.f), true);
 		}
 		FillFrameData(*frameData.commandPoolToFill);
 		g_frameCounter++;
@@ -326,29 +329,29 @@ namespace Hail
 	void GameApplication::FillFrameData(Hail::ApplicationCommandPool& commandPoolToFill)
 	{
 		commandPoolToFill.camera3D = g_camera;
-		for (uint32_t i = 0; i < 5; i++)
+		for (uint32_t i = 0; i < 1; i++)
 		{
 			commandPoolToFill.AddSpriteCommand(sprites[i]);
 		}
-		for (uint32_t i = 0; i < 100; i++)
-		{
-			commandPoolToFill.AddSpriteCommand(manySprites[i]);
-		}
+		//for (uint32_t i = 0; i < 100; i++)
+		//{
+		//	commandPoolToFill.AddSpriteCommand(manySprites[i]);
+		//}
 		if (renderPlayer)
 		{
 			commandPoolToFill.AddSpriteCommand(player);
-
-			g_textCounter.transform.SetPosition(player.transform.GetPosition() + glm::vec2(-140, -55));
-			g_textCounterNumber.transform.SetPosition(player.transform.GetPosition() + glm::vec2(30, -55));
-			DrawCircle2DPixelSpace(commandPoolToFill, player.transform.GetPosition(), 10.0f, true);
-			commandPoolToFill.AddTextCommand(g_textCounter);
-			commandPoolToFill.AddTextCommand(g_textCounterNumber);
+			commandPoolToFill.playerPosition = player.transform.GetPosition();
+			//g_textCounter.transform.SetPosition(player.transform.GetPosition() + glm::vec2(-140, -55));
+			//g_textCounterNumber.transform.SetPosition(player.transform.GetPosition() + glm::vec2(30, -55));
+			//DrawCircle2DPixelSpace(commandPoolToFill, player.transform.GetPosition(), 10.0f, true);
+			//commandPoolToFill.AddTextCommand(g_textCounter);
+			//commandPoolToFill.AddTextCommand(g_textCounterNumber);
 		}
 		else
 		{
 			//g_textCommand1.transform.SetRotationEuler(-90 + g_frameCounter);
 		}
-		commandPoolToFill.AddTextCommand(g_textCommand1);
+		//commandPoolToFill.AddTextCommand(g_textCommand1);
 		commandPoolToFill.camera2D = g_2DCamera;
 		commandPoolToFill.m_meshCommands.Add(Hail::GameCommand_Mesh());
 

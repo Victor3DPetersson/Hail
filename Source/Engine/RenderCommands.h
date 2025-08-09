@@ -77,6 +77,10 @@ namespace Hail
 
 	struct RenderCommandPool
 	{
+		// Temp
+		glm::vec2 playerPosition;
+
+
 		Camera2D camera2D;
 		Camera camera3D;
 		VectorOnStack<Batch2DInfo, MAX_NUMBER_OF_SPRITES, false> m_batches;

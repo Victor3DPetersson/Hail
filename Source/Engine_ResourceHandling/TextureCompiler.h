@@ -8,7 +8,7 @@ namespace Hail
 
 	namespace TextureCompiler
 	{
-		// returns the out texture path from the compiled resource
-		FilePath CompileSpecificTGATexture(const FilePath& filePath);
+		// returns the out texture path from the compiled resource, if the GUID is empty a new GUID will be constructed
+		FilePath CompileSpecificTGATexture(const FilePath& filePath, GUID guid);
 	};
 }

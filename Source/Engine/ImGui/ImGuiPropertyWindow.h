@@ -10,6 +10,7 @@ namespace Hail
 	{
 		NoOp,
 		OpenMaterialWindow,
+		ReloadResource
 	};
 
 

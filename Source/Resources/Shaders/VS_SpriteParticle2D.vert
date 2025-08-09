@@ -1,5 +1,6 @@
 #include "shaderCommons.hs"
 
+
 struct PointData
 {
 	vec2 pos;

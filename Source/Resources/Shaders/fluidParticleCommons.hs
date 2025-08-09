@@ -104,6 +104,8 @@ struct FluidParticle
     vec2 pressureForce;
     vec2 pressureNearPressure;
     vec2 densityNearDensity;
+    float timer;
+    uint ID; // Cloud particles use the ID to see which cloud it belongs too
 };
 
 layout(binding = 1, set = 1, std430) buffer GlobalParticleList

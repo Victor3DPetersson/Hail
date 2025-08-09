@@ -39,7 +39,12 @@ void Hail::ThreadSyncronizer::TransferGameCommandsToRenderCommands(ResourceManag
 	ApplicationCommandPool& poolToTransferFrom = m_appCommandPools[m_currentActiveAppCommandPoolRead];
 	// Filling data from the read pool
 	RenderCommandPool& renderPoolReadToFill = m_renderCommandPools[m_currentActiveRenderPoolRead];
+	
+	// temp
+	renderPoolReadToFill.playerPosition = poolToTransferFrom.playerPosition;
 
+	renderPoolReadToFill.camera2D = poolToTransferFrom.camera2D;
+	renderPoolReadToFill.camera3D = poolToTransferFrom.camera3D;
 	//prepare data structures for the pool we are going to fill
 	renderPoolReadToFill.m_batches.Clear();
 	renderPoolReadToFill.m_layersBatchOffset.Clear();
@@ -190,6 +195,8 @@ void Hail::ThreadSyncronizer::PrepareApplicationData()
 	Camera2D& camera = pPool->camera2D;
 	camera.SetResolution(m_currentResolution);
 
+	//Temp:
+	pPool->playerPosition = glm::vec2(pPool->playerPosition.x / m_currentResolution.x + 0.5f, pPool->playerPosition.y / m_currentResolution.y + 0.5f);
 	// Sorting the game data 
 	DepthTypeCounter2D* depthCounterList = pPool->m_depthTypeCounters.Data();
 	Sorting::LinearBubbleDepthTypeCounter(&depthCounterList, pPool->m_depthTypeCounters.Size());
@@ -198,7 +205,8 @@ void Hail::ThreadSyncronizer::PrepareApplicationData()
 	Sorting::LinearBubbleSpriteCommand(&spriteList, pPool->m_spriteCommands.Size());
 
 	GameCommand_Text* textList = pPool->m_textCommands.Data();
-	Sorting::LinearBubbleTextDepth(&textList, pPool->m_textCommands.Size());
+	if (!pPool->m_textCommands.Empty())
+		Sorting::LinearBubbleTextDepth(&textList, pPool->m_textCommands.Size());
 
 	for (size_t i = 0; i < pPool->m_spriteCommands.Size(); i++)
 	{
@@ -250,9 +258,8 @@ void Hail::ThreadSyncronizer::LerpRenderBuffers()
 	float tValue = m_currentRenderTimer / m_engineTickRate;
 	const RenderCommandPool& readPool = m_renderCommandPools[m_currentActiveRenderPoolRead];
 	const RenderCommandPool& lastReadPool = m_renderCommandPools[m_currentActiveRenderPoolLastRead];
-	m_renderCommandPools[m_currentActiveRenderPoolWrite].camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
-	
 	RenderCommandPool& writePool = GetRenderPool();
+
 	writePool.camera3D = Camera::LerpCamera(readPool.camera3D, lastReadPool.camera3D, tValue);
 	writePool.camera2D.SetResolution(readPool.camera2D.GetResolution());
 	writePool.camera2D.SetZoom(Math::Lerp(readPool.camera2D.GetZoom(), lastReadPool.camera2D.GetZoom(), tValue));

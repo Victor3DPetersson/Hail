@@ -1,7 +1,18 @@
 #include "fluidParticleCommons.hs"
 
+
 layout(binding = 5, set = 1) uniform texture2D cloudSdfTexture;
 
+struct CloudData
+{
+    vec2 position;
+    vec2 dimensions;
+};
+
+layout(binding = 6, set = 1, std430) buffer readonly CloudDataBuffer
+{
+    CloudData inCloudData[];
+};
 
 vec2 MouseForce(float radius, vec2 posToCheck, vec2 velocityOfParticle)
 {
@@ -12,7 +23,8 @@ vec2 MouseForce(float radius, vec2 posToCheck, vec2 velocityOfParticle)
 	
 	vec2 mouseForce = vec2(0.0, 0.0);
 
-	vec2 mouseParticleSpacePos = mouseRenderTargetPos * 0.1;
+	vec2 cameraPixelPos = g_constantVariables.cameraPos * vec2(g_constantVariables.renderResolution);
+	vec2 mouseParticleSpacePos = vec2(mouseRenderTargetPos.x + cameraPixelPos.x, mouseRenderTargetPos.y - cameraPixelPos.y);
 
 	vec2 offset = posToCheck - mouseParticleSpacePos;
 	float sqrDistance = dot(offset, offset);
@@ -27,35 +39,63 @@ vec2 MouseForce(float radius, vec2 posToCheck, vec2 velocityOfParticle)
 	}
 	else if (rmbDown)
 	{
-		strength = -1.f * mouseForceStrength;
+		strength = -1.0 * mouseForceStrength;
 	}
 
-	if (strength != 0.f && sqrDistance < radius * radius)
+	if (strength != 0.0 && sqrDistance < radius * radius)
 	{
 		float offsetDistance = length(offset);
 
 		// Normalized or Zero
 		vec2 dirToMouse = offsetDistance <= EpsilonF ? vec2(0.0, 0.0) : offset / offsetDistance;
 
-		float centreT = min(1.f - offsetDistance / radius, 0.8);
+		float centreT = min(1.0 - offsetDistance / radius, 0.8);
 		mouseForce += (dirToMouse * strength - velocityOfParticle) * centreT;
 	}
 	return mouseForce;
 }
 
-vec2 CalculateForceToSdf(vec2 cloudParticlePos, vec2 particleVelocityToCancel)
+// Hardcoded temp function
+vec2 CalculatePlayerForce(vec2 posToCheck, vec2 velocityOfParticle)
 {
-	vec2 cloudPos = g_particleVariables.cloudTexturePosition;
-	vec2 cloudDimensions = g_particleVariables.cloudTextureDimensions;
-
-	vec2 particlePosInCloud = cloudParticlePos - cloudPos;
+	vec2 renderResolution = vec2(g_constantVariables.renderResolution);
 	
-	if (particlePosInCloud.x < 0.0 || particlePosInCloud.y < 0.0 || particlePosInCloud.x > cloudDimensions.x || particlePosInCloud.y > cloudDimensions.y)
+	vec2 playerForce = vec2(0.0, 0.0);
+	vec2 cameraPixelPos = g_constantVariables.cameraPos * vec2(g_constantVariables.renderResolution);
+	vec2 playerPixelPos = vec2(g_constantVariables.playerPosition.x, 1.0 - g_constantVariables.playerPosition.y) * vec2(g_constantVariables.renderResolution) + vec2(8.0);
+	vec2 playerParticleSpacePos = vec2(playerPixelPos.x + cameraPixelPos.x, playerPixelPos.y - cameraPixelPos.y);
+
+	vec2 offset = posToCheck - playerPixelPos;
+	float sqrDistance = dot(offset, offset);
+
+	float radius = 16.0;
+	if (sqrDistance < radius * radius)
+	{
+		float strength = 23.0;
+		float offsetDistance = length(offset);
+		// Normalized or Zero
+		vec2 dirToPlayer = offsetDistance <= EpsilonF ? vec2(0.0, 0.0) : offset / offsetDistance;
+
+		float centreT = min(1.0 - offsetDistance / radius, 0.8);
+		playerForce += (dirToPlayer * strength - velocityOfParticle) * centreT;
+	}
+	return playerForce;
+}
+
+vec2 CalculateForceToSdf(vec2 cloudParticlePos, vec2 particleVelocityToCancel, uint cloudID)
+{
+	vec2 cloudPos = inCloudData[cloudID].position;
+	vec2 cloudDimensions = inCloudData[cloudID].dimensions * g_particleVariables.cloudSizeMultiplier;
+	vec2 halfCloudDimensions = cloudDimensions * 0.5;
+
+	vec2 particlePosInCloud = (cloudParticlePos - cloudPos) - halfCloudDimensions;
+	
+	if (particlePosInCloud.x < -halfCloudDimensions.x || particlePosInCloud.y < -halfCloudDimensions.y || particlePosInCloud.x > halfCloudDimensions.x || particlePosInCloud.y > halfCloudDimensions.y)
 	{
 		return normalize(particlePosInCloud - cloudDimensions * 0.5);
 	}
 
-	vec2 normalizedParticlePosInCloud = particlePosInCloud / cloudDimensions;
+	vec2 normalizedParticlePosInCloud = (particlePosInCloud + halfCloudDimensions) / cloudDimensions;
 	float xShift = 1.0 / 128.0;
 	float yShift = 1.0 / 128.0;
 	vec2 clampedParticlePos = normalizedParticlePosInCloud;
@@ -108,6 +148,7 @@ void main()
 
 	vec2 piPos = globalParticleList[globalThreadID].pos;
 	vec2 piVelocity = globalParticleList[globalThreadID].velocity;
+	uint piID = globalParticleList[globalThreadID].ID;
 	ivec2 cellCoord = PositionToCellCoord(piPos, h);
 
 	vec2 viscosityForce = vec2(0.0, 0.0);
@@ -146,14 +187,15 @@ void main()
 	viscosityForce = viscosityForce * g_particleVariables.viscosityModifier * mass;
 
     vec2 mouseForce = MouseForce(g_particleVariables.mouseForceRadius * 100.0, piPos, piVelocity);
+	vec2 playerForce = CalculatePlayerForce(piPos, piVelocity);
 	vec2 gravity = vec2(0.0, 1.0) * g_particleVariables.graviticForce;
-    vec2 graviticForce = g_particleVariables.bSimulateCloud == 1 ? CalculateForceToSdf(piPos, piVelocity) * g_particleVariables.graviticForce : gravity;
+    vec2 graviticForce = g_particleVariables.bSimulateCloud == 1 ? CalculateForceToSdf(piPos, piVelocity, piID) * g_particleVariables.graviticForce : gravity;
 
-    vec2 F_ext = mass * (graviticForce + mouseForce);
+    vec2 F_ext = mass * (graviticForce + mouseForce + playerForce);
 
     vec2 acceleration = (viscosityForce + F_ext);
 
-	const float adjustedDeltaTime = (g_particleVariables.particleSize / g_dynamicParticleVariables.maxVelocity);
+	const float adjustedDeltaTime = (g_particleVariables.particleKernelRadius / g_dynamicParticleVariables.maxVelocity);
 	const float deltaTimeByMass = min(g_constantVariables.deltaTime_cameraZoom.x, adjustedDeltaTime) * g_particleVariables.deltaTimeModifier;
 
     globalParticleList[globalThreadID].intermediateVelocity = piVelocity + deltaTimeByMass * acceleration;

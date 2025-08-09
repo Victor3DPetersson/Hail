@@ -26,6 +26,7 @@ namespace Hail
 		m_swapChain = swapChain;
 		m_renderingResourceManager = renderingResourceManager;
 		m_loadedShaders[0].Prepare(32u);
+		m_loadedShaders[(uint32)eShaderStage::Fragment].Prepare(32u);
 	}
 
 	void MaterialManager::Update()
@@ -899,7 +900,7 @@ namespace Hail
 		finalPath.UpdateCommonFileData();
 		
 		MetaResource metaResource;
-		metaResource.ConstructResourceAndID(finalPath, finalPath);
+		metaResource.ConstructResourceAndID(finalPath, finalPath, GuidZero);
 		metaResource.Serialize(outStream);
 
 		SerializeableMaterial resource{};

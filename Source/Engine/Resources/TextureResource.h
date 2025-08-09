@@ -71,7 +71,6 @@ namespace Hail
 	public:
 
 		virtual void* GetImguiTextureResource() = 0;
-
 	
 		uint32 m_width = 0;
 		uint32 m_height = 0;

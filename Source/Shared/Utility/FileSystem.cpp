@@ -47,7 +47,6 @@ namespace Hail
             m_fileDirectories[baseDepth].Add(currentDirectory);
 
         }
-        uint16 currentDirectoryDepth = 0;
         while (iterator.IterateOverFolderRecursively())
         {
 
@@ -55,12 +54,7 @@ namespace Hail
             const FileObject& currentObject = iteratedPath.Object();
 
             const uint16 currentDepth = iteratedPath.GetDirectoryLevel() - m_baseDepth;
-
-            if (currentObject.GetDirectoryLevel() - m_baseDepth != currentDirectoryDepth + 1)
-            {
-                currentDirectoryDepth++;
-                m_maxDepth = Math::Max(m_maxDepth, currentObject.GetDirectoryLevel());
-            }
+            m_maxDepth = Math::Max(m_maxDepth, currentObject.GetDirectoryLevel());
 
             if (currentObject.IsDirectory())
             {
@@ -72,11 +66,12 @@ namespace Hail
                 m_fileDirectories[currentDepth].Add(currentDirectory);
             }
 
-            for (size_t i = 0; i < m_fileDirectories[currentDirectoryDepth].Size(); i++)
+            for (size_t i = 0; i < m_fileDirectories[currentDepth - 1u].Size(); i++)
             {
-                if (m_fileDirectories[currentDirectoryDepth][i].directoryObject.Name() == currentObject.ParentName())
+                const FileObject& object = m_fileDirectories[currentDepth - 1u][i].directoryObject;
+                if (object.Name() == currentObject.ParentName())
                 {
-                    GrowingArray<SelectAbleFileObject>& files = m_fileDirectories[currentDirectoryDepth][i].files;
+                    GrowingArray<SelectAbleFileObject>& files = m_fileDirectories[currentDepth - 1u][i].files;
                     files.Add(currentObject);
                     break;
                 }

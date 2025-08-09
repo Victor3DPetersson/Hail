@@ -199,19 +199,20 @@ void Hail::ResourceManager::UpdateRenderBuffers(RenderCommandPool& renderPool, R
 	PerFrameUniformBuffer perFrameData{};
 
 	perFrameData.totalTime_horizonLevel.x = totalTime;
-	perFrameData.totalTime_horizonLevel.y = 0.0f;
+	perFrameData.totalTime_horizonLevel.y = 100.f;
 	perFrameData.mainRenderResolution = m_swapChain->GetRenderTargetResolution();
 	perFrameData.mainWindowResolution = m_swapChain->GetSwapChainResolution();
 	perFrameData.renderTargetRes = m_swapChain->GetTargetResolution();
 	perFrameData.deltaTime_cameraZoom = glm::vec2(deltaTime, renderPool.camera2D.GetZoom());
-	perFrameData.cameraPos = glm::vec2((float)renderPool.camera2D.GetPosition().x / (float)perFrameData.mainWindowResolution.x,
-		(float)renderPool.camera2D.GetPosition().y / (float)perFrameData.mainWindowResolution.y);
+	perFrameData.cameraPos = renderPool.camera2D.GeNormalizedtPosition();
 	perFrameData.mousePos = glm::vec2((float)GetInputHandler().GetInputMap().mouse.mousePos.x / (float)perFrameData.mainWindowResolution.x,
 		(float)GetInputHandler().GetInputMap().mouse.mousePos.y / (float)perFrameData.mainWindowResolution.y);
 
 	const bool lmbDown = GetInputHandler().GetInputMap().mouse.keys[(uint32)eMouseMapping::LMB] == (uint8)eInputState::Down;
 	const bool rmbDown = GetInputHandler().GetInputMap().mouse.keys[(uint32)eMouseMapping::RMB] == (uint8)eInputState::Down;
 	perFrameData.mouseRMBLMBDeltas = glm::vec2(lmbDown, rmbDown);
+
+	perFrameData.playerPosition = renderPool.playerPosition;
 
 	BufferObject* perFrameDataBuffer = m_renderingResourceManager->GetGlobalBuffer(eDecorationSets::GlobalDomain, eBufferType::uniform, (uint32)eGlobalUniformBuffers::frameData);
 	pRenderContext->UploadDataToBuffer(perFrameDataBuffer, &perFrameData, sizeof(perFrameData));
@@ -256,11 +257,11 @@ void Hail::ResourceManager::SpriteRenderDataFromGameCommand(const GameCommand_Sp
 	const glm::vec2 spriteSizeMultiplier = commandToCreateFrom.bSizeRelativeToRenderTarget ? glm::vec2(1.0, 1.0) : commandToCreateFrom.transform.GetScale();
 	if (commandToCreateFrom.bSizeRelativeToRenderTarget)
 	{
-		spriteScale.x *= textureAspectRatio;
+		spriteScale.x *= m_swapChain->GetHorizontalAspectRatio();
 	}
 	else
 	{
-		const glm::vec2 scaleMultiplier = glm::vec2(texture.m_compiledTextureData.properties.width, texture.m_compiledTextureData.properties.height) / renderResolution.y;
+		const glm::vec2 scaleMultiplier = glm::vec2(texture.m_properties.width, texture.m_properties.height) / renderResolution.y;
 		spriteScale = (spriteScale * 2.0f) * scaleMultiplier;
 	}
 	const float cutoutThreshhold = materialInstance.m_blendMode == eBlendMode::None ? 0.0f : (float)materialInstance.m_cutoutThreshold / 256.f;

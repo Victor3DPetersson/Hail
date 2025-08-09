@@ -2,10 +2,29 @@
 
 layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 5, set = 1, std430) buffer readonly GlobalParticleListFromCPU
+vec2 Vogel(uint sampleIndex)
 {
-    FluidParticle inGlobalParticleList[];
+    float r = sqrt(float(sampleIndex) + 0.5f) / sqrt(1024.0);
+    float theta = float(sampleIndex) * GoldenAngle + 0.7777;
+    return r * vec2(cos(theta), sin(theta));
+}
+
+struct CloudData
+{
+    vec2 position;
+    vec2 dimensions;
 };
+
+layout(binding = 5, set = 1, std430) buffer readonly CloudDataBuffer
+{
+    CloudData inCloudData[];
+};
+
+layout( push_constant ) uniform constants
+{
+    uint numberOfPointsPerPixelInClouds;
+    uvec3 padding;
+} PushConstants;
 
 void main() 
 {
@@ -18,5 +37,30 @@ void main()
 	if (globalThreadID >= numberOfParticles)
 		return;
 
-    globalParticleList[globalThreadID] = inGlobalParticleList[globalThreadID];
+    uint numberOfParticlesInClouds = 0;
+    int cloudIndex = 0;
+    int particleIndex = int(globalThreadID);
+    // 16 is the current max number of clouds
+    for (int i = 0; i < 16; ++i)
+    {   
+        cloudIndex = i;
+        uint numberOfParticlesInCloud = (uint(inCloudData[i].dimensions.x) * PushConstants.numberOfPointsPerPixelInClouds) * (uint(inCloudData[i].dimensions.y) * PushConstants.numberOfPointsPerPixelInClouds);
+        numberOfParticlesInClouds += int(numberOfParticlesInCloud);
+        if (globalThreadID < numberOfParticlesInClouds)
+            break;
+        particleIndex -= int(numberOfParticlesInCloud);
+    }
+
+    FluidParticle particleToSpawn;
+    particleToSpawn.velocity = vec2(0.0);
+    particleToSpawn.intermediateVelocity = vec2(0.0);
+    particleToSpawn.pressureForce = vec2(0.0);
+    particleToSpawn.pressureNearPressure = vec2(0.0);
+    particleToSpawn.densityNearDensity = vec2(0.0);
+    particleToSpawn.timer = 0.0;
+    particleToSpawn.ID = cloudIndex;
+    vec2 cloudDimensions = inCloudData[cloudIndex].dimensions * g_particleVariables.cloudSizeMultiplier;
+    particleToSpawn.pos = Vogel(uint(particleIndex)) * inCloudData[cloudIndex].dimensions * 2.0 + (inCloudData[cloudIndex].position + cloudDimensions * 0.5);
+
+    globalParticleList[globalThreadID] = particleToSpawn;
 }

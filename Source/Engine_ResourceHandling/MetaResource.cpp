@@ -30,18 +30,17 @@ void LocalCreateGUID(Hail::GUID& guidToCreate)
 #endif
 }
 
-void MetaResource::ConstructResourceAndID(const FilePath& sourcePath, const FilePath& resourceProjectPath)
+void MetaResource::ConstructResourceAndID(const FilePath& sourcePath, const FilePath& resourceProjectPath, GUID guid)
 {
-	// TODO assert on paths if they not valid
-
-	if (m_sourceFilePath.Empty() && sourcePath.IsValid())
+	const bool bIsSourcePathValid = sourcePath.IsValid();
+	if (m_sourceFilePath.Empty() && bIsSourcePathValid)
 	{
 		m_sourceFilePath = RelativeFilePath(sourcePath);
 		m_sourceFileOwningCommonData = sourcePath.Object().GetFileData();
 	}
-	else if (!sourcePath.IsEmpty() && sourcePath.IsValid())
+	else if (!sourcePath.IsEmpty() && bIsSourcePathValid)
 	{
-		FilePath sourceFilePath = m_sourceFilePath.GetFilePath();
+		const FilePath sourceFilePath = m_sourceFilePath.GetFilePath();
 		if (sourcePath != sourceFilePath)
 		{
 			m_sourceFilePath = RelativeFilePath(sourcePath);
@@ -57,10 +56,11 @@ void MetaResource::ConstructResourceAndID(const FilePath& sourcePath, const File
 		m_projectFilePath = RelativeFilePath(resourceProjectPath);
 	else
 	{
-		FilePath projectFilePath = m_projectFilePath.GetFilePath();
+		const FilePath projectFilePath = m_projectFilePath.GetFilePath();
 		if (resourceProjectPath != projectFilePath)
 			m_projectFilePath = RelativeFilePath(resourceProjectPath);
 	}
+	m_ID = guid;
 	//Create GUID
 	if (m_ID == GuidZero)
 	{
@@ -68,7 +68,7 @@ void MetaResource::ConstructResourceAndID(const FilePath& sourcePath, const File
 	}
 	// TODO: assert if no project name
 	m_name = m_projectFilePath.GetName();
-
+	H_ASSERT(m_name.Length());
 }
 
 void Hail::MetaResource::SetSourcePath(const FilePath& sourcePath)

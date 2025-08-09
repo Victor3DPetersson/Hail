@@ -12,7 +12,7 @@ namespace Hail
 	public:
 		MetaResource() = default;
 		// Constructs a GUID as well as the relative fileobjects.
-		void ConstructResourceAndID(const FilePath& sourcePath, const FilePath& resourceProjectPath);
+		void ConstructResourceAndID(const FilePath& sourcePath, const FilePath& resourceProjectPath, GUID guid);
 		void SetSourcePath(const FilePath& sourcePath);
 		void SetProjectPath(const FilePath& sourcePath);
 		void Serialize(InOutStream& stream) final;

@@ -1,5 +1,6 @@
 #include "shaderCommons.hs"
 
+
 // TODO: create a utility header for shaders with common operations
 vec4 ColorFromPackedColor(uint packedColor)
 {

@@ -27,8 +27,8 @@ void main()
     //direction.x += gameTime * 0.15;
     string inputOutputText = "Triggered input from AS and fetched a String! Number: ";
     //DrawLineNormalized(Vec2(0), Vec2(0.5));
-    DrawLineNormalizedScreenAlligned(Vec2(0.5), (direction * 0.5) + 0.5);
-    DrawCircleNormalized(playerPosition, 0.05);
+    //DrawLineNormalizedScreenAlligned(Vec2(0.5), (direction * 0.5) + 0.5);
+    //DrawCircleNormalized(playerPosition, 0.05);
     int numberFromAFunction = GetAMathematicalNumber(gameTime);
 
     inputOutputText += numberFromAFunction;

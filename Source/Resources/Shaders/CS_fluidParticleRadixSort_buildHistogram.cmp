@@ -223,8 +223,4 @@ void main()
         uint outIndex = groupID * NumBuckets + localThreadID;
         outHistogram[outIndex] = localHistogramCount[localThreadID];
     }
-
-
-
-
 }

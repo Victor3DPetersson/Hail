@@ -1,5 +1,6 @@
 #include "shaderCommons.hs"
 
+
 layout(binding = 1, set = 1) uniform texture2D cloudCoverageSdfTexture;
 layout(binding = 2, set = 1) uniform texture2D tileAbleCloudTexture;
 
@@ -7,7 +8,7 @@ const vec3 cloudColorTable[4] = {
     {115.0 / 255.0, 147.0 / 255.0, 196.0 / 255.0},
     {153.0 / 255.0, 153.0 / 255.0, 204.0 / 255.0},
     {179.0 / 255.0, 172.0 / 255.0, 205.0 / 255.0},
-    {212.0 / 255.0, 234.0 / 255.0, 250.0 / 255.0}
+    {202.0 / 255.0, 189.0 / 255.0, 219.0 / 255.0}
 };
 
 #include "fluidParticleUniform.hs"
@@ -110,7 +111,6 @@ float voronoi(vec2 x)
     return sqrt( res );
 }
 
-
 layout(location = 0) out vec4 outColor;
 layout(location = 0) in vec2 fragTexCoord;
 
@@ -121,11 +121,6 @@ float HenyeyGreensteinPhaseFunction(float g, float theta)
 
 void main() 
 {
-	float renderTexelSizeX = 1.0 / float(g_constantVariables.renderTargetRes.x);
-	float renderTexelSizeY = 1.0 / float(g_constantVariables.renderTargetRes.y);
-
-	vec2 fragCoord = (fragTexCoord + vec2(renderTexelSizeX * 0.5, renderTexelSizeY * 0.5));
-
 	float cloudSample = texture(sampler2D(cloudCoverageSdfTexture, g_samplerBilinear), fragTexCoord).w;
 	if (cloudSample <= 0.0)
 		discard;
@@ -133,8 +128,8 @@ void main()
 	float sunDirectionRad = g_particleVariables.effectSunDirectionRadian;
 	vec2 sunDirection = normalize(vec2(cos(sunDirectionRad), sin(sunDirectionRad) * (-1.0)));
 
-	vec2 sdfTexCoord = vec2(clamp(fragCoord.x, 0.0, 1.0), clamp(fragCoord.y, 0.0, 1.0));
-	float sdfValue = texture(sampler2D(cloudCoverageSdfTexture, g_samplerBilinear), sdfTexCoord + snoise(fragTexCoord * 10.0) * 0.01).r;
+	vec2 sdfTexCoord = fragTexCoord;
+	float sdfValue = texture(sampler2D(cloudCoverageSdfTexture, g_samplerBilinear), sdfTexCoord).r;
 
 	float rayInCloudDistance = 0.0;
 	vec2 currentSamplePoint = sdfTexCoord;
@@ -142,7 +137,6 @@ void main()
 	float baseRayDistance = g_particleVariables.effectStepLength;
 	// Change the bounds of the SDF
 	sdfValue = sdfValue - 2.0;
-
 	for (int i = 0; i < 8; i++)
 	{
 		if (sdfValue > 0.0)
@@ -150,9 +144,12 @@ void main()
 
 		float rayDistance = sdfValue > 0.0 ? baseRayDistance : sdfValue * -1.0;
 		rayInCloudDistance += rayDistance;
+        vec2 noiseSamplePoint = currentSamplePoint;
+        noiseSamplePoint.x += g_constantVariables.cameraPos.x;
+        noiseSamplePoint.y -= g_constantVariables.cameraPos.y;
 
-		float randomTurbulence = (voronoi(currentSamplePoint * g_particleVariables.effectTurbulence) * 2.0 - 1.0) * 0.5;
-		float noise = snoise(currentSamplePoint * 2.0) * g_particleVariables.effectNoise;
+		float randomTurbulence = (voronoi(noiseSamplePoint * g_particleVariables.effectTurbulence) * 2.0 - 1.0) * 0.5;
+		float noise = snoise(noiseSamplePoint * 2.0) * g_particleVariables.effectNoise;
 		float randomDirectionShift = randomTurbulence + noise;
 		vec2 rayToAdd = (rayDistance / vec2(g_constantVariables.renderTargetRes)) * (toSunDirection + randomDirectionShift);
 		currentSamplePoint = rayToAdd + currentSamplePoint;
@@ -162,7 +159,7 @@ void main()
 	float hg = HenyeyGreensteinPhaseFunction(g_particleVariables.HenyeyGreensteinPhaseValue, sunDirectionRad);
 	float beersLawValue = 1.0 - clamp(rayInCloudDistance / (g_particleVariables.BeersLawStepLengthMultiplier * baseRayDistance * 2.0), 0.0, 1.0); 
     
-    vec2 tileableCloudCoord = fragCoord * g_particleVariables.tileableCloudTilingFactor - g_constantVariables.cameraPos * vec2(g_constantVariables.renderTargetRes);
+    vec2 tileableCloudCoord = vec2(fragTexCoord.x + g_constantVariables.cameraPos.x, fragTexCoord.y - g_constantVariables.cameraPos.y) * g_particleVariables.tileableCloudTilingFactor;
 	float tileableCloudValue = texture(sampler2D(tileAbleCloudTexture, g_samplerLinear), tileableCloudCoord).r;
 
     int ditherY = (int(fragTexCoord.y * float(g_constantVariables.renderTargetRes.y)) % 2);

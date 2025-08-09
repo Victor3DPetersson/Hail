@@ -1,5 +1,6 @@
 #include "shaderCommons.hs"
 
+
 layout(binding = 0, set = 1, rgba32f) uniform readonly image2D jumpTargetDistanceIn;
 layout(binding = 1, set = 1, rgba32f) uniform writeonly image2D targetTextureOut;
 

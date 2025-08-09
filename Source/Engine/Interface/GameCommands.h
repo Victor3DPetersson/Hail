@@ -26,7 +26,6 @@ namespace Hail
 		Transform2D transform; // 20 Bytes
 		Color color; // 12 Bytes
 		uint32 index;
-
 		StringLW text; // TODO: kolla hur jag sparar strängen, kanske ha en stor sträng pool bara för text commands, som är en circular buffer
 		uint16 textSize;
 		int m_layer{ 0 };
@@ -52,6 +51,7 @@ namespace Hail
 		Camera camera3D;
 		Camera2D camera2D;
 
+
 		void AddDebugLine(const DebugLineCommand& debugLineToAdd);
 		void AddSpriteCommand(const GameCommand_Sprite& spriteToAdd);
 		void AddTextCommand(const GameCommand_Text& textToAdd);
@@ -60,6 +60,8 @@ namespace Hail
 		void NewFrame();
 
 		VectorOnStack<GameCommand_Mesh, 1024, false> m_meshCommands;
+		// temp code:
+		glm::vec2 playerPosition = glm::vec2(0.f);
 	private:
 		friend class ThreadSyncronizer;
 		// TODO gör detta till ett hashset som drivs av depth index

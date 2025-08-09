@@ -18,7 +18,7 @@ void main()
 	if (globalThreadID >= numberOfParticles)
 		return;
 
-    uint lookupKey = ComputeParticleKeyLookup(globalParticleList[globalThreadID].pos , numberOfParticles, g_particleVariables.particleKernelRadius);
+    uint lookupKey = ComputeParticleKeyLookup(globalParticleList[globalThreadID].pos, numberOfParticles, g_particleVariables.particleKernelRadius);
     globalSpatialLookupKeyIndexList[globalThreadID] = uvec2(lookupKey, globalThreadID);
     globalSpatialLookupStartIndices[globalThreadID] = 0xffff; // Cleared Key
     globalSpatialLookupSortIndex[globalThreadID] = lookupKey;

@@ -256,10 +256,12 @@ TextureResource* Hail::TextureManager::LoadTextureRequestInternal(const FilePath
 	if (!inStream.OpenFile(path, FILE_OPEN_TYPE::READ, true))
 		return nullptr;
 
-	if (!ReadStreamInternal(compiledTextureData, inStream, metaData))
+	bool bReadResult = ReadStreamInternal(compiledTextureData, inStream, metaData);
+	inStream.CloseFile();
+	
+	if (!bReadResult)
 		return nullptr;
 
-	inStream.CloseFile();
 	compiledTextureData.loadState = TEXTURE_LOADSTATE::LOADED_TO_RAM;
 
 	TextureWithView textureAndView{};
@@ -409,8 +411,8 @@ bool TextureManager::CompileTexture(const char* textureName)
 		Debug_PrintConsoleConstChar(StringL::Format("Could not find texture : %s", textureName));
 		return false;
 	}
-	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(currentPath);
-	if (TextureCompiler::CompileSpecificTGATexture(currentPath).IsValid())
+	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(currentPath, GuidZero);
+	if (projectPath.IsValid())
 	{
 		GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
 		return true;
@@ -544,7 +546,7 @@ TextureView* Hail::TextureManager::CreateTextureView(const RelativeFilePath file
 
 FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) const
 {
-	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(filepath);
+	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(filepath, GuidZero);
 	if (projectPath.IsValid())
 		GetResourceRegistry().AddToRegistry(projectPath, ResourceType::Texture);
 	else
@@ -553,6 +555,38 @@ FilePath Hail::TextureManager::ImportTextureResource(const FilePath& filepath) c
 	}
 	return projectPath;
 }
+
+
+bool Hail::TextureManager::ReloadImportTextureResource(const FilePath& filePath)
+{
+	ResourceRegistry& registry = GetResourceRegistry();
+	const MetaResource* pTextureMetaResource = registry.GetResourceMetaInformation(ResourceType::Texture, filePath);
+	if (pTextureMetaResource)
+		return ReloadImportTextureResource(pTextureMetaResource->GetGUID());
+
+	return false;
+}
+
+bool Hail::TextureManager::ReloadImportTextureResource(GUID textureID)
+{
+	ResourceRegistry& registry = GetResourceRegistry();
+
+	if (!registry.GetIsResourceImported(ResourceType::Texture, textureID))
+		return false;
+
+	if (!registry.IsResourceOutOfDate(ResourceType::Texture, textureID))
+		return false;
+
+	FilePath sourcePath = registry.GetSourcePath(ResourceType::Texture, textureID);
+	if (!sourcePath.IsValid())
+		return false;
+
+	FilePath projectPath = TextureCompiler::CompileSpecificTGATexture(sourcePath, textureID);
+	return projectPath.IsValid();
+
+	// TODO: Reload the resource for the rendering here:
+}
+
 
 TextureView* Hail::TextureManager::CreateTextureView(TextureViewProperties& viewProps)
 {

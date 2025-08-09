@@ -1,5 +1,6 @@
 #include "shaderCommons.hs"
 
+
 layout(binding = 0, set = 1) uniform sampler2D texSampler;
 
 layout(location = 0) out vec4 outColor;

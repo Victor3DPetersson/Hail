@@ -14,6 +14,8 @@ namespace Hail
 		float pressure = 0.f;
 		float nearPressure = 0.f;
 		glm::vec2 densityNearDensity = glm::vec2(0.f);
+		float timer;
+		uint32 id;
 	};
 
 	struct RenderCommandPool;

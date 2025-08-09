@@ -59,12 +59,14 @@ typedef union PixelInfo
     };
 } *PPixelInfo;
 
-FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors);
-FilePath ExportCompiled16BitTexture(const FilePath& originalTexturePath, uint16_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors) { return FilePath(); };
-FilePath ExportCompiled32BitTexture(const FilePath& originalTexturePath, uint32_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors){ return FilePath(); };
+FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors, GUID guid);
+FilePath ExportCompiled16BitTexture(const FilePath& originalTexturePath, uint16_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors, GUID guid) { return FilePath(); };
+FilePath ExportCompiled32BitTexture(const FilePath& originalTexturePath, uint32_t* compiledTextureData, TextureProperties shaderHeader, uint32_t numberOfColors, GUID guid){ return FilePath(); };
 
-FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
+FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath, GUID guid)
 {
+	String64 extension = filePath.Object().Extension().CharString();
+	H_ASSERT(StringCompare(extension,"tga") || StringCompare(extension, "tga"));
 	TGAHEADER tgaHeader;
 	InOutStream tgaFile;
 	if (!tgaFile.OpenFile(filePath, FILE_OPEN_TYPE::READ, true))
@@ -255,10 +257,10 @@ FilePath TextureCompiler::CompileSpecificTGATexture(const FilePath& filePath)
 	compileHeader.height = tgaHeader.height;
 	compileHeader.width = tgaHeader.width;
 
-	return ExportCompiled8BitTexture(filePath, pixelData, compileHeader, numberOfColors);
+	return ExportCompiled8BitTexture(filePath, pixelData, compileHeader, numberOfColors, guid);
 }
 
-FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties TextureProperties, uint32_t numberOfColors)
+FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t* compiledTextureData, TextureProperties TextureProperties, uint32_t numberOfColors, GUID guid)
 {
 	FileObject textureName = originalTexturePath.Object();
 	InOutStream textureExporter;
@@ -304,7 +306,7 @@ FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t*
 
 	// TODO: check if resource exist if we overwrite it, and get its GUID
 	MetaResource textureMetaResource;
-	textureMetaResource.ConstructResourceAndID(originalTexturePath, finalPath);
+	textureMetaResource.ConstructResourceAndID(originalTexturePath, finalPath, guid);
 	textureMetaResource.Serialize(textureExporter);
 	textureExporter.CloseFile();
 	return finalPath;

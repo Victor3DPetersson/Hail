@@ -48,12 +48,18 @@ namespace Hail
 	{
 		glm::uvec2 mainRenderResolution; // Actual render resolution on the final window
 		glm::uvec2 mainWindowResolution; 
+
 		glm::uvec2 renderTargetRes; // Main rendertargets resolution
 		glm::vec2 totalTime_horizonLevel;
+
 		glm::vec2 deltaTime_cameraZoom;
 		glm::vec2 cameraPos;
+
 		glm::vec2 mousePos; // normalized
 		glm::vec2 mouseRMBLMBDeltas;
+
+		glm::vec2 playerPosition; // TEMP;
+		glm::vec2 padding;
 	};
 
 	struct PerCameraUniformBuffer {

@@ -2,47 +2,22 @@
 
 layout(binding = 5, set = 1, rgba32f) uniform writeonly image2D outputImage;
 
-vec2 hash2f(vec2 p)
-{
-	vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
-    p3 += dot(p3, p3.yzx+33.33);
-    return fract((p3.xx+p3.yz)*p3.zy);
-}
-
-float voronoi(vec2 x)
-{
-    ivec2 p = ivec2(floor(x));
-    vec2  f = fract(x);
-
-    float res = 8.0;
-    for( int j=-1; j<=1; j++ )
-		for( int i=-1; i<=1; i++ )
-		{
-			ivec2 b = ivec2( i, j );
-			vec2  r = vec2( b ) - f + hash2f( vec2(p.x + b.x, p.y + b.y) );
-			float d = dot( r, r );
-			res = min( res, d );
-		}
-    return sqrt( res );
-}
-
 layout (local_size_x = 64, local_size_y = 8, local_size_z = 1) in;
 void main() 
 {
     uvec2 samplePoint = uvec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
-	float renderTexelSizeX = 1.0 / float(g_constantVariables.renderTargetRes.x);
-	float renderTexelSizeY = 1.0 / float(g_constantVariables.renderTargetRes.y);
 
 	if (samplePoint.x > g_constantVariables.renderTargetRes.x || samplePoint.y > g_constantVariables.renderTargetRes.y)
 		return;
 
-	float sampleRadiusPixelSpace = g_particleVariables.particleSize;
+	float sampleRadiusPixelSpace = g_particleVariables.particleKernelRadius;
 	vec2 fragTexCoord = vec2(float(samplePoint.x) / float(g_constantVariables.renderTargetRes.x), float(samplePoint.y) / float(g_constantVariables.renderTargetRes.y));
 	
-	vec2 pixelParticlePos = ((vec2(float(samplePoint.x), float(samplePoint.y))) * 0.1 + g_constantVariables.cameraPos * 100.0);
+	vec2 cameraPixelPos = g_constantVariables.cameraPos * g_constantVariables.renderTargetRes;
+	vec2 pixelParticlePos = vec2(float(samplePoint.x), float(samplePoint.y)) + vec2(cameraPixelPos.x, -cameraPixelPos.y);
 
 	float sampleRadiusSq = g_particleVariables.particleKernelRadius * g_particleVariables.particleKernelRadius;
-	float distanceToReachForDraw = 0.1;
+	float distanceToReachForDraw = sampleRadiusSq * 1.75;
 
 	uint numberOfParticlesInRange = 0;
     uint numberOfParticles = g_particleVariables.numberOfParticles;
@@ -61,10 +36,8 @@ void main()
 			if (i == numberOfParticles)
 				break;
 			FluidParticle particle = globalParticleList[particleIndex];
-			vec2 cloudPoint = (globalParticleList[particleIndex].pos + g_constantVariables.cameraPos * 100.0);
-			vec2 noise = vec2(0.0, 0.0);
-			//float noise = voronoi((cloudPoint + fragTexCoord) * 10.0) * 2.0 - 1.0;
-			vec2 cloudPointToSamplePoint = (pixelParticlePos - cloudPoint) + noise * 0.01;
+			vec2 cloudPoint = ((globalParticleList[particleIndex].pos));
+			vec2 cloudPointToSamplePoint = (pixelParticlePos - cloudPoint);
 			float distanceSquared = dot(cloudPointToSamplePoint, cloudPointToSamplePoint);
 
 			if (distanceSquared <= sampleRadiusSq)
@@ -75,7 +48,7 @@ void main()
 		}
 	}
 
-	bool bIsAValidSample = distanceToReachForDraw < 0.0 || numberOfParticlesInRange > 2;
+	bool bIsAValidSample = distanceToReachForDraw < 0.0;
 	vec4 pixel = vec4(0.0, float(samplePoint.x), float(samplePoint.y), 0.0);
 	if (bIsAValidSample)
 		pixel.x = 1.0;

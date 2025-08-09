@@ -40,6 +40,7 @@ namespace Hail
 		const glm::uvec2& GetResolution() const { return m_screenResolution; }
 		//Position of the camera in pixel space
 		glm::vec2 GetPosition() const { return m_position; }
+		glm::vec2 GeNormalizedtPosition() const { return m_normalizedPosition; }
 		void SetPosition(glm::vec2 position);
 
 		//At zoom 1.0 the pixel on the screen will be the actual pixel size, so a 1 to 1 ratio

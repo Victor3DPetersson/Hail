@@ -285,7 +285,7 @@ namespace Hail
 		{
 			metaResource.Deserialize(readStream);
 		}
-		metaResource.ConstructResourceAndID("", outPath);
+		metaResource.ConstructResourceAndID("", outPath, metaResource.GetGUID());
 
 		InOutStream outStream;
 		if (!outStream.OpenFile(outPath, FILE_OPEN_TYPE::WRITE, true))

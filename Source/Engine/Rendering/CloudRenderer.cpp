@@ -320,10 +320,6 @@ namespace Hail
 		CloudParticle particle;
 		particle.velocity = glm::vec2(0.f);
 		m_cloudParticles.Prepare(pointBaseList.Size() + 2u);
-		for (size_t i = 0; i < m_numberOfPointsUploaded; i++)
-		{
-
-		}
 		for (uint32 i = 0; i < pointBaseList.Size(); i++)
 		{
 			const uint32 rnd = ((pointBaseList[i].x * 5u + pointBaseList[i].y * 7u) >> (pointBaseList[i].x & 3u));
@@ -386,6 +382,15 @@ namespace Hail
 		viewProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
 		m_pSdfView = m_pResourceManager->GetTextureManager()->CreateTextureView(viewProps);
 
+		BufferProperties cloudListBufferProps;
+		cloudListBufferProps.elementByteSize = sizeof(CloudData);
+		cloudListBufferProps.numberOfElements = MaxNumberOfClouds;
+		cloudListBufferProps.type = eBufferType::structured;
+		cloudListBufferProps.domain = eShaderBufferDomain::CpuToGpu;
+		cloudListBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Sporadic;
+		cloudListBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
+		m_pCloudListBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(cloudListBufferProps, "Cloud List Buffer");
+
 		BufferProperties particleBufferProps;
 		particleBufferProps.elementByteSize = sizeof(CloudParticle);
 		particleBufferProps.numberOfElements = MaxNumberOfFluidParticles;
@@ -394,11 +399,6 @@ namespace Hail
 		particleBufferProps.accessQualifier = eShaderAccessQualifier::ReadWrite;
 		particleBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Never;
 		m_pParticleBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleBufferProps, "Fluid Particle Buffer");
-
-		particleBufferProps.domain = eShaderBufferDomain::CpuToGpu;
-		particleBufferProps.updateFrequency = eShaderBufferUpdateFrequency::Sporadic;
-		particleBufferProps.accessQualifier = eShaderAccessQualifier::ReadOnly;
-		m_pParticleUploadBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(particleBufferProps, "Fluid Particle Upload Buffer");
 
 		BufferProperties particleLookupBufferProps;
 		particleLookupBufferProps.elementByteSize = sizeof(glm::uvec2);
@@ -585,7 +585,6 @@ namespace Hail
 		localCleanupBuffer(pDevice, &m_pParticleSortLocalHistogramBuffer);
 		localCleanupBuffer(pDevice, &m_pParticleSortBucketOffsetBuffer);
 		localCleanupBuffer(pDevice, &m_pParticleBuffer);
-		localCleanupBuffer(pDevice, &m_pParticleUploadBuffer);
 		localCleanupBuffer(pDevice, &m_pParticleUniformBuffer);
 		localCleanupBuffer(pDevice, &m_pDynamicParticleVariableBuffer);
 		localCleanupBuffer(pDevice, &m_pParticleLookupBufferRead);
@@ -593,6 +592,7 @@ namespace Hail
 		localCleanupBuffer(pDevice, &m_pParticleLookupStartIndicesBuffer);
 		localCleanupBuffer(pDevice, &m_pParticleLookupSortIndicesBufferRead);
 		localCleanupBuffer(pDevice, &m_pParticleLookupSortIndicesBufferWrite);
+		localCleanupBuffer(pDevice, &m_pCloudListBuffer);
 
 		// Pipelines
 		localCleanupPipeline(pDevice, &m_pCloudPipeline);
@@ -628,74 +628,31 @@ namespace Hail
 		localCleanupTextureResource(pDevice, &m_pParticleCoverageTexture[1]);
 	}
 
+	float hashwithoutsine11(float p)
+	{
+		p = fmodf(p * 0.1031, 1.0f);
+		p *= p + 33.33;
+		p *= p + p;
+		return fmodf(p, 1.0f);
+	}
+
 	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
 	{
 		ImGui::Begin("Particle test window");
 
-		ImGui::SliderFloat("Particle Render Size", &m_ParticleUniforms.particleSize, 0.01f, 100.f);
 		ImGui::Checkbox("Render GPU particles", &GetEngineSettings().b_enableGpuParticles);
-
 		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
-
-		bool respawnGrid = false;
+		bool bRespawnParticles = false;
 		if (GetEngineSettings().b_enableGpuParticles)
 		{
-			if (!m_bUpdatedParticleGrid)
-			{
-				respawnGrid = true;
-				m_cloudParticlesToSimulate.PrepareAndFill(m_cloudParticles.Size());
-				for (uint32 i = 0; i < m_cloudParticles.Size(); i++)
-				{
-					m_cloudParticlesToSimulate[i] = m_cloudParticles[i];
-					m_cloudParticlesToSimulate[i].pos *= glm::vec2(100.f, 100.f);
-				}
-				m_bUpdatedParticleGrid = true;
-			}
-
 			ImGui::SliderFloat("Mouse force", &m_ParticleUniforms.mouseForceStrength, 0.f, 100.f);
 			ImGui::SliderFloat("Mouse radius", &m_ParticleUniforms.mouseForceRadius, 0.f, 1.f);
-			if (ImGui::SliderInt2("NumberOfPoints", &m_numberOfPointsToSpawn.x, 1, 100))
+			ImGui::SliderFloat("Cloud size multiplier", &m_ParticleUniforms.cloudSizeMultiplier, 1.f, 8.f);
+			if (ImGui::SliderInt("Cloud Num Points per Pixel", &m_numberOfPointsPerPixelInClouds, 1, 32))
 			{
-				respawnGrid = true;
+				bRespawnParticles = true;
 			}
-			if (ImGui::SliderFloat("Grid Spacing", &m_particleSpacing, -1.f, 1.f))
-			{
-				respawnGrid = true;
-			}
-			// Settings
-			if (ImGui::Checkbox("Simulate Grid", &m_bSimulateGrid))
-			{
-				respawnGrid = true;
-			}
-			m_ParticleUniforms.bSimulateCloud = m_bSimulateGrid == false;
-
-			if (respawnGrid)
-			{
-				m_cloudGridParticles.RemoveAll();
-				uint32 numberOfParticles = m_numberOfPointsToSpawn.x * m_numberOfPointsToSpawn.y;
-				m_cloudGridParticles.PrepareAndFill(numberOfParticles);
-
-				float spacing = m_ParticleUniforms.particleKernelRadius * 2 + m_particleSpacing * 100.f;
-				float rowLength = (1.f / (float)m_numberOfPointsToSpawn.x) * 0.5f * 100.f;
-				float columnLength = (1.f / (float)m_numberOfPointsToSpawn.y) * 0.5f * 100.f;
-
-				//glm::vec2 minSpace = glm::vec2(spaceModifier.x / 2 - rowLength / 2, spaceModifier.y / 2 - columnLength / 2);
-				glm::vec2 minSpace = glm::vec2(100.f / 2, 100.f / 2) - glm::vec2((float)m_numberOfPointsToSpawn.x * spacing / 2, (float)m_numberOfPointsToSpawn.y * spacing / 2);
-
-				uint32 numberOfPointsToSpawn = m_numberOfPointsToSpawn.x * m_numberOfPointsToSpawn.y;
-				for (uint32 i = 0; i < numberOfPointsToSpawn; i++)
-				{
-					CloudParticle particle;
-
-					uint32 xCoord = i % m_numberOfPointsToSpawn.x;
-					uint32 yCoord = i / m_numberOfPointsToSpawn.x;
-					particle.velocity = glm::vec2(0.f);
-					float x = minSpace.x + xCoord * spacing;
-					float y = minSpace.y + yCoord * spacing;
-					particle.pos = glm::vec2(x, y);
-					m_cloudGridParticles[i] = particle;
-				}
-			}
+			m_ParticleUniforms.bSimulateCloud = true;
 
 			ImGui::SliderFloat("Particle Radius", &m_ParticleUniforms.particleKernelRadius, 0.1f, 5.f);
 			ImGui::SliderFloat("Mass", &m_ParticleUniforms.mass, 0.01f, 5.f);
@@ -709,8 +666,60 @@ namespace Hail
 
 			ImGui::Separator();
 
-			ImGui::SliderFloat2("Cloud Size", &m_ParticleUniforms.cloudTextureDimensions.x, 0.f, 512.f);
-			ImGui::SliderFloat2("Cloud Position", &m_ParticleUniforms.cloudTexturePosition.x, -512.f, 512.f);
+			if (ImGui::SliderInt("Number of Clouds", &m_numberOfClouds, 1, MaxNumberOfClouds))
+			{
+				bRespawnParticles = true;
+			}
+			if (!m_bUpdatedParticleGrid)
+			{
+				m_numberOfClouds++;
+				m_bUpdatedParticleGrid = true;
+			}
+
+			int32 numberOfCloudsToAdd = m_numberOfClouds - m_cloudList.Size();
+			m_cloudList.Resize(m_numberOfClouds);
+			for (int i = 0; i < numberOfCloudsToAdd; i++)
+			{
+				int iPlusOne = m_cloudList.Size() + 1;
+				const uint32 rnd = ((iPlusOne * 7u) >> (iPlusOne * 16u & 3u));
+				float noise1 = hashwithoutsine11(iPlusOne);
+				float noise2 = hashwithoutsine11(iPlusOne * rnd);
+				CloudData& cloud = m_cloudList.Add();
+				cloud.position = glm::vec2((noise1 * 2.0 - 1.0) * 720.f, (noise2 * 2.0 - 1.0) * 720.f);
+				noise1 = noise1 < 0.25f ? noise1 * 8 : noise1;
+				noise2 = noise2 < 0.25f ? noise2 * 8 : noise2;
+				cloud.dimensions.x *= Math::Max(noise1, noise2);
+				cloud.dimensions.y *= Math::Min(noise1, noise2);
+			}
+			if (numberOfCloudsToAdd)
+				bRespawnParticles = true;
+
+			if (ImGui::TreeNode("Clouds"))
+			{
+				for (int32 i = 0; i < m_numberOfClouds; i++)
+				{
+					// Use SetNextItemOpen() so set the default state of a node to be open. We could
+					// also use TreeNodeEx() with the ImGuiTreeNodeFlags_DefaultOpen flag to achieve the same thing!
+					if (i == 0)
+						ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+
+					// Here we use PushID() to generate a unique base ID, and then the "" used as TreeNode id won't conflict.
+					// An alternative to using 'PushID() + TreeNode("", ...)' to generate a unique ID is to use 'TreeNode((void*)(intptr_t)i, ...)',
+					// aka generate a dummy pointer-sized value to be hashed. The demo below uses that technique. Both are fine.
+					ImGui::PushID(i);
+					if (ImGui::TreeNode("", "Cloud %d", i))
+					{
+						//if (ImGui::SliderFloat2("Cloud Size", &m_cloudList[i].dimensions.x, 0.f, 512.f))
+						//{
+						//	bRespawnParticles = true;
+						//}
+						ImGui::SliderFloat2("Cloud Position", &m_cloudList[i].position.x, -512.f, 512.f);
+						ImGui::TreePop();
+					}
+					ImGui::PopID();
+				}
+				ImGui::TreePop();
+			}
 
 			ImGui::Separator();
 
@@ -728,7 +737,6 @@ namespace Hail
 		else
 		{
 			m_simulator.UpdateParticles(m_cloudParticles, poolOfCommands, m_pResourceManager->GetSwapChain()->GetTargetResolution(), m_cloudSdfTexture);
-
 		}
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
@@ -736,17 +744,13 @@ namespace Hail
 
 		if (GetEngineSettings().b_enableGpuParticles)
 		{
-			if (respawnGrid)
+			if (bRespawnParticles)
 			{
-				if (m_bUpdatedParticleGrid)
+				m_ParticleUniforms.numberOfParticles = 0u;
+
+				for (int32 i = 0; i < m_numberOfClouds; i++)
 				{
-					m_ParticleUniforms.numberOfParticles = m_numberOfPointsToSpawn.x * m_numberOfPointsToSpawn.y;
-					pContext->UploadDataToBuffer(m_pParticleUploadBuffer, m_cloudGridParticles.Data(), m_cloudGridParticles.Size() * sizeof(CloudParticle));
-				}
-				else
-				{
-					pContext->UploadDataToBuffer(m_pParticleUploadBuffer, m_cloudParticlesToSimulate.Data(), m_cloudParticlesToSimulate.Size() * sizeof(CloudParticle));
-					m_ParticleUniforms.numberOfParticles = m_cloudParticlesToSimulate.Size();
+					m_ParticleUniforms.numberOfParticles += (m_cloudList[i].dimensions.x * m_numberOfPointsPerPixelInClouds) * (m_cloudList[i].dimensions.y * m_numberOfPointsPerPixelInClouds);
 				}
 			}
 		}
@@ -755,8 +759,9 @@ namespace Hail
 			m_ParticleUniforms.numberOfParticles = m_cloudParticles.Size();
 		}
 
-		m_bRespawnGrid = respawnGrid;
+		m_bRespawnParticles = bRespawnParticles;
 
+		pContext->UploadDataToBuffer(m_pCloudListBuffer, m_cloudList.Data(), sizeof(CloudData)* m_cloudList.Size());
 		pContext->UploadDataToBuffer(m_pParticleUniformBuffer, &m_ParticleUniforms, sizeof(ParticleUniformBuffer));
 
 		pContext->EndTransferPass();
@@ -786,12 +791,16 @@ namespace Hail
 			pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
 			pContext->SetBufferAtSlot(m_pDynamicParticleVariableBuffer, 4);
 
-			if (m_bRespawnGrid)
+			if (m_bRespawnParticles)
 			{
-				pContext->SetBufferAtSlot(m_pParticleUploadBuffer, 5);
+				pContext->SetBufferAtSlot(m_pCloudListBuffer, 5);
+
 				pContext->BindMaterial(m_pSimulationUpdateParticleListFromCPU->m_pPipeline);
+				glm::uvec4 pushConstants = glm::uvec4(0);
+				pushConstants.x = m_numberOfPointsPerPixelInClouds;
+				pContext->SetPushConstantValue(&pushConstants);
 				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-				m_bRespawnGrid = false;
+				m_bRespawnParticles = false;
 			}
 
 			pContext->BindMaterial(m_pSimulationUpdateUniforms->m_pPipeline);
@@ -864,6 +873,7 @@ namespace Hail
 			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 			// Intermediate Velocity
 			pContext->SetTextureAtSlot(m_pSdfView, 5);
+			pContext->SetBufferAtSlot(m_pCloudListBuffer, 6);
 			pContext->BindMaterial(m_pSimulationCalculateIntermediateVelocity->m_pPipeline);
 			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 			// Pressure Force

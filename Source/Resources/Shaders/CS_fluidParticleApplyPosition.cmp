@@ -4,7 +4,7 @@ void CollideWithBounds(inout vec2 velocity, inout vec2 pPosToUpdate, float parti
 {
     float halfRadius = particleRadius * 0.5;
     float collisionDampening = 0.5;
-    vec2 upperBounds = vec2(100.0, 100.0) - halfRadius;
+    vec2 upperBounds = vec2(1000.0, 720.0) - halfRadius;
     vec2 lowerBounds = vec2(halfRadius, halfRadius);
 
     if ((pPosToUpdate.x) > upperBounds.x)
@@ -43,7 +43,7 @@ void main()
 
 	float mass = g_particleVariables.mass;
 	float h = g_particleVariables.particleKernelRadius;
-    const float adjustedDeltaTime = (g_particleVariables.particleSize / g_dynamicParticleVariables.maxVelocity);
+    const float adjustedDeltaTime = (g_particleVariables.particleKernelRadius / g_dynamicParticleVariables.maxVelocity);
 	const float deltaTimeByMass = min(g_constantVariables.deltaTime_cameraZoom.x, adjustedDeltaTime) * g_particleVariables.deltaTimeModifier;
     
     FluidParticle particle = globalParticleList[globalThreadID];
@@ -52,7 +52,7 @@ void main()
     vec2 velocity = (particle.intermediateVelocity + deltaTimeByMass * acceleration_pressure);
     vec2 position = particle.pos + velocity;
     
-    CollideWithBounds(velocity, position, h);
+    //CollideWithBounds(velocity, position, h);
 
     globalParticleList[globalThreadID].pos = position;
     globalParticleList[globalThreadID].velocity = velocity;

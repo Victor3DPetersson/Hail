@@ -1,5 +1,6 @@
 #include "shaderCommons.hs"
 
+
 layout(binding = 0, set = 2) uniform sampler2D texSampler;
 layout(binding = 1, set = 2) uniform sampler2D texSamplerOverlay;
 
@@ -14,11 +15,11 @@ void main()
 {
 	vec2 timeOffset = vec2(g_constantVariables.totalTime_HorizonPosition.x * -1.0, g_constantVariables.totalTime_HorizonPosition.x * -1.0);
 	vec4 color = texture(texSampler, vec2(inTexCoord.x, inTexCoord.y) + timeOffset).rgba;
-	float alpha = texture(texSamplerOverlay, vec2(inTexCoord.x, inTexCoord.y)).a;
-	if(alpha < inCutoutThreshold)
+	vec4 colorAlpha = texture(texSamplerOverlay, vec2(inTexCoord.x, inTexCoord.y)).rgba;
+	if(colorAlpha.w < inCutoutThreshold)
 	{
 		discard;
 	}
-	outColor = vec4(color * inColor);
+	outColor = vec4(colorAlpha.rgb, 1.0);
 	//outColor = uvec4(inTexCoord * 255.0, 0.0, 255.0);
 }

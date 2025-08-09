@@ -58,6 +58,10 @@ namespace Hail
 		virtual ImGuiTextureResource* CreateImGuiTextureResource(RenderContext* pRenderContext, const FilePath& filepath, RenderingResourceManager* renderingResourceManager, TextureProperties* headerToFill) = 0;
 		virtual void DeleteImGuiTextureResource(ImGuiTextureResource*) = 0;
 
+		bool ReloadImportTextureResource(const FilePath& filePath);
+		// Reloads a texture from source, if the texture is out of date. TODO: Make the engine reload the rendering resource for use, so the rendering reflects the change 
+		bool ReloadImportTextureResource(GUID textureID);
+
 		static void LoadTextureMetaData(const FilePath& filePath, MetaResource& metaResourceToFill);
 
 		// Creates the texture and its underlying structures
@@ -83,7 +87,6 @@ namespace Hail
 		
 		// TODO: Make a way to remove loaded textures
 		GrowingArray<TextureWithView> m_loadedTextures;
-		//GrowingArray<TextureView*> m_pTextureViews;
 
 		// Static engine defined textures for material types and global domains
 		//StaticArray<TextureResource*, (uint32)eGlobalTextures::count> m_globalTextures;

@@ -54,6 +54,14 @@ bool Hail::InOutStream::OpenFile(FilePath fileToWriteTo, FILE_OPEN_TYPE wayToOpe
     {
         return false;
     }
+
+    // if ReadOnly
+    if (wayToOpenFile == FILE_OPEN_TYPE::READ || wayToOpenFile == FILE_OPEN_TYPE::READ_APPEND)
+    {
+        if (!fileToWriteTo.IsValid())
+            return false;
+    }
+
     if (!fileToWriteTo.CreateFileDirectory())
     {
         return false;
