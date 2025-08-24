@@ -351,35 +351,42 @@ StringL& Hail::StringL::operator=(const char* const pString)
 
 StringL& Hail::StringL::operator+=(StringL& anotherString)
 {
-	const uint32 previousLength = Length();
-	m_length = previousLength + anotherString.Length();
-	if (m_length > 15)
-	{
-		const char* previousString = m_memory.m_p;
-		if (m_length > m_allocatedLength)
-		{
-			if (m_allocatedLength > 15)
-				StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
+	if (anotherString.Length() == 0)
+		return *this;
 
-			StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length, &m_memory.m_p);
-			m_allocatedLength = m_length;
+	const uint32 previousLength = Length();
+	const uint32 newLength = previousLength + anotherString.Length();
+	if (m_allocatedLength > 15)
+	{
+		if (newLength > m_allocatedLength)
+		{
+			char* previousString = m_memory.m_p;
+			StringMemoryAllocator::GetInstance().AllocateString(previousString, newLength, &m_memory.m_p);
+			m_allocatedLength = newLength;
 		}
 
-		memcpy(m_memory.m_p, previousString, previousLength);
-		memcpy(m_memory.m_p + (previousLength), anotherString.m_memory.m_p, anotherString.m_length);
-		m_memory.m_p[m_length] = 0;
+		memcpy(m_memory.m_p + (previousLength), anotherString.Data(), anotherString.m_length);
+		m_memory.m_p[newLength] = 0;
 	}
 	else
 	{
-		if (m_allocatedLength > 15)
+		if (newLength > 15)
 		{
-			StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
-			m_allocatedLength = 0;
+			char previousString[16];
+			memcpy(previousString, m_memory.m_shortString, previousLength);
+			StringMemoryAllocator::GetInstance().AllocateString(nullptr, newLength, &m_memory.m_p);
+			m_allocatedLength = newLength;
+			memcpy(m_memory.m_p, previousString, previousLength);
+			memcpy(m_memory.m_p + (previousLength), anotherString.Data(), anotherString.m_length);
+			m_memory.m_p[newLength] = 0;
 		}
-
-		memcpy(&m_memory.m_shortString[previousLength], anotherString.m_memory.m_shortString, anotherString.Length());
-		m_memory.m_shortString[m_length] = 0;
+		else
+		{
+			memcpy(&m_memory.m_shortString[previousLength], anotherString.m_memory.m_shortString, anotherString.Length());
+			m_memory.m_shortString[newLength] = 0;
+		}
 	}
+	m_length = newLength;
 
 	return *this;
 }
@@ -686,70 +693,75 @@ Hail::StringLW::~StringLW()
 
 StringLW Hail::StringLW::Format(const wchar_t* const format, ...)
 {
-	uint32 length = 0;
+	uint32 length = StringLength(format);
 
 	if (format == NULL)
-		return StringLW();
+		return StringL();
 
-	wchar_t* p;
-	int intArgument;
-	float floatArgument;
-	uint32 uintArgument;
+	uint32 numberOfArguments = 0;
+	wchar_t currentCharacter;
+	const wchar_t* types_ptr = format;
+	bool nextSymbolIsAnArg = false;
+	bool bIsANumber = false;
+
 	wchar_t* stringArgument;
-	char numberCharString[64];
-	const wchar_t* types_ptr;
+	wchar_t numberCharString[64];
 	types_ptr = format;
 	va_list argp{};
 	va_start(argp, format);
-	uint32 numberOfArguments = 0;
-	bool nextSymbolIsAnArg = false;
-	wchar_t currentCharacter;
+
 	while (*types_ptr != '\0')
 	{
 		currentCharacter = *types_ptr;
-		if (nextSymbolIsAnArg)
+		if (nextSymbolIsAnArg && currentCharacter != '%')
 		{
-			nextSymbolIsAnArg = false;
-			if (currentCharacter == 'i')
+			bIsANumber = false;
+			if (StringUtility::IntFromChar(currentCharacter) != -1)
 			{
-				intArgument = va_arg(argp, int);
-				sprintf(numberCharString, "%i", intArgument);
-				length += StringLength(numberCharString) + 1;
+				bIsANumber = true;
 			}
-			else if (currentCharacter == 's')
+			nextSymbolIsAnArg = bIsANumber;
+			if (currentCharacter == L'i' || currentCharacter == L'I')
+			{
+				int intArgument = va_arg(argp, int);
+				swprintf(numberCharString, L"%i", intArgument);
+				length += StringLength(numberCharString);
+			}
+			else if (currentCharacter == L's' || currentCharacter == L'S')
 			{
 				stringArgument = va_arg(argp, wchar_t*);
-				length += StringLength(stringArgument) + 1;
+				length += StringLength(stringArgument);
 			}
-			else if (currentCharacter == 'c')
+			else if (currentCharacter == 'c' || currentCharacter == L'C')
 			{
-				stringArgument = va_arg(argp, wchar_t*);
+				va_arg(argp, char); // move arg pointer forward
 				length += 1;
 			}
-			else if (currentCharacter == 'f')
+			else if (currentCharacter == 'f' || currentCharacter == L'F')
 			{
-				floatArgument = (float)va_arg(argp, double);
-				sprintf(numberCharString, "%f", floatArgument);
-				length += StringLength(numberCharString) + 1;
+				float floatArgument = (float)va_arg(argp, double);
+				swprintf(numberCharString, L"%f", floatArgument);
+				length += StringLength(numberCharString);
 			}
-			else if (currentCharacter == 'u')
+			else if (currentCharacter == 'u' || currentCharacter == L'U')
 			{
-				uintArgument = va_arg(argp, uint32);
-				sprintf(numberCharString, "%u", uintArgument);
-				length += StringLength(numberCharString) + 1;
+				uint32 uintArgument = va_arg(argp, uint32);
+				swprintf(numberCharString, L"%u", uintArgument);
+				length += StringLength(numberCharString);
 			}
-			else if (currentCharacter == 'd')
+			else if (currentCharacter == 'd' || currentCharacter == L'D')
 			{
-				uintArgument = va_arg(argp, double);
-				sprintf(numberCharString, "%d", uintArgument);
-				length += StringLength(numberCharString) + 1;
+				double doubleArgument = va_arg(argp, double);
+				swprintf(numberCharString, L"%d", doubleArgument);
+				length += StringLength(numberCharString);
 			}
-			else
+			else if (!bIsANumber)
 			{
 				H_ASSERT(false, StringL::Format("Unsupported type, %c", currentCharacter));
 			}
+			memset(numberCharString, 0, 64);
 		}
-		if (currentCharacter == '%')
+		if (currentCharacter == '%' && nextSymbolIsAnArg != true)
 		{
 			numberOfArguments++;
 			nextSymbolIsAnArg = true;
@@ -767,21 +779,22 @@ StringLW Hail::StringLW::Format(const wchar_t* const format, ...)
 	va_list vl;
 	va_start(vl, format);
 	// allocate from length
-	if (length > 7)
+	int result = 0;
+	if (length > 15)
 	{
 		str.m_allocatedLength = length - (numberOfArguments * 2);
 		StringMemoryAllocator::GetInstance().AllocateString(nullptr, length, &str.m_memory.m_p);
-		const int result = vswprintf_s(str.m_memory.m_p, length, format, vl);
+		result = vswprintf_s(str.m_memory.m_p, str.m_allocatedLength, format, vl);
 		H_ASSERT(result > 0, "Invalid formatting.");
 	}
 	else
 	{
 		str.m_allocatedLength = 0;
-		const int result = vswprintf_s(str.m_memory.m_shortString, length, format, vl);
+		result = vswprintf_s(str.m_memory.m_shortString, length, format, vl);
 		H_ASSERT(result > 0, "Invalid formatting.");
 	}
+	str.m_length = result;
 	va_end(vl);
-	str.m_length = length - (numberOfArguments * 2);;
 	return str;
 }
 

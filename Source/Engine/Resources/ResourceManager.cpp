@@ -37,7 +37,7 @@ Hail::ResourceManager::ResourceManager()
 	m_unitCylinder = CreateUnitCylinder();
 }
 
-bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes)
+bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes, ErrorManager* pErrorManager)
 {
 	m_renderDevice = renderingDevice;
 
@@ -51,11 +51,21 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, Rend
 	SetWindowResolution(startupWindowRes);
 
 	m_swapChain->Init(m_renderDevice);
-	m_renderingResourceManager->Init(m_renderDevice, m_swapChain);
+	if (!m_renderingResourceManager->Init(m_renderDevice, m_swapChain))
+	{
+		pErrorManager->AddString("Failed to Initialize Rendering Resource Manager.");
+	}
 	m_textureManager->Init(pRenderContext);
-	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain );
+	m_materialManager->Init(m_renderDevice, m_textureManager, m_renderingResourceManager, m_swapChain, pErrorManager);
 	m_pMainPassFrameBufferTexture = m_textureManager->FrameBufferTexture_Create("MainRenderPass", ResolutionFromEnum(m_targetResolution), eTextureFormat::R8G8B8A8_UNORM, TEXTURE_DEPTH_FORMAT::D16_UNORM);
 	
+	if (!m_pMainPassFrameBufferTexture)
+	{
+		pErrorManager->AddString("Failed to create main frame buffer for rendering.");
+		pErrorManager->AddErrors(EStartupErrors::InitDefaultMaterial, EErrorType::Startup);
+		return false;
+	}
+
 	for (uint32_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
 		m_textureManager->RegisterEngineTexture(m_pMainPassFrameBufferTexture->GetColorTexture(i), m_pMainPassFrameBufferTexture->GetColorTextureView(i), eDecorationSets::MaterialTypeDomain, (uint32)eMaterialTextures::FullscreenPassTarget, i);
@@ -65,14 +75,20 @@ bool Hail::ResourceManager::InitResources(RenderingDevice* renderingDevice, Rend
 	{
 		if(!m_materialManager->InitDefaultMaterial(eMaterialType::SPRITE, m_pMainPassFrameBufferTexture, false, i))
 		{
+			pErrorManager->AddString("Failed to load sprite material.");
+			pErrorManager->AddErrors(EStartupErrors::InitDefaultMaterial, EErrorType::Startup);
 			return false;
 		}
 		if(!m_materialManager->InitDefaultMaterial(eMaterialType::FULLSCREEN_PRESENT_LETTERBOX, m_swapChain->GetFrameBufferTexture(), false, i))
 		{
+			pErrorManager->AddString("Failed to load Fullscreen present material.");
+			pErrorManager->AddErrors(EStartupErrors::InitDefaultMaterial, EErrorType::Startup);
 			return false;
 		}
 		if(!m_materialManager->InitDefaultMaterial(eMaterialType::MODEL3D, m_pMainPassFrameBufferTexture, false, i))
 		{
+			pErrorManager->AddString("Failed to load Model3D material.");
+			pErrorManager->AddErrors(EStartupErrors::InitDefaultMaterial, EErrorType::Startup);
 			return false;
 		}
 	}

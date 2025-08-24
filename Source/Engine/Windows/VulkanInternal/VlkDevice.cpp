@@ -129,21 +129,19 @@ void VlkDevice::DestroyDevice()
 }
 
 
-bool VlkDevice::CreateInstance()
+void VlkDevice::CreateInstance(ErrorManager* pErrorManager)
 {
 	if (enableValidationLayers && !CheckValidationLayerSupport()) {
-#ifdef DEBUG
-		throw std::runtime_error("validation layers requested, but not available!");
-#endif
-		return false;
+		pErrorManager->AddErrors(EStartupErrors::InitGpuDevice, EErrorType::Startup);
+		pErrorManager->AddString("validation layers requested, but not available!");
+		return;
 	}
 
-	if (!CheckRequiredExtensions())
+	if (!CheckRequiredExtensions(pErrorManager))
 	{
-#ifdef DEBUG
-		throw std::runtime_error("Required extensions not available!");
-#endif
-		return false;
+		pErrorManager->AddErrors(EStartupErrors::InitGpuDevice, EErrorType::Startup);
+		pErrorManager->AddString("Rendering Device, missing required extensions: \n");
+		return;
 	}
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -173,23 +171,22 @@ bool VlkDevice::CreateInstance()
 
     if (result != VK_SUCCESS) 
     { 
-		return false;
+		pErrorManager->AddErrors(EStartupErrors::InitGpuDevice, EErrorType::Startup);
+		pErrorManager->AddString("Rendering Device, Vulkan vkCreateInstanceFailed.");
+		return;
     }	
 	SetupDebugMessenger();
 	CreateWindowsSurface();
-	PickPhysicalDevice();
+	PickPhysicalDevice(pErrorManager);
 	CreateLogicalDevice();
 
-	/* Put this in your code that initializes Vulkan (after you create your VkInstance and VkDevice): */
-	vkCmdDrawMeshTasksEXT_ = (PFN_vkCmdDrawMeshTasksEXT)vkGetDeviceProcAddr(m_device, "vkCmdDrawMeshTasksEXT"); // It depends on the function whether you want to use vkGetInstanceProcAddr or vkGetDeviceProcAdd
+	vkCmdDrawMeshTasksEXT_ = (PFN_vkCmdDrawMeshTasksEXT)vkGetDeviceProcAddr(m_device, "vkCmdDrawMeshTasksEXT");
 
 	Hail::QueueFamilyIndices indices = FindQueueFamilies(m_physicalDevice);
 	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_graphicsQueue);
 	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_computeQueue);
 	vkGetDeviceQueue(m_device, indices.presentFamily, 0, &m_presentQueue);
 	CreateCommandPool();
-
-	return true;
 }
 
 bool VlkDevice::CheckValidationLayerSupport()
@@ -225,7 +222,7 @@ bool VlkDevice::CheckValidationLayerSupport()
 
 }
 
-bool VlkDevice::CheckRequiredExtensions()
+bool VlkDevice::CheckRequiredExtensions(ErrorManager* pErrorManager)
 {
 	uint32_t extensionCount = 0; //query extension counts on the system
 	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -236,17 +233,23 @@ bool VlkDevice::CheckRequiredExtensions()
 	uint32_t foundCounter = 0;
 
 	Debug_PrintConsoleConstChar("Available vKInstance extensions:");
-	for (uint32_t extension = 0; extension < extensionCount; extension++)
+	for (uint32_t reqExtension = 0; reqExtension < REQUIREDEXTENSIONCOUNT; reqExtension++)
 	{
-		for (uint32_t reqExtension = 0; reqExtension < REQUIREDEXTENSIONCOUNT; reqExtension++)
+		bool bFoundExtension = false;
+		for (uint32_t extension = 0; extension < extensionCount; extension++)
 		{
 			if (strcmp(extensions[extension].extensionName, requiredExtensions[reqExtension]) == 0)
 			{
+				bFoundExtension = true;
 				foundCounter++;
 				break;
 			}
 		}
-		Debug_PrintConsoleStringL(StringL::Format("\t%s", extensions[extension].extensionName));
+
+		if (!bFoundExtension)
+		{
+			pErrorManager->AddString(StringL::Format("\tGPU Device does not have the extension: %s", requiredExtensions[reqExtension]));
+		}
 	}
 	if (foundCounter != REQUIREDEXTENSIONCOUNT)
 	{
@@ -272,15 +275,13 @@ void VlkDevice::SetupDebugMessenger()
 #endif
 }
 
-void VlkDevice::PickPhysicalDevice()
+void VlkDevice::PickPhysicalDevice(ErrorManager* pErrorManager)
 {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
 	if (deviceCount == 0) 
 	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to find GPUs with Vulkan support!");
-#endif
+		pErrorManager->AddString("\tNo GPU device that supports Vulkan");
 	}
 	GrowingArray<VkPhysicalDevice> devices =GrowingArray<VkPhysicalDevice>(deviceCount);
 	devices.Fill();
@@ -294,19 +295,22 @@ void VlkDevice::PickPhysicalDevice()
 
 			VkPhysicalDeviceProperties deviceProperties;
 			vkGetPhysicalDeviceProperties(devices[device], &deviceProperties);
-
+			pErrorManager->AddString(StringL::Format("\tPicked GPU, name: %s\n", deviceProperties.deviceName));
 			m_deviceLimits.m_maxComputeWorkGroupInvocations = deviceProperties.limits.maxComputeWorkGroupInvocations;
 			m_deviceLimits.m_maxComputeSharedMemorySize = deviceProperties.limits.maxComputeSharedMemorySize;
-
 			break;
+		}
+		else
+		{
+			VkPhysicalDeviceProperties deviceProperties;
+			vkGetPhysicalDeviceProperties(devices[device], &deviceProperties);
+			pErrorManager->AddString(StringL::Format("\tGPU was not suitable, name: %s\n", deviceProperties.deviceName));
 		}
 	}
 
 	if (m_physicalDevice == VK_NULL_HANDLE) 
 	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to find a suitable GPU!");
-#endif
+		pErrorManager->AddString("\tFailed to find suitable GPU");
 	}
 }
 

@@ -11,6 +11,7 @@
 #include "ImGuiContext.h"
 #include "ImGuiProfilerWindow.h"
 #include "HailEngine.h"
+#include "Settings.h"
 #include "Resources/ResourceRegistry.h"
 
 namespace Hail
@@ -204,6 +205,8 @@ void Hail::ImGuiCommandManager::DeInit()
 
 void Hail::ImGuiCommandManager::RenderImguiCommands(RenderContext* pRenderContext)
 {
+	if (!GetEngineSettings().b_enableEngineImgui)
+		return;
 
 	ImGuiCommandRecorder& recorder = m_commandRecorder[m_readCommandRecorder];
 	const uint32_t commandsSize = recorder.m_commands.Size();
@@ -362,6 +365,9 @@ void Hail::ImGuiCommandManager::RenderImguiCommands(RenderContext* pRenderContex
 }
 void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread, RenderContext* pRenderContext)
 {
+	if (!GetEngineSettings().b_enableEngineImgui)
+		return;
+
 	RenderImguiCommands(pRenderContext);
 	bool succesfulSetup = true;
 	if (m_successfullySetupSingleRenderSystem)

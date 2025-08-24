@@ -9,6 +9,7 @@
 
 #endif
 
+using namespace Hail;
 
 bool Hail::IsValidFilePathInternal(const FilePath* pathToCheck)
 {
@@ -16,7 +17,7 @@ bool Hail::IsValidFilePathInternal(const FilePath* pathToCheck)
     FilePath pathWithWildcard = *pathToCheck;
     pathWithWildcard.AddWildcard();
 #ifdef PLATFORM_WINDOWS
-    WIN32_FIND_DATA FindFileData;
+    WIN32_FIND_DATA FindFileData{};
     HANDLE hFind = FindFirstFile(pathWithWildcard.Data(), &FindFileData);
     if (hFind == INVALID_HANDLE_VALUE)
     {
@@ -56,7 +57,6 @@ Hail::CommonFileData Hail::ConstructFileDataFromPath(const FilePath& path)
 {
     if (path.IsValid())
     {
-        
         WIN32_FIND_DATA FindFileData;
         HANDLE hFind = FindFirstFile(path.Data(), &FindFileData);
         if (hFind != 0)
@@ -73,7 +73,7 @@ Hail::CommonFileData Hail::ConstructFileDataFromPath(const FilePath& path)
             fileData.m_lastWriteTime.m_lowDateTime = FindFileData.ftLastWriteTime.dwLowDateTime;
             return fileData;
         }
-
     }
     return CommonFileData();
 }
+

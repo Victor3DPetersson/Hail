@@ -29,12 +29,22 @@ namespace Hail
 	{
 	}
 
-	bool FontRenderer::Initialize()
+	void FontRenderer::Initialize(ErrorManager* pErrorManager)
 	{
 		//StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/JetBrainsMono-Bold.ttf");
 		//StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/Pine.ttf");
-		StringL fontFileDir = StringL::Format("%s%s", RESOURCE_DIR_OUT, "fonts/Roboto-Medium.ttf");
+		FilePath fontFilePath = FilePath::GetCurrentWorkingDirectory() + "resources/fonts/Roboto-Medium.ttf";
+		StringL fontFileDir;
+		fontFileDir.Reserve(fontFilePath.Length());
+		FromWCharToConstChar(fontFilePath.Data(), fontFileDir.Data(), fontFilePath.Length());
 		m_fontData = TTF_ParseFontFile(fontFileDir);
+
+		if (m_fontData.m_renderVerts.Empty())
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitFontRenderer, EErrorType::Startup);
+			pErrorManager->AddString(StringL::Format("Failed to load font file. Path: %s", fontFileDir.Data()));
+			return;
+		}
 
 		BufferProperties fontVertexBufferProperties;
 		fontVertexBufferProperties.elementByteSize = sizeof(glm::vec4);
@@ -81,6 +91,12 @@ namespace Hail
 		textBatchOffsetBufferProps.updateFrequency = eShaderBufferUpdateFrequency::PerFrame;
 		m_pBatchOffsetBuffer = m_pResourceManager->GetRenderingResourceManager()->CreateBuffer(textBatchOffsetBufferProps, "Font Batch Offset Buffer");
 
+		if (!m_pBatchOffsetBuffer || !m_pTextCommandBuffer || !m_pGlyphletBuffer || !m_pIndexBuffer || !m_pVertexBuffer)
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitFontRenderer, EErrorType::Startup);
+			pErrorManager->AddString("Failed to create font buffers.");
+		}
+
 		ResourceRegistry& reg = GetResourceRegistry();
 		MaterialManager* pMatManager = m_pResourceManager->GetMaterialManager();
 
@@ -93,6 +109,11 @@ namespace Hail
 			matProperties.m_shaders[0].m_id = metaData->GetGUID();
 			matProperties.m_shaders[0].m_type = eShaderStage::Mesh;
 		}
+		else
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitFontRenderer, EErrorType::Startup);
+			pErrorManager->AddString("Font Manager failed to loaed  mesh shader.");
+		}
 
 		RelativeFilePath fragmentProjectPath("resources/shaders/FS_fontBasic.shr");
 		if (const MetaResource* metaData = reg.GetResourceMetaInformation(ResourceType::Shader,
@@ -101,10 +122,21 @@ namespace Hail
 			matProperties.m_shaders[1].m_id = metaData->GetGUID();
 			matProperties.m_shaders[1].m_type = eShaderStage::Fragment;
 		}
+		else
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitFontRenderer, EErrorType::Startup);
+			pErrorManager->AddString("Font Manager failed to load fragment shader.");
+		}
 
 		matProperties.m_baseMaterialType = eMaterialType::CUSTOM;
 		matProperties.m_typeRenderPass = eMaterialType::SPRITE;
 		m_pFontPipeline = pMatManager->CreateMaterialPipeline(matProperties);
+
+		if (!m_pFontPipeline)
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitFontRenderer, EErrorType::Startup);
+			pErrorManager->AddString("Failed to create font pipeline.");
+		}
 
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->UploadDataToBuffer(m_pVertexBuffer, m_fontData.m_renderVerts.Data(), m_fontData.m_renderVerts.Size() * sizeof(glm::vec2));
@@ -113,32 +145,37 @@ namespace Hail
 		m_glyphletsToRender.Prepare(locMaxNumberOfGlyphlets);
 		m_textCommandsToRender.Prepare(MAX_NUMBER_OF_TEXT_COMMANDS);
 		m_batchOffsetToInstanceStart.Prepare(MAX_NUMBER_OF_TEXT_COMMANDS);
-		return m_pFontPipeline != nullptr;
 	}
 
 	void FontRenderer::Cleanup()
 	{
 		H_ASSERT(m_pVertexBuffer);
-		m_pVertexBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		if (m_pVertexBuffer)
+			m_pVertexBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pVertexBuffer);
 
 		H_ASSERT(m_pIndexBuffer);
-		m_pIndexBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		if (m_pIndexBuffer)
+			m_pIndexBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pIndexBuffer);
 
 		H_ASSERT(m_pGlyphletBuffer);
-		m_pGlyphletBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		if (m_pGlyphletBuffer)
+			m_pGlyphletBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pGlyphletBuffer);
 
 		H_ASSERT(m_pTextCommandBuffer);
-		m_pTextCommandBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		if (m_pTextCommandBuffer)
+			m_pTextCommandBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pTextCommandBuffer);
 
 		H_ASSERT(m_pBatchOffsetBuffer);
-		m_pBatchOffsetBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
+		if (m_pBatchOffsetBuffer)
+			m_pBatchOffsetBuffer->CleanupResource(m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pBatchOffsetBuffer);
 
-		m_pFontPipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
+		if (m_pFontPipeline)
+			m_pFontPipeline->CleanupResource(*m_pRenderer->GetRenderingDevice());
 		SAFEDELETE(m_pFontPipeline);
 	}
 

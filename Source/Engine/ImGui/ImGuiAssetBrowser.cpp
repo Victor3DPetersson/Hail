@@ -342,10 +342,10 @@ void Hail::ImGuiAssetBrowser::InitFileBrowser()
 	m_fileBrowsersAreInited = true;
 	m_textureFileBrowserData.allowMultipleSelection = true;
 	m_textureFileBrowserData.extensionsToSearchFor = { "tga" };
-	m_textureFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
+	m_textureFileBrowserData.pathToBeginSearchingIn = FilePath::GetResourceSourceDirectory();
 	m_shaderFileBrowserData.allowMultipleSelection = true;
 	m_shaderFileBrowserData.extensionsToSearchFor = { "cmp", "vert", "amp", "msh", "frag" };
-	m_shaderFileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
+	m_shaderFileBrowserData.pathToBeginSearchingIn = FilePath::GetResourceSourceDirectory();
 }
 
 void Hail::ImGuiAssetBrowser::InitCommonData(RenderContext* pRenderContext)
@@ -356,7 +356,7 @@ void Hail::ImGuiAssetBrowser::InitCommonData(RenderContext* pRenderContext)
 	}
 	m_inited = true;
 	
-	FilePath baseResourcePath = RESOURCE_DIR_OUT;
+	const FilePath baseResourcePath = FilePath::GetCurrentWorkingDirectory() + L"resources/";
 	m_fileSystem.SetFilePathAndInit(baseResourcePath, { "txr" });
 	pRenderContext->StartTransferPass();
 	m_folderTexture.m_texture = m_resourceManager->GetTextureManager()->CreateImGuiTextureResource(pRenderContext, baseResourcePath.Parent() + L"editorResources/folderTexture.txr", m_resourceManager->GetRenderingResourceManager(), &m_folderTexture.m_TextureProperties);

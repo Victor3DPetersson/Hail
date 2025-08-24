@@ -394,9 +394,9 @@ namespace
 	}
 }
 
-void VlkMaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain)
+void VlkMaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain, ErrorManager* pErrorManager)
 {
-	MaterialManager::Init(renderingDevice, textureResourceManager, renderingResourceManager, swapChain);
+	MaterialManager::Init(renderingDevice, textureResourceManager, renderingResourceManager, swapChain, pErrorManager);
 }
 
 void Hail::VlkMaterialManager::UpdateCustomPipelineDescriptors(Pipeline* pPipeline, RenderContext* pRenderContext)

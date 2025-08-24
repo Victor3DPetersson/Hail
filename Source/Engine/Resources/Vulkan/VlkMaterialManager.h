@@ -14,7 +14,7 @@ namespace Hail
 	{
 	public:
 
-		void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain) override;
+		void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain, ErrorManager* pErrorManager) override;
 
 	private:
 		void UpdateCustomPipelineDescriptors(Pipeline* pPipeline, RenderContext* pRenderContext) override;

@@ -265,7 +265,7 @@ FilePath ExportCompiled8BitTexture(const FilePath& originalTexturePath, uint8_t*
 	FileObject textureName = originalTexturePath.Object();
 	InOutStream textureExporter;
 	textureName.SetExtension(L"txr");
-	FilePath finalPath = FilePath(TEXTURES_DIR_OUT) + textureName;
+	FilePath finalPath = FilePath::GetTextureCompiledDirectory() + textureName;
 	
 	if (!textureExporter.OpenFile(finalPath, FILE_OPEN_TYPE::WRITE, true))
 	{

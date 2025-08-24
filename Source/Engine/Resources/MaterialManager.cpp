@@ -18,13 +18,14 @@
 namespace Hail
 {
 
-	void MaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain)
+	void MaterialManager::Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain, ErrorManager* pErrorManager)
 	{
 		m_MaterialTypeObjects.Fill(nullptr);
 		m_renderDevice = renderingDevice;
 		m_textureManager = textureResourceManager;
 		m_swapChain = swapChain;
 		m_renderingResourceManager = renderingResourceManager;
+		m_pErrorManager = pErrorManager;
 		m_loadedShaders[0].Prepare(32u);
 		m_loadedShaders[(uint32)eShaderStage::Fragment].Prepare(32u);
 	}
@@ -139,19 +140,26 @@ namespace Hail
 		{
 			Material* pMaterial = CreateUnderlyingMaterial();
 			pMaterial->m_pPipeline->m_shaderStages = 0u;
+			String64 shaderNames[2];
 			switch (type)
 			{
 			case eMaterialType::SPRITE:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_Sprite", eShaderStage::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_Sprite", eShaderStage::Fragment, reloadShader));
+				shaderNames[0] = "VS_Sprite";
+				shaderNames[1] = "FS_Sprite";
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaderNames[0], eShaderStage::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaderNames[1], eShaderStage::Fragment, reloadShader));
 				break;
 			case eMaterialType::FULLSCREEN_PRESENT_LETTERBOX:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_fullscreenPass", eShaderStage::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_fullscreenPass", eShaderStage::Fragment, reloadShader));
+				shaderNames[0] = "VS_fullscreenPass";
+				shaderNames[1] = "FS_fullscreenPass";
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaderNames[0], eShaderStage::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaderNames[1], eShaderStage::Fragment, reloadShader));
 				break;
 			case eMaterialType::MODEL3D:
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("VS_triangle", eShaderStage::Vertex, reloadShader));
-				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader("FS_triangle", eShaderStage::Fragment, reloadShader));
+				shaderNames[0] = "VS_triangle";
+				shaderNames[1] = "FS_triangle";
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaderNames[0], eShaderStage::Vertex, reloadShader));
+				pMaterial->m_pPipeline->m_pShaders.Add(LoadShader(shaderNames[1], eShaderStage::Fragment, reloadShader));
 				break;
 			case eMaterialType::COUNT:
 				break;
@@ -166,10 +174,12 @@ namespace Hail
 				if (!pMaterial->m_pPipeline->m_pShaders[i])
 				{
 					H_ASSERT(false, "Failed to load default shader.");
+					m_pErrorManager->AddString(StringL::Format("Failed to load default shader: %s", shaderNames[i]));
 					return false;
 				}
 				if (pMaterial->m_pPipeline->m_pShaders[i]->loadState != eShaderLoadState::LoadedToRAM)
 				{
+					m_pErrorManager->AddString(StringL::Format("Failed to load default shader: %s in to RAM", shaderNames[i]));
 					H_ASSERT(false, "Failed to load default shader.");
 					return false;
 				}
@@ -194,6 +204,7 @@ namespace Hail
 			m_materials[(uint32_t)type][0]->m_validator.ClearFrameData(frameInFlight);
 			return true;
 		}
+		m_pErrorManager->AddString("Failed to Initialize material.");
 		return false;
 	}
 
@@ -766,12 +777,13 @@ namespace Hail
 				shaderStage = ShaderCompiler::CheckShaderType(shaderExtension);
 			}
 		}
-
-		StringL inPath = StringL::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
-
+		String64 combinedName = String64::Format("%s.shr", shaderName);
+		WString64 shaderNameW;
+		FromConstCharToWChar(combinedName.Data(), shaderNameW.Data(), 64);
+		FilePath compiledShaderPath = FilePath::GetShaderCompiledDirectory() + shaderNameW;
 		InOutStream inStream;
 
-		const bool doesCompiledShaderExist = inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
+		const bool doesCompiledShaderExist = inStream.OpenFile(compiledShaderPath, FILE_OPEN_TYPE::READ, true);
 
 		if (doesCompiledShaderExist)
 		{
@@ -785,6 +797,10 @@ namespace Hail
 				reloadShader = true;
 			}
 		}
+		else
+		{
+			m_pErrorManager->AddString(StringL::Format("Could not find compiled shader: %s", combinedName.Data()));
+		}
 
 		if (!doesCompiledShaderExist || reloadShader)
 		{
@@ -793,12 +809,23 @@ namespace Hail
 			{
 				DeInitCompiler();
 				H_ERROR(StringL::Format("Failed to load shader: %s", shaderName));
+				StringL pathOfCompiledShader;
+				pathOfCompiledShader.Reserve(compiledShaderPath.Length());
+				FromWCharToConstChar(compiledShaderPath.Data(), pathOfCompiledShader.Data(), compiledShaderPath.Length());
+				m_pErrorManager->AddString(StringL::Format("Failed to compile shader: %s, Compiled Shader path: %s", shaderName, pathOfCompiledShader.Data()));
 				return nullptr;
 			}
 			DeInitCompiler();
 		}
 
-		inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true);
+		if (!inStream.GetIsFileOpened() && !inStream.OpenFile(compiledShaderPath, FILE_OPEN_TYPE::READ, true))
+		{
+			StringL failedPath;
+			failedPath.Reserve(compiledShaderPath.Length());
+			FromWCharToConstChar(compiledShaderPath.Data(), failedPath.Data(), compiledShaderPath.Length());
+			m_pErrorManager->AddString(StringL::Format("Failed to open shader path: %s", failedPath.Data()));
+			return nullptr;
+		}
 
 		CompiledShader& shader = m_loadedShaders[(uint32)shaderStage].Add();
 
@@ -827,7 +854,7 @@ namespace Hail
 
 		// Add the created shader to the registry
 		ResourceRegistry& resourceRegistry = GetResourceRegistry();
-		resourceRegistry.AddToRegistry(inPath.Data(), ResourceType::Shader);
+		resourceRegistry.AddToRegistry(compiledShaderPath, ResourceType::Shader);
 
 		if (!shader.reflectedShaderData.m_bIsValid)
 		{

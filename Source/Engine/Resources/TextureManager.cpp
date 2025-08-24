@@ -224,8 +224,10 @@ bool Hail::TextureManager::ReloadTextureInternal(int textureIndex, uint32 frameI
 CompiledTexture TextureManager::LoadTextureInternal(const char* textureName, MetaResource& metaResourceToFill, bool reloadTexture)
 {
 	CompiledTexture returnTexture;
-	StringL inPath = StringL::Format("%s%s%s", TEXTURES_DIR_OUT, textureName, ".txr");
-
+	String64 inPathName = String64::Format("%s.txr", textureName);
+	WString64 inPathNameW;
+	FromConstCharToWChar(inPathName.Data(), inPathNameW.Data(), 64u);
+	const FilePath inPath = FilePath::GetTextureCompiledDirectory() + inPathNameW.Data();
 	InOutStream inStream;
 
 	if (!inStream.OpenFile(inPath.Data(), FILE_OPEN_TYPE::READ, true) || reloadTexture)
@@ -383,7 +385,7 @@ bool Hail::TextureManager::ReadStreamInternal(CompiledTexture& textureToFill, In
 
 bool TextureManager::CompileTexture(const char* textureName)
 {
-	RecursiveFileIterator fileIterator = RecursiveFileIterator(TEXTURES_DIR_IN);
+	RecursiveFileIterator fileIterator = RecursiveFileIterator(FilePath::GetTextureResourceSourceDirectory());
 	bool foundTexture = false;
 
 	FilePath currentPath;

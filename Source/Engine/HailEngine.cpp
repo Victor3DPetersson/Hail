@@ -72,7 +72,7 @@ namespace Hail
 	void Cleanup();
 }
 
-bool Hail::InitEngine(StartupAttributes startupData)
+bool Hail::InitEngine(StartupAttributes& startupData)
 {
 	SetMainThread();
 	InternalMessageLogger::Initialize();
@@ -93,28 +93,27 @@ bool Hail::InitEngine(StartupAttributes startupData)
 		Cleanup();
 		return false;
 	}
-	if (!g_engineData->renderer->InitDevice(&g_engineData->timer))
+	g_engineData->renderer->InitDevice(&g_engineData->timer, startupData.m_pErrorManager);
+	if (startupData.m_pErrorManager->GetAreErrorsLogged())
 	{
+		Cleanup();
 		return false;
 	}
-
 	g_engineData->resourceRegistry.Init();
 
 	g_engineData->resourceManager = new ResourceManager();
-
-	if (!g_engineData->renderer->InitGraphicsEngineAndContext(g_engineData->resourceManager))
-	{
-		Cleanup();
-		return false;
-	}
+	g_engineData->renderer->InitGraphicsEngineAndContext(g_engineData->resourceManager);
 	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice(), 
-		g_engineData->renderer->GetCurrentContext(), startupData.renderTargetResolution, startupData.startupWindowResolution))
+		g_engineData->renderer->GetCurrentContext(), startupData.renderTargetResolution, startupData.startupWindowResolution, startupData.m_pErrorManager))
 	{
 		Cleanup();
 		return false;
 	}
+
 	// Dependent on resources of the resource manager
-	if (!g_engineData->renderer->Initialize())
+	g_engineData->renderer->Initialize(startupData.m_pErrorManager);
+
+	if (startupData.m_pErrorManager->GetAreErrorsLogged())
 	{
 		Cleanup();
 		return false;
@@ -137,6 +136,11 @@ bool Hail::InitEngine(StartupAttributes startupData)
 	startupData.postInitFunctionToCall();
 
 	return true;
+}
+
+void Hail::CleanupEngineSystems()
+{
+	StringMemoryAllocator::Deinitialize();
 }
 
 void Hail::StartEngine()
@@ -285,8 +289,8 @@ void Hail::ProcessApplicationThread()
 	AngelScript::Runner asScriptRunner;
 	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine(), g_engineData->asHandler.GetTypeRegistry());
 
-	StringL firstScriptPath = ANGELSCRIPT_DIR;
-	firstScriptPath += "FirstScript.as";
+	StringLW firstScriptPath = FilePath::GetAngelscriptDirectory().Data();
+	firstScriptPath += L"FirstScript.as";
 	asScriptRunner.ImportAndBuildScript(firstScriptPath.Data(), "FirstScript");
 
 	while(engineData.runApplication)
@@ -320,12 +324,12 @@ void Hail::Cleanup()
 {
 	g_engineData->imguiCommandRecorder.DeInit();
 	g_engineData->renderer->Cleanup();
-	g_engineData->asHandler.GetScriptEngine()->ShutDownAndRelease();
+	if (asIScriptEngine* pScriptEngine = g_engineData->asHandler.GetScriptEngine())
+		pScriptEngine->ShutDownAndRelease();
 	SAFEDELETE(g_engineData->appWindow);
 	SAFEDELETE(g_engineData->inputHandler);
 	SAFEDELETE(g_engineData->renderer);
 	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
 	InternalMessageLogger::Deinitialize();
-	StringMemoryAllocator::Deinitialize();
 }

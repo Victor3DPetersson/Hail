@@ -31,6 +31,8 @@ namespace Hail
 
 		bool Seek(int64 sizeOfData, int64 numberOfElements);
 
+		bool GetIsFileOpened() const { return m_fileHandle; }
+
 		void SeekToStart();
 		void SeekToEnd();
 

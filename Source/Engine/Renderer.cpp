@@ -14,16 +14,15 @@ Hail::Renderer::~Renderer()
 	H_ASSERT(m_pFontRenderer == nullptr, "Never cleaned up the Renderer, Add the virtual Cleanup function to the inherited renderer")
 }
 
-bool Hail::Renderer::Initialize()
+void Hail::Renderer::Initialize(ErrorManager* pErrorManager)
 {
 	m_pContext->StartTransferPass();
-	bool initializationResult = true;
 	m_pFontRenderer = new FontRenderer(this, m_pResourceManager);
 	m_pCloudRenderer = new CloudRenderer(this, m_pResourceManager);
 	m_pDebugRenderingManager = new DebugRenderingManager(this, m_pResourceManager);
-	initializationResult &= m_pFontRenderer->Initialize();
-	initializationResult &= m_pCloudRenderer->Initialize();
-	initializationResult &= m_pDebugRenderingManager->Initialize();
+	m_pFontRenderer->Initialize(pErrorManager);
+	m_pCloudRenderer->Initialize(pErrorManager);
+	m_pDebugRenderingManager->Initialize(pErrorManager);
 
 	CreateSpriteVertexBuffer();
 	CreateVertexBuffer();
@@ -31,18 +30,19 @@ bool Hail::Renderer::Initialize()
 	InitImGui();
 
 	m_pContext->EndTransferPass();
-
-	return initializationResult;
 }
 
 void Hail::Renderer::Cleanup()
 {
 	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.");
-	m_pFontRenderer->Cleanup();
+	if (m_pFontRenderer)
+		m_pFontRenderer->Cleanup();
 	SAFEDELETE(m_pFontRenderer);
-	m_pCloudRenderer->Cleanup();
+	if (m_pCloudRenderer)
+		m_pCloudRenderer->Cleanup();
 	SAFEDELETE(m_pCloudRenderer);
-	m_pDebugRenderingManager->Cleanup();
+	if (m_pDebugRenderingManager)
+		m_pDebugRenderingManager->Cleanup();
 	SAFEDELETE(m_pDebugRenderingManager);
 }
 

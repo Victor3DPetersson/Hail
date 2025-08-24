@@ -8,6 +8,7 @@
 namespace Hail
 {
 	class BufferObject;
+	class ErrorManager;
 	class MaterialPipeline;
 	class Renderer;
 	class ResourceManager;
@@ -23,7 +24,7 @@ namespace Hail
 	public:
 		explicit DebugRenderingManager(Renderer* pRenderer, ResourceManager* pResourceManager);
 		~DebugRenderingManager();
-		bool Initialize();
+		void Initialize(ErrorManager* pErrorManager);
 		void Cleanup();
 
 		void Prepare(RenderCommandPool& poolOfCommands);

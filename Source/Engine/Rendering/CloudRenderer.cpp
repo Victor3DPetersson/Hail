@@ -276,7 +276,7 @@ namespace Hail
 	{
 	}
 
-	bool CloudRenderer::Initialize()
+	void CloudRenderer::Initialize(ErrorManager* pErrorManager)
 	{
 		// Hard coded random array to sort
 		localCreateTempBufferToSort();
@@ -460,7 +460,6 @@ namespace Hail
 		{
 			bValidComputePasses = false;
 		}
-
  		if (!localCreateComputeShaderPipeline(pMatManager, &m_pSimulationCalculateDensity, "resources/shaders/CS_fluidParticleCalculateDensity.shr"))
 		{
 			bValidComputePasses = false;
@@ -573,9 +572,19 @@ namespace Hail
 			bValidComputePasses = false;
 		}
 
-		m_pTileableCloudTextureView = m_pResourceManager->GetTextureManager()->CreateTextureView(RelativeFilePath("resources/textures/tileAbleCloud.txr"), pContext);
+		if (!bValidComputePasses)
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitCloudRenderer, EErrorType::Startup);
+			pErrorManager->AddString("Failed to load compute shader.");
+		}
 
-		return m_pCloudPipeline != nullptr && bValidComputePasses && m_pTileableCloudTextureView;
+		if (!m_pCloudPipeline)
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitCloudRenderer, EErrorType::Startup);
+			pErrorManager->AddString("Failed to load fullscreen cloud pipeline effect.");
+		}
+
+		m_pTileableCloudTextureView = m_pResourceManager->GetTextureManager()->CreateTextureView(RelativeFilePath("resources/textures/tileAbleCloud.txr"), pContext);
 	}
 
 	void CloudRenderer::Cleanup()
@@ -638,38 +647,45 @@ namespace Hail
 
 	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
 	{
-		ImGui::Begin("Particle test window");
-
-		ImGui::Checkbox("Render GPU particles", &GetEngineSettings().b_enableGpuParticles);
 		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
 		bool bRespawnParticles = false;
+		if (GetEngineSettings().b_enableEngineImgui)
+		{
+			ImGui::Begin("Particle test window");
+			ImGui::Checkbox("Render GPU particles", &GetEngineSettings().b_enableGpuParticles);
+		}
 		if (GetEngineSettings().b_enableGpuParticles)
 		{
-			ImGui::SliderFloat("Mouse force", &m_ParticleUniforms.mouseForceStrength, 0.f, 100.f);
-			ImGui::SliderFloat("Mouse radius", &m_ParticleUniforms.mouseForceRadius, 0.f, 1.f);
-			ImGui::SliderFloat("Cloud size multiplier", &m_ParticleUniforms.cloudSizeMultiplier, 1.f, 8.f);
-			if (ImGui::SliderInt("Cloud Num Points per Pixel", &m_numberOfPointsPerPixelInClouds, 1, 32))
-			{
-				bRespawnParticles = true;
-			}
 			m_ParticleUniforms.bSimulateCloud = true;
 
-			ImGui::SliderFloat("Particle Radius", &m_ParticleUniforms.particleKernelRadius, 0.1f, 5.f);
-			ImGui::SliderFloat("Mass", &m_ParticleUniforms.mass, 0.01f, 5.f);
-			ImGui::SliderFloat("Rest density", &m_ParticleUniforms.restDensity, -10.f, 10.f);
-			ImGui::SliderFloat("Stiffness", &m_ParticleUniforms.stiffness, 0.f, 10.f);
-			ImGui::SliderFloat("Near Pressure", &m_ParticleUniforms.nearPressureMultiplier, 0.f, 50.f);
-			ImGui::SliderFloat("Viscosity", &m_ParticleUniforms.viscosityModifier, 0.01f, 200.f);
-			ImGui::SliderFloat("Gravitic Force", &m_ParticleUniforms.graviticForce, -1.f, 1.f);
-			ImGui::SliderFloat("Cloud dampening multiplier", &m_ParticleUniforms.cloudDampeningMultiplier, 0, 1.f);
-			ImGui::SliderFloat("Deltatime modifier", &m_ParticleUniforms.deltaTimeModifier, 0.1f, 5.f);
-
-			ImGui::Separator();
-
-			if (ImGui::SliderInt("Number of Clouds", &m_numberOfClouds, 1, MaxNumberOfClouds))
+			if (GetEngineSettings().b_enableEngineImgui)
 			{
-				bRespawnParticles = true;
+				ImGui::SliderFloat("Mouse force", &m_ParticleUniforms.mouseForceStrength, 0.f, 100.f);
+				ImGui::SliderFloat("Mouse radius", &m_ParticleUniforms.mouseForceRadius, 0.f, 1.f);
+				ImGui::SliderFloat("Cloud size multiplier", &m_ParticleUniforms.cloudSizeMultiplier, 1.f, 8.f);
+				if (ImGui::SliderInt("Cloud Num Points per Pixel", &m_numberOfPointsPerPixelInClouds, 1, 32))
+				{
+					bRespawnParticles = true;
+				}
+				ImGui::SliderFloat("Particle Radius", &m_ParticleUniforms.particleKernelRadius, 0.1f, 5.f);
+				ImGui::SliderFloat("Mass", &m_ParticleUniforms.mass, 0.01f, 5.f);
+				ImGui::SliderFloat("Rest density", &m_ParticleUniforms.restDensity, -10.f, 10.f);
+				ImGui::SliderFloat("Stiffness", &m_ParticleUniforms.stiffness, 0.f, 10.f);
+				ImGui::SliderFloat("Near Pressure", &m_ParticleUniforms.nearPressureMultiplier, 0.f, 50.f);
+				ImGui::SliderFloat("Viscosity", &m_ParticleUniforms.viscosityModifier, 0.01f, 200.f);
+				ImGui::SliderFloat("Gravitic Force", &m_ParticleUniforms.graviticForce, -1.f, 1.f);
+				ImGui::SliderFloat("Cloud dampening multiplier", &m_ParticleUniforms.cloudDampeningMultiplier, 0, 1.f);
+				ImGui::SliderFloat("Deltatime modifier", &m_ParticleUniforms.deltaTimeModifier, 0.1f, 5.f);
+
+				ImGui::Separator();
+
+				if (ImGui::SliderInt("Number of Clouds", &m_numberOfClouds, 1, MaxNumberOfClouds))
+				{
+					bRespawnParticles = true;
+				}
 			}
+
+
 			if (!m_bUpdatedParticleGrid)
 			{
 				m_numberOfClouds++;
@@ -694,45 +710,48 @@ namespace Hail
 			if (numberOfCloudsToAdd)
 				bRespawnParticles = true;
 
-			if (ImGui::TreeNode("Clouds"))
+			if (GetEngineSettings().b_enableEngineImgui)
 			{
-				for (int32 i = 0; i < m_numberOfClouds; i++)
+				if (ImGui::TreeNode("Clouds"))
 				{
-					// Use SetNextItemOpen() so set the default state of a node to be open. We could
-					// also use TreeNodeEx() with the ImGuiTreeNodeFlags_DefaultOpen flag to achieve the same thing!
-					if (i == 0)
-						ImGui::SetNextItemOpen(true, ImGuiCond_Once);
-
-					// Here we use PushID() to generate a unique base ID, and then the "" used as TreeNode id won't conflict.
-					// An alternative to using 'PushID() + TreeNode("", ...)' to generate a unique ID is to use 'TreeNode((void*)(intptr_t)i, ...)',
-					// aka generate a dummy pointer-sized value to be hashed. The demo below uses that technique. Both are fine.
-					ImGui::PushID(i);
-					if (ImGui::TreeNode("", "Cloud %d", i))
+					for (int32 i = 0; i < m_numberOfClouds; i++)
 					{
-						//if (ImGui::SliderFloat2("Cloud Size", &m_cloudList[i].dimensions.x, 0.f, 512.f))
-						//{
-						//	bRespawnParticles = true;
-						//}
-						ImGui::SliderFloat2("Cloud Position", &m_cloudList[i].position.x, -512.f, 512.f);
-						ImGui::TreePop();
+						// Use SetNextItemOpen() so set the default state of a node to be open. We could
+						// also use TreeNodeEx() with the ImGuiTreeNodeFlags_DefaultOpen flag to achieve the same thing!
+						if (i == 0)
+							ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+
+						// Here we use PushID() to generate a unique base ID, and then the "" used as TreeNode id won't conflict.
+						// An alternative to using 'PushID() + TreeNode("", ...)' to generate a unique ID is to use 'TreeNode((void*)(intptr_t)i, ...)',
+						// aka generate a dummy pointer-sized value to be hashed. The demo below uses that technique. Both are fine.
+						ImGui::PushID(i);
+						if (ImGui::TreeNode("", "Cloud %d", i))
+						{
+							//if (ImGui::SliderFloat2("Cloud Size", &m_cloudList[i].dimensions.x, 0.f, 512.f))
+							//{
+							//	bRespawnParticles = true;
+							//}
+							ImGui::SliderFloat2("Cloud Position", &m_cloudList[i].position.x, -512.f, 512.f);
+							ImGui::TreePop();
+						}
+						ImGui::PopID();
 					}
-					ImGui::PopID();
+					ImGui::TreePop();
 				}
-				ImGui::TreePop();
+
+				ImGui::Separator();
+
+				ImGui::SliderFloat("Effect Sun Direction Rad", &m_ParticleUniforms.effectSunDirectionRadian, 0.f, Math::PI2f);
+				ImGui::SliderFloat("Effect Step Length", &m_ParticleUniforms.effectStepLength, 0.f, 64.f);
+				ImGui::SliderFloat("Effect Turbulence", &m_ParticleUniforms.effectTurbulence, 0.f, 32.f);
+				ImGui::SliderFloat("Effect Noise", &m_ParticleUniforms.effectNoise, 0.f, 4.f);
+				ImGui::SliderFloat("Effect Greenstein Value", &m_ParticleUniforms.HenyeyGreensteinPhaseValue, 0.f, 1.f);
+				ImGui::SliderFloat("Effect Beers Law Multiplier", &m_ParticleUniforms.BeersLawStepLengthMultiplier, 0.f, 64.f);
+				ImGui::SliderFloat("Effect tileable threshhold", &m_ParticleUniforms.tileableCloudThreshold, 0.f, 1.f);
+				ImGui::SliderFloat("Effect tileable tile factor", &m_ParticleUniforms.tileableCloudTilingFactor, 0.f, 64.f);
+				ImGui::SliderFloat("Effect dither threshold", &m_ParticleUniforms.ditherThreshold, 0.f, 1.f);
+				ImGui::SliderInt("Effect number of Steps", &m_ParticleUniforms.numberOfSteps, 1, 8);
 			}
-
-			ImGui::Separator();
-
-			ImGui::SliderFloat("Effect Sun Direction Rad", &m_ParticleUniforms.effectSunDirectionRadian, 0.f, Math::PI2f);
-			ImGui::SliderFloat("Effect Step Length", &m_ParticleUniforms.effectStepLength, 0.f, 64.f);
-			ImGui::SliderFloat("Effect Turbulence", &m_ParticleUniforms.effectTurbulence, 0.f, 32.f);
-			ImGui::SliderFloat("Effect Noise", &m_ParticleUniforms.effectNoise, 0.f, 4.f);
-			ImGui::SliderFloat("Effect Greenstein Value", &m_ParticleUniforms.HenyeyGreensteinPhaseValue, 0.f, 1.f);
-			ImGui::SliderFloat("Effect Beers Law Multiplier", &m_ParticleUniforms.BeersLawStepLengthMultiplier, 0.f, 64.f);
-			ImGui::SliderFloat("Effect tileable threshhold", &m_ParticleUniforms.tileableCloudThreshold, 0.f, 1.f);
-			ImGui::SliderFloat("Effect tileable tile factor", &m_ParticleUniforms.tileableCloudTilingFactor, 0.f, 64.f);
-			ImGui::SliderFloat("Effect dither threshold", &m_ParticleUniforms.ditherThreshold, 0.f, 1.f);
-			ImGui::SliderInt("Effect number of Steps", &m_ParticleUniforms.numberOfSteps, 1, 8);
 		}
 		else
 		{
@@ -766,7 +785,8 @@ namespace Hail
 
 		pContext->EndTransferPass();
 
-		ImGui::End();
+		if (GetEngineSettings().b_enableEngineImgui)
+			ImGui::End();
 
 	}
 

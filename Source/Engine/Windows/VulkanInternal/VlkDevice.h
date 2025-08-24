@@ -39,7 +39,7 @@ namespace Hail
 	class VlkDevice : public RenderingDevice
 	{
 	public:
-		bool CreateInstance();
+		void CreateInstance(ErrorManager* pErrorManager) override;
 		void DestroyDevice();
 		VkInstance& GetInstance() { return m_vkInstance; };
 		VkDevice& GetDevice() { return m_device; };
@@ -56,9 +56,9 @@ namespace Hail
 
 	private:
 		bool CheckValidationLayerSupport();
-		bool CheckRequiredExtensions();
+		bool CheckRequiredExtensions(ErrorManager* pErrorManager);
 		void SetupDebugMessenger();
-		void PickPhysicalDevice();
+		void PickPhysicalDevice(ErrorManager* pErrorManager);
 		bool IsDeviceSuitable(VkPhysicalDevice device);
 		bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
 		

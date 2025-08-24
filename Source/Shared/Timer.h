@@ -17,6 +17,7 @@ namespace Hail
         float GetDeltaTimeMs() const { return m_deltaTimeMs; }
         double GetTotalTime() const;
         uint64 GetTotalTimeMs() const;
+        // System time in nano seconds
         uint64 GetSystemTime() const;
     private:
         float m_deltaTimeMs = 0;

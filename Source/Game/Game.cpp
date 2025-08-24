@@ -136,7 +136,7 @@ namespace Hail
 		}
 
 		g_fileBrowserData.extensionsToSearchFor = { "tga", "frag", "vert" };
-		g_fileBrowserData.pathToBeginSearchingIn = RESOURCE_DIR;
+		g_fileBrowserData.pathToBeginSearchingIn = FilePath::GetResourceSourceDirectory();
 
 		g_textCommand1.index = 0;
 		g_textCounter.index = 1;

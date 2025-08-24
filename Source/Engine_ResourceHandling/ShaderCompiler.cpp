@@ -138,7 +138,7 @@ namespace Hail
 			break;
 		}
 		FilePath filePath{};
-		RecursiveFileIterator pathToShow = RecursiveFileIterator(SHADER_DIR_IN);
+		RecursiveFileIterator pathToShow = RecursiveFileIterator(FilePath::GetShaderResourceDirectory());
 		
 		while(pathToShow.IterateOverFolderRecursively())
 		{
@@ -274,21 +274,22 @@ namespace Hail
 
 	bool LocalExportCompiledShader(const char* shaderName, const char* compiledShaderData, ShaderHeader shaderHeader, MetaResource metaResource)
 	{
+		String64 combinedName = String64::Format("%s.shr", shaderName);
+		WString64 shaderNameW;
+		FromConstCharToWChar(combinedName.Data(), shaderNameW.Data(), 64);
+		FilePath compiledShaderPath = FilePath::GetShaderCompiledDirectory() + shaderNameW;
 		{
-			FilePath filePath(SHADER_DIR_OUT);
-			filePath.CreateFileDirectory();
+			FilePath::GetShaderCompiledDirectory().CreateFileDirectory();
 		}
-		FilePath outPath = StringL::Format("%s%s%s", SHADER_DIR_OUT, shaderName, ".shr");
-
 		InOutStream readStream;
-		if (readStream.OpenFile(outPath, FILE_OPEN_TYPE::READ, true))
+		if (readStream.OpenFile(compiledShaderPath, FILE_OPEN_TYPE::READ, true))
 		{
 			metaResource.Deserialize(readStream);
 		}
-		metaResource.ConstructResourceAndID("", outPath, metaResource.GetGUID());
+		metaResource.ConstructResourceAndID("", compiledShaderPath, metaResource.GetGUID());
 
 		InOutStream outStream;
-		if (!outStream.OpenFile(outPath, FILE_OPEN_TYPE::WRITE, true))
+		if (!outStream.OpenFile(compiledShaderPath, FILE_OPEN_TYPE::WRITE, true))
 		{
 			return false;
 		}

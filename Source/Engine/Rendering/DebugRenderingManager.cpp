@@ -41,7 +41,7 @@ Hail::DebugRenderingManager::~DebugRenderingManager()
 	H_ASSERT(m_pDebugLinePipeline == nullptr);
 }
 
-bool Hail::DebugRenderingManager::Initialize()
+void Hail::DebugRenderingManager::Initialize(ErrorManager* pErrorManager)
 {
 	GrowingArray<uint32> debugLineVertices(MAX_NUMBER_OF_DEBUG_LINES, 0);
 	for (uint32 i = 0; i < MAX_NUMBER_OF_DEBUG_LINES; i++)
@@ -127,7 +127,10 @@ bool Hail::DebugRenderingManager::Initialize()
 	circleMatProperties.m_typeRenderPass = eMaterialType::FULLSCREEN_PRESENT_LETTERBOX;
 	m_pDebugCirclePipeline = pMatManager->CreateMaterialPipeline(circleMatProperties);
 
-	return m_pDebugCirclePipeline != nullptr && m_pDebugLinePipeline != nullptr;
+	if (m_pDebugCirclePipeline == nullptr || m_pDebugLinePipeline == nullptr)
+	{
+		pErrorManager->AddErrors(EStartupErrors::InitDebugRenderer, EErrorType::Startup);
+	}
 }
 
 void Hail::DebugRenderingManager::Cleanup()

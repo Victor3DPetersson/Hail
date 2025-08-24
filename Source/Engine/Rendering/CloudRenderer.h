@@ -7,6 +7,7 @@
 namespace Hail
 {
 	class BufferObject;
+	class ErrorManager;
 	class MaterialPipeline;
 	class Renderer;
 	class ResourceManager;
@@ -83,7 +84,7 @@ namespace Hail
 	public:
 		~CloudRenderer();
 		explicit CloudRenderer(Renderer* pRenderer, ResourceManager* pResourceManager);
-		bool Initialize();
+		void Initialize(ErrorManager* pErrorManager);
 		void Cleanup();
 
 		void Prepare(RenderCommandPool& poolOfCommands);

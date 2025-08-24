@@ -10,11 +10,11 @@
 #include "glm\vec2.hpp"
 #include "String.hpp"
 
-
-
 struct CompiledShader;
 namespace Hail
 {
+	class ErrorHandler;
+
 	struct RenderCommandPool;
 	struct RenderData_Mesh;
 	struct RenderCommand_Sprite;
@@ -23,7 +23,6 @@ namespace Hail
 	class CloudRenderer;
 	class DebugRenderingManager;
 	class FontRenderer;
-	class FrameBufferTexture;
 	class RenderContext;
 	class RenderingDevice;
 	class ResourceManager;
@@ -34,10 +33,10 @@ namespace Hail
 	public:
 		~Renderer();
 		// TODO: Clean up the initialization order of all the rendering systems, this is a mess atm.
-		virtual bool Initialize();
+		virtual void Initialize(ErrorManager* pErrorManager);
 		virtual void Cleanup();
-		virtual bool InitDevice(Timer* timer) = 0;
-		virtual bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
+		virtual void InitDevice(Timer* pTimer, ErrorManager* pErrorManager) = 0;
+		virtual void InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
 		//Always call virtual version of this function after swapchain has finished the previous frame
 		virtual void StartFrame(RenderCommandPool& renderPool);
 		void Prepare();
@@ -46,12 +45,6 @@ namespace Hail
 		virtual void InitImGui() = 0; 
 		// Blocking operation for executing thread.
 		virtual void WaitForGPU() = 0;
-
-		//virtual FrameBufferTexture* FrameBufferTexture_Create(String64 name, glm::uvec2 resolution, eTextureFormat format = eTextureFormat::UNDEFINED, TEXTURE_DEPTH_FORMAT depthFormat = TEXTURE_DEPTH_FORMAT::UNDEFINED) = 0;
-		//virtual void FrameBufferTexture_ClearFrameBuffer(FrameBufferTexture& frameBuffer) = 0;
-		//virtual void FrameBufferTexture_BindAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;
-		//virtual void FrameBufferTexture_SetAsRenderTargetAtSlot(FrameBufferTexture& frameBuffer, uint32_t bindingPoint) = 0;
-		//virtual void FrameBufferTexture_EndRenderAsTarget(FrameBufferTexture& frameBuffer) = 0;
 
 		virtual void RenderMesh(const RenderData_Mesh& meshCommandToRender, uint32_t meshInstance) = 0;
 		virtual void RenderImGui() = 0;

@@ -6,6 +6,7 @@
 namespace Hail
 {
 	class BufferObject;
+	class ErrorManager;
 	class MaterialPipeline;
 	class Renderer;
 	class ResourceManager;
@@ -31,7 +32,7 @@ namespace Hail
 	public:
 		~FontRenderer();
 		explicit FontRenderer(Renderer* pRenderer, ResourceManager* pResourceManager);
-		bool Initialize();
+		void Initialize(ErrorManager* pErrorManager);
 		void Cleanup();
 
 		void Prepare(const RenderCommandPool& poolOfCommands);

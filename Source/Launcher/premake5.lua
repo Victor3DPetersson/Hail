@@ -22,6 +22,7 @@ project "Launcher"
 		"%{dirs.srcdir}/Engine/",
 		"%{dirs.srcdir}/Game/",
 		"%{dirs.srcdir}/Shared/",
+		"%{dirs.extdir}/dbghelp/",
 	}
 
 	libdirs { "%{dirs.libdir}" }
@@ -30,3 +31,11 @@ project "Launcher"
 		"Engine",
 		"Game"
 	}
+
+filter { "platforms:Windows" }
+	libdirs {
+		"%{dirs.extdir}/dbghelp/"
+	 }	
+	links { 
+		"dbghelp"
+		 }

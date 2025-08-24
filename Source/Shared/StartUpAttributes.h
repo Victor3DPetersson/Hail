@@ -2,6 +2,7 @@
 #include <functional>
 #include <string>
 #include "Utilities.h"
+#include "InternalMessageHandling/ErrorHandler.h"
 
 namespace Hail
 {
@@ -52,6 +53,8 @@ namespace Hail
 		//WString64 applicationName;
 
 		bool startInFullScreen = false;
+
+		ErrorManager* m_pErrorManager;
 	};
 }
 

@@ -115,6 +115,7 @@ namespace Hail
 			m_isDirectory = path.m_isDirectory;
 			m_directoryLevel = path.m_directoryLevel;
 		}
+
 		FilePath(FilePath&& moveablePath) noexcept
 		{
 			wcscpy_s(m_data, moveablePath);
@@ -160,9 +161,9 @@ namespace Hail
 			return *this;
 		}
 
-		FilePath operator+(const FilePath& otherPath);
-		FilePath operator+(const FileObject& object) const;
-		FilePath operator+(const wchar_t* const string);
+		FilePath& operator+=(const FilePath& otherPath);
+		FilePath& operator+=(const FileObject& object);
+		FilePath& operator+=(const wchar_t* const string);
 		FilePath Parent() const;
 		//Either the file object or the path
 		const FileObject& Object() const { return m_object; }
@@ -189,12 +190,18 @@ namespace Hail
 		static const FilePath& GetCurrentWorkingDirectory();
 		// Will be User / ProjectName for save files and the like
 		static const FilePath& GetUserProjectDirectory();
+		// Hail/Source/Resources/
+		static const FilePath& GetResourceSourceDirectory();
 		// Generated/bin/Scripts
 		static const FilePath& GetAngelscriptDirectory();
-		// Folder of shader base
+		// Folder of shader resources for import
 		static const FilePath& GetShaderResourceDirectory();
-		// Folder of texture base
+		// Folder of compiled shaders
+		static const FilePath& GetShaderCompiledDirectory();
+		// Folder of texture source files
 		static const FilePath& GetTextureResourceSourceDirectory();
+		// Imported textures
+		static const FilePath& GetTextureCompiledDirectory();
 
 		//returns -1 if no common directory is found
 		static int16 FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB);
@@ -215,7 +222,10 @@ namespace Hail
 		static FilePath UserProjectDirectory;
 		static FilePath AngelscriptDirectory;
 		static FilePath ShaderResourceDirectory;
+		static FilePath ShaderCompiledDirectory;
 		static FilePath TextureResourceSourceDirectory;
+		static FilePath TextureCompiledDirectory;
+		static FilePath ResourceSourceDirectory;
 		friend class RelativeFilePath;
 		void Reset();
 		wchar_t m_data[MAX_FILE_LENGTH];
@@ -224,6 +234,26 @@ namespace Hail
 		bool m_isDirectory = false;
 		uint16_t m_directoryLevel = 0;
 	};
+
+	inline FilePath operator+(const FilePath& lhs, const FilePath& rhs)
+	{
+		FilePath returnPath = lhs;
+		returnPath += rhs;
+		return returnPath;
+	}
+
+	inline FilePath operator+(const FilePath& lhs, const FileObject& rhs)
+	{
+		FilePath returnPath = lhs;
+		returnPath += rhs;
+		return returnPath;
+	}
+	inline FilePath operator+(const FilePath& lhs, const wchar_t* const string)
+	{
+		FilePath returnPath = lhs;
+		returnPath += string;
+		return returnPath;
+	}
 
 	static bool operator<(const FilePath& path1, const FilePath& path2)
 	{

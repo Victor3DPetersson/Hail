@@ -7,6 +7,7 @@
 
 namespace Hail
 {
+	class ErrorManager;
 	class FilePath;
 	class FrameBufferTexture;
 	class MetaResource;
@@ -23,7 +24,7 @@ namespace Hail
 	{
 	public:
 
-		virtual void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain);
+		virtual void Init(RenderingDevice* renderingDevice, TextureManager* textureResourceManager, RenderingResourceManager* renderingResourceManager, SwapChain* swapChain, ErrorManager* pErrorManager);
 		
 		void Update();
 
@@ -100,6 +101,7 @@ namespace Hail
 		RenderingResourceManager* m_renderingResourceManager = nullptr;
 		TextureManager* m_textureManager = nullptr;
 		SwapChain* m_swapChain = nullptr;
+		ErrorManager* m_pErrorManager = nullptr;
 
 		ShaderCompiler* m_compiler = nullptr;
 

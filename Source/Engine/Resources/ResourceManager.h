@@ -9,6 +9,7 @@
 namespace Hail
 {
 	struct RenderCommandPool;
+	class ErrorManager;
 	class FrameBufferTexture;
 	class MaterialManager;
 	class RenderContext;
@@ -25,7 +26,7 @@ namespace Hail
 	{
 	public:
 		ResourceManager();
-		bool InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes);
+		bool InitResources(RenderingDevice* renderingDevice, RenderContext* pRenderContext, eResolutions targetRes, eResolutions startupWindowRes, ErrorManager* pErrorManager);
 		void ClearAllResources(RenderingDevice* pRenderDevice);
 		MaterialManager* GetMaterialManager() { return m_materialManager; }
 		TextureManager* GetTextureManager() { return m_textureManager; }

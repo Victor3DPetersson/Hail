@@ -15,9 +15,9 @@ namespace Hail
 	class VlkRenderer : public Renderer 
 	{
 	public:
-		bool Initialize() override;
-		bool InitDevice(Timer* timer) override;
-		bool InitGraphicsEngineAndContext(ResourceManager* resourceManager) override;
+		void Initialize(ErrorManager* pErrorManager) override;
+		void InitDevice(Timer* pTimer, ErrorManager* pErrorManager) override;
+		void InitGraphicsEngineAndContext(ResourceManager* resourceManager) override;
 		void StartFrame(RenderCommandPool& renderPool) override;
 		void Render() override;
 		void Cleanup() override;

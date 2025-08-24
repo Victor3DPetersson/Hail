@@ -2,6 +2,7 @@
 
 namespace Hail
 {
+	class ErrorManager;
 	struct RenderingDeviceLimits
 	{
 		uint32 m_maxComputeWorkGroupInvocations = 0u;
@@ -10,7 +11,7 @@ namespace Hail
 	class RenderingDevice
 	{
 	public:
-		virtual bool CreateInstance() = 0;
+		virtual void CreateInstance(ErrorManager* pErrorManager) = 0;
 		virtual void DestroyDevice() = 0;
 
 		const RenderingDeviceLimits& GetDeviceLimits() { return m_deviceLimits; }

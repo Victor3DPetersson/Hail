@@ -10,7 +10,8 @@ namespace Hail
 	struct Settings;
 
 	class ResourceRegistry;
-	bool InitEngine(StartupAttributes startupData);
+	bool InitEngine(StartupAttributes& startupData);
+	void CleanupEngineSystems();
 	void StartEngine();
 	void ShutDownEngine();
 	//TODO: make thread safe for the getters

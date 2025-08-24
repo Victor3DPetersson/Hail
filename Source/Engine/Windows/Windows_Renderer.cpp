@@ -31,6 +31,7 @@
 #include "VulkanInternal/VlkRenderContext.h"
 #include "Resources\Vulkan\VlkMaterial.h"
 #include "Resources\Vulkan\VlkBufferResource.h"
+#include "Settings.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -41,36 +42,35 @@
 
 using namespace Hail;
 
-bool Hail::VlkRenderer::Initialize()
+void Hail::VlkRenderer::Initialize(ErrorManager* pErrorManager)
 {
 	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
-	Renderer::Initialize();
+	Renderer::Initialize(pErrorManager);
 
 	////clear font textures from cpu data, so clearing ImGui for Vlk
-	ImGui_ImplVulkan_DestroyFontUploadObjects();
-	return true;
+	if (GetEngineSettings().b_enableEngineImgui)
+		ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
-bool VlkRenderer::InitDevice(Timer* timer)
+void VlkRenderer::InitDevice(Timer* pTimer, ErrorManager* pErrorManager)
 {
-	m_timer = timer;
+	m_timer = pTimer;
 	m_renderDevice = new VlkDevice();
-	m_renderDevice->CreateInstance();
-
-	return true;
+	m_renderDevice->CreateInstance(pErrorManager);
 }
 
-bool Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager)
+void Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager)
 {
 	m_pResourceManager = resourceManager;
 	m_pContext = new VlkRenderContext(m_renderDevice, m_pResourceManager);
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
-
-	return true;
 }
 
 void VlkRenderer::InitImGui()
 {
+	if (!GetEngineSettings().b_enableEngineImgui)
+		return;
+
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
 	//1: create descriptor pool for IMGUI
 	// the size of the pool is very oversize, but it's copied from imgui demo itself.
@@ -144,14 +144,19 @@ void Hail::VlkRenderer::WaitForGPU()
 void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 {
 	Renderer::StartFrame(renderPool);
-	ImGui_ImplWin32_NewFrame();
-	ImGui_ImplVulkan_NewFrame();
-	ImGui::NewFrame();
+	if (GetEngineSettings().b_enableEngineImgui)
+	{
+		ImGui_ImplWin32_NewFrame();
+		ImGui_ImplVulkan_NewFrame();
+		ImGui::NewFrame();
+	}
 }
 
 void VlkRenderer::Render()
 {
-	ImGui::Render();
+	if (GetEngineSettings().b_enableEngineImgui)
+		ImGui::Render();
+
 	const uint32_t currentFrame = m_swapChain->GetFrameInFlight();
 	Renderer::Render();
 }
@@ -190,6 +195,9 @@ void Hail::VlkRenderer::RenderMesh(const RenderData_Mesh& meshCommandToRender, u
 
 void Hail::VlkRenderer::RenderImGui()
 {
+	if (!GetEngineSettings().b_enableEngineImgui)
+		return;
+
 	VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
 	VkCommandBuffer& commandBuffer = pVlkCommandBuffer->m_commandBuffer;
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
@@ -202,15 +210,22 @@ void VlkRenderer::Cleanup()
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	vkDeviceWaitIdle(device.GetDevice());	  
 
-	vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
-	ImGui_ImplVulkan_Shutdown();
+	if (GetEngineSettings().b_enableEngineImgui)
+	{
+		vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
+		ImGui_ImplVulkan_Shutdown();
+	}
+
 
 	m_pContext->Cleanup();
 	m_pResourceManager->ClearAllResources(m_renderDevice);
 
-	m_pSpriteVertexBuffer->CleanupResource(m_renderDevice);
-	m_pVertexBuffer->CleanupResource(m_renderDevice);
-	m_pIndexBuffer->CleanupResource(m_renderDevice);
+	if (m_pSpriteVertexBuffer)
+		m_pSpriteVertexBuffer->CleanupResource(m_renderDevice);
+	if (m_pSpriteVertexBuffer)
+		m_pVertexBuffer->CleanupResource(m_renderDevice);
+	if (m_pSpriteVertexBuffer)
+		m_pIndexBuffer->CleanupResource(m_renderDevice);
 	SAFEDELETE(m_pSpriteVertexBuffer);
 	SAFEDELETE(m_pVertexBuffer);
 	SAFEDELETE(m_pIndexBuffer);

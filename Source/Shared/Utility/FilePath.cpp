@@ -61,9 +61,12 @@ namespace
 
 FilePath FilePath::ProjectCurrentWorkingDirectory("");
 FilePath FilePath::UserProjectDirectory("");
+FilePath FilePath::ResourceSourceDirectory("");
 FilePath FilePath::AngelscriptDirectory("");
 FilePath FilePath::ShaderResourceDirectory("");
+FilePath FilePath::ShaderCompiledDirectory("");
 FilePath FilePath::TextureResourceSourceDirectory("");
+FilePath FilePath::TextureCompiledDirectory("");
 
 void FilePath::CreateFileObject()
 {
@@ -209,12 +212,21 @@ const FilePath& Hail::FilePath::GetUserProjectDirectory()
     return UserProjectDirectory;
 }
 
+const FilePath& Hail::FilePath::GetResourceSourceDirectory()
+{
+    if (ResourceSourceDirectory.Length() != 0)
+        return ResourceSourceDirectory;
+
+    ResourceSourceDirectory = GetCurrentWorkingDirectory().Parent().Parent() + L"Source/Resources/";
+    return ResourceSourceDirectory;
+}
+
 const FilePath& FilePath::GetAngelscriptDirectory()
 {
     if (AngelscriptDirectory.Length() != 0)
         return AngelscriptDirectory;
 
-    AngelscriptDirectory = FilePath(ANGELSCRIPT_DIR);
+    AngelscriptDirectory = GetCurrentWorkingDirectory() + L"scripts/";
     return AngelscriptDirectory;
 }
 
@@ -223,8 +235,17 @@ const FilePath& Hail::FilePath::GetShaderResourceDirectory()
     if (ShaderResourceDirectory.Length() != 0)
         return ShaderResourceDirectory;
 
-    ShaderResourceDirectory = FilePath(SHADER_DIR_IN);
+    ShaderResourceDirectory = GetCurrentWorkingDirectory().Parent().Parent() + L"Source/Resources/Shaders/";
     return ShaderResourceDirectory;
+}
+
+const FilePath& Hail::FilePath::GetShaderCompiledDirectory()
+{
+    if (ShaderCompiledDirectory.Length() != 0)
+        return ShaderCompiledDirectory;
+
+    ShaderCompiledDirectory = GetCurrentWorkingDirectory() + L"resources/shaders/";
+    return ShaderCompiledDirectory;
 }
 
 const FilePath& Hail::FilePath::GetTextureResourceSourceDirectory()
@@ -232,8 +253,17 @@ const FilePath& Hail::FilePath::GetTextureResourceSourceDirectory()
     if (TextureResourceSourceDirectory.Length() != 0)
         return TextureResourceSourceDirectory;
 
-    TextureResourceSourceDirectory = FilePath(TEXTURES_DIR_IN);
+    TextureResourceSourceDirectory = GetCurrentWorkingDirectory().Parent().Parent() + L"Source/Resources/Textures/";
     return TextureResourceSourceDirectory;
+}
+
+const FilePath& Hail::FilePath::GetTextureCompiledDirectory()
+{
+    if (TextureCompiledDirectory.Length() != 0)
+        return TextureCompiledDirectory;
+
+    TextureCompiledDirectory = GetCurrentWorkingDirectory() + L"resources/textures/";
+    return TextureCompiledDirectory;
 }
 
 int16 Hail::FilePath::FindCommonLowestDirectoryLevel(const FilePath& pathA, const FilePath& pathB)
@@ -294,7 +324,7 @@ Hail::FilePath::FilePath(const FilePath& path, uint32_t lengthOfPath)
     FindExtension(false);
 }
 
-Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
+Hail::FilePath& Hail::FilePath::operator+=(const FilePath& otherPath)
 {
     m_object = otherPath.Object();
     if (otherPath.IsValid())
@@ -322,47 +352,44 @@ Hail::FilePath Hail::FilePath::operator+(const FilePath& otherPath)
     return *this;
 }
 
-Hail::FilePath Hail::FilePath::operator+(const FileObject& object) const
+Hail::FilePath& Hail::FilePath::operator+=(const FileObject& object)
 {
-    FilePath returnPath = *this;
-
-    const bool bSameDirectoryLevel = object.GetDirectoryLevel() == returnPath.GetDirectoryLevel() && returnPath.GetDirectoryLevel() != 0;
-    if (bSameDirectoryLevel && returnPath.Object() == object)
+    const bool bSameDirectoryLevel = object.GetDirectoryLevel() == GetDirectoryLevel() && GetDirectoryLevel() != 0;
+    if (bSameDirectoryLevel && Object() == object)
     {
-        return returnPath;
+        return *this;
     }
 
     uint32_t length = 0;
-    returnPath.m_object = object;
+    m_object = object;
     if (object.IsValid() && m_isDirectory)
     {
-        if (returnPath.m_length != 0 && m_data[returnPath.m_length - 1] == g_Wildcard)
+        if (m_length != 0 && m_data[m_length - 1] == g_Wildcard)
         {
-            returnPath.m_data[--returnPath.m_length] = L'\0';
+            m_data[--m_length] = L'\0';
         }
         length += object.Name().Length();
-        wcscat_s(returnPath.m_data, MAX_FILE_LENGTH - returnPath.m_length, object.Name());
+        wcscat_s(m_data, MAX_FILE_LENGTH - m_length, object.Name());
         if (object.IsDirectory())
         {
-            returnPath.m_data[returnPath.m_length + length++] = g_SourceSeparator;
+            m_data[m_length + length++] = g_SourceSeparator;
         }
         else
         {
-            returnPath.m_data[returnPath.m_length + length++] = L'.';
-            returnPath.m_data[returnPath.m_length + length] = g_End;
+            m_data[m_length + length++] = L'.';
+            m_data[m_length + length] = g_End;
             length += object.Extension().Length();
-            wcscat_s(returnPath.m_data, MAX_FILE_LENGTH - (returnPath.m_length + length), object.Extension());
+            wcscat_s(m_data, MAX_FILE_LENGTH - (m_length + length), object.Extension());
         }
-        returnPath.m_data[returnPath.m_length + length] = g_End;
-        returnPath.m_length += length;
+        m_data[m_length + length] = g_End;
+        m_length += length;
 
-
-        returnPath.FindExtension(true);
+        FindExtension(true);
     }
-    return returnPath;
+    return *this;
 }
 
-Hail::FilePath Hail::FilePath::operator+(const wchar_t* const string)
+Hail::FilePath& Hail::FilePath::operator+=(const wchar_t* const string)
 {
     uint32_t length = wcslen(string);
     if (length > 0)

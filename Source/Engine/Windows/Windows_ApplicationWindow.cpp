@@ -123,25 +123,70 @@ bool Hail::Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::
 	glm::uvec2 resolution = ResolutionFromEnum(startupData.startupWindowResolution);
 	m_previousSize = resolution;
 
-	WNDCLASS windowClass = {};
-	windowClass.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
-	windowClass.lpfnWndProc = Windows_ApplicationWindow::WinProc;
-	windowClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	windowClass.lpszClassName = L"Hail"; // TODO, replace with actual name from startup message
-	//windowClass.hIcon = ::LoadIcon(nullptr, MAKEINTRESOURCE(IDI_ICON)); // for when we create an icon for the window
-	RegisterClass(&windowClass);
-	DWORD windowStyle = 0;
-	//windowStyle = WS_POPUP | WS_VISIBLE;
-	windowStyle = WS_OVERLAPPEDWINDOW | WS_POPUP | WS_VISIBLE;
-	m_windowHandle = CreateWindowW(L"Hail",
-		_T("Hail"), //title of the window
-		windowStyle, // window style
-		m_defaultWindowPosition.x, m_defaultWindowPosition.y, //Position of Window
-		resolution.x, resolution.y, //Size Of Window
-		nullptr, // Parent Window (NULL) 
-		nullptr, // extra menues (NULL) 
-		nullptr, // application handle (NULL) 
-		this); //Use with multiple Windows (NULL) 
+	WNDCLASSEX wcex;
+	wcex.cbSize = sizeof(WNDCLASSEX);
+	wcex.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	wcex.lpfnWndProc = Windows_ApplicationWindow::WinProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = m_windowModule;
+	wcex.hIcon = LoadIcon(wcex.hInstance, IDI_APPLICATION);
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = NULL;
+	wcex.lpszClassName = L"Hail";
+	wcex.hIconSm = LoadIcon(wcex.hInstance, IDI_APPLICATION);
+
+	if (!RegisterClassEx(&wcex))
+	{
+		MessageBox(NULL,
+			_T("Call to RegisterClassEx failed!"),
+			_T("Windows Desktop Guided Tour"),
+			NULL);
+
+		return 1;
+	}
+
+	// The parameters to CreateWindowEx explained:
+	// WS_EX_OVERLAPPEDWINDOW : An optional extended window style.
+	// szWindowClass: the name of the application
+	// szTitle: the text that appears in the title bar
+	// WS_OVERLAPPEDWINDOW: the type of window to create
+	// CW_USEDEFAULT, CW_USEDEFAULT: initial position (x, y)
+	// 500, 100: initial size (width, length)
+	// NULL: the parent of this window
+	// NULL: this application dows not have a menu bar
+	// hInstance: the first parameter from WinMain
+	// NULL: not used in this application
+	m_windowHandle = CreateWindowEx(
+		WS_EX_OVERLAPPEDWINDOW,
+		L"Hail",
+		L"Hail test version",
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, CW_USEDEFAULT,
+		500, 100,
+		NULL,
+		NULL,
+		m_windowModule,
+		NULL
+	);
+
+	if (!m_windowHandle)
+	{
+		MessageBox(NULL,
+			_T("Call to CreateWindow failed!"),
+			_T("Windows Desktop Guided Tour"),
+			NULL);
+
+		return 1;
+	}
+
+	// The parameters to ShowWindow explained:
+	// hWnd: the value returned from CreateWindow
+	// nCmdShow: the fourth parameter from WinMain
+	ShowWindow(m_windowHandle, SW_NORMAL);
+	UpdateWindow(m_windowHandle);
+
 
 	RECT rcClient, rcWind;
 	POINT ptDiff;

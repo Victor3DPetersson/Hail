@@ -19,6 +19,7 @@ namespace Hail
 		static void Deinitialize();
 		static StringMemoryAllocator& GetInstance() { return *m_pInstance; }
 
+		// Deallocates the owning pointer if it already was registered
 		void AllocateString(const char* const pString, uint32 length, char** pOwningPointer);
 		void AllocateString(const wchar_t* const pString, uint32 length, wchar_t** pOwningPointer);
 
