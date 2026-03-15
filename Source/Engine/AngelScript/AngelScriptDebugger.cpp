@@ -821,6 +821,14 @@ void Hail::AngelScript::DebuggerServer::UpdateDuringScriptExecution()
 {
     if (m_bIsDebugging && m_pActiveScript)
     {
+        bool pausedRendering = false;
+
+        if (m_pActiveScript->m_pDebugger->GetStatus() == eScriptExecutionStatus::StoppedExecution)
+        {
+            pausedRendering = true;
+            SetSimulationMode(eEngineSimulationMode::Paused);
+        }
+
         while (m_pActiveScript->m_pDebugger->GetStatus() == eScriptExecutionStatus::StoppedExecution && !IsApplicationTerminated())
         {
             ListenToMessages();
@@ -831,6 +839,12 @@ void Hail::AngelScript::DebuggerServer::UpdateDuringScriptExecution()
                 SendDebuggerMessage(debuggerMessages[iDebugMessage]);
             }
             debuggerMessages.RemoveAll();
+        }
+
+        // Reset engine state
+        if (pausedRendering)
+        {
+            SetSimulationMode(eEngineSimulationMode::Normal);
         }
     }
 }

@@ -22,7 +22,8 @@
 
 - [] Look over the Frame In Flight fences as the tutroial I followed was wrong. 
 - [] Look over all resources that are using frame in flight and remove uneccessary uses. 
-- [] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
+- [x] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
+- [] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
 - [] Create a pipeline to create sprites render commands from AngelScript.
 - [] Fix broken reloading of GPU resources and then remake hot reloading.
 - [] Shader include gets updated, update all shaders that depends on it, so shader dependency tracking. 
@@ -61,7 +62,8 @@
 - [] Angelscript, replace std::string with our own string class.
 - [x] Angelscript, add debugging support in VS code.
 - [x] Angelscript, implement the input handler and debug commands to the scripts.
-- [] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
+- [x] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
+- [] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
 - [] Angelscript, improve hot reloading and make hotreloading when changing dependency files.
 - [] Fix broken reloading of GPU resources and then remake hot reloading.
 - [x] Context upload once function.

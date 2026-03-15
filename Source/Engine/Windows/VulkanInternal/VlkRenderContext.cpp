@@ -955,6 +955,7 @@ void Hail::VlkRenderContext::StartFrame()
 {
     H_ASSERT(m_currentState == eContextState::TransitionBetweenStates && m_pCurrentCommandBuffer == nullptr);
     m_currentRenderFrame++;
+
     m_pBoundTextures.Fill(nullptr);
     m_pBoundStructuredBuffers.Fill(nullptr);
     m_pBoundUniformBuffers.Fill(nullptr);

@@ -203,9 +203,9 @@ void Hail::ImGuiCommandManager::DeInit()
 	g_assetBrowser.DeInit();
 }
 
-void Hail::ImGuiCommandManager::RenderImguiCommands(RenderContext* pRenderContext)
+void Hail::ImGuiCommandManager::RenderImguiCommands(RenderParams renderParams)
 {
-	if (!GetEngineSettings().b_enableEngineImgui)
+	if (!renderParams.m_pFrameRenderSettings->m_bEnableImgui)
 		return;
 
 	ImGuiCommandRecorder& recorder = m_commandRecorder[m_readCommandRecorder];
@@ -361,14 +361,14 @@ void Hail::ImGuiCommandManager::RenderImguiCommands(RenderContext* pRenderContex
 			SendImGuiPopCommand(m_pushedTypeStack.RemoveLast());
 		}
 	}
-	RenderEngineImgui(pRenderContext);
+	RenderEngineImgui(renderParams.m_pRenderContext);
 }
-void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread, RenderContext* pRenderContext)
+void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplicationThread, RenderParams renderParams)
 {
-	if (!GetEngineSettings().b_enableEngineImgui)
+	if (!renderParams.m_pFrameRenderSettings->m_bEnableImgui)
 		return;
 
-	RenderImguiCommands(pRenderContext);
+	RenderImguiCommands(renderParams);
 	bool succesfulSetup = true;
 	if (m_successfullySetupSingleRenderSystem)
 	{
@@ -386,7 +386,7 @@ void Hail::ImGuiCommandManager::RenderSingleImguiCommand(bool& unlockApplication
 		RenderErrorModal(unlockApplicationThread);
 	}
 
-	RenderEngineImgui(pRenderContext);
+	RenderEngineImgui(renderParams.m_pRenderContext);
 
 	if (unlockApplicationThread)
 	{

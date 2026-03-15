@@ -1,6 +1,7 @@
 #pragma once
 #include "Types.h"
 #include "ResourceCommon.h"
+#include "Settings.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "CloudParticleSimulator.h"
 
@@ -87,7 +88,14 @@ namespace Hail
 		void Initialize(ErrorManager* pErrorManager);
 		void Cleanup();
 
-		void Prepare(RenderCommandPool& poolOfCommands);
+		//Look at making a renderer class and unify the interfaces for Init, Cleanup, Prepare and Render
+		struct PrepareParams
+		{
+			RenderSettings m_frameRenderSettings;
+			RenderCommandPool* m_pPoolOfCommands;
+		};
+
+		void Prepare(PrepareParams prepareParams);
 		void Render();
 
 	private:
@@ -162,6 +170,8 @@ namespace Hail
 
 		bool m_bUpdatedParticleGrid = false;
 		bool m_bSimulateGrid = false;
+
+		RenderSettings m_frameRenderSettings;
 	};
 
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "Types.h"
 
+#include "Settings.h"
 #include "ResourceCommon.h"
 #include "Resources_Materials\Materials_Common.h"
 
@@ -99,7 +100,6 @@ namespace Hail
 		void EndTransferPass();
 		void StartComputePass();
 		virtual void EndComputePass();
-
 
 		virtual void StartFrame() = 0;
 		virtual void EndCurrentPass(uint32 nextShaderStage) = 0;

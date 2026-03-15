@@ -48,7 +48,7 @@ void Hail::VlkRenderer::Initialize(ErrorManager* pErrorManager)
 	Renderer::Initialize(pErrorManager);
 
 	////clear font textures from cpu data, so clearing ImGui for Vlk
-	if (GetEngineSettings().b_enableEngineImgui)
+	if (m_renderFrameSettings.m_bEnableImgui)
 		ImGui_ImplVulkan_DestroyFontUploadObjects();
 }
 
@@ -68,7 +68,7 @@ void Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceMa
 
 void VlkRenderer::InitImGui()
 {
-	if (!GetEngineSettings().b_enableEngineImgui)
+	if (!m_renderFrameSettings.m_bEnableImgui)
 		return;
 
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
@@ -141,10 +141,10 @@ void Hail::VlkRenderer::WaitForGPU()
 	vkDeviceWaitIdle(device.GetDevice());
 }
 
-void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
+void Hail::VlkRenderer::StartFrame(RenderStartFrameParams startParams)
 {
-	Renderer::StartFrame(renderPool);
-	if (GetEngineSettings().b_enableEngineImgui)
+	Renderer::StartFrame(startParams);
+	if (m_renderFrameSettings.m_bEnableImgui)
 	{
 		ImGui_ImplWin32_NewFrame();
 		ImGui_ImplVulkan_NewFrame();
@@ -154,7 +154,7 @@ void Hail::VlkRenderer::StartFrame(RenderCommandPool& renderPool)
 
 void VlkRenderer::Render()
 {
-	if (GetEngineSettings().b_enableEngineImgui)
+	if (m_renderFrameSettings.m_bEnableImgui)
 		ImGui::Render();
 
 	const uint32_t currentFrame = m_swapChain->GetFrameInFlight();
@@ -195,7 +195,7 @@ void Hail::VlkRenderer::RenderMesh(const RenderData_Mesh& meshCommandToRender, u
 
 void Hail::VlkRenderer::RenderImGui()
 {
-	if (!GetEngineSettings().b_enableEngineImgui)
+	if (!m_renderFrameSettings.m_bEnableImgui)
 		return;
 
 	VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
@@ -207,10 +207,13 @@ void VlkRenderer::Cleanup()
 {
 	Renderer::Cleanup();
 
+	if (!m_renderDevice)
+		return;
+
 	VlkDevice& device = *(VlkDevice*)(m_renderDevice);
 	vkDeviceWaitIdle(device.GetDevice());	  
 
-	if (GetEngineSettings().b_enableEngineImgui)
+	if (m_renderFrameSettings.m_bEnableImgui)
 	{
 		vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();

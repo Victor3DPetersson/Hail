@@ -3,6 +3,7 @@
 #include <atomic>
 
 #include "StartupAttributes.h"
+#include <Settings.h>
 #include "ResourceCommon.h"
 #include "Resources\MaterialResources.h"
 #include "Rendering\SwapChain.h"
@@ -37,8 +38,14 @@ namespace Hail
 		virtual void Cleanup();
 		virtual void InitDevice(Timer* pTimer, ErrorManager* pErrorManager) = 0;
 		virtual void InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
+
+		struct RenderStartFrameParams
+		{
+			RenderCommandPool* m_pRenderPool;
+			RenderSettings m_renderSettings;
+		};
 		//Always call virtual version of this function after swapchain has finished the previous frame
-		virtual void StartFrame(RenderCommandPool& renderPool);
+		virtual void StartFrame(RenderStartFrameParams startParams);
 		void Prepare();
 		void EndFrame();
 		virtual void Render();
@@ -74,6 +81,7 @@ namespace Hail
 		RenderingDevice* m_renderDevice = nullptr;
 		RenderCommandPool* m_commandPoolToRender = nullptr;
 		RenderContext* m_pContext = nullptr;
+		RenderSettings m_renderFrameSettings;
 		uint64 m_currentlyBoundPipeline{};
 	};
 }

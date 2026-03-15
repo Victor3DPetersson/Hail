@@ -1,17 +1,21 @@
+#pragma once
 #include "Types.h"
 
 namespace Hail
 {
-	struct Settings
+	class RenderSettings
 	{
-		bool b_enableGpuDebugDrawing = true; // TODO make a gpu piupeline to fill debugging from Compute passes
-		bool b_enableGpuParticles = true;
+	public:
+		bool m_bPausedSimulation = false; // All GPU simulation and the frame interpolation will come to a halt
+		bool m_bEnableGpuDebugDrawing = true; // TODO make a gpu pipeline to fill debugging from Compute passes
+		bool m_bEnableGpuParticles = true;
 #ifndef NDEBUG
-		bool b_enableEngineImgui = true;
+		bool m_bEnableImgui = true;
 #else
 		// TODO: hook up to be connected to commandline arguments
-		bool b_enableEngineImgui = false;
+		bool m_bEnableImgui = false;
 #endif
 	};
+
 
 }

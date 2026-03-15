@@ -33,6 +33,9 @@
 //#elif PLATFORM_OSX//.... more to be added
 
 #endif
+
+using namespace Hail;
+
 namespace Hail
 {
 	struct EngineData
@@ -48,8 +51,10 @@ namespace Hail
 		ImGuiCommandManager imguiCommandRecorder;
 		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
-		Settings settings;
+		RenderSettings m_renderSettings;
 
+		// TODO move all atomics to its own class to structure it up better
+		std::atomic<bool> m_bPauseSimulation = false;
 		std::atomic<bool> runApplication = false;
 		std::atomic<bool> pauseApplication = false;
 		std::atomic<bool> runMainThread = false;
@@ -70,6 +75,9 @@ namespace Hail
 	void ProcessRendering(const bool applicationThreadLocked);
 	void ProcessApplicationThread();
 	void Cleanup();
+
+	// Transfers atomic settings, syncs the non atomic flags and sets the settings in the rendering systems
+	void TransferSettings();
 }
 
 bool Hail::InitEngine(StartupAttributes& startupData)
@@ -171,11 +179,6 @@ const Hail::Timer& Hail::GetRenderLoopTimer()
 	return g_engineData->timer;
 }
 
-Hail::Settings& Hail::GetEngineSettings()
-{
-	return g_engineData->settings;
-}
-
 bool Hail::IsRunning()
 {
 	return g_engineData->runApplication.load();
@@ -197,6 +200,19 @@ Hail::ApplicationWindow* Hail::GetApplicationWIndow()
 	return g_engineData->appWindow;
 }
 
+void Hail::SetSimulationMode(Hail::eEngineSimulationMode simulationMode)
+{
+	if (simulationMode == eEngineSimulationMode::Paused)
+	{
+		std::atomic_exchange(&g_engineData->m_bPauseSimulation, true);
+	}
+	else
+	{
+		std::atomic_exchange(&g_engineData->m_bPauseSimulation, false);
+	}
+}
+
+
 void Hail::MainLoop()
 {
 	bool lockApplicationThread = false;
@@ -207,9 +223,11 @@ void Hail::MainLoop()
 
 		// Updates window state and checks for input messages from OS
 		engineData.appWindow->ApplicationUpdateLoop();
-		const glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
 
-		if(lockApplicationThread == false)
+		TransferSettings();
+
+		const glm::uvec2 resolution = Hail::GetApplicationWIndow()->GetWindowResolution();
+		if(lockApplicationThread == false && g_engineData->m_renderSettings.m_bPausedSimulation == false)
 		{
 			engineData.threadSynchronizer.SynchronizeRenderData(engineData.timer.GetDeltaTime());
 		}
@@ -256,12 +274,21 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 {
 	EngineData& engineData = *g_engineData;
 	Hail::InputMapping& inputMapping = g_engineData->inputHandler->GetInputMapping();
-	engineData.renderer->StartFrame(g_engineData->threadSynchronizer.GetRenderPool());
+
+	Renderer::RenderStartFrameParams startFrameParams;
+	startFrameParams.m_pRenderPool = &g_engineData->threadSynchronizer.GetRenderPool();
+	startFrameParams.m_renderSettings = g_engineData->m_renderSettings;
+
+	engineData.renderer->StartFrame(startFrameParams);
 	engineData.renderer->Prepare();
+
+	ImGuiCommandManager::RenderParams imGuiRenderParams;
+	imGuiRenderParams.m_pFrameRenderSettings = &g_engineData->m_renderSettings;
+	imGuiRenderParams.m_pRenderContext = g_engineData->renderer->GetCurrentContext();
 	if (applicationThreadLocked)
 	{
 		bool unlockApplicationThread = false;
-		engineData.imguiCommandRecorder.RenderSingleImguiCommand(unlockApplicationThread, g_engineData->renderer->GetCurrentContext());
+		engineData.imguiCommandRecorder.RenderSingleImguiCommand(unlockApplicationThread, imGuiRenderParams);
 		if (unlockApplicationThread)
 		{
 			engineData.pauseApplication = false;
@@ -272,7 +299,7 @@ void Hail::ProcessRendering(const bool applicationThreadLocked)
 	}
 	else
 	{
-		engineData.imguiCommandRecorder.RenderImguiCommands(g_engineData->renderer->GetCurrentContext());
+		engineData.imguiCommandRecorder.RenderImguiCommands(imGuiRenderParams);
 	}
 
 	engineData.renderer->Render();
@@ -332,4 +359,10 @@ void Hail::Cleanup()
 	SAFEDELETE(g_engineData->resourceManager);
 	SAFEDELETE(g_engineData);
 	InternalMessageLogger::Deinitialize();
+}
+
+void Hail::TransferSettings()
+{
+	g_engineData->m_renderSettings.m_bPausedSimulation = g_engineData->m_bPauseSimulation;
+
 }

@@ -34,7 +34,6 @@ void Hail::Renderer::Initialize(ErrorManager* pErrorManager)
 
 void Hail::Renderer::Cleanup()
 {
-	H_ASSERT(m_renderDevice, "Base function must be called before cleaning up the child.");
 	if (m_pFontRenderer)
 		m_pFontRenderer->Cleanup();
 	SAFEDELETE(m_pFontRenderer);
@@ -46,9 +45,10 @@ void Hail::Renderer::Cleanup()
 	SAFEDELETE(m_pDebugRenderingManager);
 }
 
-void Hail::Renderer::StartFrame(RenderCommandPool& renderPool)
+void Hail::Renderer::StartFrame(RenderStartFrameParams startParams)
 {
-	m_commandPoolToRender = &renderPool;
+	m_commandPoolToRender = startParams.m_pRenderPool;
+	m_renderFrameSettings = startParams.m_renderSettings;
 	m_pContext->StartFrame();
 }
 
@@ -58,7 +58,11 @@ void Hail::Renderer::Prepare()
 	m_pResourceManager->ReloadResources();
 	m_pResourceManager->UpdateRenderBuffers(*m_commandPoolToRender, m_pContext, m_timer);
 	m_pFontRenderer->Prepare(*m_commandPoolToRender);
-	m_pCloudRenderer->Prepare(*m_commandPoolToRender);
+	// TODO Should be a unified prepare struct for all renderers. 
+	CloudRenderer::PrepareParams cloudPrepareParams;
+	cloudPrepareParams.m_pPoolOfCommands = m_commandPoolToRender;
+	cloudPrepareParams.m_frameRenderSettings = m_renderFrameSettings;
+	m_pCloudRenderer->Prepare(cloudPrepareParams);
 	m_pDebugRenderingManager->Prepare(*m_commandPoolToRender);
 }
 

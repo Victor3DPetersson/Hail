@@ -3,8 +3,7 @@
 #include "Windows_ApplicationWindow.h"
 
 
-
-
+#include "InternalMessageHandling/ErrorHandler.h"
 #include "Windows_InputHandler.h"
 #include "Input/InputHandler.h"
 #include "HailEngine.h"
@@ -139,14 +138,10 @@ bool Hail::Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::
 
 	if (!RegisterClassEx(&wcex))
 	{
-		MessageBox(NULL,
-			_T("Call to RegisterClassEx failed!"),
-			_T("Windows Desktop Guided Tour"),
-			NULL);
-
-		return 1;
+		startupData.m_pErrorManager->AddErrors(EStartupErrors::InitApplicationWindow, EErrorType::Startup);
+		startupData.m_pErrorManager->AddString("Call to RegisterClassEx failed!");
+			return false;
 	}
-
 	// The parameters to CreateWindowEx explained:
 	// WS_EX_OVERLAPPEDWINDOW : An optional extended window style.
 	// szWindowClass: the name of the application
@@ -173,12 +168,10 @@ bool Hail::Windows_ApplicationWindow::Init(StartupAttributes startupData, Hail::
 
 	if (!m_windowHandle)
 	{
-		MessageBox(NULL,
-			_T("Call to CreateWindow failed!"),
-			_T("Windows Desktop Guided Tour"),
-			NULL);
+		startupData.m_pErrorManager->AddString("Call to CreateWindow failed!");
+		startupData.m_pErrorManager->AddErrors(EStartupErrors::InitApplicationWindow, EErrorType::Startup);
 
-		return 1;
+		return false;
 	}
 
 	// The parameters to ShowWindow explained:

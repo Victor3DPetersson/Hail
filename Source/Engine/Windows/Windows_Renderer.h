@@ -18,7 +18,7 @@ namespace Hail
 		void Initialize(ErrorManager* pErrorManager) override;
 		void InitDevice(Timer* pTimer, ErrorManager* pErrorManager) override;
 		void InitGraphicsEngineAndContext(ResourceManager* resourceManager) override;
-		void StartFrame(RenderCommandPool& renderPool) override;
+		void StartFrame(RenderStartFrameParams startParams) override;
 		void Render() override;
 		void Cleanup() override;
 		void InitImGui() override;

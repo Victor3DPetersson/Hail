@@ -23,6 +23,7 @@ namespace Hail
 		InitRenderingResourceManager = 256,
 		InitSwapChain = 512,
 		InitGpuDevice = 1024,
+		InitApplicationWindow = 2048
 	};
 
 	class ErrorManager

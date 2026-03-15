@@ -645,20 +645,25 @@ namespace Hail
 		return fmodf(p, 1.0f);
 	}
 
-	void CloudRenderer::Prepare(RenderCommandPool& poolOfCommands)
+	void CloudRenderer::Prepare(PrepareParams prepareParams)
 	{
+		RenderCommandPool& poolOfCommands = *prepareParams.m_pPoolOfCommands;
+
+		m_frameRenderSettings = prepareParams.m_frameRenderSettings;
+
 		const float aspectRatio = m_pResourceManager->GetSwapChain()->GetTargetHorizontalAspectRatio();
 		bool bRespawnParticles = false;
-		if (GetEngineSettings().b_enableEngineImgui)
+
+		if (m_frameRenderSettings.m_bEnableImgui && m_frameRenderSettings.m_bEnableGpuParticles)
 		{
 			ImGui::Begin("Particle test window");
-			ImGui::Checkbox("Render GPU particles", &GetEngineSettings().b_enableGpuParticles);
 		}
-		if (GetEngineSettings().b_enableGpuParticles)
+
+		if (m_frameRenderSettings.m_bEnableGpuParticles)
 		{
 			m_ParticleUniforms.bSimulateCloud = true;
 
-			if (GetEngineSettings().b_enableEngineImgui)
+			if (m_frameRenderSettings.m_bEnableImgui)
 			{
 				ImGui::SliderFloat("Mouse force", &m_ParticleUniforms.mouseForceStrength, 0.f, 100.f);
 				ImGui::SliderFloat("Mouse radius", &m_ParticleUniforms.mouseForceRadius, 0.f, 1.f);
@@ -710,7 +715,7 @@ namespace Hail
 			if (numberOfCloudsToAdd)
 				bRespawnParticles = true;
 
-			if (GetEngineSettings().b_enableEngineImgui)
+			if (m_frameRenderSettings.m_bEnableImgui)
 			{
 				if (ImGui::TreeNode("Clouds"))
 				{
@@ -761,7 +766,7 @@ namespace Hail
 		RenderContext* pContext = m_pRenderer->GetCurrentContext();
 		pContext->StartTransferPass();
 
-		if (GetEngineSettings().b_enableGpuParticles)
+		if (m_frameRenderSettings.m_bEnableGpuParticles)
 		{
 			if (bRespawnParticles)
 			{
@@ -785,7 +790,7 @@ namespace Hail
 
 		pContext->EndTransferPass();
 
-		if (GetEngineSettings().b_enableEngineImgui)
+		if (m_frameRenderSettings.m_bEnableImgui)
 			ImGui::End();
 
 	}
@@ -798,7 +803,9 @@ namespace Hail
 
 		pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
 
-		if (GetEngineSettings().b_enableGpuParticles)
+		bool bSimulationPaused = m_frameRenderSettings.m_bPausedSimulation;
+
+		if (m_frameRenderSettings.m_bEnableGpuParticles)
 		{
 			SortConstants sortingConstants{};
 			// Will be number of Active Particles
@@ -811,97 +818,98 @@ namespace Hail
 			pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
 			pContext->SetBufferAtSlot(m_pDynamicParticleVariableBuffer, 4);
 
-			if (m_bRespawnParticles)
+			if (!bSimulationPaused)
 			{
-				pContext->SetBufferAtSlot(m_pCloudListBuffer, 5);
+				if (m_bRespawnParticles)
+				{
+					pContext->SetBufferAtSlot(m_pCloudListBuffer, 5);
 
-				pContext->BindMaterial(m_pSimulationUpdateParticleListFromCPU->m_pPipeline);
-				glm::uvec4 pushConstants = glm::uvec4(0);
-				pushConstants.x = m_numberOfPointsPerPixelInClouds;
-				pContext->SetPushConstantValue(&pushConstants);
-				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-				m_bRespawnParticles = false;
-			}
+					pContext->BindMaterial(m_pSimulationUpdateParticleListFromCPU->m_pPipeline);
+					glm::uvec4 pushConstants = glm::uvec4(0);
+					pushConstants.x = m_numberOfPointsPerPixelInClouds;
+					pContext->SetPushConstantValue(&pushConstants);
+					pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+					m_bRespawnParticles = false;
+				}
 
-			pContext->BindMaterial(m_pSimulationUpdateUniforms->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-
-			// Clearing lookup data and setting data straight
-			pContext->SetBufferAtSlot(m_pParticleLookupSortIndicesBufferWrite, 5);
-			pContext->BindMaterial(m_pSimulationClearPartialLookup->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-
-			pContext->CopyDataToBuffer(m_pParticleLookupBufferRead, m_pParticleLookupBufferWrite);
-			pContext->CopyDataToBuffer(m_pParticleLookupSortIndicesBufferRead, m_pParticleLookupSortIndicesBufferWrite);
-			// Sort the data
-			for (uint32 i = 0; i < NumberOfDispatches; i++)
-			{
-				// Build Histogram
-				BufferObject* pReadBuffer = m_pParticleLookupSortIndicesBufferRead;
-				BufferObject* pWriteBuffer = m_pParticleLookupSortIndicesBufferWrite;
-
-				pContext->SetBufferAtSlot(pReadBuffer, 1);
-				pContext->SetBufferAtSlot(m_pParticleSortLocalHistogramBuffer, 2);
-
-				pContext->BindMaterial(m_pRadixBuildHistogramPipeline->m_pPipeline);
-
-				sortingConstants.currentOffset = i * 4u; // 4 bit shift per dispatch round
-				pContext->SetPushConstantValue(&sortingConstants);
-
+				pContext->BindMaterial(m_pSimulationUpdateUniforms->m_pPipeline);
 				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 
-				// Build OffsetTable
-
-				pContext->SetBufferAtSlot(m_pParticleSortLocalHistogramBuffer, 1);
-				pContext->SetBufferAtSlot(m_pParticleSortGlobalHistogramBuffer, 2);
-				pContext->SetBufferAtSlot(m_pParticleSortBucketOffsetBuffer, 3);
-
-				pContext->BindMaterial(m_pRadixBuildOffsetTablePipeline->m_pPipeline);
-
-				pContext->Dispatch(glm::uvec3(1u, 1u, 1u));
-
-				//// Reshuffle the data
-
-				pContext->SetBufferAtSlot(pReadBuffer, 1);
-				pContext->SetBufferAtSlot(pWriteBuffer, 2);
-				pContext->SetBufferAtSlot(m_pParticleSortGlobalHistogramBuffer, 3);
-				pContext->SetBufferAtSlot(m_pParticleSortBucketOffsetBuffer, 4);
-
-				pContext->SetBufferAtSlot(m_pParticleLookupBufferRead, 5);
-				pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 6);
-
-				pContext->BindMaterial(m_pRadixShuffleDataPipeline->m_pPipeline);
-
+				// Clearing lookup data and setting data straight
+				pContext->SetBufferAtSlot(m_pParticleLookupSortIndicesBufferWrite, 5);
+				pContext->BindMaterial(m_pSimulationClearPartialLookup->m_pPipeline);
 				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 
-				// Copy data from Write to read for next pass
-				pContext->CopyDataToBuffer(pReadBuffer, pWriteBuffer);
 				pContext->CopyDataToBuffer(m_pParticleLookupBufferRead, m_pParticleLookupBufferWrite);
+				pContext->CopyDataToBuffer(m_pParticleLookupSortIndicesBufferRead, m_pParticleLookupSortIndicesBufferWrite);
+				// Sort the data
+				for (uint32 i = 0; i < NumberOfDispatches; i++)
+				{
+					// Build Histogram
+					BufferObject* pReadBuffer = m_pParticleLookupSortIndicesBufferRead;
+					BufferObject* pWriteBuffer = m_pParticleLookupSortIndicesBufferWrite;
+
+					pContext->SetBufferAtSlot(pReadBuffer, 1);
+					pContext->SetBufferAtSlot(m_pParticleSortLocalHistogramBuffer, 2);
+
+					pContext->BindMaterial(m_pRadixBuildHistogramPipeline->m_pPipeline);
+
+					sortingConstants.currentOffset = i * 4u; // 4 bit shift per dispatch round
+					pContext->SetPushConstantValue(&sortingConstants);
+
+					pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+					// Build OffsetTable
+					pContext->SetBufferAtSlot(m_pParticleSortLocalHistogramBuffer, 1);
+					pContext->SetBufferAtSlot(m_pParticleSortGlobalHistogramBuffer, 2);
+					pContext->SetBufferAtSlot(m_pParticleSortBucketOffsetBuffer, 3);
+
+					pContext->BindMaterial(m_pRadixBuildOffsetTablePipeline->m_pPipeline);
+
+					pContext->Dispatch(glm::uvec3(1u, 1u, 1u));
+
+					//// Reshuffle the data
+					pContext->SetBufferAtSlot(pReadBuffer, 1);
+					pContext->SetBufferAtSlot(pWriteBuffer, 2);
+					pContext->SetBufferAtSlot(m_pParticleSortGlobalHistogramBuffer, 3);
+					pContext->SetBufferAtSlot(m_pParticleSortBucketOffsetBuffer, 4);
+
+					pContext->SetBufferAtSlot(m_pParticleLookupBufferRead, 5);
+					pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 6);
+
+					pContext->BindMaterial(m_pRadixShuffleDataPipeline->m_pPipeline);
+
+					pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+
+					// Copy data from Write to read for next pass
+					pContext->CopyDataToBuffer(pReadBuffer, pWriteBuffer);
+					pContext->CopyDataToBuffer(m_pParticleLookupBufferRead, m_pParticleLookupBufferWrite);
+				}
+
+				pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
+				pContext->SetBufferAtSlot(m_pParticleBuffer, 1);
+				pContext->SetBufferAtSlot(m_pParticleLookupStartIndicesBuffer, 2);
+				pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
+				pContext->SetBufferAtSlot(m_pDynamicParticleVariableBuffer, 4);
+
+				// Build lookup table and update max velocity
+				pContext->BindMaterial(m_pSimulationBuildPartialLookup->m_pPipeline);
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+				// Density
+				pContext->BindMaterial(m_pSimulationCalculateDensity->m_pPipeline);
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+				// Intermediate Velocity
+				pContext->SetTextureAtSlot(m_pSdfView, 5);
+				pContext->SetBufferAtSlot(m_pCloudListBuffer, 6);
+				pContext->BindMaterial(m_pSimulationCalculateIntermediateVelocity->m_pPipeline);
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+				// Pressure Force
+				pContext->BindMaterial(m_pSimulationCalculatePressureForce->m_pPipeline);
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
+				// Apply everything
+				pContext->BindMaterial(m_pSimulationApplyPosition->m_pPipeline);
+				pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 			}
-
-			pContext->SetBufferAtSlot(m_pParticleUniformBuffer, 0);
-			pContext->SetBufferAtSlot(m_pParticleBuffer, 1);
-			pContext->SetBufferAtSlot(m_pParticleLookupStartIndicesBuffer, 2);
-			pContext->SetBufferAtSlot(m_pParticleLookupBufferWrite, 3);
-			pContext->SetBufferAtSlot(m_pDynamicParticleVariableBuffer, 4);
-
-			// Build lookup table and update max velocity
-			pContext->BindMaterial(m_pSimulationBuildPartialLookup->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-			// Density
-			pContext->BindMaterial(m_pSimulationCalculateDensity->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-			// Intermediate Velocity
-			pContext->SetTextureAtSlot(m_pSdfView, 5);
-			pContext->SetBufferAtSlot(m_pCloudListBuffer, 6);
-			pContext->BindMaterial(m_pSimulationCalculateIntermediateVelocity->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-			// Pressure Force
-			pContext->BindMaterial(m_pSimulationCalculatePressureForce->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
-			// Apply everything
-			pContext->BindMaterial(m_pSimulationApplyPosition->m_pPipeline);
-			pContext->Dispatch(glm::uvec3(sortingConstants.numberOfGroups, 1u, 1u));
 
 			pContext->SetTextureAtSlot(m_pParticleCoverageViewWrite[currentDoubleBufferWrite], 5);
 
@@ -935,7 +943,6 @@ namespace Hail
 		pContext->BindMaterial(m_pCollectJFAPipeline->m_pPipeline);
 
 		pContext->Dispatch(glm::uvec3(resolution.x / 64u, resolution.y / 8u, 1u));
-
 
 
 		pContext->SetTextureAtSlot(m_pParticleCoverageViewRead[currentDoubleBufferWrite], 1);

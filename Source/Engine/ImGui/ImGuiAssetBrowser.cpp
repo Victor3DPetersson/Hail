@@ -379,7 +379,6 @@ void Hail::ImGuiAssetBrowser::InitFolder(RenderContext* pRenderContext, const Fi
 	const uint32 directoryLevel = fileObject.GetDirectoryLevel() - m_fileSystem.GetBaseDepth();
 	GrowingArray<TextureFolder>& foldersAtLevel = m_ImGuiTextureResources[directoryLevel];
 	RelativeFilePath path = RelativeFilePath(m_fileSystem.GetCurrentFilePath());
-	FilePath path2 = m_fileSystem.GetCurrentFilePath();
 
 	//check if folder already has been initialized and created, if it has, clear it
 	for (size_t i = 0; i < foldersAtLevel.Size(); i++)

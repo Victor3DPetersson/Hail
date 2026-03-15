@@ -341,17 +341,17 @@ namespace Hail
 		{
 			commandPoolToFill.AddSpriteCommand(player);
 			commandPoolToFill.playerPosition = player.transform.GetPosition();
-			//g_textCounter.transform.SetPosition(player.transform.GetPosition() + glm::vec2(-140, -55));
-			//g_textCounterNumber.transform.SetPosition(player.transform.GetPosition() + glm::vec2(30, -55));
+			g_textCounter.transform.SetPosition(player.transform.GetPosition() + glm::vec2(-140, -55));
+			g_textCounterNumber.transform.SetPosition(player.transform.GetPosition() + glm::vec2(30, -55));
 			//DrawCircle2DPixelSpace(commandPoolToFill, player.transform.GetPosition(), 10.0f, true);
-			//commandPoolToFill.AddTextCommand(g_textCounter);
-			//commandPoolToFill.AddTextCommand(g_textCounterNumber);
+			commandPoolToFill.AddTextCommand(g_textCounter);
+			commandPoolToFill.AddTextCommand(g_textCounterNumber);
 		}
 		else
 		{
-			//g_textCommand1.transform.SetRotationEuler(-90 + g_frameCounter);
+			g_textCommand1.transform.SetRotationEuler(-90 + g_frameCounter);
 		}
-		//commandPoolToFill.AddTextCommand(g_textCommand1);
+		commandPoolToFill.AddTextCommand(g_textCommand1);
 		commandPoolToFill.camera2D = g_2DCamera;
 		commandPoolToFill.m_meshCommands.Add(Hail::GameCommand_Mesh());
 

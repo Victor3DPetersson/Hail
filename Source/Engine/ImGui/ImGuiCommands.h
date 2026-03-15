@@ -11,6 +11,7 @@ namespace Hail
 {
 	class ResourceManager;
 	class RenderContext;
+	class RenderSettings;
 
 	constexpr uint32_t MAX_NUMBER_OF_IMGUI_RESPONSES = 1024;
 
@@ -106,8 +107,13 @@ namespace Hail
 	public:
 		void Init(ResourceManager* resourceManager);
 		void DeInit();
-		void RenderImguiCommands(RenderContext* pRenderContext);
-		void RenderSingleImguiCommand(bool& unlockApplicationThread, RenderContext* pRenderContext);
+		struct RenderParams
+		{
+			RenderSettings* m_pFrameRenderSettings;
+			RenderContext* m_pRenderContext;
+		};
+		void RenderImguiCommands(RenderParams renderParams);
+		void RenderSingleImguiCommand(bool& unlockApplicationThread, RenderParams renderParams);
 		void SwitchCommandBuffers(bool& shouldLockApplicationThread);
 		//Figure out what to do with this later
 		ImGuiCommandRecorder& FetchImguiResults() { return m_commandRecorder[m_writeCommandRecorder]; }
