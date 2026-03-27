@@ -47,7 +47,7 @@ namespace Hail
 		VkPhysicalDevice& GetPhysicalDevice() { return m_physicalDevice; }
 		SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
 		QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
-		VkCommandPool GetCommandPool() { return m_commandPool; }
+		VkCommandPool* GetCommandPool(uint32 frame) { return &m_commandPools[frame]; }
 		VkQueue GetGraphicsQueue() { return m_graphicsQueue; }
 		VkQueue GetPresentQueue() { return m_presentQueue; }
 		VkQueue GetComputeQueue() { return m_computeQueue; }
@@ -64,7 +64,7 @@ namespace Hail
 		
 		void CreateLogicalDevice();
 		void CreateWindowsSurface();
-		void CreateCommandPool();
+		void CreateCommandPool(ErrorManager* pErrorManager);
 
 		VkInstance m_vkInstance = VK_NULL_HANDLE;
 		VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
@@ -74,7 +74,9 @@ namespace Hail
 		VkQueue m_graphicsQueue = VK_NULL_HANDLE;
 		VkQueue m_presentQueue = VK_NULL_HANDLE;
 		VkQueue m_computeQueue = VK_NULL_HANDLE;
-		VkCommandPool m_commandPool = VK_NULL_HANDLE;
+
+		VkCommandPool m_commandPools[MAX_FRAMESINFLIGHT];
+
 
 		VmaAllocator m_vmaAllocator;
 

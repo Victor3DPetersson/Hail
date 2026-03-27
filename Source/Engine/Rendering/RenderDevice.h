@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../Engine_ResourceHandling/ResourceCommon.h"
+
 namespace Hail
 {
 	class ErrorManager;

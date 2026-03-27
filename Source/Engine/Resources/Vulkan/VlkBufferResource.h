@@ -23,6 +23,6 @@ namespace Hail
 
 		VmaAllocation m_allocation[MAX_FRAMESINFLIGHT];
 		VmaAllocationInfo m_allocationInfo[MAX_FRAMESINFLIGHT]; // used in persistent mapping
-		VkBuffer m_buffer[MAX_FRAMESINFLIGHT];
+		VkBuffer m_buffer[MAX_FRAMESINFLIGHT] = { VK_NULL_HANDLE, VK_NULL_HANDLE };
 	};
 }

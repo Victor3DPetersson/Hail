@@ -17,7 +17,7 @@ namespace Hail
 	public:
 		void Initialize(ErrorManager* pErrorManager) override;
 		void InitDevice(Timer* pTimer, ErrorManager* pErrorManager) override;
-		void InitGraphicsEngineAndContext(ResourceManager* resourceManager) override;
+		void InitGraphicsEngineAndContext(ResourceManager* resourceManager, ErrorManager* pErrorManager) override;
 		void StartFrame(RenderStartFrameParams startParams) override;
 		void Render() override;
 		void Cleanup() override;
@@ -31,7 +31,12 @@ namespace Hail
 	
 		VlkSwapChain* m_swapChain = nullptr;
 
-		VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
+
+		struct VkImGuiSupportData
+		{
+			VkCommandBuffer m_commandBuffer;
+			VkDescriptorPool m_imguiPool = VK_NULL_HANDLE;
+		}m_imguiVkData;
 	};
 }
 

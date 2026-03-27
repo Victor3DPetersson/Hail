@@ -20,9 +20,9 @@ bool localIsValidPairOfAccessQualifiers(eShaderAccessQualifier qualifierA, eShad
 		return qualifierA == qualifierB;
 }
 
-RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pResourceManager)
-	: m_pDevice(device)
-	, m_pResourceManager(pResourceManager)
+RenderContext::RenderContext(RenderContextStartupParams renderContextStartParams)
+	: m_pDevice(renderContextStartParams.pDevice)
+	, m_pResourceManager(renderContextStartParams.pResourceManager)
 	, m_currentState(eContextState::TransitionBetweenStates)
 	, m_pCurrentCommandBuffer(nullptr)
 	, m_pBoundMaterial(nullptr)
@@ -31,22 +31,19 @@ RenderContext::RenderContext(RenderingDevice* device, ResourceManager* pResource
 	, m_pBoundIndexBuffer(nullptr)
 	, m_boundMaterialType(eMaterialType::COUNT)
 	, m_currentRenderFrame(0)
+	, m_lastBoundShaderStages((uint8)eShaderStage::None)
 {
 	m_pBoundTextures.Fill(nullptr);
 	m_pBoundStructuredBuffers.Fill(nullptr);
 	m_pBoundUniformBuffers.Fill(nullptr);
 	m_pBoundFrameBuffers.Fill(nullptr);
-	m_pGraphicsCommandBuffers.Fill(nullptr);
+	m_pFrameCommandData.Fill(nullptr);
 }
 
-void RenderContext::Init()
+RenderContext::FrameCommandData* RenderContext::GetCurrentFrameCommandData()
 {
-	for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
-	{
-		m_pGraphicsCommandBuffers[i] = CreateCommandBufferInternal(m_pDevice, eContextState::Graphics);
-	}
+	return m_pFrameCommandData[m_pResourceManager->GetSwapChain()->GetFrameInFlight()];
 }
-
 
 void RenderContext::SetBufferAtSlot(BufferObject* pBuffer, uint32 slot)
 {
@@ -388,12 +385,21 @@ void Hail::RenderContext::RenderMeshlets(glm::uvec3 dispatchSize)
 
 void RenderContext::StartGraphicsPass()
 {
-	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "Wrong context state for starting a graphics pass.");
-	m_currentlyBoundPipeline = MAX_UINT;
-	const uint32 frameInFlight = m_pResourceManager->GetSwapChain()->GetFrameInFlight(); 
-	m_pCurrentCommandBuffer = m_pGraphicsCommandBuffers[frameInFlight];
-	m_pCurrentCommandBuffer->BeginBuffer();
+	H_ASSERT(m_currentState == eContextState::Transfer, "Wrong context state for starting a graphics pass.");
+
+	FrameCommandData* pFrameCommands = GetCurrentFrameCommandData();
+	H_ASSERT(pFrameCommands->IsTransfer(), "Must come from a transfer state before starting graphics");
+	H_ASSERT(pFrameCommands->GetCurrentCommandBuffer()->m_bIsRecording);
+	
 	m_currentState = eContextState::Graphics;
+	// Commit the transfer pass command buffer
+	EndTransferPass();
+	pFrameCommands->CommitCommandBuffer(m_pDevice);
+	pFrameCommands->SetGraphics();
+	pFrameCommands->GetCurrentCommandBuffer()->BeginBuffer(eContextState::Graphics);
+	m_currentlyBoundPipeline = MAX_UINT;
+
+	m_pCurrentCommandBuffer = pFrameCommands->GetCurrentCommandBuffer();
 }
 
 void RenderContext::EndGraphicsPass()
@@ -403,19 +409,51 @@ void RenderContext::EndGraphicsPass()
 	eMaterialType previousBoundsPassType = m_boundMaterialType;
 	EndCurrentPass(m_pBoundMaterialPipeline->m_shaderStages);
 
+	FrameCommandData* pFrameCommands = GetCurrentFrameCommandData();
+
 	if (previousBoundsPassType == eMaterialType::FULLSCREEN_PRESENT_LETTERBOX)
 	{
 		SubmitFinalFrameCommandBuffer();
-		m_pCurrentCommandBuffer->m_bIsRecording = false;
+
+		pFrameCommands->GetCurrentCommandBuffer()->m_bIsRecording = false;
 	}
 	else
 	{
-		m_pCurrentCommandBuffer->EndBuffer(false);
+		pFrameCommands->GetCurrentCommandBuffer()->EndBuffer();
 	}
 
-	m_pCurrentCommandBuffer = nullptr;
 	m_currentState = eContextState::TransitionBetweenStates;
 	m_lastBoundShaderStages = 0u;
+}
+
+void RenderContext::StartTransferPass()
+{
+	if (m_currentState == eContextState::Transfer)
+		return;
+
+	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "End the current pass before starting a new one.");
+	m_currentState = eContextState::Transfer;
+
+	FrameCommandData* pFrameCommands = GetCurrentFrameCommandData();
+	H_ASSERT(pFrameCommands->IsReset(), "Must come from a clean state before starting transfer");
+	pFrameCommands->SetTransfer();
+	pFrameCommands->GetCurrentCommandBuffer()->BeginBuffer(eContextState::Transfer);
+
+	m_pCurrentCommandBuffer = pFrameCommands->GetCurrentCommandBuffer();
+}
+
+void RenderContext::EndTransferPass()
+{
+	if (m_currentState == eContextState::Transfer)
+		return;
+
+	H_ASSERT(m_currentState == eContextState::Graphics);
+	FrameCommandData* pFrameCommands = GetCurrentFrameCommandData();
+	H_ASSERT(pFrameCommands->IsTransfer(), "Must be in a transfer state");
+
+	H_ASSERT(pFrameCommands->GetCurrentCommandBuffer());
+
+	pFrameCommands->GetCurrentCommandBuffer()->EndBuffer();
 }
 
 void Hail::RenderContext::CleanupAndEndPass()
@@ -429,8 +467,8 @@ void Hail::RenderContext::CleanupAndEndPass()
 }
 
 
-CommandBuffer::CommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) :
-	m_contextState(contextStateForCommandBuffer),
+CommandBuffer::CommandBuffer(RenderingDevice* pDevice) :
+	m_contextState(eContextState::TransitionBetweenStates),
 	m_pDevice(pDevice),
 	m_bIsRecording(false)
 {
@@ -440,70 +478,21 @@ CommandBuffer::~CommandBuffer()
 {
 }
 
-void Hail::CommandBuffer::BeginBuffer()
+void Hail::CommandBuffer::BeginBuffer(eContextState contextStateForCommandBuffer)
 {
 	H_ASSERT(m_bIsRecording == false, "Buffer can not begin recording twice");
 	m_bIsRecording = true;
+	m_contextState = contextStateForCommandBuffer;
 	BeginBufferInternal();
 }
 
-void Hail::CommandBuffer::EndBuffer(bool bDestroyBufferData)
+void Hail::CommandBuffer::EndBuffer()
 {
-	if (!bDestroyBufferData)
-		H_ASSERT(m_bIsRecording, "Buffer can not end if it is not recording unless it is being destroyed.");
+	H_ASSERT(m_bIsRecording, "Buffer can not end if it is not recording.");
 
-	EndBufferInternal(bDestroyBufferData);
+	EndBufferInternal();
+	m_contextState = eContextState::TransitionBetweenStates;
 	m_bIsRecording = false;
-}
-
-// Transfer pass uses a short lived command buffer, might be a dedicated command buffer in the future
-void RenderContext::StartTransferPass()
-{
-	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "End the current pass before starting a new one.");
-	m_currentState = eContextState::Transfer;
-
-	m_pCurrentCommandBuffer = CreateCommandBufferInternal(m_pDevice, eContextState::Transfer);
-	m_pCurrentCommandBuffer->BeginBuffer();
-}
-
-void RenderContext::EndTransferPass()
-{
-	H_ASSERT(m_currentState == eContextState::Transfer, "Should be in a transfer state when ending the transfer pass.");
-	H_ASSERT(m_pCurrentCommandBuffer);
-	H_ASSERT(m_currentState == eContextState::Transfer);
-	m_pCurrentCommandBuffer->EndBuffer(true);
-	SAFEDELETE(m_pCurrentCommandBuffer);
-	m_currentState = eContextState::TransitionBetweenStates;
-
-	for (uint32 i = 0; i < m_stagingBuffers.Size(); i++)
-	{
-		m_stagingBuffers[i]->CleanupResource(m_pDevice);
-		SAFEDELETE(m_stagingBuffers[i]);
-	}
-	m_stagingBuffers.RemoveAll();
-}
-
-void Hail::RenderContext::StartComputePass()
-{
-	H_ASSERT(m_currentState == eContextState::TransitionBetweenStates, "Wrong context state for starting a graphics pass.");
-	const uint32 frameInFlight = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
-	// TODO: Kolla in att använda en egen command buffer
-	m_pCurrentCommandBuffer = m_pGraphicsCommandBuffers[frameInFlight];
-	m_pCurrentCommandBuffer->BeginBuffer();
-	m_currentState = eContextState::Compute;
-}
-
-void Hail::RenderContext::EndComputePass()
-{
-	H_ASSERT(m_currentState == eContextState::Compute, "Wrong context state for ending the compute pass.");
-	H_ASSERT(m_boundMaterialType != eMaterialType::COUNT, "Wrong material context state for ending the compute pass.");
-	
-	m_pCurrentCommandBuffer->EndBuffer(false);
-
-	CleanupAndEndPass();
-
-	m_pCurrentCommandBuffer = nullptr;
-	m_currentState = eContextState::TransitionBetweenStates;
 }
 
 void Hail::RenderContext::TransferBufferState(BufferObject* pBuffer, eShaderAccessQualifier newState)

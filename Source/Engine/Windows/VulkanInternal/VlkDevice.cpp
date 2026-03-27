@@ -186,7 +186,7 @@ void VlkDevice::CreateInstance(ErrorManager* pErrorManager)
 	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_graphicsQueue);
 	vkGetDeviceQueue(m_device, indices.graphicsAndComputeFamily, 0, &m_computeQueue);
 	vkGetDeviceQueue(m_device, indices.presentFamily, 0, &m_presentQueue);
-	CreateCommandPool();
+	CreateCommandPool(pErrorManager);
 }
 
 bool VlkDevice::CheckValidationLayerSupport()
@@ -515,7 +515,7 @@ void VlkDevice::CreateWindowsSurface()
 	}
 }
 
-void Hail::VlkDevice::CreateCommandPool()
+void Hail::VlkDevice::CreateCommandPool(ErrorManager* pErrorManager)
 {
 	QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(m_physicalDevice);
 
@@ -523,11 +523,14 @@ void Hail::VlkDevice::CreateCommandPool()
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily;
-	if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
+
+	for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
 	{
-#ifdef DEBUG
-		throw std::runtime_error("failed to create command pool!");
-#endif
+		if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPools[i]) != VK_SUCCESS)
+		{
+			pErrorManager->AddErrors(EStartupErrors::InitGpuDevice, EErrorType::Startup);
+			pErrorManager->AddString("\tFailed to create command pools");
+		}
 	}
 }
 

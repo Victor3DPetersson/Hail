@@ -45,11 +45,12 @@ using namespace Hail;
 void Hail::VlkRenderer::Initialize(ErrorManager* pErrorManager)
 {
 	m_swapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
-	Renderer::Initialize(pErrorManager);
 
-	////clear font textures from cpu data, so clearing ImGui for Vlk
-	if (m_renderFrameSettings.m_bEnableImgui)
-		ImGui_ImplVulkan_DestroyFontUploadObjects();
+	VlkDevice& device = *(VlkDevice*)m_renderDevice;
+
+
+
+	Renderer::Initialize(pErrorManager);
 }
 
 void VlkRenderer::InitDevice(Timer* pTimer, ErrorManager* pErrorManager)
@@ -59,11 +60,15 @@ void VlkRenderer::InitDevice(Timer* pTimer, ErrorManager* pErrorManager)
 	m_renderDevice->CreateInstance(pErrorManager);
 }
 
-void Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager)
+void Hail::VlkRenderer::InitGraphicsEngineAndContext(ResourceManager* resourceManager, ErrorManager* pErrorManager)
 {
 	m_pResourceManager = resourceManager;
-	m_pContext = new VlkRenderContext(m_renderDevice, m_pResourceManager);
-	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+	RenderContextStartupParams contextStartUpParams{};
+	contextStartUpParams.pDevice = m_renderDevice;
+	contextStartUpParams.pResourceManager = m_pResourceManager;
+	contextStartUpParams.pErrorManager = pErrorManager;
+
+	m_pContext = new VlkRenderContext(contextStartUpParams);
 }
 
 void VlkRenderer::InitImGui()
@@ -72,6 +77,22 @@ void VlkRenderer::InitImGui()
 		return;
 
 	VlkDevice& device = *reinterpret_cast<VlkDevice*>(m_renderDevice);
+
+	VkCommandBufferAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandPool = *device.GetCommandPool(0);
+	allocInfo.commandBufferCount = 1;
+	vkAllocateCommandBuffers(device.GetDevice(), &allocInfo, &m_imguiVkData.m_commandBuffer);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	//vkResetCommandBuffer(m_commandBuffer, 0);
+
+	vkBeginCommandBuffer(m_imguiVkData.m_commandBuffer, &beginInfo);
+
 	//1: create descriptor pool for IMGUI
 	// the size of the pool is very oversize, but it's copied from imgui demo itself.
 	VkDescriptorPoolSize pool_sizes[] =
@@ -96,7 +117,7 @@ void VlkRenderer::InitImGui()
 	pool_info.poolSizeCount = std::size(pool_sizes);
 	pool_info.pPoolSizes = pool_sizes;
 
-	if (vkCreateDescriptorPool(device.GetDevice(), &pool_info, nullptr, &m_imguiPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(device.GetDevice(), &pool_info, nullptr, &m_imguiVkData.m_imguiPool) != VK_SUCCESS)
 	{
 #ifdef DEBUG
 		throw std::runtime_error("failed to create ImGuiDescriptor");
@@ -122,7 +143,7 @@ void VlkRenderer::InitImGui()
 	init_info.PhysicalDevice = device.GetPhysicalDevice();
 	init_info.Device = device.GetDevice();
 	init_info.Queue = device.GetGraphicsQueue();
-	init_info.DescriptorPool = m_imguiPool;
+	init_info.DescriptorPool = m_imguiVkData.m_imguiPool;
 	init_info.MinImageCount = MAX_FRAMESINFLIGHT;
 	init_info.ImageCount = m_swapChain->GetSwapchainImageCount();
 	init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
@@ -130,8 +151,21 @@ void VlkRenderer::InitImGui()
 	ImGui_ImplVulkan_Init(&init_info, m_swapChain->GetRenderPass());
 
 	VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)m_pContext->GetCurrentCommandBuffer();
-	VkCommandBuffer cmd = pVlkCommandBfr->m_commandBuffer;
+	VkCommandBuffer cmd = m_imguiVkData.m_commandBuffer;
 	ImGui_ImplVulkan_CreateFontsTexture(cmd);
+
+	vkEndCommandBuffer(cmd);
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &cmd;
+
+	vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(device.GetGraphicsQueue());
+
+	vkFreeCommandBuffers(device.GetDevice(), *device.GetCommandPool(0), 1, &cmd);
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
+
 }
 
 void Hail::VlkRenderer::WaitForGPU()
@@ -157,7 +191,6 @@ void VlkRenderer::Render()
 	if (m_renderFrameSettings.m_bEnableImgui)
 		ImGui::Render();
 
-	const uint32_t currentFrame = m_swapChain->GetFrameInFlight();
 	Renderer::Render();
 }
 
@@ -215,7 +248,7 @@ void VlkRenderer::Cleanup()
 
 	if (m_renderFrameSettings.m_bEnableImgui)
 	{
-		vkDestroyDescriptorPool(device.GetDevice(), m_imguiPool, nullptr);
+		vkDestroyDescriptorPool(device.GetDevice(), m_imguiVkData.m_imguiPool, nullptr);
 		ImGui_ImplVulkan_Shutdown();
 	}
 
@@ -234,7 +267,10 @@ void VlkRenderer::Cleanup()
 	SAFEDELETE(m_pIndexBuffer);
 	SAFEDELETE(m_pContext);
 
-	vkDestroyCommandPool(device.GetDevice(), device.GetCommandPool(), nullptr);
+	for (uint32 i = 0; i < MAX_FRAMESINFLIGHT; i++)
+	{
+		vkDestroyCommandPool(device.GetDevice(), *device.GetCommandPool(i), nullptr);
+	}
 
 	device.DestroyDevice();
 }

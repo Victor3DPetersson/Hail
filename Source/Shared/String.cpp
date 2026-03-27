@@ -164,6 +164,12 @@ StringL Hail::StringL::Format(const char* const format, ...)
 				sprintf(numberCharString, "%d", doubleArgument);
 				length += StringLength(numberCharString);
 			}
+			else if (currentCharacter == 'p')
+			{
+				void* voidArgument = va_arg(argp, void*);
+				sprintf(numberCharString, "%p", voidArgument);
+				length += StringLength(numberCharString);
+			}
 			else
 			{
 				H_ASSERT(false, StringL::Format("Unsupported type, %c", currentCharacter));

@@ -10,27 +10,28 @@ namespace Hail
 	class VlkCommandBuffer : public CommandBuffer
 	{
 	public:
-		VlkCommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer);
+		VlkCommandBuffer(RenderingDevice* pDevice, VkCommandPool* pVkCommandPool);
 		
+		void Cleanup(RenderingDevice* pDevice, uint32 frame) override;
 		friend class VlkRenderContext;
 		friend class VlkRenderer;
 
 	private:
 		void BeginBufferInternal() override;
-		void EndBufferInternal(bool bDestroyBufferData) override;
+		void EndBufferInternal() override;
 		VkCommandBuffer m_commandBuffer;
+		VkSemaphore m_semaphore;
 	};
 
 	class VlkRenderContext : public RenderContext
 	{
 	public:
-		explicit VlkRenderContext(RenderingDevice* device, ResourceManager* pResourceManager);
+		explicit VlkRenderContext(RenderContextStartupParams renderContextStartParams);
 
 		void Cleanup() override;
 
 		void BindMaterialInstance(uint32 materialInstanceIndex) override;
 
-		CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) override;
 		void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) override;
 		void CopyDataToBufferInternal(BufferObject* pDstBuffer, BufferObject* pSrcBuffer) override;
 		void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel);
@@ -80,9 +81,20 @@ namespace Hail
 		bool CreateGraphicsPipeline(VlkMaterialFrameBufferConnection& materialFrameBufferConnection);
 		bool CreateComputePipeline(VlkComputePipeline& computePipeline);
 
-		VkSemaphore m_imageAvailableSemaphores[MAX_FRAMESINFLIGHT];
-		VkSemaphore m_renderFinishedSemaphores[MAX_FRAMESINFLIGHT];
-		VkFence m_inFrameFences[MAX_FRAMESINFLIGHT];
+		class VkFrameData : public FrameCommandData
+		{
+		public:
+			void Init(RenderingDevice* pDevice, uint32 frame) override;
+			void CommitCommandBuffer(RenderingDevice* pDevice) override;
+			void Cleanup(RenderingDevice* pDevice, uint32 frame) override;
+			void Reset(RenderingDevice* pDevice) override;
+			VkCommandPool* m_pCommandPool;
+
+			VkSemaphore m_imageAvailable;
+			VkSemaphore m_renderFinished;
+
+			VkFence m_inFlightFence;
+		};
 	};
 
 }

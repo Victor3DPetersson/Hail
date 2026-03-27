@@ -110,7 +110,7 @@ bool Hail::InitEngine(StartupAttributes& startupData)
 	g_engineData->resourceRegistry.Init();
 
 	g_engineData->resourceManager = new ResourceManager();
-	g_engineData->renderer->InitGraphicsEngineAndContext(g_engineData->resourceManager);
+	g_engineData->renderer->InitGraphicsEngineAndContext(g_engineData->resourceManager, startupData.m_pErrorManager);
 	if (!g_engineData->resourceManager->InitResources(g_engineData->renderer->GetRenderingDevice(), 
 		g_engineData->renderer->GetCurrentContext(), startupData.renderTargetResolution, startupData.startupWindowResolution, startupData.m_pErrorManager))
 	{

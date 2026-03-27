@@ -301,25 +301,13 @@ namespace Internal
     }
 }
 
-Hail::VlkRenderContext::VlkRenderContext(RenderingDevice* pDevice, ResourceManager* pResourceManager) :RenderContext(pDevice, pResourceManager)
+Hail::VlkRenderContext::VlkRenderContext(RenderContextStartupParams renderContextStartParams) :
+    RenderContext(renderContextStartParams)
 {
-    Init();
-    VlkDevice& device = *(VlkDevice*)(m_pDevice);
-    VkSemaphoreCreateInfo semaphoreInfo{};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkFenceCreateInfo fenceInfo{};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
     for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
     {
-        if (vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(device.GetDevice(), &fenceInfo, nullptr, &m_inFrameFences[i]) != VK_SUCCESS) 
-        {
-            H_ASSERT(false, "failed to create synchronization objects for a frame!");
-        }
+        m_pFrameCommandData[i] = new VkFrameData();
+        m_pFrameCommandData[i]->Init(m_pDevice, i);
     }
 }
 
@@ -343,17 +331,14 @@ void Hail::VlkRenderContext::Cleanup()
 
     for (size_t i = 0; i < MAX_FRAMESINFLIGHT; i++)
     {
-        m_pGraphicsCommandBuffers[i]->EndBuffer(true);
-        SAFEDELETE(m_pGraphicsCommandBuffers[i]);
-        vkDestroySemaphore(pVlkDevice->GetDevice(), m_imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(pVlkDevice->GetDevice(), m_renderFinishedSemaphores[i], nullptr);
-        vkDestroyFence(pVlkDevice->GetDevice(), m_inFrameFences[i], nullptr);
+        m_pFrameCommandData[i]->Cleanup(m_pDevice, i);
+        SAFEDELETE(m_pFrameCommandData[i]);
     }
 }
 
 void Hail::VlkRenderContext::BindMaterialInstance(uint32 materialInstanceIndex)
 {
-    VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)GetCurrentCommandBuffer();
+    VlkCommandBuffer* pVlkCommandBfr = (VlkCommandBuffer*)m_pCurrentCommandBuffer;
     VkCommandBuffer commandBuffer = pVlkCommandBfr->m_commandBuffer;
     H_ASSERT(m_pBoundMaterial, "No bound material, is this called in a material pipeline pass?");
     VlkMaterial& vlkMaterial = *(VlkMaterial*)m_pBoundMaterial;
@@ -365,10 +350,6 @@ void Hail::VlkRenderContext::BindMaterialInstance(uint32 materialInstanceIndex)
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vlkPipeline.m_pipelineLayout, 2, 1, &vlkMaterial.m_instanceDescriptors[materialInstanceIndex].descriptors[frameInFlight], 0, nullptr);
 }
 
-CommandBuffer* Hail::VlkRenderContext::CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer)
-{
-    return new VlkCommandBuffer(pDevice, contextStateForCommandBuffer);
-}
 
 void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData)
 {
@@ -378,7 +359,7 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
 
     VkCommandBuffer cmdBuffer = ((VlkCommandBuffer*)m_pCurrentCommandBuffer)->m_commandBuffer;
 
-    //H_ASSERT(m_currentState == eContextState::Transfer);
+    H_ASSERT(m_currentState == eContextState::Transfer);
 
     if (pBuffer->UsesPersistentMapping(m_pDevice, frameInFlight))
     {
@@ -394,7 +375,6 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
         bufMemBarrier.buffer = ((VlkBufferObject*)pBuffer)->GetBuffer(frameInFlight);
         bufMemBarrier.offset = 0;
         bufMemBarrier.size = VK_WHOLE_SIZE;
-
         VkPipelineStageFlags srcStageMask{};
         if (m_currentState == eContextState::Transfer)
         {
@@ -440,7 +420,7 @@ void Hail::VlkRenderContext::UploadDataToBufferInternal(BufferObject* pBuffer, v
         vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
             0, 0, nullptr, 1, &bufMemBarrier2, 0, nullptr);
 
-        m_stagingBuffers.Add(vlkBuffer);
+        GetCurrentFrameCommandData()->AddStagingBuffer(vlkBuffer);
     }
 }
 
@@ -532,7 +512,8 @@ void Hail::VlkRenderContext::UploadDataToTextureInternal(TextureResource* pTextu
     }
 
     Internal::TransitionImageLayout(pVlkTexture->GetVlkTextureData().textureImage, bHasStencil, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, finalImageLayout, cmdBuffer);
-    m_stagingBuffers.Add(vlkStagingBuffer);
+
+    GetCurrentFrameCommandData()->AddStagingBuffer(vlkStagingBuffer);
 }
 
 void Hail::VlkRenderContext::TransferFramebufferLayoutInternal(TextureResource* pTextureToTransfer, eFrameBufferLayoutState sourceState, eFrameBufferLayoutState destinationState)
@@ -541,8 +522,12 @@ void Hail::VlkRenderContext::TransferFramebufferLayoutInternal(TextureResource* 
     const bool bHasStencil = HasStencilComponent(ToVkFormat(pVlkTexture->m_properties.format));
     H_ASSERT(m_pCurrentCommandBuffer);
     VkCommandBuffer cmdBuffer = ((VlkCommandBuffer*)m_pCurrentCommandBuffer)->m_commandBuffer;
-    Internal::TransitionImageLayout(pVlkTexture->GetVlkTextureData().textureImage, bHasStencil, 
-        Internal::VkImageLayoutFromLayoutState(sourceState), Internal::VkImageLayoutFromLayoutState(destinationState), cmdBuffer);
+    Internal::TransitionImageLayout(
+        pVlkTexture->GetVlkTextureData().textureImage, 
+        bHasStencil, 
+        Internal::VkImageLayoutFromLayoutState(sourceState), 
+        Internal::VkImageLayoutFromLayoutState(destinationState), 
+        cmdBuffer);
 }
 
 void Hail::VlkRenderContext::Dispatch(glm::uvec3 dispatchSize)
@@ -583,10 +568,9 @@ void Hail::VlkRenderContext::RenderFullscreenPass()
 {
     H_ASSERT(m_pBoundVertexBuffer == nullptr, "No vertex buffer should be bound for fullscreen rendering.");
     const uint32 frameInFlightIndex = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
-    VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)GetCurrentCommandBuffer();
-    VkCommandBuffer& commandBuffer = pVlkCommandBuffer->m_commandBuffer;
+    VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)m_pCurrentCommandBuffer;
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    vkCmdDraw(pVlkCommandBuffer->m_commandBuffer, 3, 1, 0, 0);
 }
 
 void Hail::VlkRenderContext::RenderInstances(uint32 numberOfInstances, uint32 offset)
@@ -804,32 +788,17 @@ void Hail::VlkRenderContext::EndCurrentPass(uint32 nextShaderStage)
 
 void Hail::VlkRenderContext::SubmitFinalFrameCommandBuffer()
 {
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    const uint32_t currentFrame = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
-    VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[currentFrame] };
-
-    VkCommandBuffer cmdBuffer = ((VlkCommandBuffer*)m_pCurrentCommandBuffer)->m_commandBuffer;
-    vkEndCommandBuffer(cmdBuffer);
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &cmdBuffer;
-
-    VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[currentFrame] };
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
     VlkDevice& device = *(VlkDevice*)(m_pDevice);
-    if (vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, m_inFrameFences[currentFrame]) != VK_SUCCESS)
-    {
-        H_ASSERT(false, "failed to submit draw command buffer!");
-    }
+    const uint32_t currentFrame = m_pResourceManager->GetSwapChain()->GetFrameInFlight();
+    VkFrameData& currentFrameData = *(VkFrameData*)m_pFrameCommandData[currentFrame];
+
+    currentFrameData.GetCurrentCommandBuffer()->EndBuffer();
+    currentFrameData.CommitCommandBuffer(m_pDevice);
+
+    m_pCurrentCommandBuffer = nullptr;
+
     VlkSwapChain* pVlkSwapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
-    pVlkSwapChain->FrameEnd(signalSemaphores, device.GetPresentQueue());
+    pVlkSwapChain->FrameEnd(&currentFrameData.m_renderFinished, device.GetPresentQueue());
 }
 
 VkAccessFlags LocalAccessMaskFromAccessFlag(eShaderAccessQualifier qualifier)
@@ -953,20 +922,25 @@ void Hail::VlkRenderContext::TransferBufferStateInternal(BufferObject* /*pBuffer
 
 void Hail::VlkRenderContext::StartFrame()
 {
-    H_ASSERT(m_currentState == eContextState::TransitionBetweenStates && m_pCurrentCommandBuffer == nullptr);
-    m_currentRenderFrame++;
+    VlkDevice& device = *(VlkDevice*)(m_pDevice);
+    VlkSwapChain* pVlkSwapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
+    VkFrameData& currentFrameData = *(VkFrameData*)m_pFrameCommandData[pVlkSwapChain->GetFrameInFlight()];
 
+    // First frame, we upload from different places of the engine, TODO: Might add a short lived upload command task to remove this
+    if (pVlkSwapChain->FrameStart(device, &currentFrameData.m_inFlightFence, &currentFrameData.m_imageAvailable))
+    {
+        //Swapchain has been resized
+    }
+    if (m_currentRenderFrame != 0)
+    {
+        H_ASSERT(m_currentState == eContextState::TransitionBetweenStates && m_pCurrentCommandBuffer == nullptr);
+        currentFrameData.Reset(m_pDevice);
+    }
+    m_currentRenderFrame++;
     m_pBoundTextures.Fill(nullptr);
     m_pBoundStructuredBuffers.Fill(nullptr);
     m_pBoundUniformBuffers.Fill(nullptr);
     m_pBoundFrameBuffers.Fill(nullptr);
-
-    VlkDevice& device = *(VlkDevice*)(m_pDevice);
-    VlkSwapChain* pVlkSwapChain = (VlkSwapChain*)m_pResourceManager->GetSwapChain();
-    if (pVlkSwapChain->FrameStart(device, m_inFrameFences, m_imageAvailableSemaphores))
-    {
-        //Swapchain has been resized
-    }
 }
 
 VlkBufferObject* Hail::VlkRenderContext::CreateStagingBufferAndMemoryBarrier(uint32 bufferSize, void* pDataToUpload)
@@ -1349,19 +1323,30 @@ void Hail::VlkRenderContext::BindVertexBufferInternal()
 
 }
 
-Hail::VlkCommandBuffer::VlkCommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) : 
-    CommandBuffer(pDevice, contextStateForCommandBuffer)
+Hail::VlkCommandBuffer::VlkCommandBuffer(RenderingDevice* pDevice, VkCommandPool* pVkCommandPool) :
+    CommandBuffer(pDevice)
 {
     VlkDevice& device = *(VlkDevice*)pDevice; 
-    VkCommandPool commandPool = device.GetCommandPool();
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = *pVkCommandPool;
     allocInfo.commandBufferCount = 1;
 
     vkAllocateCommandBuffers(device.GetDevice(), &allocInfo, &m_commandBuffer);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_semaphore);
+
+}
+
+void Hail::VlkCommandBuffer::Cleanup(RenderingDevice* pDevice, uint32 frame)
+{
+    VlkDevice& device = *(VlkDevice*)m_pDevice;
+    vkFreeCommandBuffers(device.GetDevice(), *device.GetCommandPool(frame), 1, &m_commandBuffer);
+    vkDestroySemaphore(device.GetDevice(), m_semaphore, nullptr);
 }
 
 void Hail::VlkCommandBuffer::BeginBufferInternal()
@@ -1370,32 +1355,19 @@ void Hail::VlkCommandBuffer::BeginBufferInternal()
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = m_contextState == eContextState::Transfer ? VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT : 0;
 
-    vkResetCommandBuffer(m_commandBuffer, 0);
+    //vkResetCommandBuffer(m_commandBuffer, 0);
 
     vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
 }
 
-void Hail::VlkCommandBuffer::EndBufferInternal(bool bDestroyBufferData)
+void Hail::VlkCommandBuffer::EndBufferInternal()
 {
+    H_ASSERT(m_bIsRecording, "If not recording something has gone wrong.")
     VlkDevice& device = *(VlkDevice*)m_pDevice;
     if (m_bIsRecording)
     {
         vkEndCommandBuffer(m_commandBuffer);
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &m_commandBuffer;
-
-        // TODO: make this use the correct queue based on the command buffer, when command queue is implemented :D
-        vkQueueSubmit(device.GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-        VkResult result = vkQueueWaitIdle(device.GetGraphicsQueue());
-        // TODO: hook up to crash reporter
-        H_ASSERT(result == VK_SUCCESS);
     }
-
-    if (bDestroyBufferData)
-        vkFreeCommandBuffers(device.GetDevice(), device.GetCommandPool(), 1, &m_commandBuffer);
 }
 
 void VlkRenderContext::VlkMaterialFrameBufferConnection::Cleanup(RenderingDevice* pDevice)
@@ -1418,4 +1390,97 @@ void Hail::VlkRenderContext::VlkComputePipeline::Cleanup(RenderingDevice* pDevic
         vkDestroyPipeline(vlkDevice.GetDevice(), m_pipeline, nullptr);
         m_pipeline = VK_NULL_HANDLE;
     }
+}
+
+void Hail::VlkRenderContext::VkFrameData::Init(RenderingDevice* pDevice, uint32 frame)
+{
+    VlkDevice& device = *(VlkDevice*)(pDevice);
+
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_imageAvailable) != VK_SUCCESS ||
+        vkCreateSemaphore(device.GetDevice(), &semaphoreInfo, nullptr, &m_renderFinished) != VK_SUCCESS ||
+        vkCreateFence(device.GetDevice(), &fenceInfo, nullptr, &m_inFlightFence) != VK_SUCCESS)
+    {
+        H_ASSERT(false, "failed to create synchronization objects for a frame!");
+    }
+    m_pCommandPool = device.GetCommandPool(frame);
+
+    for (int iCommandBuffer = 0; iCommandBuffer < (uint32)FrameCommandData::eCommandBuffers::Count; ++iCommandBuffer)
+    {
+        m_pCommandBuffers[iCommandBuffer] = new VlkCommandBuffer(pDevice, m_pCommandPool);
+    }
+}
+
+void Hail::VlkRenderContext::VkFrameData::CommitCommandBuffer(RenderingDevice* pDevice)
+{
+    VlkDevice& vlkDevice = *(VlkDevice*)pDevice;
+    VlkCommandBuffer* pVlkCommandBuffer = (VlkCommandBuffer*)GetCurrentCommandBuffer();
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &pVlkCommandBuffer->m_commandBuffer;
+
+    VkResult result = VK_INCOMPLETE;
+    if (IsGraphics())
+    {
+        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT };
+        submitInfo.pWaitDstStageMask = waitStages;
+
+        VkSemaphore waitSemaphores[] = { m_imageAvailable, ((VlkCommandBuffer*)m_pCommandBuffers[(uint32)eCommandBuffers::Transfer])->m_semaphore };
+        submitInfo.waitSemaphoreCount = 2;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+
+        VkSemaphore signalSemaphores[] = { m_renderFinished };
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        result = vkQueueSubmit(vlkDevice.GetGraphicsQueue(), 1, &submitInfo, m_inFlightFence);
+    }
+    if (IsTransfer())
+    {
+        submitInfo.pSignalSemaphores = &pVlkCommandBuffer->m_semaphore;
+        submitInfo.signalSemaphoreCount = 1;
+
+        result = vkQueueSubmit(vlkDevice.GetGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    }
+
+    H_ASSERT(result == VK_SUCCESS);
+}
+
+void Hail::VlkRenderContext::VkFrameData::Reset(RenderingDevice* pDevice)
+{
+    VlkDevice& device = *(VlkDevice*)(pDevice);
+
+    vkResetCommandPool(device.GetDevice(), *m_pCommandPool, 0);
+    m_currentCommandBuffer = FrameCommandData::eCommandBuffers::Count;
+
+    for (uint32 i = 0; i < m_stagingBuffers.Size(); i++)
+    {
+	    m_stagingBuffers[i]->CleanupResource(pDevice);
+	    SAFEDELETE(m_stagingBuffers[i]);
+    }
+    m_stagingBuffers.RemoveAll();
+}
+
+void Hail::VlkRenderContext::VkFrameData::Cleanup(RenderingDevice* pDevice, uint32 frame)
+{
+    VlkDevice& device = *(VlkDevice*)(pDevice);
+    Reset(pDevice);
+
+    m_pCommandBuffers[(uint32)eCommandBuffers::Graphics]->Cleanup(pDevice, frame);
+    SAFEDELETE(m_pCommandBuffers[(uint32)eCommandBuffers::Graphics]);
+
+    m_pCommandBuffers[(uint32)eCommandBuffers::Transfer]->Cleanup(pDevice, frame);
+    SAFEDELETE(m_pCommandBuffers[(uint32)eCommandBuffers::Transfer]);
+
+    vkDestroySemaphore(device.GetDevice(), m_imageAvailable, nullptr);
+    vkDestroySemaphore(device.GetDevice(), m_renderFinished, nullptr);
+    vkDestroyFence(device.GetDevice(), m_inFlightFence, nullptr);
 }

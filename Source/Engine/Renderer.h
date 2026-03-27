@@ -37,7 +37,7 @@ namespace Hail
 		virtual void Initialize(ErrorManager* pErrorManager);
 		virtual void Cleanup();
 		virtual void InitDevice(Timer* pTimer, ErrorManager* pErrorManager) = 0;
-		virtual void InitGraphicsEngineAndContext(ResourceManager* resourceManager) = 0;
+		virtual void InitGraphicsEngineAndContext(ResourceManager* resourceManager, ErrorManager* pErrorManager) = 0;
 
 		struct RenderStartFrameParams
 		{

@@ -12,6 +12,7 @@
 namespace Hail
 {
 	class BufferObject;
+	class ErrorManager;
 	class FrameBufferTexture;
 	class Material;
 	class MaterialManager;
@@ -31,27 +32,37 @@ namespace Hail
 		Compute
 	};
 
+
 	// Inherited class to get the currently used CommandBuffer
 	class CommandBuffer
 	{
 	public:
-		explicit CommandBuffer(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer);
+		CommandBuffer(RenderingDevice* pDevice);
 		~CommandBuffer();
-		void BeginBuffer();
-		void EndBuffer(bool bDestroyBufferData);
+		void BeginBuffer(eContextState contextStateForCommandBuffer);
+		void EndBuffer();
+
+		virtual void Cleanup(RenderingDevice* pDevice, uint32 frame) = 0;
 	protected:
 		virtual void BeginBufferInternal() = 0;
-		virtual void EndBufferInternal(bool bDestroyBufferData) = 0;
+		virtual void EndBufferInternal() = 0;
 		friend class RenderContext;
-		const eContextState m_contextState;
+		eContextState m_contextState;
 		const RenderingDevice* m_pDevice;
 		bool m_bIsRecording;
+	};
+
+	struct RenderContextStartupParams
+	{
+		RenderingDevice* pDevice;
+		ResourceManager* pResourceManager;
+		ErrorManager* pErrorManager;
 	};
 
 	class RenderContext
 	{
 	public:
-		RenderContext(RenderingDevice* device, ResourceManager* pResourceManager);
+		RenderContext(RenderContextStartupParams renderContextStartParams);
 		virtual void Cleanup() = 0;
 
 		void SetBufferAtSlot(BufferObject* pBuffer, uint32 slot);
@@ -93,19 +104,20 @@ namespace Hail
 		virtual void RenderDebugLines(uint32 numberOfLinesToRender) = 0;
 
 		CommandBuffer* GetCurrentCommandBuffer() { return m_pCurrentCommandBuffer; }
+		// 
+		
 		// Will end the frame if the last bound material that was bound is FULLSCREEN_PRESENT_LETTERBOX
 		void StartGraphicsPass();
 		void EndGraphicsPass();
 		void StartTransferPass();
 		void EndTransferPass();
-		void StartComputePass();
-		virtual void EndComputePass();
 
 		virtual void StartFrame() = 0;
 		virtual void EndCurrentPass(uint32 nextShaderStage) = 0;
 
 	protected:
 		void CleanupAndEndPass();
+
 
 		class MaterialFrameBufferConnection
 		{
@@ -123,14 +135,47 @@ namespace Hail
 			Pipeline* m_pMaterialPipeline = nullptr;
 		};
 
-		void Init();
+
+		class FrameCommandData
+		{
+		public:
+			// Rendering will be split up in 2 command buffers, one for uploading data and one for using the data. 
+			// If finer granularity is needed, switch to a render graph with defined passes and depednency between them. 
+			enum class eCommandBuffers
+			{
+				Transfer,
+				Graphics,
+				Count
+			};
+			bool IsReset() { return m_currentCommandBuffer == eCommandBuffers::Count; }
+			bool IsTransfer() { return m_currentCommandBuffer == eCommandBuffers::Transfer; }
+			bool IsGraphics() { return m_currentCommandBuffer == eCommandBuffers::Graphics; }
+			void SetTransfer() { m_currentCommandBuffer = eCommandBuffers::Transfer; }
+			void SetGraphics() { m_currentCommandBuffer = eCommandBuffers::Graphics; }
+
+			// Submits the current recorded command buffers
+			virtual void Init(RenderingDevice* pDevice, uint32 frame) = 0;
+			virtual void CommitCommandBuffer(RenderingDevice* pDevice) = 0;
+			virtual void Reset(RenderingDevice* pDevice) = 0;
+			virtual void Cleanup(RenderingDevice* pDevice, uint32 frame) = 0;
+
+			CommandBuffer* GetCurrentCommandBuffer() { return m_pCommandBuffers[(uint32)m_currentCommandBuffer]; }
+			void AddStagingBuffer(BufferObject* pBuffer) { m_stagingBuffers.Add(pBuffer); }
+
+		protected:
+			eCommandBuffers m_currentCommandBuffer = eCommandBuffers::Count;
+			StaticArray<CommandBuffer*, (uint32)eCommandBuffers::Count> m_pCommandBuffers;
+			GrowingArray<BufferObject*> m_stagingBuffers;
+
+		};
+
+		FrameCommandData* GetCurrentFrameCommandData();
 
 		// Creates a complete state for a pipeline if it does not exist, this pipeline will be with the bound resources. 
 		void ValidatePipelineAndUpdateDescriptors(Pipeline* pPipeline);
 		bool CheckBoundDataAgainstSetDecoration(Pipeline* pPipeline, const SetDecoration& setDecoration, StaticArray<uint32, MaxShaderBindingCount>* pBoundListToCheck, eDecorationType decorationType);
 		virtual void SubmitFinalFrameCommandBuffer() = 0;
 
-		virtual CommandBuffer* CreateCommandBufferInternal(RenderingDevice* pDevice, eContextState contextStateForCommandBuffer) = 0;
 		virtual void UploadDataToBufferInternal(BufferObject* pBuffer, void* pDataToUpload, uint32 sizeOfUploadedData) = 0;
 		virtual void UploadDataToTextureInternal(TextureResource* pTexture, void* pDataToUpload, uint32 mipLevel) = 0;
 		virtual void CopyDataToBufferInternal(BufferObject* pDstBuffer, BufferObject* pSrcBuffer) = 0;
@@ -162,9 +207,7 @@ namespace Hail
 		StaticArray<BufferObject*, 16u> m_pBoundUniformBuffers;
 		StaticArray<FrameBufferTexture*, 8> m_pBoundFrameBuffers;
 
-		GrowingArray<BufferObject*> m_stagingBuffers;
-
-		StaticArray<CommandBuffer*, MAX_FRAMESINFLIGHT> m_pGraphicsCommandBuffers;
+		StaticArray<FrameCommandData*, MAX_FRAMESINFLIGHT> m_pFrameCommandData;
 
 		uint64 m_currentlyBoundPipeline{};
 		eMaterialType m_boundMaterialType;
