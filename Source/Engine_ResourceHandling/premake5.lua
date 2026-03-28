@@ -24,6 +24,7 @@ project "Engine_ResourceHandling"
 
 	includedirs {
 		".",
+		"%{dirs.srcdir}",
 		"%{dirs.srcdir}/Shared/",
 		"%{dirs.extdir}/Vulkan/Include/",
 	}

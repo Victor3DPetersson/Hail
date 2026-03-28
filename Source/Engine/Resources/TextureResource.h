@@ -1,5 +1,5 @@
 #pragma once
-#include "../EngineConstants.h"
+#include "Engine/EngineConstants.h"
 #include "Resources_Textures\TextureCommons.h"
 #include "ResourceCommon.h"
 

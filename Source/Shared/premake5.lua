@@ -17,6 +17,7 @@ project "Shared"
 	includedirs {
 		".",
 		"./**",
+		"%{dirs.srcdir}",
 	}
 
 	files {

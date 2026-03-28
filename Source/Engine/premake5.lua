@@ -24,6 +24,7 @@ project "Engine"
 		".",
 		"%{dirs.extdir}/dearimgui/",
 		"%{dirs.extdir}/AngelScript/include/",
+		"%{dirs.srcdir}",
 		"%{dirs.srcdir}/Shared/",
 		"%{dirs.srcdir}/Engine_ResourceHandling/",
 	}

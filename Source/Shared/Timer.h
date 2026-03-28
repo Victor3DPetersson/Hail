@@ -15,6 +15,7 @@ namespace Hail
         void FrameStart();
         double GetDeltaTime() const;
         float GetDeltaTimeMs() const { return m_deltaTimeMs; }
+        uint32 GetDeltaTimeMsUint() const { return m_deltaTimeMsUint; }
         double GetTotalTime() const;
         uint64 GetTotalTimeMs() const;
         // System time in nano seconds

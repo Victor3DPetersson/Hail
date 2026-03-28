@@ -25,6 +25,7 @@ project "Game"
 	includedirs {
 		".",
 		"./**",
+		"%{dirs.srcdir}",
 		"%{dirs.srcdir}/Shared/"
 	}
 

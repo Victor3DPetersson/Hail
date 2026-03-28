@@ -3,22 +3,22 @@
 #include "Game.h"
 
 #include <iostream>
-#include "../Engine/ThreadSynchronizer.h"
-#include "../Engine/RenderCommands.h"
+#include "Engine/ThreadSynchronizer.h"
+#include "Engine/RenderCommands.h"
 
 #include "Camera.h"
-#include "../Engine/Input/InputActionMap.h"
+#include "Engine/Input/InputActionMap.h"
 
-#include "../Engine/ImGui/ImGuiCommands.h"
-#include "../Engine/ImGui/ImGuiFileBrowser.h"
+#include "Engine/ImGui/ImGuiCommands.h"
+#include "Engine/ImGui/ImGuiFileBrowser.h"
 
-#include "../Engine/HailEngine.h"
-#include "../Engine/ImGui/ImGuiFileBrowser.h"
+#include "Engine/HailEngine.h"
+#include "Engine/ImGui/ImGuiFileBrowser.h"
 
-#include "../Engine/Interface/ResourceInterface.h"
+#include "Engine/Interface/ResourceInterface.h"
 
-#include "Utility\DebugLineHelpers.h"
-#include "Reflection\Reflection.h"
+#include "Utility/DebugLineHelpers.h"
+#include "Reflection/Reflection.h"
 
 namespace
 {

@@ -21,8 +21,8 @@
 ---------------
 
 - [x] Look over the Frame In Flight fences as the tutroial I followed was wrong. 
-- [] Look over all resources that are using frame in flight and remove uneccessary uses. 
-- [] Fix include hierarchy so I do not need "../../Engine_ResourceHandling/ResourceCommon.h" in rendering code. 
+- [x] Look over all resources that are using frame in flight and remove uneccessary uses. 
+- [x] Fix include hierarchy so I do not need "../../Engine_ResourceHandling/ResourceCommon.h" in rendering code. 
 - [x] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
 - [] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
 - [] Create a pipeline to create sprites render commands from AngelScript.

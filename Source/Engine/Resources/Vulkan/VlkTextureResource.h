@@ -1,6 +1,6 @@
 #pragma once
-#include "..\TextureResource.h"
-#include "Windows\VulkanInternal\VlkResources.h"
+#include "Engine/Resources/TextureResource.h"
+#include "Windows/VulkanInternal/VlkResources.h"
 #include "vk_mem_alloc.h"
 
 namespace Hail

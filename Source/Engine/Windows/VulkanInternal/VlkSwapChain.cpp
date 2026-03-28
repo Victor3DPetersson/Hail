@@ -3,11 +3,11 @@
 #include "MathUtils.h"
 
 #include "DebugMacros.h"
-#include "../Windows_ApplicationWindow.h"
+#include "Windows/Windows_ApplicationWindow.h"
 #include "Resources\TextureManager.h"
 #include "Resources\Vulkan\VlkTextureResource.h"
 #include "VlkDevice.h"
-#include "HailEngine.h"
+#include "Engine/HailEngine.h"
 
 using namespace Hail;
 

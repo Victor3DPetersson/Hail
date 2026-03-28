@@ -1,9 +1,9 @@
 #include "Shared_PCH.h"
 #include "Sorting.h"
 
-#include "../Engine/RenderCommands.h"
+#include "Engine/RenderCommands.h"
 
-#include "../Engine/Rendering/CloudParticleSimulator.h"
+#include "Engine/Rendering/CloudParticleSimulator.h"
 
 using namespace Hail;
 

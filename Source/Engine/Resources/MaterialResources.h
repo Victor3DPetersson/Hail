@@ -4,7 +4,7 @@
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "Containers\StaticArray\StaticArray.h"
 #include "String.hpp"
-#include "../EngineConstants.h"
+#include "Engine/EngineConstants.h"
 #include "Resources_Materials/ShaderCommons.h"
 #include "Resources_Materials/Materials_Common.h"
 #include "ReflectedShaderData.h"

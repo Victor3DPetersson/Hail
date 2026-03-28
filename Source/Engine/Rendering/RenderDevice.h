@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../Engine_ResourceHandling/ResourceCommon.h"
+#include "Engine_ResourceHandling/ResourceCommon.h"
 
 namespace Hail
 {
