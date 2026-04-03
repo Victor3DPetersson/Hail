@@ -1,7 +1,7 @@
 #include "Engine_PCH.h"
-#include "AngelScriptScriptstdstring.h"
+#include "Scriptstdstring.h"
 
-#include "AngelScriptTypeRegistry.h"
+#include "TypeRegistry.h"
 
 #include "String.hpp"
 

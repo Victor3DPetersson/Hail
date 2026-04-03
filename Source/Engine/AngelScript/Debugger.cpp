@@ -1,10 +1,10 @@
 #include "Engine_PCH.h"
-#include "AngelScriptDebugger.h"
-#include "AngelScriptDebuggerMessagePackager.h"
+#include "Debugger.h"
+#include "DebuggerMessagePackager.h"
 #include <angelscript.h>
 
-#include "AngelScriptTypeRegistry.h"
-#include "AngelScriptHandler.h"
+#include "TypeRegistry.h"
+#include "Handler.h"
 
 #include "HailEngine.h"
 
@@ -451,7 +451,10 @@ void Hail::AngelScript::ScriptDebugger::StopDebuggingScript()
         H_ERROR("Debugger is not set for debugging, potential code error.");
     }
     if (m_executionStatus != eScriptExecutionStatus::Normal)
+    {
         SetExecutionStatus(eScriptExecutionStatus::Normal);
+    }
+
     ClearLineCallback();
     m_registeredObjects.RemoveAll();
     m_breakPoints.RemoveAll();

@@ -2,8 +2,8 @@
 #include "Containers\VectorOnStack\VectorOnStack.h"
 #include "Containers\StaticArray\StaticArray.h"
 
-#include "AngelScriptDebuggerTypes.h"
-#include "AngelScriptDebuggerMessagePackager.h"
+#include "Script.h"
+#include "DebuggerMessagePackager.h"
 class asIScriptEngine;
 class asIScriptContext;
 class asITypeInfo;

@@ -2,7 +2,7 @@
 #include "Types.h"
 #include "Containers\GrowingArray\GrowingArray.h"
 #include "String.hpp"
-#include "AngelScriptDebuggerTypes.h"
+#include "DebuggerTypes.h"
 
 class asIScriptEngine;
 

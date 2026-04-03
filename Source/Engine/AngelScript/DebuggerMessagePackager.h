@@ -1,6 +1,6 @@
 #pragma once
 #include "Types.h"
-#include "AngelScriptDebuggerTypes.h"
+#include "DebuggerTypes.h"
 
 //This file and its struct must match the Angelscript extensions structs and data for packing and unpacking. 
 

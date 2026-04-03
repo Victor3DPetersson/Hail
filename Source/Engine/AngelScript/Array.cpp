@@ -5,9 +5,9 @@
 #include <string>
 #include <algorithm> // std::sort
 
-#include "AngelScriptArray.h"
-#include "AngelScriptTypeRegistry.h"
-#include "AngelScriptDebugger.h" // Type registry to variable callback
+#include "Array.h"
+#include "TypeRegistry.h"
+#include "Debugger.h" // Type registry to variable callback
 
 using namespace Hail;
 using namespace AngelScript;

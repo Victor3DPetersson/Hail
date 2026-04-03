@@ -3,7 +3,7 @@
 #include <math.h>
 #include <float.h>
 #include <string.h>
-#include "AngelScriptMath.h"
+#include "Math.h"
 
 #ifdef __BORLANDC__
 #include <cmath>

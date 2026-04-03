@@ -1,16 +1,17 @@
 #include "Engine_PCH.h"
-#include "AngelScriptHandler.h"
+#include "Handler.h"
 #include "angelscript.h"
-#include "AngelScriptScriptstdstring.h"
-#include "AngelScriptArray.h"
-#include "AngelScriptMath.h"
-#include "AngelScriptTypeRegistry.h"
-#include "Input\InputActionList.h"
+#include "Scriptstdstring.h"
+#include "Array.h"
+#include "Math.h"
+#include "TypeRegistry.h"
+
 #include <new>
+#include "Input\InputActionList.h"
 #include "Input\InputActionMap.h"
-#include <string>
 #include "Utility\DebugLineHelpers.h"
 #include "ThreadSynchronizer.h"
+#include <string>
 
 using namespace Hail;
 using namespace AngelScript;
@@ -482,3 +483,9 @@ void Hail::AngelScript::Handler::Init(InputActionMap* pInputActionMap, ThreadSyn
 	RegisterStdString(m_pScriptEngine, m_pTypeRegistry);
 	RegisterGlobalMessages();
 }
+
+void Hail::AngelScript::Handler::SetActiveScriptRunner(Runner* pRunner)
+{
+	m_errorHandler.SetActiveScriptRunner(pRunner);
+}
+

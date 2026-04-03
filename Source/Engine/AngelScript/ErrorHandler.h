@@ -7,13 +7,16 @@ namespace Hail
 {
 	namespace AngelScript
 	{
-		void MessageCallback(const asSMessageInfo* pMsg, void* param);
+		class Runner;
 		class ErrorHandler
 		{
 		public:
 			void SetScriptEngine(asIScriptEngine* pScriptEngine);
+			void MessageCallback(const asSMessageInfo* pMsg, void* param);
+			void SetActiveScriptRunner(Runner* pRunner);
 
 		private:
+			Runner* m_pRunner;
 		};
 	}
 

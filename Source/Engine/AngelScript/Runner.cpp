@@ -1,8 +1,8 @@
 #include "Engine_PCH.h"
-#include "AngelScriptRunner.h"
+#include "Runner.h"
 
-#include "AngelScriptScriptbuilder.h"
-#include "AngelScriptDebugger.h"
+#include "Scriptbuilder.h"
+#include "Debugger.h"
 
 using namespace Hail;
 
@@ -49,17 +49,19 @@ void Hail::AngelScript::Runner::RunScript(String64 scriptName)
 	}
 
 	Script& script = m_scripts[scriptIndex];
-	if (m_pDebuggerServer)
-		m_pDebuggerServer->SetScriptToDebug(&script);
 
-	if (script.loadStatus != eScriptLoadStatus::NoError)
+	if (script.loadStatus == eScriptLoadStatus::FailedToLoad)
 	{
-		H_ASSERT(script.loadStatus != eScriptLoadStatus::FailedToLoad, "How do we have an unloaded script running? Progrmaming error afoot");
-		H_ERROR(StringL::Format("Failed to reload script %s", script.m_name));
 		return;
 	}
 
-	asIScriptModule* mod = m_pScriptEngine->GetModule("MyModule");
+	if (m_pDebuggerServer)
+	{
+		m_pDebuggerServer->SetScriptToDebug(&script);
+	}
+
+
+	asIScriptModule* mod = m_pScriptEngine->GetModule(script.m_name.Data());
 	asIScriptFunction* func = mod->GetFunctionByDecl("void main()");
 	if (func == 0)
 	{
@@ -98,8 +100,11 @@ void Hail::AngelScript::Runner::Update()
 {
 	// Check for new connections and messages on the server if debugging
 	if (m_pDebuggerServer)
+	{
 		m_pDebuggerServer->Update();
+	}
 
+	// Reloading logic below
 	for (int i = 0; i < m_scripts.Size(); i++)
 	{
 		Script& script = m_scripts[i];
@@ -107,26 +112,30 @@ void Hail::AngelScript::Runner::Update()
 		//Adding a delay to the reloading, as there can be a frame or two where the filesystem is still saving the script. Leading to a load error.
 		if (!script.m_bIsDirty)
 		{
-			if (script.m_lastWriteTime != m_scripts[i].m_filePath.GetCurrentLastWriteFileTime())
+			if (script.m_lastWriteTime != script.m_filePath.GetCurrentLastWriteFileTime())
 			{
 				script.m_bIsDirty = true;
 				script.m_reloadDelay = 0;
 			}
 		}
 
-		if (script.m_bIsDirty)
+		if (script.m_bIsDirty && script.m_lastWriteTime != script.m_filePath.GetCurrentLastWriteFileTime())
 		{
-			if (script.m_reloadDelay > 10)
+			if (script.m_reloadDelay > 16)
 			{
-				ReloadScript(script);
-				script.m_lastWriteTime = m_scripts[i].m_filePath.GetCurrentLastWriteFileTime();
-				script.m_bIsDirty = false;
+				if (ReloadScript(script))
+				{
+					script.m_lastWriteTime = m_scripts[i].m_filePath.GetCurrentLastWriteFileTime();
+					script.m_bIsDirty = false;
+				}
+				script.m_reloadDelay = 0;
 			}
 			else
+			{
 				script.m_reloadDelay++;
+			}
 		}
 	}
-
 }
 
 void Hail::AngelScript::Runner::Cleanup()
@@ -134,7 +143,9 @@ void Hail::AngelScript::Runner::Cleanup()
 	for (int i = 0; i < m_scripts.Size(); i++)
 	{
 		if (m_scripts[i].m_pScriptContext != nullptr)
+		{
 			m_scripts[i].m_pScriptContext->Release();
+		}
 		SAFEDELETE(m_scripts[i].m_pDebugger);
 	}
 	m_scripts.RemoveAll();
@@ -159,54 +170,33 @@ bool Hail::AngelScript::Runner::CreateScript(String64 scriptName, Script& script
 	}
 
 	H_ASSERT(m_pScriptEngine, "Must have a script engine on the importer.");
-	CScriptBuilder builder;
 
-	int r = builder.StartNewModule(m_pScriptEngine, "MyModule");
-	if (r < 0)
+	// Reloading script
+	if (scriptToFill.m_pScriptContext || scriptToFill.m_pDebugger)
 	{
-		// If the code fails here it is usually because there
-		// is no more memory to allocate the module
-		H_ERROR("Unrecoverable error while starting a new module.");
-		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
-		return false;
+		if (CreateScriptModule("ReloadScript", scriptToFill.m_filePath))
+		{
+			m_pScriptEngine->DiscardModule("ReloadScript");
+			if (scriptToFill.m_pScriptContext)
+			{
+				scriptToFill.m_pScriptContext->Release();
+			}
+			scriptToFill.m_pScriptContext = nullptr;
+		}
+		else
+		{
+			scriptToFill.loadStatus = eScriptLoadStatus::FailedToReload;
+			return false;
+		}
 	}
-	// TODO add all files that are parts of the script
-	char filePathAsChar[1024];
-	FromWCharToConstChar(scriptToFill.m_filePath.Data(), filePathAsChar, 1024);
-	r = builder.AddSectionFromFile(filePathAsChar);
-	if (r < 0)
-	{
-		// The builder wasn't able to load the file. Maybe the file
-		// has been removed, or the wrong name was given, or some
-		// preprocessing commands are incorrectly written.
-		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
-		return false;
-	}
-	
-	r = builder.BuildModule();
-	if (r < 0)
-	{
-		// An error occurred. Instruct the script writer to fix the 
-		// compilation errors that were listed in the output stream.
-		//std::stringstream stream;
-		//auto streamBuf = std::cout.rdbuf();
-		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
 
+	if (!CreateScriptModule(scriptName, scriptToFill.m_filePath))
+	{
+		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
 		return false;
 	}
 
-	asIScriptModule* mod = m_pScriptEngine->GetModule("MyModule");
-	asIScriptFunction* func = mod->GetFunctionByDecl("void main()");
-	if (func == 0)
-	{
-		// The function couldn't be found. Instruct the script writer
-		// to include the expected function in the script.
-		H_ERROR("The script must have the function 'void main()'. Please add it and try again.");
-		scriptToFill.loadStatus = eScriptLoadStatus::FailedToLoad;
-		return false;
-	}
 	scriptToFill.m_fileNames.RemoveAll();
-
 	//TODO add all script fileNames
 	scriptToFill.m_fileNames.Add(scriptToFill.m_filePath.Object().Name().CharString());
 
@@ -221,45 +211,77 @@ bool Hail::AngelScript::Runner::CreateScript(String64 scriptName, Script& script
 	if (scriptToFill.m_pDebugger)
 	{
 		scriptToFill.m_pDebugger->SetContext(pCtx);
-		scriptToFill.m_pDebugger->ClearLineCallback();
+		if (scriptToFill.m_pDebugger->GetIsDebugging())
+		{
+			scriptToFill.m_pDebugger->ClearLineCallback();
+		}
 	}
 	else
+	{
 		scriptToFill.m_pDebugger = new ScriptDebugger(pCtx, m_pDebuggerServer, m_pTypeRegistry);
+	}
 	return true;
 }
 
-void Hail::AngelScript::Runner::ReloadScript(Script& scriptToReload)
+bool Hail::AngelScript::Runner::CreateScriptModule(String64 scriptName, const FilePath& pathToScript)
 {
-	Script newScript(scriptToReload.m_filePath);
-	bool scriptWasUsedForDebugging = false;
-	if (scriptToReload.m_pScriptContext || scriptToReload.m_pDebugger)
+	CScriptBuilder builder;
+	int r = builder.StartNewModule(m_pScriptEngine, scriptName.Data());
+	if (r < 0)
 	{
-		if (scriptToReload.m_pScriptContext)
-			scriptToReload.m_pScriptContext->Release();
-
-		scriptToReload.m_pScriptContext = nullptr;
-
-		if (m_pDebuggerServer && m_pDebuggerServer->GetActiveScript() == &scriptToReload)
-		{
-			m_pDebuggerServer->SetScriptToDebug(nullptr);
-			scriptWasUsedForDebugging = true;
-		}
-
-		newScript.m_pDebugger = scriptToReload.m_pDebugger;
+		// If the code fails here it is usually because there
+		// is no more memory to allocate the module
+		H_ERROR("Unrecoverable error while starting a new module.");
+		return false;
+	}
+	// TODO add all files that are parts of the script
+	char filePathAsChar[1024];
+	FromWCharToConstChar(pathToScript.Data(), filePathAsChar, 1024);
+	r = builder.AddSectionFromFile(filePathAsChar);
+	if (r < 0)
+	{
+		// The builder wasn't able to load the file. Maybe the file
+		// has been removed, or the wrong name was given, or some
+		// preprocessing commands are incorrectly written.
+		return false;
 	}
 
-	if (CreateScript(scriptToReload.m_name, newScript))
+	r = builder.BuildModule();
+	if (r < 0)
 	{
-		scriptToReload = newScript;
-		H_DEBUGMESSAGE("Reload A_OK! c:");
-		if (scriptWasUsedForDebugging)
-			m_pDebuggerServer->SetScriptToDebug(&scriptToReload);
+		// An error occurred. Instruct the script writer to fix the 
+		// compilation errors that were listed in the output stream.
+		return false;
 	}
-	else if (scriptToReload.loadStatus != eScriptLoadStatus::FailedToReload)
+
+	asIScriptModule* mod = m_pScriptEngine->GetModule(scriptName.Data());
+	asIScriptFunction* func = mod->GetFunctionByDecl("void main()");
+	if (func == 0)
+	{
+		m_pScriptEngine->DiscardModule(scriptName.Data());
+		// The function couldn't be found. Instruct the script writer
+		// to include the expected function in the script.
+		H_ERROR("The script must have the function 'void main()'. Please add it and try again.");
+		return false;
+	}
+	return true;
+}
+
+bool Hail::AngelScript::Runner::ReloadScript(Script& scriptToReload)
+{
+	if (CreateScript(scriptToReload.m_name, scriptToReload))
+	{
+		H_DEBUGMESSAGE(StringL::Format("Rreload succesful for script %s", scriptToReload.m_name));
+	}
+
+	if (scriptToReload.loadStatus == eScriptLoadStatus::FailedToReload)
 	{
 		scriptToReload.loadStatus = eScriptLoadStatus::FailedToReload;
 		scriptToReload.m_reloadDelay = 0;
+		scriptToReload.m_lastWriteTime = scriptToReload.m_filePath.GetCurrentLastWriteFileTime();
 		H_ERROR(StringL::Format("Failed to reload script %s", scriptToReload.m_name));
 	}
 
+	return scriptToReload.loadStatus == eScriptLoadStatus::NoError;
 }
+

@@ -20,9 +20,9 @@
 #include "ImGui\ImGuiCommands.h"
 
 #include "angelscript.h"
-#include "AngelScript\AngelScriptHandler.h"
-#include "AngelScript\AngelScriptRunner.h"
-#include "AngelScript\AngelScriptDebugger.h"
+#include "AngelScript\Handler.h"
+#include "AngelScript\Runner.h"
+#include "AngelScript\Debugger.h"
 
 #ifdef PLATFORM_WINDOWS
 

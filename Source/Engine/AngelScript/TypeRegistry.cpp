@@ -1,5 +1,5 @@
 #include "Engine_PCH.h"
-#include "AngelScriptTypeRegistry.h"
+#include "TypeRegistry.h"
 #include "angelscript.h"
 
 Hail::AngelScript::TypeRegistry::TypeRegistry(asIScriptEngine* pAsEngine)

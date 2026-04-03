@@ -1,7 +1,7 @@
 #include "Engine_PCH.h"
-#include "AngelScriptDebuggerMessagePackager.h"
+#include "DebuggerMessagePackager.h"
 
-#include "AngelScriptDebugger.h"
+#include "Debugger.h"
 #include "Utility\FilePath.hpp"
 
 

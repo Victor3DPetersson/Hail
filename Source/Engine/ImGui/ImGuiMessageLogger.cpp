@@ -60,7 +60,7 @@ namespace
 
 Hail::ImGuiMessageLogger::ImGuiMessageLogger()
     : m_currentSortingType(eMessageSortingType::Time)
-    , m_logType(eMessageLogType::DrawAllMessages)
+    , m_logType(eMessageLogType::DrawUniqueueMessages)
 {
     m_visibleTypes.Fill(true);
 }
@@ -155,7 +155,7 @@ void Hail::ImGuiMessageLogger::DrawMessageLog()
                 time.m_lowDateTime = (uint32)currentTimeInNanoSeconds;
                 ImGuiHelpers::TextWithHoverHint(ImGuiHelpers::FormattedTimeFromFileData(time).Data());
                 ImGui::TableNextColumn();
-                ImGuiHelpers::TextWithHoverHint(StringL::Format("%s Line : % i", message.m_fileName.Data(), message.m_codeLine));
+                ImGuiHelpers::TextWithHoverHint(StringL::Format("%s Line : %i", message.m_fileName.Data(), message.m_codeLine));
                 ImGui::TableNextColumn();
             }
             ImGui::EndTable();

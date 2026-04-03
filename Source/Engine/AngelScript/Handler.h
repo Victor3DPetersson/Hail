@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AngelScriptErrorHandler.h"
+#include "ErrorHandler.h"
 class asIScriptEngine;
 
 namespace Hail
@@ -61,8 +61,10 @@ namespace Hail
 			void Init(InputActionMap* pInputActionMap, ThreadSyncronizer* pThreadSyncronizer);
 			asIScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
 			TypeRegistry* GetTypeRegistry() { return m_pTypeRegistry; }
+			void SetActiveScriptRunner(Runner* pRunner);
 		private:
 
+			void MessageCallback(const asSMessageInfo* pMsg, void* param);
 			void RegisterGlobalMessages();
 			void RegisterAngelScriptVectorType();
 
