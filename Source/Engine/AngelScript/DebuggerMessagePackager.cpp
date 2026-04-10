@@ -164,6 +164,14 @@ namespace ReadMessages
 			pDebugger->StepOut();
 			H_DEBUGMESSAGE("Recieved StepOut.");
 			break;
+		case eDebuggerMessageType::RequestBuildErrors:
+			pDebugger->RequestBuildErrors(header);
+			H_DEBUGMESSAGE("Recieved Build error request.");
+			break;
+		case eDebuggerMessageType::RequestEngineTypes:
+			pDebugger->RequestEngineTypes(header);
+			H_DEBUGMESSAGE("Recieved Engine Types request.");
+			break;
 		default:
 			break;
 		}
@@ -172,11 +180,19 @@ namespace ReadMessages
 
 namespace WriteMessages
 {
-	MessageHeader WriteHeader(int sizeOfMessage, eDebuggerMessageType type)
+	MessageHeader WriteHeader(int sizeOfMessage, eDebuggerMessageType type, const char* uuid)
 	{
 		MessageHeader header;
 		header.messageLength = sizeOfMessage;
 		header.type = type;
+		if (uuid)
+		{
+			memcpy(header.uuid, uuid, 32u);
+		}
+		else
+		{
+			memset(header.uuid, 0, 32u);
+		}
 		return header;
 	}
 
@@ -206,7 +222,7 @@ void Hail::AngelScript::HandleDebuggerMessage(DebuggerServer* pDebugger, uint32 
 	while (currentPosition < messageLength)
 	{
 		MessageHeader header;
-		ReadMessages::ReadAndIncrementReadPoint(&header, messageStream, currentPosition, 4);
+		ReadMessages::ReadAndIncrementReadPoint(&header, messageStream, currentPosition, 4 + 32);
 
 		ReadMessages::HandleDebuggerMessageInternal(pDebugger, header, (uint8*)messageStream + currentPosition);
 		currentPosition += header.messageLength;
@@ -216,14 +232,14 @@ void Hail::AngelScript::HandleDebuggerMessage(DebuggerServer* pDebugger, uint32 
 DebuggerMessage Hail::AngelScript::CreateStopDebugSessionMessage()
 {
 	DebuggerMessage message;
-	message.m_header = WriteMessages::WriteHeader(0, eDebuggerMessageType::Disconnect);
+	message.m_header = WriteMessages::WriteHeader(0, eDebuggerMessageType::Disconnect, nullptr);
 	return message;
 }
 
 DebuggerMessage Hail::AngelScript::CreateHitBreakpointMessage(int line, const StringL& file)
 {
 	DebuggerMessage message;
-	message.m_header = WriteMessages::WriteHeader(file.Length() + sizeof(uint16) + sizeof(int), eDebuggerMessageType::HitBreakpoint);
+	message.m_header = WriteMessages::WriteHeader(file.Length() + sizeof(uint16) + sizeof(int), eDebuggerMessageType::HitBreakpoint, nullptr);
 
 	uint32 offset = WriteMessages::EncodeString(message.m_data, file);
 	message.m_data.FillMessageBuffer(&line, sizeof(int));
@@ -235,7 +251,7 @@ DebuggerMessage Hail::AngelScript::CreateHitBreakpointMessage(int line, const St
 DebuggerMessage Hail::AngelScript::CreateStopExecutionMessage()
 {
 	DebuggerMessage message;
-	message.m_header = WriteMessages::WriteHeader(0, eDebuggerMessageType::StopExecution);
+	message.m_header = WriteMessages::WriteHeader(0, eDebuggerMessageType::StopExecution, nullptr);
 	return message;
 }
 
@@ -252,7 +268,7 @@ DebuggerMessage Hail::AngelScript::CreateCallstackMessage(const GrowingArray<Sta
 		bufferOffset += WriteMessages::EncodeString(message.m_data, callstackToSend[i].m_sourceFile);
 	}
 
-	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::CallStack);
+	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::CallStack, nullptr);
 
 	H_ASSERT(message.m_header.messageLength == bufferOffset, "Message length must match final offset");
 	return message;
@@ -283,7 +299,7 @@ DebuggerMessage Hail::AngelScript::CreateVariablesMessage(const GrowingArray<Var
 		const Variable& variableToWrite = (*pVariableScopeToSend)[i];
 		EncodeVariable(variableToWrite, bufferOffset, message.m_data);
 	}
-	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::VariableRequest);
+	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::VariableRequest, nullptr);
 	return message;
 }
 
@@ -295,7 +311,25 @@ DebuggerMessage Hail::AngelScript::CreateVariableMessage(const Variable* pVariab
 	{
 		EncodeVariable(*pVariableScopeToSend, bufferOffset, message.m_data);
 	}
-	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::EvaluateRequest);
+	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::EvaluateRequest, nullptr);
+	return message;
+}
+
+DebuggerMessage Hail::AngelScript::CreateBuildErrorMessage(MessageHeader& header, const GrowingArray<BuildErrorInfo>& buildErrorsToSend)
+{
+	DebuggerMessage message;
+	uint32 bufferOffset = 0;
+
+	WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)buildErrorsToSend.Size());
+	for (uint32 i = 0; i < buildErrorsToSend.Size(); i++)
+	{
+		const BuildErrorInfo& buildError = buildErrorsToSend[i];
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, buildError.m_col);
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, buildError.m_row);
+		bufferOffset += WriteMessages::EncodeString(message.m_data, buildError.m_section);
+		bufferOffset += WriteMessages::EncodeString(message.m_data, buildError.m_message);
+	}
+	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::RequestBuildErrors, header.uuid);
 	return message;
 }
 

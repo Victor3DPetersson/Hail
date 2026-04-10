@@ -26,6 +26,8 @@ namespace Hail
 			StepIn,
 			StepOver,
 			StepOut,
+			RequestBuildErrors,
+			RequestEngineTypes,
 			End
 		};
 
@@ -33,6 +35,7 @@ namespace Hail
 		{
 			int16 messageLength;
 			eDebuggerMessageType type;
+			char uuid[32u];
 		};
 
 		struct MessageData
@@ -57,6 +60,7 @@ namespace Hail
 		DebuggerMessage CreateCallstackMessage(const GrowingArray<StackFrame>& callstackToSend);
 		DebuggerMessage CreateVariablesMessage(const GrowingArray<Variable>* variableScopeToSend);
 		DebuggerMessage CreateVariableMessage(const Variable* variableToSend);
+		DebuggerMessage CreateBuildErrorMessage(MessageHeader& header, const GrowingArray<BuildErrorInfo>& buildErrorsToSend);
 		DebuggerMessage CreateStopExecutionMessage();
 
 		void HandleDebuggerMessage(DebuggerServer* pDebugger, uint32 messageLength, void* messageStream);

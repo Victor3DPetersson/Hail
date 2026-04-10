@@ -307,7 +307,7 @@ Hail::AngelScript::ScriptDebugger::ScriptDebugger()
     , m_pTypeRegistry(nullptr)
 {
     m_clientData.m_socket = InvalidSocket;
-    m_clientData.m_bConnected = false;
+    m_clientData.m_bConnectedForDebugging = false;
     m_clientData.m_bDisconnected = true;
 }
 
@@ -322,7 +322,7 @@ Hail::AngelScript::ScriptDebugger::ScriptDebugger(asIScriptContext* pContext, De
     , m_pTypeRegistry(pTypeRegistry)
 {
     m_clientData.m_socket = InvalidSocket;
-    m_clientData.m_bConnected = false;
+    m_clientData.m_bConnectedForDebugging = false;
     m_clientData.m_bDisconnected = true;
 }
 
@@ -793,7 +793,7 @@ void Hail::AngelScript::ScriptDebugger::CreateVariables(asIScriptContext* pConte
     m_bGeneratedVariables = true;
 }
 
-void Hail::AngelScript::DebuggerServer::Update()
+void Hail::AngelScript::DebuggerServer::Update(bool bAreScriptsReloading)
 {
     {
         // Look for new connections
@@ -802,7 +802,7 @@ void Hail::AngelScript::DebuggerServer::Update()
         {
             ScriptDebugger& newClient = m_clients.Add();
             newClient.m_clientData.m_socket = connectingSocket;
-            newClient.m_clientData.m_bConnected = false;
+            newClient.m_clientData.m_bConnectedForDebugging = false;
             newClient.m_clientData.m_bDisconnected = false;
         }
     }
@@ -817,7 +817,16 @@ void Hail::AngelScript::DebuggerServer::Update()
         }
         debuggerMessages.RemoveAll();
     }
-
+    if (!bAreScriptsReloading && !m_buildErrorRequests.Empty())
+    {
+        for (size_t iBuilErrorReq = 0; iBuilErrorReq < m_buildErrorRequests.Size(); iBuilErrorReq++)
+        {
+            SendDebuggerMessage(CreateBuildErrorMessage(m_buildErrorRequests[iBuilErrorReq], m_registeredBuildErrors));
+        }
+        m_buildErrorRequests.RemoveAll();
+        m_registeredBuildErrors.RemoveAll();
+        H_DEBUGMESSAGE("Sending build errors");
+    }
 }
 
 void Hail::AngelScript::DebuggerServer::UpdateDuringScriptExecution()
@@ -856,7 +865,7 @@ void Hail::AngelScript::DebuggerServer::StartDebugging()
 {
     H_ASSERT(m_currentClient != MAX_UINT, "Must start debugging on a valid client.");
     ScriptDebugger& client = m_clients[m_currentClient];
-    client.m_clientData.m_bConnected = true;
+    client.m_clientData.m_bConnectedForDebugging = true;
     H_DEBUGMESSAGE(StringL::Format("Client nr %d connected for debugging.", m_currentClient + 1));
 }
 
@@ -864,7 +873,7 @@ void Hail::AngelScript::DebuggerServer::StopDebugging()
 {
     H_ASSERT(m_currentClient != MAX_UINT, "Must stop debugging on a valid client.");
     ScriptDebugger& client = m_clients[m_currentClient];
-    client.m_clientData.m_bDisconnected = true;
+    client.m_clientData.m_bDisconnected = false;
     H_DEBUGMESSAGE(StringL::Format("Client nr %d stopped debugging.", m_currentClient + 1));
 }
 
@@ -942,20 +951,40 @@ void Hail::AngelScript::DebuggerServer::SendCallstack()
     // else do error stuff
 }
 
+void Hail::AngelScript::DebuggerServer::RequestBuildErrors(MessageHeader header)
+{
+    if (m_pActiveScript)
+    {
+        H_DEBUGMESSAGE("Requested build error log");
+        m_buildErrorRequests.Add(header);
+    }
+}
+
+void Hail::AngelScript::DebuggerServer::RequestEngineTypes(MessageHeader header)
+{
+
+}
+
+void Hail::AngelScript::DebuggerServer::AddBuildError(const BuildErrorInfo& buildError)
+{
+    m_registeredBuildErrors.Add(buildError);
+}
+
 void Hail::AngelScript::DebuggerServer::SendDebuggerMessage(DebuggerMessage& messageToSend)
 {
-    for (uint32 i = 0; i < m_clients.Size(); i++)
+    for (int iClient = 0; iClient < m_clients.Size(); iClient++)
     {
-        if (m_clients[i].m_clientData.m_bConnected)
+        if (m_clients[iClient].m_clientData.m_bConnectedForDebugging)
         {
-            int iSendResult = send(m_clients[i].m_clientData.m_socket, (const char*)(&messageToSend.m_header), sizeof(MessageHeader), 0);
+            int iSendResult = send(m_clients[iClient].m_clientData.m_socket, (const char*)(&messageToSend.m_header), sizeof(MessageHeader), 0);
             if (messageToSend.m_header.messageLength)
-                iSendResult = send(m_clients[i].m_clientData.m_socket, (messageToSend.m_data.GetMessageData()), messageToSend.m_header.messageLength, 0);
+                iSendResult = send(m_clients[iClient].m_clientData.m_socket, (messageToSend.m_data.GetMessageData()), messageToSend.m_header.messageLength, 0);
             if (iSendResult == SOCKET_ERROR) {
                 H_ERROR(StringL::Format("send failed: %d\n", WSAGetLastError()));
             }
         }
     }
+
 }
 
 void Hail::AngelScript::DebuggerServer::ListenToMessages()
@@ -966,12 +995,12 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
     const bool wasDebugging = m_bIsDebugging;
     m_bIsDebugging = false;
 
-    for (uint32 i = 0; i < m_clients.Size(); i++)
+    for (uint32 iClient = 0; iClient < m_clients.Size(); iClient++)
     {
         buffer[0] = 0;
-        ScriptDebugger& script = m_clients[i];
+        ScriptDebugger& script = m_clients[iClient];
         const int iResult = recv(script.m_clientData.m_socket, buffer, sizeof(buffer), 0);
-        m_currentClient = i;
+        m_currentClient = iClient;
         if (iResult > 0)
         {
             HandleDebuggerMessage(this, iResult, buffer);
@@ -979,9 +1008,9 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
         else if (iResult == 0)
         {
             H_DEBUGMESSAGE("Client connection closing...");
-            disconnectingSockets.Add(i);
+            disconnectingSockets.Add(iClient);
         }
-        if (script.m_clientData.m_bConnected)
+        if (script.m_clientData.m_bConnectedForDebugging)
         {
             if (m_pActiveScript && m_pActiveScript->m_pDebugger->GetIsDebugging() == false)
             {
@@ -997,13 +1026,19 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
                     SendDebuggerMessage(debuggerMessages[iDebugMessage]);
                 }
                 debuggerMessages.RemoveAll();
-                script.m_clientData.m_bConnected = false;
-                disconnectingSockets.Add(i);
+                script.m_clientData.m_bConnectedForDebugging = false;
+                disconnectingSockets.Add(iClient);
             }
             else
             {
                 m_bIsDebugging = true;
             }
+
+            for (uint32 iBuildErrors = 0; iBuildErrors < m_buildErrorRequests.Size(); iBuildErrors++)
+            {
+
+            }
+
         }
     }
     m_currentClient = MAX_UINT;

@@ -314,6 +314,7 @@ void Hail::ProcessApplicationThread()
 	float applicationTime = 0.0;
 
 	AngelScript::Runner asScriptRunner;
+	g_engineData->asHandler.SetActiveScriptRunner(&asScriptRunner);
 	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine(), g_engineData->asHandler.GetTypeRegistry());
 
 	StringLW firstScriptPath = FilePath::GetAngelscriptDirectory().Data();

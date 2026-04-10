@@ -98,12 +98,7 @@ void Hail::AngelScript::Runner::RunScript(String64 scriptName)
 
 void Hail::AngelScript::Runner::Update()
 {
-	// Check for new connections and messages on the server if debugging
-	if (m_pDebuggerServer)
-	{
-		m_pDebuggerServer->Update();
-	}
-
+	bool bAreScriptsReloading = false;
 	// Reloading logic below
 	for (int i = 0; i < m_scripts.Size(); i++)
 	{
@@ -133,9 +128,16 @@ void Hail::AngelScript::Runner::Update()
 			else
 			{
 				script.m_reloadDelay++;
+				bAreScriptsReloading = true;
 			}
 		}
 	}
+	// Check for new connections and messages on the server if debugging
+	if (m_pDebuggerServer)
+	{
+		m_pDebuggerServer->Update(bAreScriptsReloading);
+	}
+
 }
 
 void Hail::AngelScript::Runner::Cleanup()
@@ -271,7 +273,7 @@ bool Hail::AngelScript::Runner::ReloadScript(Script& scriptToReload)
 {
 	if (CreateScript(scriptToReload.m_name, scriptToReload))
 	{
-		H_DEBUGMESSAGE(StringL::Format("Rreload succesful for script %s", scriptToReload.m_name));
+		H_DEBUGMESSAGE(StringL::Format("Reload succesful for script %s", scriptToReload.m_name));
 	}
 
 	if (scriptToReload.loadStatus == eScriptLoadStatus::FailedToReload)

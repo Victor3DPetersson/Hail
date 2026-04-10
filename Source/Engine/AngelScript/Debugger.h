@@ -81,7 +81,7 @@ namespace Hail
 
 			struct Client
 			{
-				bool m_bConnected;
+				bool m_bConnectedForDebugging;
 				bool m_bDisconnected;
 				H_Socket m_socket;
 			};
@@ -95,7 +95,7 @@ namespace Hail
 			DebuggerServer();
 			~DebuggerServer();
 
-			void Update();
+			void Update(bool bAreScriptsReloading);
 
 			// This is the while loop that holds the exectuion of a script while debugging.
 			void UpdateDuringScriptExecution();
@@ -114,6 +114,9 @@ namespace Hail
 			void StepOver();
 			void StepOut();
 			void SendCallstack();
+			void RequestBuildErrors(MessageHeader header);
+			void RequestEngineTypes(MessageHeader header);
+			void AddBuildError(const BuildErrorInfo& buildError);
 
 		private:
 
@@ -125,6 +128,10 @@ namespace Hail
 			H_Socket m_socketHandle;
 			uint32 m_currentClient;
 			bool m_bIsDebugging;
+
+
+			GrowingArray<MessageHeader> m_buildErrorRequests;
+			GrowingArray<BuildErrorInfo> m_registeredBuildErrors;
 
 		};
 

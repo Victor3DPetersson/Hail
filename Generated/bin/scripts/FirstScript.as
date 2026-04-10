@@ -1,7 +1,7 @@
 #include "IncludeScript.as"
 
 float gameTime = 0.0;
-
+//function AS
 Array<Vec2> savedPositions;
 Vec2 playerPosition = Vec2(0.5, 0.5);
 float movementSpeed = 0.01;
@@ -11,19 +11,19 @@ int GetAMathematicalNumber(float gameTimeToInt)
     float constantValue = 1337.56789;
     //returnValue += 27;
     
-    int returnValue = gameTimeToInt;
+    int returnValue = int(gameTimeToInt);
     returnValue += 27;
     returnValue /= 2;
-    return returnValue;
+    return returnValue++;
 }
 
 void main()
 {
-    gameTime += 0.1;
+    gameTime += 0.4;
     Vec2 direction = GetDirectionInput(PlayerMoveJoystickL, 0);
     direction.y = direction.y * -1.0;
     playerPosition += direction * movementSpeed;
-    
+
     //direction.x += gameTime * 0.15;
     string inputOutputText = "Triggered input from AS and fetched a String! Number: ";
     //DrawLineNormalized(Vec2(0), Vec2(0.5));

@@ -47,6 +47,14 @@ namespace Hail
 
 		typedef Variable(*ToVariableCallback)(void* obj);
 
+		struct BuildErrorInfo
+		{
+			uint32 m_col;
+			uint32 m_row;
+			StringL m_section;
+			StringL m_message;
+		};
+
 	}
 
 }
