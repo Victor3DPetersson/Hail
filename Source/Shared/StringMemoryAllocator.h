@@ -114,9 +114,10 @@ namespace Hail
 			uint32 oldOffset = m_offset.fetch_add(length + 1);
 			Node newNode;
 			newNode.m_pOwningPointer = pOwningPointer;
-			*newNode.m_pOwningPointer = m_pBuffer + oldOffset;
+			*newNode.m_pOwningPointer = m_pBuffer + oldOffset + 1;
 			newNode.m_length = length + 1;
 			m_pBuffer[(oldOffset + length + 1)] = 0;
+			m_pBuffer[(oldOffset)] = 0;
 			m_registeredStrings.Add(newNode);
 		}
 		m_signal.Wait();

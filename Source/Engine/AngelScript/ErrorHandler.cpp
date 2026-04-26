@@ -9,15 +9,18 @@
 
 using namespace Hail;
 
-void AngelScript::ErrorHandler::SetScriptEngine(asIScriptEngine* pScriptEngine)
+void AngelScript::ErrorHandler::Init(asIScriptEngine* pScriptEngine, bool bEnableDebugger)
 {
+	m_pRunner = nullptr;
 	// Set the message callback to receive information on errors in human readable form.
 	int r = pScriptEngine->SetMessageCallback(asMETHOD(ErrorHandler, MessageCallback), this, asCALL_THISCALL);
 	H_ASSERT(r >= 0, "Failed to set AngelScript message callback");
+	m_bEnableDebugger = bEnableDebugger;
 }
 
 void AngelScript::ErrorHandler::MessageCallback(const asSMessageInfo* msg, void* param)
 {
+	H_ASSERT(m_bEnableDebugger);
 	StringL message;
 
 	if (msg->type == asMSGTYPE_ERROR && m_pRunner && m_pRunner->GetDebuggerServer())

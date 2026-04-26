@@ -195,10 +195,11 @@ StringL Hail::StringL::Format(const char* const format, ...)
 	va_start(vl, format);
 	// allocate from length
 	int result = 0;
-	if (length > 15)
+	if (length - (numberOfArguments * 2) > 15)
 	{
 		str.m_allocatedLength = length - (numberOfArguments * 2);
-		StringMemoryAllocator::GetInstance().AllocateString(nullptr, length, &str.m_memory.m_p);
+		StringMemoryAllocator::GetInstance().AllocateString(nullptr, str.m_allocatedLength, &str.m_memory.m_p);
+		memset(str.m_memory.m_p, 0, str.m_allocatedLength);
 		result = vsprintf_s(str.m_memory.m_p, str.m_allocatedLength, format, vl);
 		H_ASSERT(result > 0, "Invalid formatting.");
 	}
@@ -401,34 +402,39 @@ StringL& Hail::StringL::operator+=(const char* pString)
 {
 	const uint32 previousLength = Length();
 	const uint32 newStringLength = StringLength(pString);
-	m_length = previousLength + newStringLength;
-	if (m_length > 15)
+	const uint32 newLength = previousLength + newStringLength;
+	const uint32 oldAllocatedLength = m_allocatedLength;
+	if (newLength > 15)
 	{
-		const char* previousString = m_allocatedLength > 15 ? m_memory.m_p : m_memory.m_shortString;
-		if (m_length > m_allocatedLength)
+		const bool bAllocatesNewMemory = newLength > oldAllocatedLength;
+		if (bAllocatesNewMemory)
 		{
-			if (m_allocatedLength > 15)
-				StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
+			const StringL previousString = std::move(*this);
+			StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length + 32u, &m_memory.m_p);
 
-			StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length, &m_memory.m_p);
-			m_allocatedLength = m_length;
+			memcpy(m_memory.m_p, previousString.Data(), previousLength);
+			memcpy(m_memory.m_p + (previousLength), pString, newStringLength);
+
+			m_allocatedLength = newLength + 32u;
 		}
-
-		memcpy(m_memory.m_p, previousString, previousLength);
-		memcpy(m_memory.m_p + (previousLength), pString, newStringLength);
-		m_memory.m_p[m_length] = 0;
+		else
+		{
+			memcpy(m_memory.m_p + (previousLength), pString, newStringLength);
+		}
+		m_memory.m_p[newLength] = 0;
 	}
 	else
 	{
-		if (m_allocatedLength > 15)
+		if (oldAllocatedLength > 15)
 		{
 			StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
 			m_allocatedLength = 0;
 		}
 
 		memcpy(&m_memory.m_shortString[previousLength], pString, newStringLength);
-		m_memory.m_shortString[m_length] = 0;
+		m_memory.m_shortString[newLength] = 0;
 	}
+	m_length = newLength;
 
 	return *this;
 }

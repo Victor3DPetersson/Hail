@@ -58,7 +58,7 @@ namespace Hail
 		class Handler
 		{
 		public:
-			void Init(InputActionMap* pInputActionMap, ThreadSyncronizer* pThreadSyncronizer);
+			explicit Handler(InputActionMap* pInputActionMap, ThreadSyncronizer* pThreadSyncronizer, bool bEnableDebugger);
 			asIScriptEngine* GetScriptEngine() { return m_pScriptEngine; }
 			TypeRegistry* GetTypeRegistry() { return m_pTypeRegistry; }
 			void SetActiveScriptRunner(Runner* pRunner);
@@ -68,6 +68,7 @@ namespace Hail
 			void RegisterGlobalMessages();
 			void RegisterAngelScriptVectorType();
 
+			const bool m_bEnableDebugger;
 			asIScriptEngine* m_pScriptEngine;
 			ErrorHandler m_errorHandler;
 			TypeRegistry* m_pTypeRegistry;

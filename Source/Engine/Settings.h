@@ -17,5 +17,14 @@ namespace Hail
 #endif
 	};
 
-
+	class ApplicationSettings
+	{
+	public:
+#ifdef DEBUG
+		bool m_bAngelscriptDebuggingEnabled = true; // Only set on Init, if disabled no debugger or Server will be ran for VSC extension or diagnostics
+#else
+		// TODO: hook up to be connected to commandline arguments
+		bool m_bAngelscriptDebuggingEnabled = false;
+#endif
+	};
 }

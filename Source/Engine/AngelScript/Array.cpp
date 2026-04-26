@@ -300,7 +300,7 @@ static void RegisterScriptArray_Native(TypeRegistry* pTypeRegistry)
 	pTypeRegistry->GetEngine()->SetTypeInfoUserDataCleanupCallback(CleanupTypeInfoArrayCache, ARRAY_CACHE);
 
 	// Register the array type as a template
-	r = pTypeRegistry->RegisterType("Array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE); H_ASSERT( r );
+	r = pTypeRegistry->RegisterType("Array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE, H_FILE_LINE); H_ASSERT( r );
 	r = pTypeRegistry->RegisterVariableFunction("Array<class T>", &GetScriptArrayVariableData); H_ASSERT(r);
 
 	asIScriptEngine* engine = pTypeRegistry->GetEngine();
@@ -2223,7 +2223,7 @@ static void RegisterScriptArray_Generic(TypeRegistry* pTypeRegistry)
 
 	pTypeRegistry->GetEngine()->SetTypeInfoUserDataCleanupCallback(CleanupTypeInfoArrayCache, ARRAY_CACHE);
 	// Register the array type as a template
-	r = pTypeRegistry->RegisterType("Array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE); H_ASSERT(r);
+	r = pTypeRegistry->RegisterType("Array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE, H_FILE_LINE); H_ASSERT(r);
 	r = pTypeRegistry->RegisterVariableFunction("Array<class T>", &GetScriptArrayVariableData); H_ASSERT(r);
 
 	asIScriptEngine* engine = pTypeRegistry->GetEngine();

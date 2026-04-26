@@ -10,6 +10,8 @@ namespace Hail
 	namespace AngelScript
 	{
 		class DebuggerServer;
+		class TypeDebuggerRegistry;
+
 		enum class eDebuggerMessageType : int16
 		{
 			Disconnect = 0,
@@ -60,7 +62,8 @@ namespace Hail
 		DebuggerMessage CreateCallstackMessage(const GrowingArray<StackFrame>& callstackToSend);
 		DebuggerMessage CreateVariablesMessage(const GrowingArray<Variable>* variableScopeToSend);
 		DebuggerMessage CreateVariableMessage(const Variable* variableToSend);
-		DebuggerMessage CreateBuildErrorMessage(MessageHeader& header, const GrowingArray<BuildErrorInfo>& buildErrorsToSend);
+		DebuggerMessage CreateBuildErrorMessage(const MessageHeader& header, const GrowingArray<BuildErrorInfo>& buildErrorsToSend);
+		DebuggerMessage CreateEngineTypeResponseMessage(const MessageHeader& header, TypeDebuggerRegistry* pTypeDebuggerRegistry);
 		DebuggerMessage CreateStopExecutionMessage();
 
 		void HandleDebuggerMessage(DebuggerServer* pDebugger, uint32 messageLength, void* messageStream);

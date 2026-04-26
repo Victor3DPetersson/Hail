@@ -52,6 +52,7 @@ namespace Hail
 		callback_function_totalTime_dt_frmData updateFunctionToCall = nullptr;
 		callback_function shutdownFunctionToCall = nullptr;
 		RenderSettings m_renderSettings;
+		ApplicationSettings m_appSettings;
 
 		// TODO move all atomics to its own class to structure it up better
 		std::atomic<bool> m_bPauseSimulation = false;
@@ -66,7 +67,7 @@ namespace Hail
 		std::thread applicationThread;
 		float applicationTickRate = 0;
 
-		AngelScript::Handler asHandler;
+		AngelScript::Handler* pAsHandler;
 	};
 
 	EngineData* g_engineData = nullptr;
@@ -129,8 +130,8 @@ bool Hail::InitEngine(StartupAttributes& startupData)
 	ResourceInterface::InitializeResourceInterface(*g_engineData->resourceManager);
 
 	g_engineData->inputActionMap.Init(g_engineData->inputHandler);
-	// AngelScriptHandler
-	g_engineData->asHandler.Init(&g_engineData->inputActionMap, &g_engineData->threadSynchronizer);
+
+	g_engineData->pAsHandler = new AngelScript::Handler(&g_engineData->inputActionMap, &g_engineData->threadSynchronizer, true);
 
 	g_engineData->applicationTickRate = (float32)startupData.applicationTickRate;
 	const float tickTime = 1.0f / g_engineData->applicationTickRate;
@@ -314,8 +315,8 @@ void Hail::ProcessApplicationThread()
 	float applicationTime = 0.0;
 
 	AngelScript::Runner asScriptRunner;
-	g_engineData->asHandler.SetActiveScriptRunner(&asScriptRunner);
-	asScriptRunner.Initialize(g_engineData->asHandler.GetScriptEngine(), g_engineData->asHandler.GetTypeRegistry());
+	g_engineData->pAsHandler->SetActiveScriptRunner(&asScriptRunner);
+	asScriptRunner.Initialize(g_engineData->pAsHandler->GetScriptEngine(), g_engineData->pAsHandler->GetTypeRegistry());
 
 	StringLW firstScriptPath = FilePath::GetAngelscriptDirectory().Data();
 	firstScriptPath += L"FirstScript.as";
@@ -352,8 +353,9 @@ void Hail::Cleanup()
 {
 	g_engineData->imguiCommandRecorder.DeInit();
 	g_engineData->renderer->Cleanup();
-	if (asIScriptEngine* pScriptEngine = g_engineData->asHandler.GetScriptEngine())
+	if (asIScriptEngine* pScriptEngine = g_engineData->pAsHandler->GetScriptEngine())
 		pScriptEngine->ShutDownAndRelease();
+	SAFEDELETE(g_engineData->pAsHandler);
 	SAFEDELETE(g_engineData->appWindow);
 	SAFEDELETE(g_engineData->inputHandler);
 	SAFEDELETE(g_engineData->renderer);

@@ -2,6 +2,7 @@
 #include "DebuggerMessagePackager.h"
 
 #include "Debugger.h"
+#include "TypeRegistry.h"
 #include "Utility\FilePath.hpp"
 
 
@@ -315,7 +316,7 @@ DebuggerMessage Hail::AngelScript::CreateVariableMessage(const Variable* pVariab
 	return message;
 }
 
-DebuggerMessage Hail::AngelScript::CreateBuildErrorMessage(MessageHeader& header, const GrowingArray<BuildErrorInfo>& buildErrorsToSend)
+DebuggerMessage Hail::AngelScript::CreateBuildErrorMessage(const MessageHeader& header, const GrowingArray<BuildErrorInfo>& buildErrorsToSend)
 {
 	DebuggerMessage message;
 	uint32 bufferOffset = 0;
@@ -329,7 +330,80 @@ DebuggerMessage Hail::AngelScript::CreateBuildErrorMessage(MessageHeader& header
 		bufferOffset += WriteMessages::EncodeString(message.m_data, buildError.m_section);
 		bufferOffset += WriteMessages::EncodeString(message.m_data, buildError.m_message);
 	}
-	message.m_header = WriteMessages::WriteHeader(bufferOffset, eDebuggerMessageType::RequestBuildErrors, header.uuid);
+	message.m_header = WriteMessages::WriteHeader(bufferOffset, header.type, header.uuid);
+	return message;
+}
+
+DebuggerMessage Hail::AngelScript::CreateEngineTypeResponseMessage(const MessageHeader& header, TypeDebuggerRegistry* pTypeDebuggerRegistry)
+{
+	DebuggerMessage message;
+	uint32 bufferOffset = 0;
+
+	const GrowingArray<TypeDebuggerRegistry::Enum>& registeredEnums = pTypeDebuggerRegistry->GetRegisteredEnums();
+	WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredEnums.Size());
+	for (uint32 iEnum = 0; iEnum < registeredEnums.Size(); iEnum++)
+	{
+		const TypeDebuggerRegistry::Enum& registeredEnum = registeredEnums[iEnum];
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredEnum.m_name.Data());
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, registeredEnum.m_line);
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredEnum.m_owningFile.Data());
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredEnum.m_values.Size());
+		for (uint32 iEnumValue = 0; iEnumValue < registeredEnum.m_values.Size(); iEnumValue++)
+		{
+			bufferOffset += WriteMessages::EncodeString(message.m_data, registeredEnum.m_values[iEnumValue].Data());
+		}
+	}
+
+	const GrowingArray<TypeDebuggerRegistry::GlobalFunction>& registeredGlobalFunctions = pTypeDebuggerRegistry->GetRegisteredFunctions();
+	WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredGlobalFunctions.Size());
+	for (uint32 iFunction = 0; iFunction < registeredGlobalFunctions.Size(); iFunction++)
+	{
+		const TypeDebuggerRegistry::GlobalFunction& registeredFunction = registeredGlobalFunctions[iFunction];
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredFunction.m_signature.m_type.Data());
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredFunction.m_signature.m_name.Data());
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, registeredFunction.m_line);
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredFunction.m_owningFile.Data());
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredFunction.m_arguments.Size());
+		for (uint32 iArgumentVar = 0; iArgumentVar < registeredFunction.m_arguments.Size(); iArgumentVar++)
+		{
+			bufferOffset += WriteMessages::EncodeString(message.m_data, registeredFunction.m_arguments[iArgumentVar].m_type.Data());
+			bufferOffset += WriteMessages::EncodeString(message.m_data, registeredFunction.m_arguments[iArgumentVar].m_name.Data());
+		}
+	}
+
+	const GrowingArray<TypeDebuggerRegistry::Class>& registeredGlobalClasses = pTypeDebuggerRegistry->GetRegisteredClasses();
+	WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredGlobalClasses.Size());
+	for (uint32 iClass = 0; iClass < registeredGlobalClasses.Size(); iClass++)
+	{
+		const TypeDebuggerRegistry::Class& registeredClass = registeredGlobalClasses[iClass];
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredClass.m_name.Data());
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, registeredClass.m_line);
+		bufferOffset += WriteMessages::EncodeString(message.m_data, registeredClass.m_owningFile.Data());
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredClass.m_variables.Size());
+		for (uint32 iVar = 0; iVar < registeredClass.m_variables.Size(); iVar++)
+		{
+			const TypeDebuggerRegistry::Class::Variable& var = registeredClass.m_variables[iVar];
+			WriteMessages::EncodeBaseType(message.m_data, bufferOffset, var.m_line);
+			bufferOffset += WriteMessages::EncodeString(message.m_data, var.m_signature.m_type.Data());
+			bufferOffset += WriteMessages::EncodeString(message.m_data, var.m_signature.m_name.Data());
+		}
+		WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)registeredClass.m_functions.Size());
+		for (uint32 iFunc = 0; iFunc < registeredClass.m_functions.Size(); iFunc++)
+		{
+			const TypeDebuggerRegistry::Function& func = registeredClass.m_functions[iFunc];
+			WriteMessages::EncodeBaseType(message.m_data, bufferOffset, func.m_line);
+			bufferOffset += WriteMessages::EncodeString(message.m_data, func.m_signature.m_type.Data());
+			bufferOffset += WriteMessages::EncodeString(message.m_data, func.m_signature.m_name.Data());
+			WriteMessages::EncodeBaseType(message.m_data, bufferOffset, (uint32)func.m_arguments.Size());
+			for (uint32 iArgumentVar = 0; iArgumentVar < func.m_arguments.Size(); iArgumentVar++)
+			{
+				bufferOffset += WriteMessages::EncodeString(message.m_data, func.m_arguments[iArgumentVar].m_type.Data());
+				bufferOffset += WriteMessages::EncodeString(message.m_data, func.m_arguments[iArgumentVar].m_name.Data());
+			}
+		}
+	}
+
+	message.m_header = WriteMessages::WriteHeader(bufferOffset, header.type, header.uuid);
 	return message;
 }
 

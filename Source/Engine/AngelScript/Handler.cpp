@@ -193,9 +193,10 @@ namespace
 void Hail::AngelScript::Handler::RegisterGlobalMessages()
 {
 	// Print functions
-	int r = m_pScriptEngine->RegisterGlobalFunction("void Print(const string &in)", asFUNCTION(localPrint), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void PrintError(const string &in)", asFUNCTION(localPrintError), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void PrintWarning(const string &in)", asFUNCTION(localPrintWarning), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
+	bool bResult;
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "Print", "void" }, { {"text", "string", true, true, true } }, asFUNCTION(localPrint), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "PrintError", "void" }, { {"text", "string", true, true, true } }, asFUNCTION(localPrintError), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "PrintWarning", "void" }, { {"text", "string", true, true, true } }, asFUNCTION(localPrintWarning), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
 	
 	// Vector2
 	RegisterAngelScriptVectorType();
@@ -205,42 +206,51 @@ void Hail::AngelScript::Handler::RegisterGlobalMessages()
 
 	// Input handling
 	// Input Enum
-	r = m_pScriptEngine->RegisterEnum("eInputAction");
-	H_ASSERT(r >= 0, "Failed to register input enum");
+	bResult = m_pScriptEngine->RegisterEnum("eInputAction");
+	// Register the object properties
+	H_ASSERT(bResult, "Failed to register input enum");
 	for (int i = 0; i < (int)eInputAction::InputCount; i++)
 	{
-		r = m_pScriptEngine->RegisterEnumValue("eInputAction", localGetInputActionMapValueName((eInputAction)i), i);
+		bResult = m_pTypeRegistry->RegisterGlobalEnumValue("eInputAction", localGetInputActionMapValueName((eInputAction)i), i, H_FILE_LINE);
+		H_ASSERT(bResult, "Failed to register enum value");
+		//r = m_pScriptEngine->RegisterEnumValue("eInputAction", localGetInputActionMapValueName((eInputAction)i), i);
 	}
 	// Input handler
-	r = m_pScriptEngine->RegisterGlobalFunction("Vec2 GetDirectionInput(eInputAction, int)", asFUNCTION(localGetDirectionInput), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("int GetButtonInput(eInputAction, int)", asFUNCTION(localGetButtonInput), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("float GetGamepadTriggerInput(eInputAction, int)", asFUNCTION(localGetGamepadTriggerInput), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "GetDirectionInput", "Vec2" }, { {"action", "eInputAction", }, { "gamepadToCheck", "int" } }, asFUNCTION(localGetDirectionInput), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "GetButtonInput", "int" }, { {"action", "eInputAction", }, { "gamepadToCheck", "int" } }, asFUNCTION(localGetButtonInput), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "GetGamepadTriggerInput", "float" }, { {"action", "eInputAction", }, { "gamepadToCheck", "int" } }, asFUNCTION(localGetGamepadTriggerInput), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
 
 	// Debug lines
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLineNormalized(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawLineNormalized), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLineNormalizedScreenAlligned(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawLineNormalizedScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLine(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawLine), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLineScreenAlligned(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawLineScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
 
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLineNormalized(const Vec2 &in, float, float)", asFUNCTION(localDrawLineNormalizedRotLength), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLineNormalizedScreenAlligned(const Vec2 &in, float, float)", asFUNCTION(localDrawLineNormalizedRotLengthScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLine(const Vec2 &in, float, float)", asFUNCTION(localDrawLineRotLength), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawLineScreenAlligned(const Vec2 &in, float, float)", asFUNCTION(localDrawLineRotLengthScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
+	const VectorOnStack<VariableTypeData, 8u> lineArgumentVariables = { {"start", "Vec2", true, true, true }, { "end", "Vec2", true, true, true } };
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLineNormalized", "void" }, lineArgumentVariables, asFUNCTION(localDrawLineNormalized), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLineNormalizedScreenAlligned", "void" }, lineArgumentVariables, asFUNCTION(localDrawLineNormalizedScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLine", "void" }, lineArgumentVariables, asFUNCTION(localDrawLine), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLineScreenAlligned", "void" },	lineArgumentVariables,			asFUNCTION(localDrawLineScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
 
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxNormalized(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxNormalized), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxNormalizedScreenAlligned(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxNormalizedScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBox(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBox), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxScreenAlligned(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
+	const VectorOnStack<VariableTypeData, 8u> lineRotLengthArgumentVariables = { {"start", "Vec2", true, true, true }, { "rotationRad", "float" }, { "length", "float" }};
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLineNormalized", "void" }, lineRotLengthArgumentVariables, asFUNCTION(localDrawLineNormalizedRotLength), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLineNormalizedScreenAlligned", "void" }, lineRotLengthArgumentVariables, asFUNCTION(localDrawLineNormalizedRotLengthScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLine", "void" }, lineRotLengthArgumentVariables, asFUNCTION(localDrawLineRotLength), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawLineScreenAlligned", "void" },			lineRotLengthArgumentVariables, asFUNCTION(localDrawLineRotLengthScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
 
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxMinMaxNormalized(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxMinMaxNormalized), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxMinMaxNormalizedScreenAlligned(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxMinMaxNormalizedScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxMinMax(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxMinMax), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawBoxMinMaxScreenAlligned(const Vec2 &in, const Vec2 &in)", asFUNCTION(localDrawBoxMinMaxScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
+	const VectorOnStack<VariableTypeData, 8u> drawBoxArgumentVariables = { {"pos", "Vec2", true, true, true }, { "dimensions", "Vec2", true, true, true } };
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxNormalized", "void" }, drawBoxArgumentVariables, asFUNCTION(localDrawBoxNormalized), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxNormalizedScreenAlligned", "void" }, drawBoxArgumentVariables, asFUNCTION(localDrawBoxNormalizedScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBox", "void" }, drawBoxArgumentVariables, asFUNCTION(localDrawBox), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxScreenAlligned", "void" }, drawBoxArgumentVariables, asFUNCTION(localDrawBoxScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
 
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawCircleNormalized(const Vec2 &in, float)", asFUNCTION(localDrawCircleNormalized), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawCircleNormalizedScreenAlligned(const Vec2 &in, float)", asFUNCTION(localDrawCircleNormalizedScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawCircle(const Vec2 &in, float)", asFUNCTION(localDrawCircle), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
-	r = m_pScriptEngine->RegisterGlobalFunction("void DrawCircleScreenAlligned(const Vec2 &in, float)", asFUNCTION(localDrawCircleScreenAlligned), asCALL_CDECL); H_ASSERT(r >= 0, "Failed to register global function");
+	const VectorOnStack<VariableTypeData, 8u> drawBoxMinMaxArgumentVariables = { {"min", "Vec2", true, true, true }, { "max", "Vec2", true, true, true } };
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxMinMaxNormalized", "void" }, drawBoxMinMaxArgumentVariables, asFUNCTION(localDrawBoxMinMaxNormalized), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxMinMaxNormalizedScreenAlligned", "void" }, drawBoxMinMaxArgumentVariables, asFUNCTION(localDrawBoxMinMaxNormalizedScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxMinMax", "void" }, drawBoxMinMaxArgumentVariables, asFUNCTION(localDrawBoxMinMax), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawBoxMinMaxScreenAlligned", "void" }, drawBoxMinMaxArgumentVariables, asFUNCTION(localDrawBoxMinMaxScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+
+	const VectorOnStack<VariableTypeData, 8u> drawCircleArgumentVariables = { {"pos", "Vec2", true, true, true }, { "radius", "float" } };
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawCircleNormalized", "void" }, drawCircleArgumentVariables, asFUNCTION(localDrawCircleNormalized), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawCircleNormalizedScreenAlligned", "void" }, drawCircleArgumentVariables, asFUNCTION(localDrawCircleNormalizedScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawCircle", "void" }, drawCircleArgumentVariables, asFUNCTION(localDrawCircle), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
+	bResult = m_pTypeRegistry->RegisterGlobalMethod({ "DrawCircleScreenAlligned", "void" }, drawCircleArgumentVariables, asFUNCTION(localDrawCircleScreenAlligned), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register global func");
 }
 
 //-----------------------
@@ -298,44 +308,45 @@ void Hail::AngelScript::Handler::RegisterAngelScriptVectorType()
 
 	// Register the type
 	
-	r = m_pTypeRegistry->RegisterType("Vec2", sizeof(Vec2), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CAK | asOBJ_APP_CLASS_ALLFLOATS); assert(r >= 0);
+	r = m_pTypeRegistry->RegisterType("Vec2", sizeof(Vec2), asOBJ_VALUE | asOBJ_POD | asOBJ_APP_CLASS_CAK | asOBJ_APP_CLASS_ALLFLOATS, H_FILE_LINE); assert(r >= 0);
 	r = m_pTypeRegistry->RegisterVariableFunction("Vec2", &GetVec2VariableData); assert(r >= 0);
+	bool bResult;
 	// Register the object properties
-	r = m_pScriptEngine->RegisterObjectProperty("Vec2", "float x", asOFFSET(Vec2, m_vec.x)); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectProperty("Vec2", "float y", asOFFSET(Vec2, m_vec.y)); H_ASSERT(r >= 0, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassObjectMember("Vec2", { "x", "float" }, asOFFSET(Vec2, m_vec.x), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassObjectMember("Vec2", { "y", "float" }, asOFFSET(Vec2, m_vec.y), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
 
 	// Register the constructors
-	r = m_pScriptEngine->RegisterObjectBehaviour("Vec2", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(Vec2DefaultConstructor), asCALL_CDECL_OBJLAST); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectBehaviour("Vec2", asBEHAVE_CONSTRUCT, "void f(const Vec2 &in)", asFUNCTION(Vec2CopyConstructor), asCALL_CDECL_OBJLAST); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectBehaviour("Vec2", asBEHAVE_CONSTRUCT, "void f(float)", asFUNCTION(Vec2ConvConstructor), asCALL_CDECL_OBJLAST); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectBehaviour("Vec2", asBEHAVE_CONSTRUCT, "void f(float, float)", asFUNCTION(Vec2InitConstructor), asCALL_CDECL_OBJLAST); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectBehaviour("Vec2", asBEHAVE_LIST_CONSTRUCT, "void f(const int &in) {float, float}", asFUNCTION(Vec2ListConstructor), asCALL_CDECL_OBJLAST); H_ASSERT(r >= 0, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassConstructor("Vec2", {}, {}, asFUNCTION(Vec2DefaultConstructor), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassConstructor("Vec2", { { "in", "Vec2", true, true } }, {}, asFUNCTION(Vec2CopyConstructor), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassConstructor("Vec2", { { "", "float" } }, {}, asFUNCTION(Vec2ConvConstructor), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassConstructor("Vec2", { { "", "float" }, { "", "float" } }, {}, asFUNCTION(Vec2InitConstructor), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassConstructor("Vec2", { { "in", "int", true, true } }, { { "", "float" }, { "", "float" } }, asFUNCTION(Vec2ListConstructor), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
 
 	// Register the operator overloads
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 &opAddAssign(const Vec2 &in)", asMETHODPR(Vec2, operator+=, (const Vec2&), Vec2&), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 &opSubAssign(const Vec2 &in)", asMETHODPR(Vec2, operator-=, (const Vec2&), Vec2&), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 &opMulAssign(const Vec2 &in)", asMETHODPR(Vec2, operator*=, (const Vec2&), Vec2&), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 &opDivAssign(const Vec2 &in)", asMETHODPR(Vec2, operator/=, (const Vec2&), Vec2&), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "bool opEquals(const Vec2 &in) const", asMETHODPR(Vec2, operator==, (const Vec2&) const, bool), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 opAdd(const Vec2 &in) const", asMETHODPR(Vec2, operator+, (const Vec2&) const, Vec2), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 opSub(const Vec2 &in) const", asMETHODPR(Vec2, operator-, (const Vec2&) const, Vec2), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 opMul(const Vec2 &in) const", asMETHODPR(Vec2, operator*, (const Vec2&) const, Vec2), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 opDiv(const Vec2 &in) const", asMETHODPR(Vec2, operator/, (const Vec2&) const, Vec2), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opAddAssign", "Vec2", false, true }, asMETHODPR(Vec2, operator+=, (const Vec2&), Vec2&), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opSubAssign", "Vec2", false, true }, asMETHODPR(Vec2, operator-=, (const Vec2&), Vec2&), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opMulAssign", "Vec2", false, true }, asMETHODPR(Vec2, operator*=, (const Vec2&), Vec2&), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opDivAssign", "Vec2", false, true }, asMETHODPR(Vec2, operator/=, (const Vec2&), Vec2&), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opEquals", "bool", true, false }, asMETHODPR(Vec2, operator==, (const Vec2&)const, bool), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opAdd", "Vec2", true, false }, asMETHODPR(Vec2, operator+, (const Vec2&) const, Vec2), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opSub", "Vec2", true, false }, asMETHODPR(Vec2, operator-, (const Vec2&) const, Vec2), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opMul", "Vec2", true, false }, asMETHODPR(Vec2, operator*, (const Vec2&) const, Vec2), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassOperatorOverload("Vec2", { "opDiv", "Vec2", true, false }, asMETHODPR(Vec2, operator/, (const Vec2&) const, Vec2), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
 
 	// Register the object methods
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "float Length() const", asMETHOD(Vec2, Length), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "float SquaredLength() const", asMETHOD(Vec2, SquaredLength), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 GetNormalized() const", asMETHOD(Vec2, GetNormalized), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "void Normalize()", asMETHOD(Vec2, Normalize), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassMethod("Vec2", { "Length", "float", true }, {}, asMETHOD(Vec2, Length), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassMethod("Vec2", { "SquaredLength", "float", true }, {}, asMETHOD(Vec2, SquaredLength), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassMethod("Vec2", { "GetNormalized", "float", true }, {}, asMETHOD(Vec2, GetNormalized), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassMethod("Vec2", { "Normalize", "void" }, {}, asMETHOD(Vec2, Normalize), H_FILE_LINE);  H_ASSERT(bResult, "Failed to register Vec2 func");
 
 	// Register the swizzle operators
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 get_yx() const property", asMETHOD(Vec2, YX), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 get_xx() const property", asMETHOD(Vec2, XX), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "Vec2 get_yy() const property", asMETHOD(Vec2, YY), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "float get_x() const property", asMETHOD(Vec2, GetX), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "float get_y() const property", asMETHOD(Vec2, GetY), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "void set_x(float) property", asMETHOD(Vec2, SetX), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
-	r = m_pScriptEngine->RegisterObjectMethod("Vec2", "void set_y(float) property", asMETHOD(Vec2, SetY), asCALL_THISCALL); H_ASSERT(r >= 0, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "yx", "Vec2" }, asMETHOD(Vec2, YX), false, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "xx", "Vec2" }, asMETHOD(Vec2, XX), false, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "yy", "Vec2" }, asMETHOD(Vec2, YY), false, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "x", "float" }, asMETHOD(Vec2, GetX), false, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "y", "float" }, asMETHOD(Vec2, GetY), false, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "x", "float" }, asMETHOD(Vec2, SetX), true, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
+	bResult = m_pTypeRegistry->RegisterClassGetSetter("Vec2", { "y", "float" }, asMETHOD(Vec2, SetY), true, H_FILE_LINE); H_ASSERT(bResult, "Failed to register Vec2 func");
 }
 
 Hail::AngelScript::Vec2::Vec2() : m_vec(0) {}
@@ -468,7 +479,7 @@ Vec2 Hail::AngelScript::Vec2::operator/(const Vec2& other) const
 	return Vec2(vec.x, vec.y);
 }
 
-void Hail::AngelScript::Handler::Init(InputActionMap* pInputActionMap, ThreadSyncronizer* pThreadSyncronizer)
+Hail::AngelScript::Handler::Handler(InputActionMap* pInputActionMap, ThreadSyncronizer* pThreadSyncronizer, bool bEnableDebugger) : m_bEnableDebugger(bEnableDebugger)
 {
 	H_ASSERT(pInputActionMap, "Must set action input map with a valid pointer.");
 	H_ASSERT(pThreadSyncronizer, "Must set thread synchronizer with a valid pointer.");
@@ -477,8 +488,8 @@ void Hail::AngelScript::Handler::Init(InputActionMap* pInputActionMap, ThreadSyn
 
 	m_pScriptEngine = asCreateScriptEngine();
 	H_ASSERT(m_pScriptEngine, "Failed to create angelscript engine.");
-	m_errorHandler.SetScriptEngine(m_pScriptEngine);
-	m_pTypeRegistry = new TypeRegistry(m_pScriptEngine);
+	m_errorHandler.Init(m_pScriptEngine, m_bEnableDebugger);
+	m_pTypeRegistry = new TypeRegistry(m_pScriptEngine, m_bEnableDebugger);
 	RegisterScriptArray(m_pTypeRegistry, true);
 	RegisterStdString(m_pScriptEngine, m_pTypeRegistry);
 	RegisterGlobalMessages();

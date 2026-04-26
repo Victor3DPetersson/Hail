@@ -1,6 +1,7 @@
 #include "Engine_PCH.h"
 #include "Runner.h"
 
+#include "TypeRegistry.h"
 #include "Scriptbuilder.h"
 #include "Debugger.h"
 
@@ -13,7 +14,9 @@ void Hail::AngelScript::Runner::Initialize(asIScriptEngine* pScriptEngine, TypeR
 {
 	m_pScriptEngine = pScriptEngine;
 	m_pTypeRegistry = pTypeRegistry;
-	m_pDebuggerServer = new DebuggerServer();
+	
+	//TODO: Disable on non debug
+	m_pDebuggerServer = new DebuggerServer(pTypeRegistry->GetDebuggerRegistry());
 }
 
 void Hail::AngelScript::Runner::ImportAndBuildScript(const FilePath& filePath, String64 scriptName)

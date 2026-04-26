@@ -20,6 +20,7 @@ namespace Hail
 	namespace AngelScript
 	{
 		class DebuggerServer;
+		class TypeDebuggerRegistry;
 		class TypeRegistry;
 
 		Variable ASTypeToVariable(void* value, uint32 typeId, int expandMembers, asIScriptEngine* engine, TypeRegistry* pTypeRegistry);
@@ -92,7 +93,7 @@ namespace Hail
 		{
 		public:
 
-			DebuggerServer();
+			explicit DebuggerServer(TypeDebuggerRegistry* pTypeDebuggerRegistry);
 			~DebuggerServer();
 
 			void Update(bool bAreScriptsReloading);
@@ -128,9 +129,9 @@ namespace Hail
 			H_Socket m_socketHandle;
 			uint32 m_currentClient;
 			bool m_bIsDebugging;
+			TypeDebuggerRegistry* m_pTypeDebuggerRegistry;
 
-
-			GrowingArray<MessageHeader> m_buildErrorRequests;
+			GrowingArray<MessageHeader> m_returnRequests;
 			GrowingArray<BuildErrorInfo> m_registeredBuildErrors;
 
 		};

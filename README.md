@@ -24,7 +24,8 @@
 - [x] Look over all resources that are using frame in flight and remove uneccessary uses. 
 - [x] Fix include hierarchy so I do not need "../../Engine_ResourceHandling/ResourceCommon.h" in rendering code. 
 - [x] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
-- [] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
+- [x] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
+- [] Angelscript, replace std::string with our own string class, register arrays and string to the type registry.
 - [] Create a pipeline to create sprites render commands from AngelScript.
 - [] Fix broken reloading of GPU resources and then remake hot reloading.
 - [] Shader include gets updated, update all shaders that depends on it, so shader dependency tracking. 
@@ -64,7 +65,7 @@
 - [x] Angelscript, add debugging support in VS code.
 - [x] Angelscript, implement the input handler and debug commands to the scripts.
 - [x] Angelscript, implement the language server protocol for SyntaxHighlighting in VS-Code.
-- [] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
+- [x] Angelscript, send error messages on Angelscript compilation fail and Engine registered resources.
 - [] Angelscript, improve hot reloading and make hotreloading when changing dependency files.
 - [] Fix broken reloading of GPU resources and then remake hot reloading.
 - [x] Context upload once function.

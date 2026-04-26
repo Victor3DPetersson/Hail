@@ -273,11 +273,12 @@ namespace
 }
 
 
-DebuggerServer::DebuggerServer()
+DebuggerServer::DebuggerServer(TypeDebuggerRegistry* pTypeDebuggerRegistry)
 : m_socketHandle(InvalidSocket)
 , m_currentClient(MAX_UINT)
 , m_bIsDebugging(false)
 , m_pActiveScript(nullptr)
+, m_pTypeDebuggerRegistry(pTypeDebuggerRegistry)
 {
     // Initialize socket use
     H_ASSERT(SockInit() == 0, "Failed to initialize the socket.");
@@ -817,16 +818,48 @@ void Hail::AngelScript::DebuggerServer::Update(bool bAreScriptsReloading)
         }
         debuggerMessages.RemoveAll();
     }
-    if (!bAreScriptsReloading && !m_buildErrorRequests.Empty())
+    if (!bAreScriptsReloading && !m_returnRequests.Empty())
     {
-        for (size_t iBuilErrorReq = 0; iBuilErrorReq < m_buildErrorRequests.Size(); iBuilErrorReq++)
+
+        for (size_t iMessageRequest = 0; iMessageRequest < m_returnRequests.Size(); iMessageRequest++)
         {
-            SendDebuggerMessage(CreateBuildErrorMessage(m_buildErrorRequests[iBuilErrorReq], m_registeredBuildErrors));
+            const MessageHeader& message = m_returnRequests[iMessageRequest];
+
+            switch (message.type)
+            {
+            case Hail::AngelScript::eDebuggerMessageType::RequestBuildErrors:
+                SendDebuggerMessage(CreateBuildErrorMessage(message, m_registeredBuildErrors));
+                H_DEBUGMESSAGE("Sending build errors");
+                break;
+            case Hail::AngelScript::eDebuggerMessageType::RequestEngineTypes:
+                SendDebuggerMessage(CreateEngineTypeResponseMessage(message, m_pTypeDebuggerRegistry));
+                H_DEBUGMESSAGE("Sending engine registered types");
+                break;
+            case Hail::AngelScript::eDebuggerMessageType::Disconnect:
+            case Hail::AngelScript::eDebuggerMessageType::StopExecution:
+            case Hail::AngelScript::eDebuggerMessageType::HitBreakpoint:
+            case Hail::AngelScript::eDebuggerMessageType::StartDebugSession:
+            case Hail::AngelScript::eDebuggerMessageType::CreateBreakpoints:
+            case Hail::AngelScript::eDebuggerMessageType::Paused:
+            case Hail::AngelScript::eDebuggerMessageType::Stopped:
+            case Hail::AngelScript::eDebuggerMessageType::Continued:
+            case Hail::AngelScript::eDebuggerMessageType::CallStack:
+            case Hail::AngelScript::eDebuggerMessageType::VariableRequest:
+            case Hail::AngelScript::eDebuggerMessageType::EvaluateRequest:
+            case Hail::AngelScript::eDebuggerMessageType::StepIn:
+            case Hail::AngelScript::eDebuggerMessageType::StepOver:
+            case Hail::AngelScript::eDebuggerMessageType::StepOut:
+            case Hail::AngelScript::eDebuggerMessageType::End:
+            default:
+                H_ASSERT(false);
+                break;
+            }
+
         }
-        m_buildErrorRequests.RemoveAll();
+        m_returnRequests.RemoveAll();
         m_registeredBuildErrors.RemoveAll();
-        H_DEBUGMESSAGE("Sending build errors");
     }
+
 }
 
 void Hail::AngelScript::DebuggerServer::UpdateDuringScriptExecution()
@@ -955,14 +988,20 @@ void Hail::AngelScript::DebuggerServer::RequestBuildErrors(MessageHeader header)
 {
     if (m_pActiveScript)
     {
+        H_ASSERT(header.type == eDebuggerMessageType::RequestBuildErrors);
         H_DEBUGMESSAGE("Requested build error log");
-        m_buildErrorRequests.Add(header);
+        m_returnRequests.Add(header);
     }
 }
 
 void Hail::AngelScript::DebuggerServer::RequestEngineTypes(MessageHeader header)
 {
-
+    if (m_pActiveScript)
+    {
+        H_ASSERT(header.type == eDebuggerMessageType::RequestEngineTypes);
+        H_DEBUGMESSAGE("Requested engine types");
+        m_returnRequests.Add(header);
+    }
 }
 
 void Hail::AngelScript::DebuggerServer::AddBuildError(const BuildErrorInfo& buildError)
@@ -1033,12 +1072,6 @@ void Hail::AngelScript::DebuggerServer::ListenToMessages()
             {
                 m_bIsDebugging = true;
             }
-
-            for (uint32 iBuildErrors = 0; iBuildErrors < m_buildErrorRequests.Size(); iBuildErrors++)
-            {
-
-            }
-
         }
     }
     m_currentClient = MAX_UINT;

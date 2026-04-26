@@ -765,7 +765,7 @@ void RegisterStdString_Native(asIScriptEngine *engine, Hail::AngelScript::TypeRe
 #if AS_CAN_USE_CPP11
 	// With C++11 it is possible to use asGetTypeTraits to automatically determine the correct flags to use
 	//r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asGetTypeTraits<string>()); assert( r >= 0 );
-	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asGetTypeTraits<string>()); assert(r >= 0);
+	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asGetTypeTraits<string>(), H_FILE_LINE); assert(r >= 0);
 #else
 	//r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert( r >= 0 );
 	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert(r >= 0);
@@ -1303,7 +1303,7 @@ void RegisterStdString_Generic(asIScriptEngine *engine, Hail::AngelScript::TypeR
 	// Register the string type
 	//r = engine->RegisterObjectType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert( r >= 0 );
 
-	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK); assert(r >= 0);
+	r = pTypeRegistry->RegisterType("string", sizeof(string), asOBJ_VALUE | asOBJ_APP_CLASS_CDAK, H_FILE_LINE); assert(r >= 0);
 	r = pTypeRegistry->RegisterVariableFunction("string", &GetStringData); assert(r >= 0);
 
 	r = engine->RegisterStringFactory("string", GetStdStringFactorySingleton());
