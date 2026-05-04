@@ -13,10 +13,8 @@ void Hail::StringMemoryAllocator::Initialize()
 	H_ASSERT(!m_pInstance, "Can not create the main instance more than once.");
 	m_pInstance = new StringMemoryAllocator();
 
-	m_pInstance->m_charBlock.m_pBuffer = new char[m_pInstance->m_charBlock.GetMemoryBufferLength()];
-	m_pInstance->m_wCharBlock.m_pBuffer = new wchar_t[m_pInstance->m_wCharBlock.GetMemoryBufferLength()];
-	constexpr uint32 sizeofChar = sizeof(wchar_t);
-
+	m_pInstance->m_charBlock.Init();
+	m_pInstance->m_wCharBlock.Init();
 }
 
 void Hail::StringMemoryAllocator::Deinitialize()
@@ -47,16 +45,6 @@ void Hail::StringMemoryAllocator::AllocateString(const wchar_t* const pString, u
 		memcpy(*pOwningPointer, pString, length * sizeof(wchar_t));
 		(*pOwningPointer)[length] = 0;
 	}
-}
-
-void Hail::StringMemoryAllocator::MoveStringAllocator(char** pFrom, char** pToo)
-{
-	m_charBlock.MoveStringAllocator(pFrom, pToo);
-}
-
-void Hail::StringMemoryAllocator::MoveStringAllocator(wchar_t** pFrom, wchar_t** pToo)
-{
-	m_wCharBlock.MoveStringAllocator(pFrom, pToo);
 }
 
 void Hail::StringMemoryAllocator::DeallocateString(char** pToDeAllocate)

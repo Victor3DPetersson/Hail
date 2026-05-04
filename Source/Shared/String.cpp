@@ -75,7 +75,8 @@ Hail::StringL::StringL(StringL&& moveableString)
 	m_allocatedLength = moveableString.m_allocatedLength;
 	if (moveableString.m_allocatedLength > 15)
 	{
-		StringMemoryAllocator::GetInstance().MoveStringAllocator(&moveableString.m_memory.m_p, &m_memory.m_p);
+		m_memory.m_p = moveableString.m_memory.m_p;
+		moveableString.m_memory.m_p = nullptr;
 	}
 	else
 	{
@@ -281,36 +282,7 @@ StringL& Hail::StringL::operator=(const StringL& anotherString)
 
 StringL& Hail::StringL::operator=(StringL&& moveableString)
 {
-	// Our allocated memory is large enough to hold the other strings data, so just copy it over.
-	if (m_allocatedLength >= moveableString.m_allocatedLength)
-	{
-		if (m_allocatedLength > 15)
-		{
-			if (moveableString.m_length > 15)
-			{
-				StringMemoryAllocator::GetInstance().MoveStringAllocator(&moveableString.m_memory.m_p, &m_memory.m_p);
-				m_memory.m_p[moveableString.m_length] = 0;
-				m_allocatedLength = moveableString.m_allocatedLength;
-			}
-			else
-			{
-				StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
-				m_allocatedLength = 0u;
-				memcpy(m_memory.m_shortString, moveableString.m_memory.m_shortString, moveableString.m_length);
-				m_memory.m_shortString[moveableString.m_length] = 0;
-			}
-		}
-		else
-			strcpy_s(m_memory.m_shortString, moveableString.m_memory.m_shortString);
-
-		m_length = moveableString.Length();
-		moveableString.m_memory.m_p = nullptr;
-		moveableString.m_length = 0;
-		moveableString.m_allocatedLength = 0;
-		return *this;
-	}
-
-	if(m_allocatedLength > 15)
+	if (m_allocatedLength > 15)
 	{
 		m_allocatedLength = 0;
 		StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
@@ -319,7 +291,7 @@ StringL& Hail::StringL::operator=(StringL&& moveableString)
 	m_length = moveableString.Length();
 	if (moveableString.m_allocatedLength > 15)
 	{
-		StringMemoryAllocator::GetInstance().MoveStringAllocator(&moveableString.m_memory.m_p, &m_memory.m_p);
+		m_memory.m_p = moveableString.m_memory.m_p;
 		m_allocatedLength = moveableString.m_allocatedLength;
 	}
 	else
@@ -410,7 +382,7 @@ StringL& Hail::StringL::operator+=(const char* pString)
 		if (bAllocatesNewMemory)
 		{
 			const StringL previousString = std::move(*this);
-			StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length + 32u, &m_memory.m_p);
+			StringMemoryAllocator::GetInstance().AllocateString(nullptr, newLength + 32u, &m_memory.m_p);
 
 			memcpy(m_memory.m_p, previousString.Data(), previousLength);
 			memcpy(m_memory.m_p + (previousLength), pString, newStringLength);
@@ -442,25 +414,32 @@ StringL& Hail::StringL::operator+=(const char* pString)
 StringL& Hail::StringL::operator+=(const char character)
 {
 	const uint32 previousLength = Length();
-	const uint32 newStringLength = 1u;
-	m_length = previousLength + newStringLength;
-	if (m_length > 15)
+	const uint32 newStringLength = previousLength + 1u;
+	if (newStringLength > 15)
 	{
-		const StringL previousString = m_allocatedLength > 15 ? m_memory.m_p : m_memory.m_shortString;
+		char oldShortString[16];
+		memcpy(oldShortString, m_memory.m_shortString, 16u);
+		char* pPreviousString = m_allocatedLength > 15 ? m_memory.m_p : nullptr;
+
 		bool bAllocatedNewMemory = false;
 		if (m_length > m_allocatedLength)
 		{
- 			if (m_allocatedLength > 15)
-				StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
-
 			StringMemoryAllocator::GetInstance().AllocateString(nullptr, m_length + 32u, &m_memory.m_p);
 			m_allocatedLength = m_length + 32u;
 			bAllocatedNewMemory = true;
 		}
 		if (bAllocatedNewMemory)
 		{
-			memcpy(m_memory.m_p, previousString, previousLength);
-			memcpy(m_memory.m_p + (previousLength), &character, newStringLength);
+			if (pPreviousString)
+			{
+				memcpy(m_memory.m_p, pPreviousString, previousLength);
+				StringMemoryAllocator::GetInstance().DeallocateString(&pPreviousString);
+			}
+			else
+			{
+				memcpy(m_memory.m_p, oldShortString, previousLength);
+			}
+			memcpy(m_memory.m_p + (previousLength), &character, 1u);
 		}
 		else
 		{
@@ -479,6 +458,7 @@ StringL& Hail::StringL::operator+=(const char character)
 		m_memory.m_shortString[m_length - 1u] = character;
 		m_memory.m_shortString[m_length] = 0;
 	}
+	m_length = previousLength + newStringLength;
 
 	return *this;
 }
@@ -685,9 +665,10 @@ Hail::StringLW::StringLW(StringLW&& moveableString)
 	m_memory.m_p = nullptr;
 	m_length = moveableString.m_length;
 	m_allocatedLength = moveableString.m_allocatedLength;
-	if (moveableString.Length() > 7)
+	if (moveableString.m_length > 7)
 	{
-		StringMemoryAllocator::GetInstance().MoveStringAllocator(&moveableString.m_memory.m_p, &m_memory.m_p);
+		m_memory.m_p = moveableString.m_memory.m_p;
+		moveableString.m_memory.m_p = nullptr;
 	}
 	else
 	{
@@ -877,34 +858,17 @@ StringLW& Hail::StringLW::operator=(const StringLW& anotherString)
 
 StringLW& Hail::StringLW::operator=(StringLW&& moveableString)
 {
-	if (m_allocatedLength >= moveableString.m_allocatedLength)
-	{
-		if (m_allocatedLength > 7)
-		{
-			memcpy(m_memory.m_p, moveableString.m_memory.m_p, moveableString.m_length * sizeof(wchar_t));
-			m_memory.m_p[moveableString.m_length] = 0;
-			StringMemoryAllocator::GetInstance().DeallocateString(&moveableString.m_memory.m_p);
-		}
-		else
-			wcscpy_s(m_memory.m_shortString, moveableString.m_memory.m_shortString);
-
-		m_length = moveableString.Length();
-		moveableString.m_memory.m_p = nullptr;
-		moveableString.m_length = 0;
-		moveableString.m_allocatedLength = 0;
-		return *this;
-	}
-	
 	if (m_allocatedLength > 7)
 	{
 		m_allocatedLength = 0;
 		StringMemoryAllocator::GetInstance().DeallocateString(&m_memory.m_p);
 	}
+
 	m_length = moveableString.Length();
 
 	if (moveableString.m_allocatedLength > 7)
 	{
-		StringMemoryAllocator::GetInstance().MoveStringAllocator(&moveableString.m_memory.m_p, &m_memory.m_p);
+		m_memory.m_p = moveableString.m_memory.m_p;
 		m_allocatedLength = moveableString.m_allocatedLength;
 	}
 	else
